@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "apps/FoodFund-Microservices/src",
+  "compilerOptions": {
+    "deleteOutDir": true,
+    "webpack": true,
+    "tsConfigPath": "apps/FoodFund-Microservices/tsconfig.app.json"
+  },
+  "monorepo": true,
+  "root": "apps/FoodFund-Microservices",
+  "projects": {
+    "FoodFund-Microservices": {
+      "type": "application",
+      "root": "apps/FoodFund-Microservices",
+      "entryFile": "main",
+      "sourceRoot": "apps/FoodFund-Microservices/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/FoodFund-Microservices/tsconfig.app.json"
+      }
+    },
+    "api-gateway": {
+      "type": "application",
+      "root": "apps/api-gateway",
+      "entryFile": "main",
+      "sourceRoot": "apps/api-gateway/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/api-gateway/tsconfig.app.json"
+      }
+    },
+    "users-subgraph": {
+      "type": "application",
+      "root": "apps/users-subgraph",
+      "entryFile": "main",
+      "sourceRoot": "apps/users-subgraph/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/users-subgraph/tsconfig.app.json"
+      }
+    }
+  }
+}
