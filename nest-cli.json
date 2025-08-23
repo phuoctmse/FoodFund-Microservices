@@ -28,6 +28,15 @@
         "tsConfigPath": "apps/api-gateway/tsconfig.app.json"
       }
     },
+    "graphql-subgraph": {
+      "type": "application",
+      "root": "apps/graphql-subgraph",
+      "entryFile": "main",
+      "sourceRoot": "apps/graphql-subgraph/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/graphql-subgraph/tsconfig.app.json"
+      }
+    },
     "posts-subgraph": {
       "type": "application",
       "root": "apps/posts-subgraph",

@@ -1,14 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
-import { PostsSubgraphModule } from './../src/posts-subgraph.module';
+import { GraphqlSubgraphModule } from '../src/app.module';
 
-describe('PostsSubgraphController (e2e)', () => {
+describe('GraphqlSubgraphController (e2e)', () => {
   let app: INestApplication;
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [PostsSubgraphModule],
+      imports: [GraphqlSubgraphModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
