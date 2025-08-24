@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:17.5-alpine3.22
+    container_name: postgres-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: foodfund_db
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: foodfund
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:

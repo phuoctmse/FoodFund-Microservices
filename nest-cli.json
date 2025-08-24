@@ -1,58 +1,49 @@
 {
   "$schema": "https://json.schemastore.org/nest-cli",
   "collection": "@nestjs/schematics",
-  "sourceRoot": "apps/FoodFund-Microservices/src",
+  "sourceRoot": "apps/graphql-gateway/src",
   "compilerOptions": {
     "deleteOutDir": true,
     "webpack": true,
-    "tsConfigPath": "apps/FoodFund-Microservices/tsconfig.app.json"
+    "tsConfigPath": "apps/graphql-gateway/tsconfig.app.json"
   },
   "monorepo": true,
-  "root": "apps/FoodFund-Microservices",
+  "root": "apps/graphql-gateway",
   "projects": {
-    "FoodFund-Microservices": {
+    "graphql-gateway": {
       "type": "application",
-      "root": "apps/FoodFund-Microservices",
+      "root": "apps/graphql-gateway",
       "entryFile": "main",
-      "sourceRoot": "apps/FoodFund-Microservices/src",
+      "sourceRoot": "apps/graphql-gateway/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/FoodFund-Microservices/tsconfig.app.json"
-      }
-    },
-    "api-gateway": {
-      "type": "application",
-      "root": "apps/api-gateway",
-      "entryFile": "main",
-      "sourceRoot": "apps/api-gateway/src",
-      "compilerOptions": {
-        "tsConfigPath": "apps/api-gateway/tsconfig.app.json"
-      }
-    },
-    "graphql-subgraph": {
-      "type": "application",
-      "root": "apps/graphql-subgraph",
-      "entryFile": "main",
-      "sourceRoot": "apps/graphql-subgraph/src",
-      "compilerOptions": {
-        "tsConfigPath": "apps/graphql-subgraph/tsconfig.app.json"
-      }
-    },
-    "posts-subgraph": {
-      "type": "application",
-      "root": "apps/posts-subgraph",
-      "entryFile": "main",
-      "sourceRoot": "apps/posts-subgraph/src",
-      "compilerOptions": {
-        "tsConfigPath": "apps/posts-subgraph/tsconfig.app.json"
+        "tsConfigPath": "apps/graphql-gateway/tsconfig.app.json"
       }
     },
     "users-subgraph": {
-      "type": "application",
+      "type": "application", 
       "root": "apps/users-subgraph",
       "entryFile": "main",
       "sourceRoot": "apps/users-subgraph/src",
       "compilerOptions": {
         "tsConfigPath": "apps/users-subgraph/tsconfig.app.json"
+      }
+    },
+    "auth": {
+      "type": "application",
+      "root": "apps/auth",
+      "entryFile": "main",
+      "sourceRoot": "apps/auth/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/auth/tsconfig.app.json"
+      }
+    },
+    "databases": {
+      "type": "library",
+      "root": "libs/databases",
+      "entryFile": "index",
+      "sourceRoot": "libs/databases",
+      "compilerOptions": {
+        "tsConfigPath": "libs/databases/tsconfig.lib.json"
       }
     }
   }

@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { UsersSubgraphModule } from './users/users-subgraph.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
-  imports: [UsersSubgraphModule],
+  imports: [AuthModule],
   controllers: [],
   providers: [],
 })

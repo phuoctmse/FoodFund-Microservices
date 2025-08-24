@@ -1,8 +1,12 @@
 import { NestFactory } from '@nestjs/core';
-import { UsersSubgraphModule } from './users/users-subgraph.module';
+import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(UsersSubgraphModule);
-  await app.listen(process.env.port ?? 8001);
+  const app = await NestFactory.create(AppModule);
+  
+  const port = process.env.PORT ?? 8001;
+  await app.listen(port);
+  
+  console.log(`🚀 Users Subgraph is running on: http://localhost:${port}/graphql`);
 }
 bootstrap();
