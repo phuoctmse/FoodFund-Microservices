@@ -6,4 +6,4 @@ import { UsersSubgraphModule } from './users/users-subgraph.module';
   controllers: [],
   providers: [],
 })
-export class AppModule {}
+export class AppModule { }

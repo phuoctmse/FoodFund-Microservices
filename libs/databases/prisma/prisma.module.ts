@@ -1,15 +1,10 @@
-import { DynamicModule, Module } from '@nestjs/common';
+import { DynamicModule, Module, Type } from '@nestjs/common';
 import { ConfigurableModuleClass, OPTIONS_TYPE } from './prisma.module-definition';
 import { DatabaseName } from './prisma.types';
 import { getPrismaConnectionName, getPrismaToken } from './utils';
 import { PrismaConnectionFactory } from './connection.factory';
 import { PrismaClient } from '@prisma/client';
-import {
-  UserRepository,
-  CampaignRepository,
-  DonationRepository,
-  CommentRepository,
-} from './models';
+import { BaseRepository } from './models/repositories/base.repository';
 
 @Module({})
 export class PrismaModule extends ConfigurableModuleClass {
@@ -27,9 +22,6 @@ export class PrismaModule extends ConfigurableModuleClass {
 
         const moduleDefinition: DynamicModule = {
             ...dynamicModule,
-            imports: [
-                this.forFeature(options)
-            ],
             providers: [
                 {
                     provide: connectionName,
@@ -60,47 +52,21 @@ export class PrismaModule extends ConfigurableModuleClass {
         return moduleDefinition;
     }
 
-    private static forFeature(options: typeof OPTIONS_TYPE = {}): DynamicModule {
+    public static forFeature(repositories: Type<BaseRepository>[] = [], options: typeof OPTIONS_TYPE = {}): DynamicModule {
         const connectionName = getPrismaConnectionName(options);
         
+        const providers = repositories.map(repository => ({
+            provide: repository,
+            useFactory: (prismaClient: PrismaClient) => {
+                return new repository(prismaClient);
+            },
+            inject: [connectionName]
+        }));
+
         return {
             module: PrismaModule,
-            providers: [
-                {
-                    provide: UserRepository,
-                    useFactory: (prismaClient: PrismaClient) => {
-                        return new UserRepository(prismaClient);
-                    },
-                    inject: [connectionName]
-                },
-                {
-                    provide: CampaignRepository,
-                    useFactory: (prismaClient: PrismaClient) => {
-                        return new CampaignRepository(prismaClient);
-                    },
-                    inject: [connectionName]
-                },
-                {
-                    provide: DonationRepository,
-                    useFactory: (prismaClient: PrismaClient) => {
-                        return new DonationRepository(prismaClient);
-                    },
-                    inject: [connectionName]
-                },
-                {
-                    provide: CommentRepository,
-                    useFactory: (prismaClient: PrismaClient) => {
-                        return new CommentRepository(prismaClient);
-                    },
-                    inject: [connectionName]
-                }
-            ],
-            exports: [
-                UserRepository,
-                CampaignRepository,
-                DonationRepository,
-                CommentRepository
-            ]
+            providers,
+            exports: repositories
         };
     }
 
