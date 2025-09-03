@@ -1,88 +1,88 @@
-import { ObjectType, Field } from '@nestjs/graphql';
-import { AbstractSchema } from './abstract.schema';
+import { ObjectType, Field } from "@nestjs/graphql"
+import { AbstractSchema } from "./abstract.schema"
 
 @ObjectType({
-  description: 'User authentication schema',
+    description: "User authentication schema",
 })
 export class UserAuthSchema extends AbstractSchema {
   @Field(() => String, {
-    description: 'Reference to User ID in users service',
+      description: "Reference to User ID in users service",
   })
-  userId: string;
+      userId: string
 
   @Field(() => String, {
-    description: 'User email for authentication',
+      description: "User email for authentication",
   })
-  email: string;
+      email: string
 
   @Field(() => String, {
-    nullable: true,
-    description: 'OAuth provider (google, facebook, etc.)',
+      nullable: true,
+      description: "OAuth provider (google, facebook, etc.)",
   })
-  provider?: string;
+      provider?: string
 
   @Field(() => String, {
-    nullable: true,
-    description: 'Provider user ID',
+      nullable: true,
+      description: "Provider user ID",
   })
-  providerId?: string;
+      providerId?: string
 
   @Field(() => Boolean, {
-    description: 'Whether the user is verified',
-    defaultValue: false,
+      description: "Whether the user is verified",
+      defaultValue: false,
   })
-  isVerified: boolean;
+      isVerified: boolean
 
   @Field(() => Date, {
-    nullable: true,
-    description: 'Last login timestamp',
+      nullable: true,
+      description: "Last login timestamp",
   })
-  lastLoginAt?: Date;
+      lastLoginAt?: Date
 }
 
 @ObjectType({
-  description: 'Refresh token schema',
+    description: "Refresh token schema",
 })
 export class RefreshTokenSchema extends AbstractSchema {
   @Field(() => String, {
-    description: 'Refresh token value',
+      description: "Refresh token value",
   })
-  token: string;
+      token: string
 
   @Field(() => String, {
-    description: 'User ID who owns this token',
+      description: "User ID who owns this token",
   })
-  userId: string;
+      userId: string
 
   @Field(() => Date, {
-    description: 'Token expiration date',
+      description: "Token expiration date",
   })
-  expiresAt: Date;
+      expiresAt: Date
 }
 
 @ObjectType({
-  description: 'Verification token schema',
+    description: "Verification token schema",
 })
 export class VerificationTokenSchema extends AbstractSchema {
   @Field(() => String, {
-    description: 'Email address for verification',
+      description: "Email address for verification",
   })
-  email: string;
+      email: string
 
   @Field(() => String, {
-    description: 'Verification token',
+      description: "Verification token",
   })
-  token: string;
+      token: string
 
   @Field(() => String, {
-    description: 'Token type (email_verification, password_reset)',
+      description: "Token type (email_verification, password_reset)",
   })
-  type: string;
+      type: string
 
   @Field(() => Date, {
-    description: 'Token expiration date',
+      description: "Token expiration date",
   })
-  expiresAt: Date;
+      expiresAt: Date
 }
 
 // Input types for Auth operations

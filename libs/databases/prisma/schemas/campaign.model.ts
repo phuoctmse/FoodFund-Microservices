@@ -1,58 +1,58 @@
-import { ObjectType, Field, Float } from '@nestjs/graphql';
-import { AbstractSchema } from './abstract.schema';
-import { Campaign as PrismaCampaign } from '@prisma/client';
+import { ObjectType, Field, Float } from "@nestjs/graphql"
+import { AbstractSchema } from "./abstract.schema"
+import { Campaign as PrismaCampaign } from "@prisma/client"
 
 @ObjectType({
-  description: 'Campaign schema for fundraising campaigns',
+    description: "Campaign schema for fundraising campaigns",
 })
 export class CampaignSchema extends AbstractSchema {
   @Field(() => String, {
-    description: 'Campaign title',
+      description: "Campaign title",
   })
-  title: string;
+      title: string
 
   @Field(() => String, {
-    description: 'Campaign description',
+      description: "Campaign description",
   })
-  description: string;
+      description: string
 
   @Field(() => Float, {
-    description: 'Fundraising goal amount',
+      description: "Fundraising goal amount",
   })
-  goal: number;
+      goal: number
 
   @Field(() => Float, {
-    description: 'Amount raised so far',
-    defaultValue: 0,
+      description: "Amount raised so far",
+      defaultValue: 0,
   })
-  raised: number;
+      raised: number
 
   @Field(() => String, {
-    nullable: true,
-    description: 'Campaign image URL',
+      nullable: true,
+      description: "Campaign image URL",
   })
-  imageUrl?: string;
+      imageUrl?: string
 
   @Field(() => Boolean, {
-    description: 'Whether the campaign is active',
-    defaultValue: true,
+      description: "Whether the campaign is active",
+      defaultValue: true,
   })
-  isActive: boolean;
+      isActive: boolean
 
   @Field(() => Date, {
-    description: 'Campaign start date',
+      description: "Campaign start date",
   })
-  startDate: Date;
+      startDate: Date
 
   @Field(() => Date, {
-    description: 'Campaign end date',
+      description: "Campaign end date",
   })
-  endDate: Date;
+      endDate: Date
 
   @Field(() => String, {
-    description: 'ID of the campaign creator',
+      description: "ID of the campaign creator",
   })
-  creatorId: string;
+      creatorId: string
 }
 
 // Prisma model interface (for type safety with database operations)

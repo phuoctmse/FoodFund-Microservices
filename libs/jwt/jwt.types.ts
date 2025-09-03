@@ -4,7 +4,7 @@ export interface BaseOptions {
   useGlobalImports?: boolean;
 }
 
-import { UserSchema } from '../databases/prisma/schemas';
+import { UserSchema } from "../databases/prisma/schemas"
 
 export type UserLike = Partial<UserSchema> & { id: string; refresh?: boolean };
 
@@ -21,6 +21,6 @@ export interface RefreshToken {
 export type JwtOptions = BaseOptions;
 
 export enum AuthCredentialType {
-  AccessToken = 'accessToken',
-  RefreshToken = 'refreshToken',
+  AccessToken = "accessToken",
+  RefreshToken = "refreshToken",
 }

@@ -1,72 +1,72 @@
 // apps/auth/src/auth/dto/auth.input.ts - Mở rộng
-import { Field, InputType } from '@nestjs/graphql';
+import { Field, InputType } from "@nestjs/graphql"
 
 @InputType()
 export class SignUpInput {
   @Field()
-  email: string;
+      email: string
 
   @Field()
-  password: string;
+      password: string
 
   @Field({ nullable: true })
-  name?: string;
+      name?: string
 
   @Field({ nullable: true })
-  phoneNumber?: string;
+      phoneNumber?: string
 }
 
 @InputType()
 export class ConfirmSignUpInput {
   @Field()
-  email: string;
+      email: string
 
   @Field()
-  confirmationCode: string;
+      confirmationCode: string
 }
 
 @InputType()
 export class SignInInput {
   @Field()
-  email: string;
+      email: string
 
   @Field()
-  password: string;
+      password: string
 }
 
 @InputType()
 export class ForgotPasswordInput {
   @Field()
-  email: string;
+      email: string
 }
 
 @InputType()
 export class ConfirmForgotPasswordInput {
   @Field()
-  email: string;
+      email: string
 
   @Field()
-  confirmationCode: string;
+      confirmationCode: string
 
   @Field()
-  newPassword: string;
+      newPassword: string
 }
 
 @InputType()
 export class ResendCodeInput {
   @Field()
-  email: string;
+      email: string
 }
 
 // Existing inputs...
 @InputType()
 export class VerifyTokenInput {
   @Field()
-  accessToken: string;
+      accessToken: string
 }
 
 @InputType()
 export class GetUserInput {
   @Field()
-  userId: string;
+      userId: string
 }

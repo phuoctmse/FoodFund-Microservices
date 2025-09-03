@@ -1,2 +1,2 @@
-export * from './gateway.module';
-export * from './gateway.types';
+export * from "./gateway.module"
+export * from "./gateway.types"

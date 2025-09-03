@@ -1,1 +1,1 @@
-export * from './cognito-auth.strategy';
+export * from "./cognito-auth.strategy"

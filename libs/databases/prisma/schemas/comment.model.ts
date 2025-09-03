@@ -1,25 +1,25 @@
-import { ObjectType, Field } from '@nestjs/graphql';
-import { AbstractSchema } from './abstract.schema';
-import { Comment as PrismaComment } from '@prisma/client';
+import { ObjectType, Field } from "@nestjs/graphql"
+import { AbstractSchema } from "./abstract.schema"
+import { Comment as PrismaComment } from "@prisma/client"
 
 @ObjectType({
-  description: 'Comment schema for campaign comments',
+    description: "Comment schema for campaign comments",
 })
 export class CommentSchema extends AbstractSchema {
   @Field(() => String, {
-    description: 'Comment content',
+      description: "Comment content",
   })
-  content: string;
+      content: string
 
   @Field(() => String, {
-    description: 'ID of the comment author',
+      description: "ID of the comment author",
   })
-  authorId: string;
+      authorId: string
 
   @Field(() => String, {
-    description: 'ID of the campaign',
+      description: "ID of the campaign",
   })
-  campaignId: string;
+      campaignId: string
 }
 
 // Prisma model interface (for type safety with database operations)

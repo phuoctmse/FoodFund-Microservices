@@ -1,13 +1,13 @@
-import { Field, ObjectType } from '@nestjs/graphql';
+import { Field, ObjectType } from "@nestjs/graphql"
 
 @ObjectType()
 export class HealthResponse {
   @Field()
-  status: string;
+      status: string
 
   @Field()
-  service: string;
+      service: string
 
   @Field()
-  timestamp: string;
+      timestamp: string
 }

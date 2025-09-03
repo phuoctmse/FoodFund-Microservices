@@ -1,19 +1,19 @@
-import { DatabaseName, PrismaFeatureOptions } from './prisma.types';
+import { DatabaseName, PrismaFeatureOptions } from "./prisma.types"
 
 export function getPrismaConnectionName(
-  options: PrismaFeatureOptions = {},
+    options: PrismaFeatureOptions = {},
 ): string {
-  return `prisma_${options.database || DatabaseName.Main}`;
+    return `prisma_${options.database || DatabaseName.Main}`
 }
 
 export function getPrismaToken(options: PrismaFeatureOptions = {}): string {
-  const connectionName = getPrismaConnectionName(options);
-  return `${connectionName}_token`;
+    const connectionName = getPrismaConnectionName(options)
+    return `${connectionName}_token`
 }
 
 export function getPrismaServiceToken(
-  options: PrismaFeatureOptions = {},
+    options: PrismaFeatureOptions = {},
 ): string {
-  const connectionName = getPrismaConnectionName(options);
-  return `${connectionName}_service`;
+    const connectionName = getPrismaConnectionName(options)
+    return `${connectionName}_service`
 }

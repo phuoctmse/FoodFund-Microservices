@@ -1,23 +1,23 @@
-import { Directive, Field, ID, ObjectType } from '@nestjs/graphql';
+import { Directive, Field, ID, ObjectType } from "@nestjs/graphql"
 
 @ObjectType()
-@Directive('@key(fields: "id")')
+@Directive("@key(fields: \"id\")")
 export class AuthUser {
   @Field((type) => ID)
-  id: string;
+      id: string
 
   @Field()
-  email: string;
+      email: string
 
   @Field()
-  username: string;
+      username: string
 
   @Field({ nullable: true })
-  name?: string;
+      name?: string
 
   @Field()
-  provider: string;
+      provider: string
 
   @Field()
-  createdAt: Date;
+      createdAt: Date
 }

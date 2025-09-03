@@ -1,81 +1,81 @@
 // apps/auth/src/auth/models/auth-response.model.ts - Mở rộng
-import { Field, ObjectType } from '@nestjs/graphql';
-import { AuthUser } from './auth-user.model';
+import { Field, ObjectType } from "@nestjs/graphql"
+import { AuthUser } from "./auth-user.model"
 
 @ObjectType()
 export class AuthResponse {
   @Field(() => AuthUser)
-  user: AuthUser;
+      user: AuthUser
 
   @Field()
-  message: string;
+      message: string
 }
 
 @ObjectType()
 export class SignUpResponse {
   @Field()
-  userSub: string;
+      userSub: string
 
   @Field()
-  message: string;
+      message: string
 
   @Field()
-  emailSent: boolean;
+      emailSent: boolean
 }
 
 @ObjectType()
 export class SignInResponse {
   @Field(() => AuthUser)
-  user: AuthUser;
+      user: AuthUser
 
   @Field()
-  accessToken: string;
+      accessToken: string
 
   @Field()
-  refreshToken: string;
+      refreshToken: string
 
   @Field()
-  idToken: string;
+      idToken: string
 
   @Field()
-  expiresIn: number;
+      expiresIn: number
 
   @Field()
-  message: string;
+      message: string
 }
 
 @ObjectType()
 export class ConfirmSignUpResponse {
   @Field()
-  confirmed: boolean;
+      confirmed: boolean
 
   @Field()
-  message: string;
+      message: string
 }
 
 @ObjectType()
 export class ForgotPasswordResponse {
   @Field()
-  emailSent: boolean;
+      emailSent: boolean
 
   @Field()
-  message: string;
+      message: string
 }
 
 @ObjectType()
 export class ResetPasswordResponse {
   @Field()
-  passwordReset: boolean;
+      passwordReset: boolean
 
   @Field()
-  message: string;
+      message: string
 }
 
 @ObjectType()
 export class ResendCodeResponse {
   @Field()
-  emailSent: boolean;
+      emailSent: boolean
 
   @Field()
-  message: string;
+      message: string
 }

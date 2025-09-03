@@ -1,34 +1,18 @@
 // Enums
 export enum NodeEnv {
-  Development = 'development',
-  Production = 'production',
-  Test = 'test',
+  Development = "development",
+  Production = "production",
+  Test = "test",
 }
 
 export enum Container {
-  Auth = 'auth',
-  GraphQLGateway = 'graphql-gateway',
-  UsersSubgraph = 'users-subgraph',
-  CampaignsSubgraph = 'campaigns-subgraph',
-  DonationsSubgraph = 'donations-subgraph',
+  Auth = "auth",
+  GraphQLGateway = "graphql-gateway",
+  UsersSubgraph = "users-subgraph",
+  CampaignsSubgraph = "campaigns-subgraph",
 }
 
-export enum RedisType {
-  Cache = 'cache',
-  Session = 'session',
-  Job = 'job',
-}
-
-export enum Brokers {
-  Kafka = 'kafka',
-}
-
-export enum DatabaseType {
-  PostgreSQL = 'postgresql',
-  MongoDB = 'mongodb',
-}
-
-// Container configuration interfaces
+// Configuration interfaces
 export interface ContainerConfig {
   host: string;
   port?: number;
@@ -36,33 +20,7 @@ export interface ContainerConfig {
 }
 
 export interface DatabaseConfig {
-  host: string;
-  port: number;
-  username?: string;
-  password?: string;
-  databaseName?: string;
-  url?: string;
-}
-
-export interface RedisConfig {
-  host: string;
-  port: number;
-  password?: string;
-  cluster?: {
-    enabled: boolean;
-    runInDocker?: boolean;
-    dockerNetworkName?: string;
-  };
-}
-
-export interface KafkaConfig {
-  host: string;
-  port: number;
-  sasl?: {
-    enabled: boolean;
-    username?: string;
-    password?: string;
-  };
+  url: string;
 }
 
 export interface JwtConfig {
@@ -71,90 +29,41 @@ export interface JwtConfig {
   refreshTokenExpiration: string;
 }
 
-export interface CorsConfig {
-  origins: string[];
-}
-
-export interface CacheConfig {
-  timeoutMs: number;
-}
-
-// AWS Cognito configuration interfaces
 export interface AwsCognitoConfig {
   region: string;
   userPoolId: string;
   clientId: string;
   clientSecret: string;
-  userPoolDomain?: string;
 }
 
 export interface AwsConfig {
   region: string;
   cognito: AwsCognitoConfig;
-  accessKeyId?: string;
-  secretAccessKey?: string;
+  accessKeyId: string;
+  secretAccessKey: string;
 }
 
 // Main environment configuration interface
 export interface EnvironmentConfig {
   nodeEnv: NodeEnv;
 
-  // Cache configurations
-  cache: {
-    [key: string]: CacheConfig;
-  };
-
-  // CORS configurations
-  cors: {
-    [key: string]: CorsConfig;
-  };
-
   // Container configurations
   containers: {
     [key in Container]?: ContainerConfig;
   };
 
-  // Database configurations per service
+  // Database configurations
   databases: {
-    users?: DatabaseConfig;
-    campaigns?: DatabaseConfig;
-    // auth service uses Firebase (no database needed)
-    redis?: {
-      [key in RedisType]?: RedisConfig;
-    };
-  };
-
-  // Message broker configurations
-  brokers: {
-    [key in Brokers]?: KafkaConfig;
+    main: DatabaseConfig;
+    users: DatabaseConfig;
+    campaigns: DatabaseConfig;
   };
 
   // Authentication & Security
   jwt: JwtConfig;
-  session?: {
-    secret: string;
-  };
-  crypto?: {
-    cipher?: {
-      secret: string;
-    };
-    bcrypt?: {
-      salt: string;
-    };
-  };
 
-  // External services (optional for future expansion)
-  s3?: any;
-  firebase?: any;
-  aws?: AwsConfig;
-  googleCloud?: any;
-  backup?: {
-    dir: string;
-  };
-
-  // Development & debugging
-  productionUrl?: string;
-  e2eEnabled?: boolean;
+  // AWS Configuration
+  aws: AwsConfig;
 }
 
 export interface EnvModuleOptions {

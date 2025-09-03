@@ -1,24 +1,24 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
-import { CampaignsSubgraphModule } from './../src/campaigns-subgraph.module';
+import { Test, TestingModule } from "@nestjs/testing"
+import { INestApplication } from "@nestjs/common"
+import * as request from "supertest"
+import { CampaignsSubgraphModule } from "./../src/campaigns-subgraph.module"
 
-describe('CampaignsSubgraphController (e2e)', () => {
-  let app: INestApplication;
+describe("CampaignsSubgraphController (e2e)", () => {
+    let app: INestApplication
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [CampaignsSubgraphModule],
-    }).compile();
+    beforeEach(async () => {
+        const moduleFixture: TestingModule = await Test.createTestingModule({
+            imports: [CampaignsSubgraphModule],
+        }).compile()
 
-    app = moduleFixture.createNestApplication();
-    await app.init();
-  });
+        app = moduleFixture.createNestApplication()
+        await app.init()
+    })
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
-  });
-});
+    it("/ (GET)", () => {
+        return request(app.getHttpServer())
+            .get("/")
+            .expect(200)
+            .expect("Hello World!")
+    })
+})

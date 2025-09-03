@@ -1,49 +1,49 @@
-import { ObjectType, Field } from '@nestjs/graphql';
-import { AbstractSchema } from './abstract.schema';
-import { User as PrismaUser } from '@prisma/client';
+import { ObjectType, Field } from "@nestjs/graphql"
+import { AbstractSchema } from "./abstract.schema"
+import { User as PrismaUser } from "@prisma/client"
 
 @ObjectType({
-  description: 'User schema for FoodFund application',
+    description: "User schema for FoodFund application",
 })
 export class UserSchema extends AbstractSchema {
   @Field(() => String, {
-    description: 'User email address',
+      description: "User email address",
   })
-  email: string;
+      email: string
 
   @Field(() => String, {
-    description: 'Unique username',
+      description: "Unique username",
   })
-  username: string;
+      username: string
 
   @Field(() => String, {
-    description: "User's full name",
+      description: "User's full name",
   })
-  name: string;
+      name: string
 
   @Field(() => String, {
-    nullable: true,
-    description: "User's phone number",
+      nullable: true,
+      description: "User's phone number",
   })
-  phone?: string;
+      phone?: string
 
   @Field(() => String, {
-    nullable: true,
-    description: "User's avatar URL",
+      nullable: true,
+      description: "User's avatar URL",
   })
-  avatar?: string;
+      avatar?: string
 
   @Field(() => String, {
-    nullable: true,
-    description: "User's bio/description",
+      nullable: true,
+      description: "User's bio/description",
   })
-  bio?: string;
+      bio?: string
 
   @Field(() => Boolean, {
-    description: 'Whether the user is active',
-    defaultValue: true,
+      description: "Whether the user is active",
+      defaultValue: true,
   })
-  isActive: boolean;
+      isActive: boolean
 }
 
 // Prisma model interface (for type safety with database operations)

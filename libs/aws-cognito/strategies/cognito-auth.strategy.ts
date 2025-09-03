@@ -1,96 +1,97 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { Strategy } from 'passport-custom';
-import { AwsCognitoService } from '../aws-cognito.service';
-import { CognitoUser, CognitoJwtPayload } from '../aws-cognito.types';
+import { Injectable, UnauthorizedException } from "@nestjs/common"
+import { PassportStrategy } from "@nestjs/passport"
+import { Strategy } from "passport-custom"
+import { Request } from "express"
+import { AwsCognitoService } from "../aws-cognito.service"
+import { CognitoUser } from "../aws-cognito.types"
 
 @Injectable()
 export class CognitoAuthStrategy extends PassportStrategy(
-  Strategy,
-  'cognito-auth',
+    Strategy,
+    "cognito-auth",
 ) {
-  constructor(private readonly cognitoService: AwsCognitoService) {
-    super();
-  }
+    constructor(private readonly cognitoService: AwsCognitoService) {
+        super()
+    }
 
-  async validate(req: any): Promise<CognitoUser> {
-    try {
-      // Extract token from Authorization header
-      const authHeader = req.headers?.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        throw new UnauthorizedException('No valid authorization header found');
-      }
+    async validate(req: Request): Promise<CognitoUser> {
+        try {
+            // Extract token from Authorization header
+            const authHeader = req.headers?.authorization
+            if (!authHeader || !authHeader.startsWith("Bearer ")) {
+                throw new UnauthorizedException("No valid authorization header found")
+            }
 
-      const token = authHeader.substring(7);
+            const token = authHeader.substring(7)
 
-      // Verify token with Cognito
-      const decodedToken = await this.cognitoService.validateToken(token);
+            // Verify token with Cognito
+            const decodedToken = await this.cognitoService.validateToken(token)
 
-      // Get user details from Cognito
-      const cognitoUserResponse = await this.cognitoService.getUser(token);
+            // Get user details from Cognito
+            const cognitoUserResponse = await this.cognitoService.getUser(token)
 
-      // Map Cognito response to our user interface
-      const user: CognitoUser = {
-        sub: decodedToken.sub,
-        email:
+            // Map Cognito response to our user interface
+            const user: CognitoUser = {
+                sub: decodedToken.sub,
+                email:
           (decodedToken as any).email ||
           this.cognitoService.getAttributeValue(
-            cognitoUserResponse.UserAttributes || [],
-            'email',
+              cognitoUserResponse.UserAttributes || [],
+              "email",
           ) ||
-          '',
-        emailVerified: (decodedToken as any).email_verified || false,
-        username:
-          (decodedToken as any)['cognito:username'] ||
+          "",
+                emailVerified: (decodedToken as any).email_verified || false,
+                username:
+          (decodedToken as any)["cognito:username"] ||
           cognitoUserResponse.Username ||
-          '',
-        name:
+          "",
+                name:
           (decodedToken as any).name ||
           this.cognitoService.getAttributeValue(
-            cognitoUserResponse.UserAttributes || [],
-            'name',
+              cognitoUserResponse.UserAttributes || [],
+              "name",
           ),
-        givenName:
+                givenName:
           (decodedToken as any).given_name ||
           this.cognitoService.getAttributeValue(
-            cognitoUserResponse.UserAttributes || [],
-            'given_name',
+              cognitoUserResponse.UserAttributes || [],
+              "given_name",
           ),
-        familyName:
+                familyName:
           (decodedToken as any).family_name ||
           this.cognitoService.getAttributeValue(
-            cognitoUserResponse.UserAttributes || [],
-            'family_name',
+              cognitoUserResponse.UserAttributes || [],
+              "family_name",
           ),
-        picture:
+                picture:
           (decodedToken as any).picture ||
           this.cognitoService.getAttributeValue(
-            cognitoUserResponse.UserAttributes || [],
-            'picture',
+              cognitoUserResponse.UserAttributes || [],
+              "picture",
           ),
-        phoneNumber:
+                phoneNumber:
           (decodedToken as any).phone_number ||
           this.cognitoService.getAttributeValue(
-            cognitoUserResponse.UserAttributes || [],
-            'phone_number',
+              cognitoUserResponse.UserAttributes || [],
+              "phone_number",
           ),
-        phoneNumberVerified:
+                phoneNumberVerified:
           (decodedToken as any).phone_number_verified || false,
-        groups: (decodedToken as any)['cognito:groups'] || [],
-        customAttributes: this.cognitoService.extractCustomAttributes(
-          cognitoUserResponse.UserAttributes || [],
-        ),
-        cognitoUser: cognitoUserResponse,
-        provider: 'cognito',
-        createdAt: undefined, // Not available from GetUserCommand
-        updatedAt: undefined, // Not available from GetUserCommand
-      };
+                groups: (decodedToken as any)["cognito:groups"] || [],
+                customAttributes: this.cognitoService.extractCustomAttributes(
+                    cognitoUserResponse.UserAttributes || [],
+                ),
+                cognitoUser: cognitoUserResponse,
+                provider: "cognito",
+                createdAt: undefined, // Not available from GetUserCommand
+                updatedAt: undefined, // Not available from GetUserCommand
+            }
 
-      return user;
-    } catch (error) {
-      throw new UnauthorizedException(
-        'Invalid Cognito token or user not found',
-      );
+            return user
+        } catch (error) {
+            throw new UnauthorizedException(
+                "Invalid Cognito token or user not found",
+            )
+        }
     }
-  }
 }

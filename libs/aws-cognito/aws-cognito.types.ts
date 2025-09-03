@@ -1,3 +1,9 @@
+import { 
+    GetUserCommandOutput,
+    AdminGetUserCommandOutput,
+    AttributeType
+} from "@aws-sdk/client-cognito-identity-provider"
+
 // Module options interface
 export interface AwsCognitoModuleOptions {
   userPoolId?: string;
@@ -20,8 +26,8 @@ export interface CognitoUser {
   phoneNumber?: string;
   phoneNumberVerified?: boolean;
   groups?: string[];
-  customAttributes?: Record<string, any>;
-  cognitoUser: any; // Raw Cognito user object
+  customAttributes?: Record<string, string>;
+  cognitoUser: GetUserCommandOutput | AdminGetUserCommandOutput; // Raw Cognito user object
   provider: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -37,8 +43,8 @@ export interface CognitoJwtPayload {
   sub: string;
   email_verified: boolean;
   iss: string;
-  'cognito:username': string;
-  'cognito:groups'?: string[];
+  "cognito:username": string;
+  "cognito:groups"?: string[];
   aud: string;
   event_id: string;
   token_use: string;
@@ -53,5 +59,51 @@ export interface CognitoJwtPayload {
   picture?: string;
   phone_number?: string;
   phone_number_verified?: boolean;
-  [key: string]: any; // For custom attributes
+  // For custom attributes - more specific than any
+  [key: `custom:${string}`]: string;
+}
+
+// Use AWS SDK AttributeType directly
+export type CognitoUserAttribute = AttributeType;
+
+export interface AuthenticationResult {
+  AccessToken?: string;
+  RefreshToken?: string;
+  IdToken?: string;
+  ExpiresIn?: number;
+  TokenType?: string;
+}
+
+export interface GuardConstructor {
+  new (...args: unknown[]): unknown;
+}
+
+// Sign up response interface
+export interface SignUpResponse {
+  userSub?: string;
+  codeDeliveryDetails?: {
+    Destination?: string;
+    DeliveryMedium?: string;
+    AttributeName?: string;
+  };
+  userConfirmed?: boolean;
+}
+
+// Confirmation response interface
+export interface ConfirmationResponse {
+  confirmed: boolean;
+}
+
+// Resend code response interface  
+export interface ResendCodeResponse {
+  codeDeliveryDetails?: {
+    Destination?: string;
+    DeliveryMedium?: string;
+    AttributeName?: string;
+  };
+}
+
+// Password reset response interface
+export interface PasswordResetResponse {
+  passwordReset: boolean;
 }

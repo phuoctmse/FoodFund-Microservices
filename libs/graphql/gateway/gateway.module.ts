@@ -1,51 +1,51 @@
-import { IntrospectAndCompose } from '@apollo/gateway';
-import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
-import { ApolloGatewayDriver, ApolloGatewayDriverConfig } from '@nestjs/apollo';
-import { Module } from '@nestjs/common';
-import { GraphQLModule as NestGraphQLModule } from '@nestjs/graphql';
+import { IntrospectAndCompose } from "@apollo/gateway"
+import { ApolloServerPluginLandingPageLocalDefault } from "@apollo/server/plugin/landingPage/default"
+import { ApolloGatewayDriver, ApolloGatewayDriverConfig } from "@nestjs/apollo"
+import { Module } from "@nestjs/common"
+import { GraphQLModule as NestGraphQLModule } from "@nestjs/graphql"
 import {
-  ConfigurableModuleClass,
-  OPTIONS_TYPE,
-} from './gateway.module-definition';
-import { DefaultRemoteGraphQLDataSource } from './default.remote-graphql-data-source';
+    ConfigurableModuleClass,
+    OPTIONS_TYPE,
+} from "./gateway.module-definition"
+import { DefaultRemoteGraphQLDataSource } from "./default.remote-graphql-data-source"
 
 @Module({})
 export class GraphQLGatewayModule extends ConfigurableModuleClass {
-  //gateway
-  public static forRoot(options: typeof OPTIONS_TYPE) {
-    const subgraphs = options.subgraphs ?? [];
+    //gateway
+    public static forRoot(options: typeof OPTIONS_TYPE) {
+        const subgraphs = options.subgraphs ?? []
 
-    const dynamicModule = super.forRoot(options);
-    return {
-      ...dynamicModule,
-      imports: [
-        NestGraphQLModule.forRoot<ApolloGatewayDriverConfig>({
-          driver: ApolloGatewayDriver,
-          server: {
-            plugins: [ApolloServerPluginLandingPageLocalDefault()],
-            context: ({ req, res }) => ({ req, res }),
-            debug: false,
-            playground: false,
-            path: '/graphql',
-            formatError: (error) => {
-              // remove the stack trace
-              delete error.extensions?.stacktrace;
-              return {
-                message: error.message, // Only show the error message
-                extensions: error.extensions,
-              };
-            },
-          },
-          gateway: {
-            buildService: ({ url }) => {
-              return new DefaultRemoteGraphQLDataSource({ url });
-            },
-            supergraphSdl: new IntrospectAndCompose({
-              subgraphs,
-            }),
-          },
-        }),
-      ],
-    };
-  }
+        const dynamicModule = super.forRoot(options)
+        return {
+            ...dynamicModule,
+            imports: [
+                NestGraphQLModule.forRoot<ApolloGatewayDriverConfig>({
+                    driver: ApolloGatewayDriver,
+                    server: {
+                        plugins: [ApolloServerPluginLandingPageLocalDefault()],
+                        context: ({ req, res }) => ({ req, res }),
+                        debug: false,
+                        playground: false,
+                        path: "/graphql",
+                        formatError: (error) => {
+                            // remove the stack trace
+                            delete error.extensions?.stacktrace
+                            return {
+                                message: error.message, // Only show the error message
+                                extensions: error.extensions,
+                            }
+                        },
+                    },
+                    gateway: {
+                        buildService: ({ url }) => {
+                            return new DefaultRemoteGraphQLDataSource({ url })
+                        },
+                        supergraphSdl: new IntrospectAndCompose({
+                            subgraphs,
+                        }),
+                    },
+                }),
+            ],
+        }
+    }
 }
