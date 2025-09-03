@@ -13,7 +13,7 @@ import { AwsCognitoModule } from 'libs/aws-cognito';
     }),
     AwsCognitoModule.forRoot({
       isGlobal: true,
-      mockMode: true, // Enable for development without AWS credentials
+      mockMode: false, // Enable for development without AWS credentials
     }),
   ],
   exports: [AuthSubgraphService],

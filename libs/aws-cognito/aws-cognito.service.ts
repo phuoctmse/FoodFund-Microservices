@@ -42,16 +42,16 @@ export class AwsCognitoService {
     console.log(config);
 
     // Check if mock mode is enabled
-    if (this.options.mockMode) {
-      this.logger.warn(
-        'AWS Cognito Service running in MOCK MODE - for development only!',
-      );
-      // Set dummy values for mock mode
-      this.userPoolId = 'mock-user-pool-id';
-      this.clientId = 'mock-client-id';
-      this.clientSecret = 'mock-client-secret';
-      return;
-    }
+    // if (this.options.mockMode) {
+    //   this.logger.warn(
+    //     'AWS Cognito Service running in MOCK MODE - for development only!',
+    //   );
+    //   // Set dummy values for mock mode
+    //   this.userPoolId = 'mock-user-pool-id';
+    //   this.clientId = 'mock-client-id';
+    //   this.clientSecret = 'mock-client-secret';
+    //   return;
+    // }
 
     if (!config) {
       throw new Error('AWS configuration not found in environment');
@@ -180,91 +180,99 @@ export class AwsCognitoService {
 
   async signIn(email: string, password: string) {
     try {
-      if (this.options.mockMode) {
-        this.logger.warn(`Mock sign in for: ${email}`);
-        return {
-          accessToken: 'mock-access-token',
-          refreshToken: 'mock-refresh-token',
-          idToken: 'mock-id-token',
-          expiresIn: 3600,
-          tokenType: 'Bearer',
-        };
-      }
-      const secretHash = this.calculateSecretHash(email);
-      const authParameters: Record<string, string> = {
-        USERNAME: email,
-        PASSWORD: password,
-      };
-      if (secretHash) {
-        authParameters.SECRET_HASH = secretHash;
-      }
+      this.logger.log(`Attempting sign in for user: ${email}`);
 
-      // Try different auth flows in order of preference
-      const authFlows = [
-        AuthFlowType.ADMIN_NO_SRP_AUTH,
-        AuthFlowType.USER_PASSWORD_AUTH,
-      ];
+      // Prepare authentication parameters
+      const authParameters = this.prepareAuthParameters(email, password);
+      
+      // Attempt authentication with available flows
+      const authResult = await this.attemptAuthentication(authParameters);
+      
+      this.logger.log(`User signed in successfully: ${email}`);
+      
+      return this.formatAuthResponse(authResult);
 
-      for (const authFlow of authFlows) {
-        try {
-          let response;
-
-          if (authFlow === AuthFlowType.ADMIN_NO_SRP_AUTH) {
-            // Use AdminInitiateAuthCommand for admin flows
-            const command = new AdminInitiateAuthCommand({
-              UserPoolId: this.userPoolId,
-              ClientId: this.clientId,
-              AuthFlow: authFlow,
-              AuthParameters: authParameters,
-            });
-            response = await this.cognitoClient.send(command);
-          } else {
-            // Use InitiateAuthCommand for regular flows
-            const command = new InitiateAuthCommand({
-              ClientId: this.clientId,
-              AuthFlow: authFlow,
-              AuthParameters: authParameters,
-            });
-            response = await this.cognitoClient.send(command);
-          }
-
-          this.logger.log(
-            `User signed in successfully with ${authFlow}: ${email}`,
-          );
-
-          return {
-            accessToken: response.AuthenticationResult?.AccessToken,
-            refreshToken: response.AuthenticationResult?.RefreshToken,
-            idToken: response.AuthenticationResult?.IdToken,
-            expiresIn: response.AuthenticationResult?.ExpiresIn,
-            tokenType: response.AuthenticationResult?.TokenType,
-          };
-        } catch (flowError: any) {
-          this.logger.debug(
-            `Auth flow ${authFlow} failed: ${flowError.message}`,
-          );
-
-          // If this is not an auth flow error, rethrow immediately
-          if (
-            !flowError.message?.includes('Auth flow not enabled') &&
-            !flowError.message?.includes('not supported')
-          ) {
-            throw flowError;
-          }
-
-          // Continue to next auth flow
-          continue;
-        }
-      }
-
-      // If all flows failed, throw the generic error
-      throw new Error(
-        'All authentication flows failed. Please check your Cognito User Pool Client configuration.',
-      );
     } catch (error) {
-      this.logger.error(`Sign in failed: ${error.message}`);
-      throw new UnauthorizedException(`Sign in failed: ${error.message}`);
+      this.logger.error(`Sign in failed for ${email}: ${error.message}`);
+      throw new UnauthorizedException(`Authentication failed: ${error.message}`);
     }
+  }
+
+  private prepareAuthParameters(email: string, password: string): Record<string, string> {
+    const authParameters: Record<string, string> = {
+      USERNAME: email,
+      PASSWORD: password,
+    };
+
+    const secretHash = this.calculateSecretHash(email);
+    if (secretHash) {
+      authParameters.SECRET_HASH = secretHash;
+    }
+
+    return authParameters;
+  }
+
+  private async attemptAuthentication(authParameters: Record<string, string>) {
+    const authFlows = [AuthFlowType.ADMIN_NO_SRP_AUTH];
+    
+    for (const authFlow of authFlows) {
+      try {
+        const response = await this.executeAuthFlow(authFlow, authParameters);
+        
+        if (response.AuthenticationResult) {
+          return response.AuthenticationResult;
+        }
+        
+        throw new Error('Authentication result is missing');
+        
+      } catch (flowError: any) {
+        this.logger.debug(`Auth flow ${authFlow} failed: ${flowError.message}`);
+        
+        // If this is not an auth flow configuration error, rethrow immediately
+        if (!this.isAuthFlowConfigError(flowError)) {
+          throw flowError;
+        }
+        
+        // Continue to next auth flow if available
+        continue;
+      }
+    }
+
+    throw new Error('All authentication flows failed. Please check your Cognito User Pool Client configuration.');
+  }
+
+  private async executeAuthFlow(authFlow: AuthFlowType, authParameters: Record<string, string>) {
+    if (authFlow === AuthFlowType.ADMIN_NO_SRP_AUTH) {
+      const command = new AdminInitiateAuthCommand({
+        UserPoolId: this.userPoolId,
+        ClientId: this.clientId,
+        AuthFlow: authFlow,
+        AuthParameters: authParameters,
+      });
+      return await this.cognitoClient.send(command);
+    } else {
+      const command = new InitiateAuthCommand({
+        ClientId: this.clientId,
+        AuthFlow: authFlow,
+        AuthParameters: authParameters,
+      });
+      return await this.cognitoClient.send(command);
+    }
+  }
+
+  private isAuthFlowConfigError(error: any): boolean {
+    return error.message?.includes('Auth flow not enabled') || 
+           error.message?.includes('not supported');
+  }
+
+  private formatAuthResponse(authResult: any) {
+    return {
+      accessToken: authResult.AccessToken,
+      refreshToken: authResult.RefreshToken,
+      idToken: authResult.IdToken,
+      expiresIn: authResult.ExpiresIn,
+      tokenType: authResult.TokenType,
+    };
   }
 
   async resendConfirmationCode(email: string) {
@@ -346,24 +354,24 @@ export class AwsCognitoService {
    */
   async validateToken(token: string) {
     try {
-      if (this.options.mockMode) {
-        this.logger.warn(
-          `Mock token validation for token: ${token.substring(0, 10)}...`,
-        );
-        return {
-          sub: 'mock-user-id',
-          email: 'mock@example.com',
-          email_verified: true,
-          'cognito:username': 'mock-user',
-          aud: this.clientId,
-          event_id: 'mock-event-id',
-          token_use: 'access',
-          auth_time: Math.floor(Date.now() / 1000),
-          exp: Math.floor(Date.now() / 1000) + 3600,
-          iat: Math.floor(Date.now() / 1000),
-          jti: 'mock-jti',
-        };
-      }
+      // if (this.options.mockMode) {
+      //   this.logger.warn(
+      //     `Mock token validation for token: ${token.substring(0, 10)}...`,
+      //   );
+      //   return {
+      //     sub: 'mock-user-id',
+      //     email: 'mock@example.com',
+      //     email_verified: true,
+      //     'cognito:username': 'mock-user',
+      //     aud: this.clientId,
+      //     event_id: 'mock-event-id',
+      //     token_use: 'access',
+      //     auth_time: Math.floor(Date.now() / 1000),
+      //     exp: Math.floor(Date.now() / 1000) + 3600,
+      //     iat: Math.floor(Date.now() / 1000),
+      //     jti: 'mock-jti',
+      //   };
+      // }
       const payload = await this.jwtVerifier.verify(token);
       this.logger.debug(`Token validated for user: ${payload.sub}`);
       return payload;
@@ -378,22 +386,22 @@ export class AwsCognitoService {
    */
   async getUser(accessToken: string) {
     try {
-      if (this.options.mockMode) {
-        this.logger.warn(
-          `Mock get user for token: ${accessToken.substring(0, 10)}...`,
-        );
-        return {
-          Username: 'mock-user',
-          UserAttributes: [
-            { Name: 'sub', Value: 'mock-user-id' },
-            { Name: 'email', Value: 'mock@example.com' },
-            { Name: 'email_verified', Value: 'true' },
-            { Name: 'name', Value: 'Mock User' },
-            { Name: 'given_name', Value: 'Mock' },
-            { Name: 'family_name', Value: 'User' },
-          ],
-        };
-      }
+      // if (this.options.mockMode) {
+      //   this.logger.warn(
+      //     `Mock get user for token: ${accessToken.substring(0, 10)}...`,
+      //   );
+      //   return {
+      //     Username: 'mock-user',
+      //     UserAttributes: [
+      //       { Name: 'sub', Value: 'mock-user-id' },
+      //       { Name: 'email', Value: 'mock@example.com' },
+      //       { Name: 'email_verified', Value: 'true' },
+      //       { Name: 'name', Value: 'Mock User' },
+      //       { Name: 'given_name', Value: 'Mock' },
+      //       { Name: 'family_name', Value: 'User' },
+      //     ],
+      //   };
+      // }
       const command = new GetUserCommand({
         AccessToken: accessToken,
       });
