@@ -59,4 +59,22 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 /generated/prisma
 
 docker-volumes
-docker-compose.yaml
+
+# Helm artifacts  
+Chart.lock
+charts/
+*.tgz
+
+# Kubernetes configs (SENSITIVE)
+*kubeconfig*
+*.kubeconfig
+kubeconfig
+kubeconfig.yaml
+kubeconfig.yml
+.kube/
+
+# Jenkins artifacts
+jenkins-cli.jar
+*.hpi
+*.jpi
+

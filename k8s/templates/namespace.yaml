@@ -1,0 +1,11 @@
+{{- if .Values.namespace.create }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "foodfund.namespace" . }}
+  labels:
+    name: {{ include "foodfund.namespace" . }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    helm.sh/chart: {{ include "foodfund.chart" . }}
+{{- end }}

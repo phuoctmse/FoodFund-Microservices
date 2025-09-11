@@ -1,0 +1,196 @@
+# Default values for FoodFund microservices
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+global:
+  # Global Docker registry
+  imageRegistry: ""
+  # Global Docker image pull policy
+  imagePullPolicy: IfNotPresent
+  # Global namespace override
+  namespace: "default"
+
+# Auth Service Configuration
+auth:
+  enabled: true
+  image:
+    registry: ""  # Will use global if empty
+    repository: "foodfund-auth"
+    tag: "latest"
+    pullPolicy: ""  # Will use global if empty
+
+  replicaCount: 2
+
+  service:
+    type: ClusterIP
+    port: 8002
+    targetPort: 8002
+    annotations: {}
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+  env:
+    - name: NODE_ENV
+      value: "production"
+    - name: PORT
+      value: "8002"
+
+  # Health check configuration
+  healthCheck:
+    enabled: true
+    path: "/health"
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+# GraphQL Gateway Configuration
+gateway:
+  enabled: true
+  image:
+    registry: ""  # Will use global if empty
+    repository: "foodfund-gateway"
+    tag: "latest"
+    pullPolicy: ""  # Will use global if empty
+
+  replicaCount: 2
+
+  service:
+    type: LoadBalancer
+    port: 8000
+    targetPort: 8000
+    loadBalancerIP: ""
+    annotations: {}
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+  env:
+    - name: NODE_ENV
+      value: "production"
+    - name: PORT
+      value: "8000"
+
+  # Health check configuration
+  healthCheck:
+    enabled: true
+    path: "/health"
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+# PostgreSQL Configuration
+postgresql:
+  enabled: true
+  # Bitnami PostgreSQL chart configuration
+  auth:
+    postgresPassword: "foodfund"
+    username: "root"
+    password: "foodfund"
+    database: "foodfund"
+
+  architecture: standalone
+
+  primary:
+    persistence:
+      enabled: true
+      size: 8Gi
+      storageClass: ""
+
+    initdb:
+      scripts:
+        init.sql: |
+          CREATE DATABASE users_db;
+          CREATE DATABASE campaigns_db;
+          GRANT ALL PRIVILEGES ON DATABASE users_db TO root;
+          GRANT ALL PRIVILEGES ON DATABASE campaigns_db TO root;
+
+  metrics:
+    enabled: false
+
+# Jenkins Configuration (Optional)
+jenkins:
+  enabled: false
+  image:
+    repository: "jenkins/jenkins"
+    tag: "lts"
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+
+  persistence:
+    enabled: true
+    size: 8Gi
+    storageClass: ""
+
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+
+# Namespace Configuration
+namespace:
+  create: true
+  name: "foodfund-production"
+
+# Ingress Configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: foodfund.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Service Account Configuration
+serviceAccount:
+  create: true
+  annotations: {}
+  name: "foodfund-sa"
+
+# Pod Security Context
+podSecurityContext: {}
+  # fsGroup: 2000
+
+# Security Context
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+# Network Policies
+networkPolicy:
+  enabled: false
+  allowExternal: true

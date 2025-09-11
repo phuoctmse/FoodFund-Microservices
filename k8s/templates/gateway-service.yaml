@@ -1,0 +1,28 @@
+{{- if .Values.gateway.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "foodfund.fullname" . }}-gateway-service
+  namespace: {{ include "foodfund.namespace" . }}
+  labels:
+    {{- include "foodfund.gateway.labels" . | nindent 4 }}
+  {{- with .Values.gateway.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.gateway.service.type }}
+  {{- if and (eq .Values.gateway.service.type "LoadBalancer") .Values.gateway.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.gateway.service.loadBalancerIP }}
+  {{- end }}
+  ports:
+    - name: http
+      port: {{ .Values.gateway.service.port }}
+      targetPort: {{ .Values.gateway.service.targetPort }}
+      protocol: TCP
+      {{- if and (eq .Values.gateway.service.type "NodePort") .Values.gateway.service.nodePort }}
+      nodePort: {{ .Values.gateway.service.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "foodfund.gateway.selectorLabels" . | nindent 4 }}
+{{- end }}

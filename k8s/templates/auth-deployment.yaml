@@ -1,0 +1,84 @@
+{{- if .Values.auth.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "foodfund.fullname" . }}-auth
+  namespace: {{ include "foodfund.namespace" . }}
+  labels:
+    {{- include "foodfund.auth.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.auth.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "foodfund.auth.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "foodfund.auth.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.auth.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.auth.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.auth.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "foodfund.serviceAccountName" . }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: auth-service
+          image: {{ include "foodfund.image" (dict "image" .Values.auth.image "Chart" .Chart "Values" .Values) }}
+          imagePullPolicy: {{ include "foodfund.imagePullPolicy" (dict "image" .Values.auth.image "Values" .Values) }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.auth.service.targetPort }}
+              protocol: TCP
+          env:
+            {{- range .Values.auth.env }}
+            - name: {{ .name }}
+              value: {{ .value | quote }}
+            {{- end }}
+            {{- if .Values.postgresql.enabled }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "foodfund.postgresql.secretName" . }}
+                  key: uri
+            {{- end }}
+          {{- if .Values.auth.healthCheck.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.auth.healthCheck.path }}
+              port: {{ .Values.auth.service.targetPort }}
+            initialDelaySeconds: {{ .Values.auth.healthCheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.auth.healthCheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.auth.healthCheck.timeoutSeconds }}
+            failureThreshold: {{ .Values.auth.healthCheck.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.auth.healthCheck.path }}
+              port: {{ .Values.auth.service.targetPort }}
+            initialDelaySeconds: {{ .Values.auth.healthCheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.auth.healthCheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.auth.healthCheck.timeoutSeconds }}
+            failureThreshold: {{ .Values.auth.healthCheck.failureThreshold }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.auth.resources | nindent 12 }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      restartPolicy: Always
+      imagePullPolicy: {{ include "foodfund.imagePullPolicy" (dict "image" .Values.auth.image "Values" .Values) }}
+{{- end }}

@@ -1,0 +1,100 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@1546.v62a_c59c112dd">
+  <actions>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobAction plugin="pipeline-model-definition@2.2265.v140e610fe9d5"/>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction plugin="pipeline-model-definition@2.2265.v140e610fe9d5">
+      <jobProperties/>
+      <triggers/>
+      <parameters>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>SERVICE</name>
+          <description>Select the service to build and deploy</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>gateway</string>
+              <string>auth</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>ENVIRONMENT</name>
+          <description>Target environment for deployment</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>staging</string>
+              <string>production</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>SKIP_TESTS</name>
+          <description>Skip running tests (not recommended for production)</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>FORCE_DEPLOY</name>
+          <description>Force deployment even if tests fail</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+      </parameters>
+      <options/>
+    </org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction>
+  </actions>
+  <description>FoodFund GraphQL Gateway - Helm-based CI/CD Pipeline for API Gateway Microservice
+
+This modern pipeline leverages Helm Charts for advanced deployment strategies:
+- Code checkout from Git
+- Dependency installation
+- Code linting and formatting checks
+- Unit testing
+- Docker image building and pushing
+- Helm chart validation and templating
+- Helm-based Kubernetes deployment with rollback capabilities
+- Slack notifications with Helm deployment details
+
+New Helm Features:
+- Helm template validation
+- Multi-environment support with values files
+- Automatic rollback on deployment failure
+- Dry-run deployments for testing
+- Version-controlled deployments
+- LoadBalancer configuration for external access
+- Ingress support for custom domains
+
+The GraphQL Gateway serves as the single entry point for all client requests,
+routing them to appropriate microservices using Apollo Federation.
+
+Parameters:
+- SERVICE: Choose which service to deploy
+- ENVIRONMENT: Target environment (staging/production)
+- HELM_ACTION: Choose deployment action (upgrade/install/rollback)
+- ROLLBACK_REVISION: Specify revision for rollback
+- SKIP_TESTS: Skip test execution
+- DRY_RUN: Perform template validation only
+- UPDATE_DEPENDENCIES: Update Helm dependencies</description>
+  <keepDependencies>false</keepDependencies>
+  <properties/>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition" plugin="workflow-cps@4183.v94b_6fd39da_c1">
+    <scm class="hudson.plugins.git.GitSCM" plugin="git@5.2.2">
+      <configVersion>2</configVersion>
+      <userRemoteConfigs>
+        <hudson.plugins.git.UserRemoteConfig>
+          <url>https://github.com/phuoctmse/FoodFund-Microservices.git</url>
+          <credentialsId>github</credentialsId>
+        </hudson.plugins.git.UserRemoteConfig>
+      </userRemoteConfigs>
+      <branches>
+        <hudson.plugins.git.BranchSpec>
+          <name>*/demo-learn-test</name>
+        </hudson.plugins.git.BranchSpec>
+      </branches>
+      <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+      <submoduleCfg class="empty-list"/>
+      <extensions/>
+    </scm>
+    <scriptPath>Jenkinsfile</scriptPath>
+    <lightweight>true</lightweight>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>
