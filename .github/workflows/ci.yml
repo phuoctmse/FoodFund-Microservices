@@ -72,3 +72,30 @@ jobs:
           file: ./apps/graphql-gateway/Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway:${{ env.BRANCH_NAME }}
+
+  deploy-to-k8s:
+    needs: build-and-push-docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Kubeconfig
+        run: |
+          echo "${{ secrets.KUBE_CONFIG_DATA }}" > kubeconfig
+        env:
+          KUBE_CONFIG_DATA: ${{ secrets.KUBE_CONFIG_DATA }}
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+
+      - name: Deploy Helm chart
+        run: |
+          helm upgrade --install foodfund ./k8s --kubeconfig kubeconfig --namespace foodfund --create-namespace        

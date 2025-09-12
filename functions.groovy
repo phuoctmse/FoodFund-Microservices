@@ -1,7 +1,6 @@
 #!/usr/bin/env groovy
 
 /**
- * FoodFund Microservices - Jenkins Pipeline Functions
  * Utility functions for CI/CD pipeline operations
  */
 

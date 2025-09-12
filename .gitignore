@@ -73,8 +73,6 @@ kubeconfig.yaml
 kubeconfig.yml
 .kube/
 
-# Jenkins artifacts
-jenkins-cli.jar
 *.hpi
 *.jpi
 

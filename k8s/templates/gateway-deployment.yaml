@@ -31,14 +31,16 @@ spec:
       {{- if .Values.serviceAccount.create }}
       serviceAccountName: {{ include "foodfund.serviceAccountName" . }}
       {{- end }}
+      imagePullSecrets:
+        - name: dockerconfigjson-github-com
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
         - name: gateway-service
-          image: {{ include "foodfund.image" (dict "image" .Values.gateway.image "Chart" .Chart "Values" .Values) }}
-          imagePullPolicy: {{ include "foodfund.imagePullPolicy" (dict "image" .Values.gateway.image "Values" .Values) }}
+          image: "{{ .Values.global.imageRegistry }}/{{ .Values.gateway.image.repository }}:{{ .Values.gateway.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           ports:
             - name: http
               containerPort: {{ .Values.gateway.service.targetPort }}
@@ -80,5 +82,4 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
       restartPolicy: Always
-      imagePullPolicy: {{ include "foodfund.imagePullPolicy" (dict "image" .Values.gateway.image "Values" .Values) }}
 {{- end }}

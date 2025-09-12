@@ -4,36 +4,35 @@
 
 global:
   # Global Docker registry
-  imageRegistry: ""
+  imageRegistry: "phuoctmse" # <-- THAY BẰNG USERNAME DOCKER HUB CỦA BẠN
   # Global Docker image pull policy
   imagePullPolicy: IfNotPresent
   # Global namespace override
-  namespace: "default"
+  namespace: "foodfund"
 
 # Auth Service Configuration
 auth:
   enabled: true
   image:
-    registry: ""  # Will use global if empty
+    # registry: ""  # Will use global if empty
     repository: "foodfund-auth"
-    tag: "latest"
-    pullPolicy: ""  # Will use global if empty
+    tag: "latest" # Sẽ được ghi đè bởi pipeline
+    # pullPolicy: ""  # Will use global if empty
 
-  replicaCount: 2
+  replicaCount: 1
 
   service:
     type: ClusterIP
     port: 8002
-    targetPort: 8002
-    annotations: {}
+    targetPort: 3000 # Cổng của ứng dụng NestJS
 
   resources:
     requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
       memory: "256Mi"
       cpu: "250m"
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
 
   nodeSelector: {}
   tolerations: []
@@ -43,14 +42,14 @@ auth:
     - name: NODE_ENV
       value: "production"
     - name: PORT
-      value: "8002"
+      value: "3000"
 
   # Health check configuration
   healthCheck:
     enabled: true
-    path: "/health"
-    initialDelaySeconds: 30
-    periodSeconds: 10
+    path: "/api/health" # Đường dẫn health check của bạn
+    initialDelaySeconds: 20
+    periodSeconds: 15
     timeoutSeconds: 5
     failureThreshold: 3
 
@@ -58,27 +57,27 @@ auth:
 gateway:
   enabled: true
   image:
-    registry: ""  # Will use global if empty
-    repository: "foodfund-gateway"
-    tag: "latest"
-    pullPolicy: ""  # Will use global if empty
+    # registry: ""  # Will use global if empty
+    repository: "foodfund-graphql-gateway"
+    tag: "latest" # Sẽ được ghi đè bởi pipeline
+    # pullPolicy: ""  # Will use global if empty
 
-  replicaCount: 2
+  replicaCount: 1
 
   service:
     type: LoadBalancer
-    port: 8000
-    targetPort: 8000
+    port: 80
+    targetPort: 3000 # Cổng của ứng dụng NestJS
     loadBalancerIP: ""
     annotations: {}
 
   resources:
     requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
       memory: "256Mi"
       cpu: "250m"
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
 
   nodeSelector: {}
   tolerations: []
@@ -88,14 +87,14 @@ gateway:
     - name: NODE_ENV
       value: "production"
     - name: PORT
-      value: "8000"
+      value: "3000"
 
   # Health check configuration
   healthCheck:
     enabled: true
-    path: "/health"
-    initialDelaySeconds: 30
-    periodSeconds: 10
+    path: "/api/health" # Đường dẫn health check của bạn
+    initialDelaySeconds: 20
+    periodSeconds: 15
     timeoutSeconds: 5
     failureThreshold: 3
 
