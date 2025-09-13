@@ -49,17 +49,8 @@ export class UserProfileSchema extends AbstractSchema {
     })
         bio?: string
 
-    @Field(() => DonorProfileSchema, { nullable: true })
-        donorProfile?: DonorProfileSchema
-
-    @Field(() => KitchenStaffProfileSchema, { nullable: true })
-        kitchenStaffProfile?: KitchenStaffProfileSchema
-
-    @Field(() => FundraiserProfileSchema, { nullable: true })
-        fundraiserProfile?: FundraiserProfileSchema
-
-    @Field(() => DeliveryStaffProfileSchema, { nullable: true })
-        deliveryStaffProfile?: DeliveryStaffProfileSchema
+    // Remove profile relationships to avoid circular dependency
+    // Profiles will be resolved separately in resolvers
 }
 
 // Donor Profile Schema
@@ -80,8 +71,8 @@ export class DonorProfileSchema extends AbstractSchema {
     })
         totalDonated: string
 
-    @Field(() => UserProfileSchema)
-        user: UserProfileSchema
+    // Remove user relationship to avoid circular dependency
+    // User will be resolved separately in resolvers
 }
 
 // Kitchen Staff Profile Schema
@@ -96,9 +87,6 @@ export class KitchenStaffProfileSchema extends AbstractSchema {
         description: "Total batches prepared"
     })
         totalBatchPrepared: number
-
-    @Field(() => UserProfileSchema)
-        user: UserProfileSchema
 }
 
 // Fundraiser Profile Schema
@@ -129,9 +117,6 @@ export class FundraiserProfileSchema extends AbstractSchema {
         description: "Total campaigns created"
     })
         totalCampaignCreated: number
-
-    @Field(() => UserProfileSchema)
-        user: UserProfileSchema
 }
 
 // Delivery Staff Profile Schema
@@ -151,7 +136,4 @@ export class DeliveryStaffProfileSchema extends AbstractSchema {
         description: "Total deliveries completed"
     })
         totalDeliveries: number
-
-    @Field(() => UserProfileSchema)
-        user: UserProfileSchema
 }

@@ -1,7 +1,6 @@
-import { Injectable, Inject } from "@nestjs/common"
+import { Injectable } from "@nestjs/common"
 import { PrismaClient } from "@prisma/client"
 import { Role } from "libs/databases/prisma/schemas"
-import { getPrismaConnectionName } from "libs/databases/prisma"
 import { 
     CreateUserInput, 
     UpdateUserInput,
@@ -31,10 +30,7 @@ export type {
 
 @Injectable()
 export class UserRepository {
-    constructor(
-        @Inject(getPrismaConnectionName())
-        private readonly prisma: PrismaClient
-    ) {}
+    constructor(private readonly prisma: PrismaClient) {}
 
     // User CRUD operations
     async createUser(data: CreateUserInput) {

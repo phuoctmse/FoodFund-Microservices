@@ -55,9 +55,9 @@ export const envConfig = (): EnvironmentConfig => ({
 
     // Database configurations
     databases: {
-        main: {
-            url: process.env.DATABASE_URL as string,
-        },
+        // main: {
+        //     url: process.env.DATABASE_URL as string,
+        // },
         users: {
             url: process.env.USERS_DATABASE_URL as string,
         },

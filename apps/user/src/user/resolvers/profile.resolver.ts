@@ -1,18 +1,18 @@
 import { Resolver, Mutation, Args, ID } from "@nestjs/graphql"
 import { ValidationPipe } from "@nestjs/common"
 import { UserService } from "../user.service"
-import { 
-    DonorProfileSchema, 
-    KitchenStaffProfileSchema, 
-    FundraiserProfileSchema, 
-    DeliveryStaffProfileSchema 
+import {
+    DonorProfileSchema,
+    KitchenStaffProfileSchema,
+    FundraiserProfileSchema,
+    DeliveryStaffProfileSchema
 } from "libs/databases/prisma/schemas"
-import { 
-    UpdateDonorProfileInput, 
-    UpdateKitchenStaffProfileInput, 
-    UpdateFundraiserProfileInput, 
-    UpdateDeliveryStaffProfileInput 
-} from "../user.repository"
+import {
+    UpdateDonorProfileInput,
+    UpdateKitchenStaffProfileInput,
+    UpdateFundraiserProfileInput,
+    UpdateDeliveryStaffProfileInput
+} from "../dto/profile.input"
 
 @Resolver(() => DonorProfileSchema)
 export class DonorProfileResolver {

@@ -76,3 +76,5 @@ kubeconfig.yml
 *.hpi
 *.jpi
 
+
+/generated/prisma

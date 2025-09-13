@@ -1,85 +1,48 @@
-import { DynamicModule, Module, Type } from "@nestjs/common"
-import {
-    ConfigurableModuleClass,
-    OPTIONS_TYPE,
-} from "./prisma.module-definition"
-import { DatabaseName } from "./prisma.types"
-import { getPrismaConnectionName, getPrismaToken } from "./utils"
-import { PrismaConnectionFactory } from "./connection.factory"
+import { DynamicModule, Module, Global } from "@nestjs/common"
 import { PrismaClient } from "@prisma/client"
 
+export interface PrismaModuleOptions {
+    datasourceUrl?: string
+    isGlobal?: boolean
+    enableLogging?: boolean
+    logLevel?: ("query" | "info" | "warn" | "error")[]
+}
+
+@Global()
 @Module({})
-export class PrismaModule extends ConfigurableModuleClass {
-    public static forRoot(options: typeof OPTIONS_TYPE = {}): DynamicModule {
-        const dynamicModule = super.forRoot(options)
-
-        options.database = options.database || DatabaseName.Main
-        const connectionName = getPrismaConnectionName(options)
-
+export class PrismaModule {
+    static forRoot(options: PrismaModuleOptions = {}): DynamicModule {
         const {
+            datasourceUrl,
             isGlobal = true,
             enableLogging = true,
             logLevel = ["query", "info", "warn", "error"],
         } = options
 
-        const moduleDefinition: DynamicModule = {
-            ...dynamicModule,
-            providers: [
-                {
-                    provide: connectionName,
-                    useFactory: async () => {
-                        return await PrismaConnectionFactory.createConnection(options)
-                    },
-                },
-                {
-                    provide: "PRISMA_OPTIONS",
-                    useValue: {
-                        enableLogging,
-                        logLevel,
-                        database: options.database,
-                        clientOptions: options.clientOptions,
-                    },
-                },
-            ],
-            exports: [connectionName, "PRISMA_OPTIONS"],
-        }
+        const prismaProvider = {
+            provide: PrismaClient,
+            useFactory: async (): Promise<PrismaClient> => {
+                const prisma = new PrismaClient({
+                    datasourceUrl,
+                    log: enableLogging ? logLevel : [],
+                })
 
-        if (isGlobal) {
-            return {
-                ...moduleDefinition,
-                global: true,
-            }
-        }
+                await prisma.$connect()
+                console.log("🚀 Prisma connected to database")
 
-        return moduleDefinition
-    }
-
-    public static forFeature(
-        repositories: Type<any>[] = [],
-        options: typeof OPTIONS_TYPE = {},
-    ): DynamicModule {
-        const connectionName = getPrismaConnectionName(options)
-
-        const providers = repositories.map((repository) => ({
-            provide: repository,
-            useFactory: (prismaClient: PrismaClient) => {
-                return new repository(prismaClient)
+                return prisma
             },
-            inject: [connectionName],
-        }))
+        }
 
         return {
             module: PrismaModule,
-            providers,
-            exports: repositories,
+            global: isGlobal,
+            providers: [prismaProvider],
+            exports: [PrismaClient],
         }
     }
 
-    public static forFeatureAsync(repositoryFactories: any[]): DynamicModule {
-        return {
-            module: PrismaModule,
-            providers: repositoryFactories,
-            exports: repositoryFactories.map((factory) => factory.provide),
-        }
+    static async onApplicationShutdown(): Promise<void> {
+        // This will be handled by NestJS lifecycle if needed
     }
 }

@@ -54,7 +54,7 @@ export interface EnvironmentConfig {
 
   // Database configurations
   databases: {
-    main: DatabaseConfig;
+    // main: DatabaseConfig;
     users: DatabaseConfig;
     campaigns: DatabaseConfig;
   };

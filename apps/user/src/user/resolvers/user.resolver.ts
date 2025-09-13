@@ -1,7 +1,7 @@
 import { Resolver, Query, Mutation, Args, ID, ResolveReference } from "@nestjs/graphql"
 import { ValidationPipe } from "@nestjs/common"
 import { UserService } from "../user.service"
-import { CreateUserInput, UpdateUserInput } from "../user.repository"
+import { CreateUserInput, UpdateUserInput } from "../dto/user.input"
 import { UserProfileSchema, Role } from "libs/databases/prisma/schemas"
 
 @Resolver(() => UserProfileSchema)
