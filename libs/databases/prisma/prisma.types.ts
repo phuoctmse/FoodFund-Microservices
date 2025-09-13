@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client"
 
 export enum DatabaseName {
   Main = "main",
+  Users = "users",
   Analytics = "analytics",
   Logging = "logging",
 }

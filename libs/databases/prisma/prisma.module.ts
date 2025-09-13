@@ -7,7 +7,6 @@ import { DatabaseName } from "./prisma.types"
 import { getPrismaConnectionName, getPrismaToken } from "./utils"
 import { PrismaConnectionFactory } from "./connection.factory"
 import { PrismaClient } from "@prisma/client"
-import { BaseRepository } from "./schemas/repositories/base.repository"
 
 @Module({})
 export class PrismaModule extends ConfigurableModuleClass {
@@ -56,7 +55,7 @@ export class PrismaModule extends ConfigurableModuleClass {
     }
 
     public static forFeature(
-        repositories: Type<BaseRepository>[] = [],
+        repositories: Type<any>[] = [],
         options: typeof OPTIONS_TYPE = {},
     ): DynamicModule {
         const connectionName = getPrismaConnectionName(options)

@@ -13,6 +13,7 @@ services:
       - .env.docker
     depends_on:
       - auth-service
+      - user-service
     networks:
       - foodfund-network
 
@@ -26,48 +27,20 @@ services:
       - .env.docker  
     networks:
       - foodfund-network
-  # ================================
-  # Databases
-  # ================================
-  users-db:
-    image: postgres:17.5-alpine
-    environment:
-      POSTGRES_DB: users_db
-      POSTGRES_USER: root
-      POSTGRES_PASSWORD: foodfund
+
+  user-service:
+    build:
+      context: .
+      dockerfile: apps/user/Dockerfile
     ports:
-      - "5433:5432"
-    volumes:
-      - users_pgdata:/var/lib/postgresql/data
+      - "8003:8003"
+    env_file:
+      - .env.docker
+    depends_on:
+      - users-db
     networks:
       - foodfund-network
-
-  campaigns-db:
-    image: postgres:17.5-alpine
-    environment:
-      POSTGRES_DB: campaigns_db
-      POSTGRES_USER: root
-      POSTGRES_PASSWORD: foodfund
-    ports:
-      - "5434:5432"
-    volumes:
-      - campaigns_pgdata:/var/lib/postgresql/data
-    networks:
-      - foodfund-network
-
-  # ================================
-  # Jenkins
-  # ================================
-  jenkins:
-    container_name: jenkins_container
-
-  jenkins-agent:
-    container_name: jenkins_agent_container
-
-volumes:
-  users_pgdata:
-  campaigns_pgdata:
 
 networks:
   foodfund-network:
-    driver: bridge  
+    driver: bridge

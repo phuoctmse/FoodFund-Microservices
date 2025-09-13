@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("USERS_DATABASE_URL")
+}
+
+model User {
+  id                     String                  @id @default(uuid())
+  full_name              String                  @db.Text()
+  avatar_url             String                  @db.VarChar(255)
+  email                  String                  @unique @db.VarChar(100)
+  phone_number           String                  @unique @db.VarChar(20)
+  role                   Role                    @default(DONOR)
+  is_active              Boolean                 @default(true)
+  user_name              String                  @unique @db.VarChar(20)
+  bio                    String?                 @db.Text()
+  created_at             DateTime                @default(now())
+  updated_at             DateTime                @updatedAt
+  Donor_Profile          Donor_Profile?
+  Kitchen_Staff_Profile  Kitchen_Staff_Profile?
+  Fundraiser_Profile     Fundraiser_Profile?
+  Delivery_Staff_Profile Delivery_Staff_Profile?
+
+  @@map("users")
+}
+
+model Donor_Profile {
+  id             String   @id @default(uuid())
+  user_id        String   @unique
+  user           User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  donation_count Int      @default(0)
+  total_donated  BigInt   @default(0)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  @@map("donor_profiles")
+}
+
+model Kitchen_Staff_Profile {
+  id                   String   @id @default(uuid())
+  user_id              String   @unique
+  user                 User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  total_batch_prepared Int      @default(0)
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  @@map("kitchen_staff_profiles")
+}
+
+model Delivery_Staff_Profile {
+  id                  String              @id @default(uuid())
+  user_id             String              @unique
+  user                User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  availability_status Availability_Status @default(AVAILABLE)
+  total_deliveries    Int                 @default(0)
+  created_at          DateTime            @default(now())
+  updated_at          DateTime            @updatedAt
+
+  @@map("delivery_staff_profiles")
+}
+
+model Fundraiser_Profile {
+  id                     String              @id @default(uuid())
+  user_id                String              @unique
+  user                   User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  organization_name      String              @db.Text()
+  organization_address   String?             @db.Text()
+  verification_status    Verification_Status @default(PENDING)
+  total_campaign_created Int                 @default(0)
+  created_at             DateTime            @default(now())
+  updated_at             DateTime            @updatedAt
+
+  @@map("fundraiser_profiles")
+}
+
+enum Role {
+  DONOR
+  FUNDRAISER
+  KITCHEN_STAFF
+  DELIVERY_STAFF
+  ADMIN
+}
+
+enum Verification_Status {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum Availability_Status {
+  AVAILABLE
+  UNAVAILABLE
+}
