@@ -12,7 +12,7 @@ COPY apps/user/prisma ./apps/user/prisma
 # Install all dependencies (including dev dependencies for Prisma)
 RUN npm ci
 
-# Copy source code
+# Copy source code (protected by .dockerignore)
 COPY . .
 
 # Generate Prisma client and build application
