@@ -124,9 +124,9 @@ jobs:
         with:
           version: 'v3.13.0'
 
-      - name: 🚀 Deploy to Kubernetes
+      - name: 🚀 Deploy Helm Chart
         run: |
-          # Determine environment configuration based on branch
+          # Determine environment based on branch
           if [ "${{ env.BRANCH_NAME }}" = "main" ]; then
             ENVIRONMENT="production"
             NAMESPACE="foodfund-production"
@@ -158,20 +158,23 @@ jobs:
             RESOURCES_LIMITS_MEMORY="256Mi"
             RESOURCES_LIMITS_CPU="250m"
           fi
-          
+    
           echo "🚀 Deploying to environment: $ENVIRONMENT"
           echo "📦 Namespace: $NAMESPACE"
           echo "🔢 Replicas: $REPLICAS"
           echo "🌐 Gateway Type: $GATEWAY_TYPE"
           echo "⚙️ Node Environment: $NODE_ENV"
-          
+    
+          # Create namespace first (ignore if exists)
+          kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+    
           # Deploy using Helm with all configurations
           helm upgrade --install foodfund-${{ env.BRANCH_NAME }} ./k8s \
             -f ./k8s/values.yaml \
             --namespace $NAMESPACE \
-            --create-namespace \
             --set global.imageRegistry=${{ secrets.DOCKERHUB_USERNAME }} \
             --set global.namespace=$NAMESPACE \
+            --set namespace.create=false \
             --set auth.image.tag=${{ env.BRANCH_NAME }} \
             --set gateway.image.tag=${{ env.BRANCH_NAME }} \
             --set user.image.tag=${{ env.BRANCH_NAME }} \
@@ -200,7 +203,7 @@ jobs:
             --set externalDatabase.password="${{ secrets.DATABASE_PASSWORD }}" \
             --timeout 10m \
             --wait
-          
+    
           echo "✅ Deployment completed successfully!"
 
       - name: 📊 Show Deployment Status
