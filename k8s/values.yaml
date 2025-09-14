@@ -166,4 +166,4 @@ networkPolicy:
 
 # Namespace configuration
 namespace:
-  create: true
+  create: false  # Let CI/CD handle namespace creation
