@@ -1,258 +1,134 @@
-name: FoodFund CI/CD Pipeline
+name: FoodFund CI/CD
 
 on:
   push:
-    branches:
-      - main
-      - develop
+    branches: [main, develop]
   pull_request:
-    branches:
-      - main
-      - develop
-
-env:
-  REGISTRY: docker.io
+    branches: [main, develop]
 
 jobs:
-  build-and-test:
-    name: Build & Test
+  test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [20.x]
     steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
-
-      - name: 🔧 Set up Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: '20'
           cache: 'npm'
+      
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build auth
+      - run: npm run build user
+      - run: npm run build graphql-gateway
 
-      - name: 📦 Install dependencies
-        run: npm ci
-
-      - name: 🔍 Run linter
-        run: npm run lint
-
-      - name: 🧪 Run tests
-        run: npm run test
-
-      - name: 🏗️ Build auth app
-        run: npm run build auth
-
-      - name: 🏗️ Build user app
-        run: npm run build user  
-
-      - name: 🏗️ Build graphql-gateway app
-        run: npm run build graphql-gateway
-
-  build-and-push-docker:
-    name: Build & Push Docker Images
-    needs: build-and-test
+  docker:
+    needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
-
-      - name: 🔐 Log in to Docker Hub
-        uses: docker/login-action@v3
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - uses: docker/setup-buildx-action@v3
+      
+      - name: Set tag
+        run: echo "TAG=${GITHUB_REF##*/}" >> $GITHUB_ENV
+      
+      - name: Build & Push Images
+        run: |
+          # Build and push all services in parallel
+          docker buildx build -t ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-auth:$TAG \
+            -f apps/auth/Dockerfile . --push &
+          
+          docker buildx build -t ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-user:$TAG \
+            -f apps/user/Dockerfile . --push &
+          
+          docker buildx build -t ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway:$TAG \
+            -f apps/graphql-gateway/Dockerfile . --push &
+          
+          wait  # Wait for all builds to complete
 
-      - name: 🔧 Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: 🏷️ Set branch name env
-        run: echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
-
-      - name: 🔨 Build and push auth service
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./apps/auth/Dockerfile
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-auth:${{ env.BRANCH_NAME }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: 🔨 Build and push user service
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./apps/user/Dockerfile
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-user:${{ env.BRANCH_NAME }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: 🔨 Build and push graphql-gateway service
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./apps/graphql-gateway/Dockerfile
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway:${{ env.BRANCH_NAME }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  deploy-to-digitalocean:
-    name: Deploy to Digital Ocean Kubernetes
-    needs: build-and-push-docker
+  deploy:
+    needs: docker
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
-
-      - name: 🏷️ Set branch name env
-        run: echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
-
-      - name: 🔧 Install doctl
-        uses: digitalocean/action-doctl@v2
+      - uses: actions/checkout@v4
+      - uses: digitalocean/action-doctl@v2
         with:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-
-      - name: ☸️ Save DigitalOcean kubeconfig
+      
+      - name: Setup kubectl
         run: doctl kubernetes cluster kubeconfig save ${{ secrets.DIGITALOCEAN_CLUSTER_NAME }}
-
-      - name: ⚡ Install Helm
+      
+      - name: Setup Helm
         uses: azure/setup-helm@v3
         with:
           version: 'v3.13.0'
-
-      - name: 🚀 Deploy Helm Chart
+      
+      - name: Set environment
         run: |
-          # Determine environment based on branch
-          if [ "${{ env.BRANCH_NAME }}" = "main" ]; then
-            ENVIRONMENT="production"
-            NAMESPACE="foodfund-production"
-            REPLICAS=2
-            GATEWAY_TYPE="LoadBalancer"
-            NODE_ENV="production"
-            RESOURCES_REQUESTS_MEMORY="256Mi"
-            RESOURCES_REQUESTS_CPU="200m"
-            RESOURCES_LIMITS_MEMORY="512Mi"
-            RESOURCES_LIMITS_CPU="500m"
-          elif [ "${{ env.BRANCH_NAME }}" = "develop" ]; then
-            ENVIRONMENT="staging"  
-            NAMESPACE="foodfund-staging"
-            REPLICAS=1
-            GATEWAY_TYPE="LoadBalancer"
-            NODE_ENV="staging"
-            RESOURCES_REQUESTS_MEMORY="128Mi"
-            RESOURCES_REQUESTS_CPU="100m"
-            RESOURCES_LIMITS_MEMORY="256Mi"
-            RESOURCES_LIMITS_CPU="250m"
+          if [ "${GITHUB_REF##*/}" = "main" ]; then
+            echo "NAMESPACE=foodfund-production" >> $GITHUB_ENV
+            echo "REPLICAS=2" >> $GITHUB_ENV
           else
-            ENVIRONMENT="development"
-            NAMESPACE="foodfund-${{ env.BRANCH_NAME }}"
-            REPLICAS=1
-            GATEWAY_TYPE="ClusterIP"
-            NODE_ENV="development"
-            RESOURCES_REQUESTS_MEMORY="128Mi"
-            RESOURCES_REQUESTS_CPU="100m"
-            RESOURCES_LIMITS_MEMORY="256Mi"
-            RESOURCES_LIMITS_CPU="250m"
+            echo "NAMESPACE=foodfund-staging" >> $GITHUB_ENV  
+            echo "REPLICAS=1" >> $GITHUB_ENV
           fi
-    
-          echo "🚀 Deploying to environment: $ENVIRONMENT"
-          echo "📦 Namespace: $NAMESPACE"
-          echo "🔢 Replicas: $REPLICAS"
-          echo "🌐 Gateway Type: $GATEWAY_TYPE"
-          echo "⚙️ Node Environment: $NODE_ENV"
-    
-          # Create namespace first (ignore if exists)
+          echo "TAG=${GITHUB_REF##*/}" >> $GITHUB_ENV
+      
+      - name: Deploy
+        run: |
+          # Create namespace
           kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
-
-          # Check if release exists and has conflicts
-          if helm status foodfund-${{ env.BRANCH_NAME }} -n $NAMESPACE >/dev/null 2>&1; then
-            echo "🔍 Checking for template conflicts..."
-            if ! helm template foodfund-${{ env.BRANCH_NAME }} ./k8s -f ./k8s/values.yaml --namespace $NAMESPACE --set namespace.create=false >/dev/null 2>&1; then
-              echo "⚠️ Template conflict detected. Performing clean reinstall..."
-              helm uninstall foodfund-${{ env.BRANCH_NAME }} -n $NAMESPACE
-              sleep 10
-            fi
-          fi
-    
-          # Deploy using Helm with all configurations
-          helm upgrade --install foodfund-${{ env.BRANCH_NAME }} ./k8s \
-            -f ./k8s/values.yaml \
+          
+          # Clean up any existing release
+          helm uninstall foodfund-$TAG -n $NAMESPACE || true
+          
+          # Test template rendering first
+          echo "🧪 Testing template rendering..."
+          helm template foodfund-$TAG ./k8s \
+            --set externalDatabase.host=test-host \
+            --set externalDatabase.username=test-user \
+            --set externalDatabase.password=test-pass \
+            --set namespace.create=false > /dev/null
+          echo "✅ Templates are valid"
+          
+          # Deploy with complete configuration
+          helm upgrade --install foodfund-$TAG ./k8s \
             --namespace $NAMESPACE \
             --set global.imageRegistry=${{ secrets.DOCKERHUB_USERNAME }} \
-            --set global.namespace=$NAMESPACE \
             --set namespace.create=false \
-            --set auth.image.tag=${{ env.BRANCH_NAME }} \
-            --set gateway.image.tag=${{ env.BRANCH_NAME }} \
-            --set user.image.tag=${{ env.BRANCH_NAME }} \
+            --set auth.image.tag=$TAG \
+            --set user.image.tag=$TAG \
+            --set gateway.image.tag=$TAG \
             --set auth.replicaCount=$REPLICAS \
-            --set gateway.replicaCount=$REPLICAS \
             --set user.replicaCount=$REPLICAS \
-            --set gateway.service.type=$GATEWAY_TYPE \
-            --set auth.env[0].value=$NODE_ENV \
-            --set gateway.env[0].value=$NODE_ENV \
-            --set user.env[0].value=$NODE_ENV \
-            --set auth.resources.requests.memory=$RESOURCES_REQUESTS_MEMORY \
-            --set auth.resources.requests.cpu=$RESOURCES_REQUESTS_CPU \
-            --set auth.resources.limits.memory=$RESOURCES_LIMITS_MEMORY \
-            --set auth.resources.limits.cpu=$RESOURCES_LIMITS_CPU \
-            --set gateway.resources.requests.memory=$RESOURCES_REQUESTS_MEMORY \
-            --set gateway.resources.requests.cpu=$RESOURCES_REQUESTS_CPU \
-            --set gateway.resources.limits.memory=$RESOURCES_LIMITS_MEMORY \
-            --set gateway.resources.limits.cpu=$RESOURCES_LIMITS_CPU \
-            --set user.resources.requests.memory=$RESOURCES_REQUESTS_MEMORY \
-            --set user.resources.requests.cpu=$RESOURCES_REQUESTS_CPU \
-            --set user.resources.limits.memory=$RESOURCES_LIMITS_MEMORY \
-            --set user.resources.limits.cpu=$RESOURCES_LIMITS_CPU \
-            --set externalDatabase.host="${{ secrets.DATABASE_HOST }}" \
+            --set gateway.replicaCount=$REPLICAS \
+            --set externalDatabase.host=${{ secrets.DATABASE_HOST }} \
             --set externalDatabase.port=${{ secrets.DATABASE_PORT }} \
-            --set externalDatabase.username="${{ secrets.DATABASE_USERNAME }}" \
-            --set externalDatabase.password="${{ secrets.DATABASE_PASSWORD }}" \
-            --timeout 10m \
+            --set externalDatabase.username=${{ secrets.DATABASE_USERNAME }} \
+            --set externalDatabase.password=${{ secrets.DATABASE_PASSWORD }} \
+            --timeout 20m \
             --wait
-    
-          echo "✅ Deployment completed successfully!"
-
-      - name: 📊 Show Deployment Status
+      
+      - name: Get Status
         run: |
-          # Determine namespace
-          if [ "${{ env.BRANCH_NAME }}" = "main" ]; then
-            NAMESPACE="foodfund-production"
-            GATEWAY_TYPE="LoadBalancer"
-          elif [ "${{ env.BRANCH_NAME }}" = "develop" ]; then
-            NAMESPACE="foodfund-staging"
-            GATEWAY_TYPE="LoadBalancer"
+          echo "🎉 Deployment completed!"
+          kubectl get pods -n $NAMESPACE
+          kubectl get svc -n $NAMESPACE
+          
+          # Get LoadBalancer IP
+          EXTERNAL_IP=$(kubectl get svc -n $NAMESPACE -o jsonpath='{.items[?(@.spec.type=="LoadBalancer")].status.loadBalancer.ingress[0].ip}' || echo "pending")
+          
+          if [ "$EXTERNAL_IP" != "pending" ] && [ -n "$EXTERNAL_IP" ]; then
+            echo "🌐 App URL: http://$EXTERNAL_IP"
+            echo "🎯 GraphQL: http://$EXTERNAL_IP/graphql" 
           else
-            NAMESPACE="foodfund-${{ env.BRANCH_NAME }}"
-            GATEWAY_TYPE="ClusterIP"
+            echo "⏳ LoadBalancer IP pending. Check: kubectl get svc -n $NAMESPACE"
           fi
-          
-          echo "📊 Deployment Status in namespace: $NAMESPACE"
-          kubectl get pods -n $NAMESPACE -o wide
-          echo ""
-          echo "🌐 Services:"
-          kubectl get services -n $NAMESPACE
-          echo ""
-          
-          # Get LoadBalancer IP if available
-          if [ "$GATEWAY_TYPE" = "LoadBalancer" ]; then
-            echo "🔗 Getting LoadBalancer External IP..."
-            sleep 30  # Wait for LoadBalancer to be provisioned
-            EXTERNAL_IP=$(kubectl get service -n $NAMESPACE -l app.kubernetes.io/component=gateway -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
-            if [ -n "$EXTERNAL_IP" ] && [ "$EXTERNAL_IP" != "null" ]; then
-              echo "🎉 Your app is accessible at: http://$EXTERNAL_IP"
-              echo "🎯 GraphQL Playground: http://$EXTERNAL_IP/graphql"
-              echo "🏥 Health Check: http://$EXTERNAL_IP/health"
-            else
-              echo "⏳ LoadBalancer IP is still being assigned. Check status with:"
-              echo "kubectl get services -n $NAMESPACE"
-            fi
-          fi
-          
-          # Show recent events for debugging
-          echo ""
-          echo "📝 Recent events:"
-          kubectl get events -n $NAMESPACE --sort-by=.metadata.creationTimestamp | tail -5
