@@ -70,11 +70,24 @@ k8s/values-production.yaml
 k8s/values-staging.yaml
 k8s/secrets/
 *.secret.yaml
-*secrets*.yaml
+
+# Specific secret files (not templates)
+k8s/*-secrets.yaml
+k8s/values-*-secrets.yaml
+k8s/generated-*.yaml
 
 # Database configs with real credentials
 k8s/values-*.local.yaml
 k8s/values-*.private.yaml
+
+# Environment specific configs
+.env.*
+*.env
+config/production.json
+config/staging.json
+
+# Allow all templates
+!k8s/templates/**/*.yaml
 
 # Environment specific configs
 .env.*
