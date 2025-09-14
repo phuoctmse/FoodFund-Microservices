@@ -45,22 +45,23 @@ spec:
             - name: CAMPAIGN_SERVICE_URL
               value: "http://{{ include "foodfund.fullname" . }}-campaign-service:{{ .Values.campaign.service.port }}/graphql"
             {{- end }}
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: {{ .Values.gateway.service.targetPort }}
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: {{ .Values.gateway.service.targetPort }}
-            initialDelaySeconds: 15
-            periodSeconds: 5
-            timeoutSeconds: 3
-            failureThreshold: 2
+          # Health checks disabled temporarily until /health endpoint is implemented
+          # livenessProbe:
+          #   httpGet:
+          #     path: /health
+          #     port: {{ .Values.gateway.service.targetPort }}
+          #   initialDelaySeconds: 30
+          #   periodSeconds: 10
+          #   timeoutSeconds: 5
+          #   failureThreshold: 3
+          # readinessProbe:
+          #   httpGet:
+          #     path: /health
+          #     port: {{ .Values.gateway.service.targetPort }}
+          #   initialDelaySeconds: 15
+          #   periodSeconds: 5
+          #   timeoutSeconds: 3
+          #   failureThreshold: 2
           resources:
             {{- toYaml .Values.gateway.resources | nindent 12 }}
           {{- with .Values.securityContext }}

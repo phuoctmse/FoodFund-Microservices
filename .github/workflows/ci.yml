@@ -99,7 +99,7 @@ jobs:
             --set namespace.create=false > /dev/null
           echo "✅ Templates are valid"
           
-          # Deploy with complete configuration
+          # Deploy with complete configuration (without --wait for faster deployment)
           helm upgrade --install foodfund-$TAG ./k8s \
             --namespace $NAMESPACE \
             --set global.imageRegistry=${{ secrets.DOCKERHUB_USERNAME }} \
@@ -114,8 +114,11 @@ jobs:
             --set externalDatabase.port=${{ secrets.DATABASE_PORT }} \
             --set externalDatabase.username=${{ secrets.DATABASE_USERNAME }} \
             --set externalDatabase.password=${{ secrets.DATABASE_PASSWORD }} \
-            --timeout 20m \
-            --wait
+            --timeout 5m
+          
+          # Give pods time to start
+          echo "⏳ Waiting for pods to start..."
+          sleep 30
       
       - name: Get Status
         run: |

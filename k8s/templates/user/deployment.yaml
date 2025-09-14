@@ -37,28 +37,29 @@ spec:
               value: {{ .value | quote }}
             {{- end }}
             {{- if and (not .Values.postgresql.enabled) .Values.externalDatabase.host }}
-            - name: DATABASE_URL
+            - name: USERS_DATABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: {{ include "foodfund.fullname" . }}-database-secret
                   key: user-database-url
             {{- end }}
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: {{ .Values.user.service.targetPort }}
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: {{ .Values.user.service.targetPort }}
-            initialDelaySeconds: 15
-            periodSeconds: 5
-            timeoutSeconds: 3
-            failureThreshold: 2
+          # Health checks disabled temporarily until /health endpoint is implemented
+          # livenessProbe:
+          #   httpGet:
+          #     path: /health
+          #     port: {{ .Values.user.service.targetPort }}
+          #   initialDelaySeconds: 30
+          #   periodSeconds: 10
+          #   timeoutSeconds: 5
+          #   failureThreshold: 3
+          # readinessProbe:
+          #   httpGet:
+          #     path: /health
+          #     port: {{ .Values.user.service.targetPort }}
+          #   initialDelaySeconds: 15
+          #   periodSeconds: 5
+          #   timeoutSeconds: 3
+          #   failureThreshold: 2
           resources:
             {{- toYaml .Values.user.resources | nindent 12 }}
           {{- with .Values.securityContext }}
