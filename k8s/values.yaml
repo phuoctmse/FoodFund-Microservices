@@ -167,3 +167,13 @@ networkPolicy:
 # Namespace configuration
 namespace:
   create: false  # Let CI/CD handle namespace creation
+
+# AWS Configuration (for Auth service)
+aws:
+  region: "us-east-1"
+  cognito:
+    userPoolId: "mock-user-pool-id"  # Will be overridden by CI/CD
+    clientId: "mock-client-id"       # Will be overridden by CI/CD
+    clientSecret: ""                 # Optional
+  accessKeyId: ""                    # Optional
+  secretAccessKey: ""                # Optional

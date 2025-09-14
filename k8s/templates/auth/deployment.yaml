@@ -36,12 +36,24 @@ spec:
             - name: {{ .name }}
               value: {{ .value | quote }}
             {{- end }}
-            {{- if and (not .Values.postgresql.enabled) .Values.externalDatabase.host }}
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "foodfund.fullname" . }}-database-secret
-                  key: auth-database-url
+            # AWS Cognito Configuration (Auth service doesn't need database)
+            - name: AWS_REGION
+              value: {{ .Values.aws.region | default "us-east-1" | quote }}
+            - name: AWS_COGNITO_USER_POOL_ID
+              value: {{ .Values.aws.cognito.userPoolId | default "mock-user-pool-id" | quote }}
+            - name: AWS_COGNITO_CLIENT_ID
+              value: {{ .Values.aws.cognito.clientId | default "mock-client-id" | quote }}
+            {{- if .Values.aws.cognito.clientSecret }}
+            - name: AWS_COGNITO_CLIENT_SECRET
+              value: {{ .Values.aws.cognito.clientSecret | quote }}
+            {{- end }}
+            {{- if .Values.aws.accessKeyId }}
+            - name: AWS_ACCESS_KEY_ID
+              value: {{ .Values.aws.accessKeyId | quote }}
+            {{- end }}
+            {{- if .Values.aws.secretAccessKey }}
+            - name: AWS_SECRET_ACCESS_KEY
+              value: {{ .Values.aws.secretAccessKey | quote }}
             {{- end }}
           # Health checks disabled temporarily until /health endpoint is implemented
           # livenessProbe:

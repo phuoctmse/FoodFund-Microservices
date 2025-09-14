@@ -14,7 +14,12 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build the application
+# Generate Prisma client for user service
+WORKDIR /usr/src/app/apps/user
+RUN npx prisma generate
+
+# Back to main directory and build the application
+WORKDIR /usr/src/app
 RUN npm run build user
 
 # Production stage
@@ -32,6 +37,7 @@ RUN npm ci --only=production && npm cache clean --force
 # Copy built application
 COPY --from=development /usr/src/app/dist ./dist
 COPY --from=development /usr/src/app/node_modules ./node_modules
+COPY --from=development /usr/src/app/apps/user/node_modules/.prisma ./apps/user/node_modules/.prisma
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs
