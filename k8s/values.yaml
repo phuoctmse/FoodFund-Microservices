@@ -1,76 +1,55 @@
 # Default values for FoodFund microservices
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
+# Template configuration - SAFE TO COMMIT TO GIT
+# For production/staging, use CI/CD secrets to override database values
 
 global:
-  # Global Docker registry
-  imageRegistry: "phuoctmse" # <-- THAY BẰNG USERNAME DOCKER HUB CỦA BẠN
-  # Global Docker image pull policy
+  # Docker registry - will be overridden by CI/CD
+  imageRegistry: "phuoctmse"
   imagePullPolicy: IfNotPresent
-  # Global namespace override
   namespace: "foodfund"
 
-# Auth Service Configuration
+# Auth Service
 auth:
   enabled: true
   image:
-    # registry: ""  # Will use global if empty
     repository: "foodfund-auth"
-    tag: "latest" # Sẽ được ghi đè bởi pipeline
-    # pullPolicy: ""  # Will use global if empty
-
+    tag: "latest"
+  
   replicaCount: 1
-
+  
   service:
     type: ClusterIP
     port: 8002
-    targetPort: 3000 # Cổng của ứng dụng NestJS
-
+    targetPort: 8002
+  
   resources:
     requests:
-      memory: "128Mi"
-      cpu: "100m"
+      memory: "64Mi"
+      cpu: "50m"
     limits:
-      memory: "256Mi"
-      cpu: "250m"
-
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
+      memory: "128Mi"
+      cpu: "150m"
 
   env:
     - name: NODE_ENV
       value: "production"
     - name: PORT
-      value: "3000"
+      value: "8002"
 
-  # Health check configuration
-  healthCheck:
-    enabled: true
-    path: "/api/health" # Đường dẫn health check của bạn
-    initialDelaySeconds: 20
-    periodSeconds: 15
-    timeoutSeconds: 5
-    failureThreshold: 3
-
-# GraphQL Gateway Configuration
+# GraphQL Gateway
 gateway:
   enabled: true
   image:
-    # registry: ""  # Will use global if empty
     repository: "foodfund-graphql-gateway"
-    tag: "latest" # Sẽ được ghi đè bởi pipeline
-    # pullPolicy: ""  # Will use global if empty
-
+    tag: "latest"
+  
   replicaCount: 1
-
+  
   service:
     type: LoadBalancer
     port: 80
-    targetPort: 3000 # Cổng của ứng dụng NestJS
-    loadBalancerIP: ""
-    annotations: {}
-
+    targetPort: 8000
+  
   resources:
     requests:
       memory: "128Mi"
@@ -79,117 +58,112 @@ gateway:
       memory: "256Mi"
       cpu: "250m"
 
-  nodeSelector: {}
-  tolerations: []
-  affinity: {}
+  env:
+    - name: NODE_ENV
+      value: "production"
+    - name: PORT
+      value: "8000"
+
+# User Service
+user:
+  enabled: true
+  image:
+    repository: "foodfund-user"
+    tag: "latest"
+  
+  replicaCount: 1
+  
+  service:
+    type: ClusterIP
+    port: 8003
+    targetPort: 8003
+  
+  resources:
+    requests:
+      memory: "64Mi"
+      cpu: "50m"
+    limits:
+      memory: "128Mi"
+      cpu: "150m"
 
   env:
     - name: NODE_ENV
       value: "production"
     - name: PORT
-      value: "3000"
+      value: "8003"
 
-  # Health check configuration
-  healthCheck:
-    enabled: true
-    path: "/api/health" # Đường dẫn health check của bạn
-    initialDelaySeconds: 20
-    periodSeconds: 15
-    timeoutSeconds: 5
-    failureThreshold: 3
-
-# PostgreSQL Configuration
-postgresql:
-  enabled: true
-  # Bitnami PostgreSQL chart configuration
-  auth:
-    postgresPassword: "foodfund"
-    username: "root"
-    password: "foodfund"
-    database: "foodfund"
-
-  architecture: standalone
-
-  primary:
-    persistence:
-      enabled: true
-      size: 8Gi
-      storageClass: ""
-
-    initdb:
-      scripts:
-        init.sql: |
-          CREATE DATABASE users_db;
-          CREATE DATABASE campaigns_db;
-          GRANT ALL PRIVILEGES ON DATABASE users_db TO root;
-          GRANT ALL PRIVILEGES ON DATABASE campaigns_db TO root;
-
-  metrics:
-    enabled: false
-
-# Jenkins Configuration (Optional)
-jenkins:
+# Campaign Service (disabled by default - enable when ready)
+campaign:
   enabled: false
   image:
-    repository: "jenkins/jenkins"
-    tag: "lts"
-    pullPolicy: IfNotPresent
-
+    repository: "foodfund-campaign"
+    tag: "latest"
+  
+  replicaCount: 1
+  
   service:
     type: ClusterIP
-    port: 8080
-    targetPort: 8080
-
-  persistence:
-    enabled: true
-    size: 8Gi
-    storageClass: ""
-
+    port: 8004
+    targetPort: 8004
+  
   resources:
     requests:
-      memory: "1Gi"
-      cpu: "500m"
+      memory: "64Mi"
+      cpu: "50m"
     limits:
-      memory: "2Gi"
-      cpu: "1000m"
+      memory: "128Mi"
+      cpu: "150m"
 
-# Namespace Configuration
-namespace:
-  create: true
-  name: "foodfund-production"
+  env:
+    - name: NODE_ENV
+      value: "production"
+    - name: PORT
+      value: "8004"
 
-# Ingress Configuration
+# PostgreSQL Configuration (DISABLED - using Digital Ocean Database Cluster)
+postgresql:
+  enabled: false
+
+# External Database Configuration (Digital Ocean Database Cluster)
+# These values will be overridden by CI/CD secrets
+externalDatabase:
+  # Template values - DO NOT use in production
+  host: "WILL_BE_SET_BY_CICD"
+  port: 25060
+  username: "WILL_BE_SET_BY_CICD"
+  password: "WILL_BE_SET_BY_CICD"
+  
+  # Individual databases for each service
+  databases:
+    auth: "auth_db"
+    user: "users_db" 
+    campaign: "campaigns_db"
+    default: "defaultdb"
+  
+  # SSL settings for Digital Ocean (required)
+  ssl: true
+  sslMode: "require"
+
+# Ingress Configuration (disabled by default)
 ingress:
   enabled: false
-  className: ""
-  annotations: {}
+  className: "nginx"
   hosts:
-    - host: foodfund.local
+    - host: api.foodfund.local
       paths:
         - path: /
           pathType: Prefix
-  tls: []
 
-# Service Account Configuration
+# Service Account
 serviceAccount:
   create: true
-  annotations: {}
   name: "foodfund-sa"
 
-# Pod Security Context
-podSecurityContext: {}
-  # fsGroup: 2000
-
-# Security Context
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
-
-# Network Policies
+# Network Policy (disabled by default)
 networkPolicy:
   enabled: false
   allowExternal: true
+
+# Namespace configuration
+namespace:
+  create: true

@@ -8,12 +8,12 @@ export class UpdateDonorProfileInput {
     @IsOptional()
     @IsInt()
     @Min(0)
-    donation_count?: number
+        donation_count?: number
 
     @Field(() => Number, { nullable: true, description: "Total amount donated" })
     @IsOptional()
     @IsNumber()
-    total_donated?: bigint
+        total_donated?: bigint
 }
 
 @InputType()
@@ -22,7 +22,7 @@ export class UpdateKitchenStaffProfileInput {
     @IsOptional()
     @IsInt()
     @Min(0)
-    total_batch_prepared?: number
+        total_batch_prepared?: number
 }
 
 @InputType()
@@ -30,23 +30,23 @@ export class UpdateFundraiserProfileInput {
     @Field(() => String, { nullable: true, description: "Organization name" })
     @IsOptional()
     @IsString()
-    organization_name?: string
+        organization_name?: string
 
     @Field(() => String, { nullable: true, description: "Organization address" })
     @IsOptional()
     @IsString()
-    organization_address?: string
+        organization_address?: string
 
     @Field(() => VerificationStatus, { nullable: true, description: "Verification status" })
     @IsOptional()
     @IsEnum(VerificationStatus)
-    verification_status?: VerificationStatus
+        verification_status?: VerificationStatus
 
     @Field(() => Number, { nullable: true, description: "Total campaigns created" })
     @IsOptional()
     @IsInt()
     @Min(0)
-    total_campaign_created?: number
+        total_campaign_created?: number
 }
 
 @InputType()
@@ -54,11 +54,11 @@ export class UpdateDeliveryStaffProfileInput {
     @Field(() => AvailabilityStatus, { nullable: true, description: "Current availability status" })
     @IsOptional()
     @IsEnum(AvailabilityStatus)
-    availability_status?: AvailabilityStatus
+        availability_status?: AvailabilityStatus
 
     @Field(() => Number, { nullable: true, description: "Total deliveries completed" })
     @IsOptional()
     @IsInt()
     @Min(0)
-    total_deliveries?: number
+        total_deliveries?: number
 }

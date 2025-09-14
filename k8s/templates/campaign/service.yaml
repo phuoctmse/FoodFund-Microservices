@@ -1,0 +1,25 @@
+{{- if .Values.campaign.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "foodfund.fullname" . }}-campaign-service
+  namespace: {{ include "foodfund.namespace" . }}
+  labels:
+    {{- include "foodfund.campaign.labels" . | nindent 4 }}
+  {{- with .Values.campaign.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.campaign.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.campaign.service.port }}
+      targetPort: {{ .Values.campaign.service.targetPort }}
+      protocol: TCP
+      {{- if and (eq .Values.campaign.service.type "NodePort") .Values.campaign.service.nodePort }}
+      nodePort: {{ .Values.campaign.service.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "foodfund.campaign.selectorLabels" . | nindent 4 }}
+{{- end }}

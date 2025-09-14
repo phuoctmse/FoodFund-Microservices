@@ -1,0 +1,25 @@
+{{- if .Values.user.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "foodfund.fullname" . }}-user-service
+  namespace: {{ include "foodfund.namespace" . }}
+  labels:
+    {{- include "foodfund.user.labels" . | nindent 4 }}
+  {{- with .Values.user.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.user.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.user.service.port }}
+      targetPort: {{ .Values.user.service.targetPort }}
+      protocol: TCP
+      {{- if and (eq .Values.user.service.type "NodePort") .Values.user.service.nodePort }}
+      nodePort: {{ .Values.user.service.nodePort }}
+      {{- end }}
+  selector:
+    {{- include "foodfund.user.selectorLabels" . | nindent 4 }}
+{{- end }}

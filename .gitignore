@@ -65,13 +65,29 @@ Chart.lock
 charts/
 *.tgz
 
-# Kubernetes configs (SENSITIVE)
-*kubeconfig*
+# Kubernetes sensitive configs
+k8s/values-production.yaml
+k8s/values-staging.yaml
+k8s/secrets/
+*.secret.yaml
+*secrets*.yaml
+
+# Database configs with real credentials
+k8s/values-*.local.yaml
+k8s/values-*.private.yaml
+
+# Environment specific configs
+.env.*
+*.env
+config/production.json
+config/staging.json
+
+# Kubernetes kubeconfig and cert files
 *.kubeconfig
-kubeconfig
-kubeconfig.yaml
-kubeconfig.yml
-.kube/
+kubeconfig*
+*.crt
+*.key
+*.pem
 
 *.hpi
 *.jpi

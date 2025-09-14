@@ -1,139 +1,94 @@
-# Production values for FoodFund microservices
-# This file contains production-ready configurations
+# Production environment values
+# Production-ready configuration
 
-# Global settings
 global:
-  imageRegistry: "your-registry.com"
+  imageRegistry: "phuoctmse"
   imagePullPolicy: IfNotPresent
+  namespace: "foodfund-production"
 
-# Namespace
-namespace:
-  create: true
-  name: "foodfund-production"
-
-# Auth Service - Production configuration
+# Auth Service - Production
 auth:
-  enabled: true
   image:
-    repository: "foodfund-auth"
-    tag: "latest"
-    pullPolicy: Always
-
-  replicaCount: 3  # Higher replicas for production
-
-  service:
-    type: ClusterIP
-    port: 8002
-    targetPort: 8002
-
+    tag: "main"  # Use main branch for production
+  
+  replicaCount: 2  # Multiple replicas for HA
+  
   resources:
     requests:
+      memory: "256Mi"
+      cpu: "200m"
+    limits:
       memory: "512Mi"
       cpu: "500m"
-    limits:
-      memory: "1Gi"
-      cpu: "1000m"
 
-  healthCheck:
-    enabled: true
-    path: "/health"
-    initialDelaySeconds: 60
-    periodSeconds: 30
-    timeoutSeconds: 10
-    failureThreshold: 5
+  env:
+    - name: NODE_ENV
+      value: "production"
+    - name: PORT
+      value: "8002"
 
-# GraphQL Gateway - Production configuration
+# Gateway - Production
 gateway:
-  enabled: true
   image:
-    repository: "foodfund-gateway"
-    tag: "latest"
-    pullPolicy: Always
-
-  replicaCount: 3  # Higher replicas for production
-
+    tag: "main"
+  
+  replicaCount: 2  # Multiple replicas for HA
+  
   service:
-    type: LoadBalancer
-    port: 80
-    targetPort: 8000
-    annotations:
-      service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
-      service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
-
+    type: LoadBalancer  # External access for production
+  
   resources:
     requests:
+      memory: "256Mi"
+      cpu: "200m"
+    limits:
       memory: "512Mi"
       cpu: "500m"
+
+  env:
+    - name: NODE_ENV
+      value: "production"
+    - name: PORT
+      value: "8000"
+
+# User Service - Production
+user:
+  image:
+    tag: "main"
+  
+  replicaCount: 2
+  
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "200m"
     limits:
-      memory: "1Gi"
-      cpu: "1000m"
+      memory: "512Mi"
+      cpu: "500m"
 
-  healthCheck:
-    enabled: true
-    path: "/health"
-    initialDelaySeconds: 60
-    periodSeconds: 30
-    timeoutSeconds: 10
-    failureThreshold: 5
+  env:
+    - name: NODE_ENV
+      value: "production"
+    - name: PORT
+      value: "8003"
 
-# PostgreSQL - Production configuration
+# PostgreSQL - DISABLED (using Digital Ocean Database Cluster)
 postgresql:
-  enabled: true
+  enabled: false
 
-  architecture: replication  # Enable replication for HA
+# External Database - values will be set by CI/CD
+externalDatabase:
+  databases:
+    auth: "auth_db"
+    user: "users_db"
+    campaign: "campaigns_db"
 
-  auth:
-    postgresPassword: "your-secure-password"
-    username: "foodfund"
-    password: "your-secure-password"
-    database: "foodfund"
-
-  primary:
-    persistence:
-      enabled: true
-      size: 50Gi
-      storageClass: "gp3"  # AWS EBS
-      accessModes:
-        - ReadWriteOnce
-
-    initdb:
-      scripts:
-        init.sql: |
-          CREATE DATABASE users_db;
-          CREATE DATABASE campaigns_db;
-          GRANT ALL PRIVILEGES ON DATABASE users_db TO foodfund;
-          GRANT ALL PRIVILEGES ON DATABASE campaigns_db TO foodfund;
-
-  readReplicas:
-    persistence:
-      enabled: true
-      size: 50Gi
-      storageClass: "gp3"
-
-  metrics:
-    enabled: true
-    serviceMonitor:
-      enabled: true
-
-  backup:
-    enabled: true
-    cronjob:
-      enabled: true
-      schedule: "0 2 * * *"  # Daily at 2 AM
-    persistence:
-      enabled: true
-      size: 100Gi
-      storageClass: "gp3"
-
-# Ingress - Production configuration
+# Ingress for production
 ingress:
   enabled: true
   className: "nginx"
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
   hosts:
     - host: api.foodfund.com
       paths:
@@ -144,83 +99,14 @@ ingress:
       hosts:
         - api.foodfund.com
 
-# Service Account
-serviceAccount:
-  create: true
-  annotations:
-    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/foodfund-service-role"
-
-# Security Context
+# Security settings for production
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
-  runAsGroup: 1000
-  fsGroup: 1000
 
 securityContext:
   allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: true
+  readOnlyRootFilesystem: false  # NestJS needs to write logs
   capabilities:
     drop:
       - ALL
-
-# Network Policies
-networkPolicy:
-  enabled: true
-  allowExternal: false
-
-# Resource limits and requests for production
-nodeSelector:
-  environment: production
-  instance-type: c5.large
-
-tolerations:
-  - key: "dedicated"
-    operator: "Equal"
-    value: "production"
-    effect: "NoSchedule"
-
-affinity:
-  nodeAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-      nodeSelectorTerms:
-        - matchExpressions:
-            - key: kubernetes.io/os
-              operator: In
-              values:
-                - linux
-  podAntiAffinity:
-    preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchLabels:
-              app.kubernetes.io/name: foodfund
-          topologyKey: kubernetes.io/hostname
-
-# Monitoring and Logging
-monitoring:
-  enabled: true
-  prometheus:
-    enabled: true
-  grafana:
-    enabled: true
-  alertmanager:
-    enabled: true
-
-logging:
-  enabled: true
-  fluentd:
-    enabled: true
-  elasticsearch:
-    enabled: true
-
-# Backup configuration
-backup:
-  enabled: true
-  schedule: "0 1 * * *"
-  retention: 30
-  storage:
-    s3:
-      bucket: "foodfund-backups"
-      region: "us-east-1"

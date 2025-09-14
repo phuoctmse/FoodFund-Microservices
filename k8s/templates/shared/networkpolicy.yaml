@@ -36,7 +36,13 @@ spec:
         - protocol: TCP
           port: {{ .Values.auth.service.port }}
         - protocol: TCP
+          port: {{ .Values.user.service.port }}
+        - protocol: TCP
           port: {{ .Values.gateway.service.port }}
+        {{- if .Values.campaign.enabled }}
+        - protocol: TCP
+          port: {{ .Values.campaign.service.port }}
+        {{- end }}
   {{- end }}
   egress:
     # Allow DNS resolution
@@ -52,15 +58,12 @@ spec:
       ports:
         - protocol: TCP
           port: 443
-    # Allow access to PostgreSQL
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              name: {{ include "foodfund.namespace" . }}
+    # Allow access to External Database (Digital Ocean)
+    - to: []
       ports:
         - protocol: TCP
-          port: 5432
-    # Allow external access
+          port: {{ .Values.externalDatabase.port }}
+    # Allow external HTTP/HTTPS access
     - to: []
       ports:
         - protocol: TCP

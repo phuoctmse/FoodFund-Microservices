@@ -16,23 +16,9 @@ spec:
       labels:
         {{- include "foodfund.gateway.selectorLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.gateway.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.gateway.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.gateway.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       {{- if .Values.serviceAccount.create }}
       serviceAccountName: {{ include "foodfund.serviceAccountName" . }}
       {{- end }}
-      imagePullSecrets:
-        - name: dockerconfigjson-github-com
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -50,31 +36,31 @@ spec:
             - name: {{ .name }}
               value: {{ .value | quote }}
             {{- end }}
-            {{- if .Values.postgresql.enabled }}
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "foodfund.postgresql.secretName" . }}
-                  key: uri
+            # Service URLs for microservice communication
+            - name: AUTH_SERVICE_URL
+              value: "http://{{ include "foodfund.fullname" . }}-auth-service:{{ .Values.auth.service.port }}/graphql"
+            - name: USER_SERVICE_URL
+              value: "http://{{ include "foodfund.fullname" . }}-user-service:{{ .Values.user.service.port }}/graphql"
+            {{- if .Values.campaign.enabled }}
+            - name: CAMPAIGN_SERVICE_URL
+              value: "http://{{ include "foodfund.fullname" . }}-campaign-service:{{ .Values.campaign.service.port }}/graphql"
             {{- end }}
-          {{- if .Values.gateway.healthCheck.enabled }}
           livenessProbe:
             httpGet:
-              path: {{ .Values.gateway.healthCheck.path }}
+              path: /health
               port: {{ .Values.gateway.service.targetPort }}
-            initialDelaySeconds: {{ .Values.gateway.healthCheck.initialDelaySeconds }}
-            periodSeconds: {{ .Values.gateway.healthCheck.periodSeconds }}
-            timeoutSeconds: {{ .Values.gateway.healthCheck.timeoutSeconds }}
-            failureThreshold: {{ .Values.gateway.healthCheck.failureThreshold }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: {{ .Values.gateway.healthCheck.path }}
+              path: /health
               port: {{ .Values.gateway.service.targetPort }}
-            initialDelaySeconds: {{ .Values.gateway.healthCheck.initialDelaySeconds }}
-            periodSeconds: {{ .Values.gateway.healthCheck.periodSeconds }}
-            timeoutSeconds: {{ .Values.gateway.healthCheck.timeoutSeconds }}
-            failureThreshold: {{ .Values.gateway.healthCheck.failureThreshold }}
-          {{- end }}
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
           resources:
             {{- toYaml .Values.gateway.resources | nindent 12 }}
           {{- with .Values.securityContext }}

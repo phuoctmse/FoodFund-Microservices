@@ -16,23 +16,9 @@ spec:
       labels:
         {{- include "foodfund.auth.selectorLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.auth.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.auth.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.auth.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       {{- if .Values.serviceAccount.create }}
       serviceAccountName: {{ include "foodfund.serviceAccountName" . }}
       {{- end }}
-      imagePullSecrets:
-        - name: dockerconfigjson-github-com
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -50,31 +36,29 @@ spec:
             - name: {{ .name }}
               value: {{ .value | quote }}
             {{- end }}
-            {{- if .Values.postgresql.enabled }}
+            {{- if and (not .Values.postgresql.enabled) .Values.externalDatabase.host }}
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "foodfund.postgresql.secretName" . }}
-                  key: uri
+                  name: {{ include "foodfund.fullname" . }}-database-secret
+                  key: auth-database-url
             {{- end }}
-          {{- if .Values.auth.healthCheck.enabled }}
           livenessProbe:
             httpGet:
-              path: {{ .Values.auth.healthCheck.path }}
+              path: /health
               port: {{ .Values.auth.service.targetPort }}
-            initialDelaySeconds: {{ .Values.auth.healthCheck.initialDelaySeconds }}
-            periodSeconds: {{ .Values.auth.healthCheck.periodSeconds }}
-            timeoutSeconds: {{ .Values.auth.healthCheck.timeoutSeconds }}
-            failureThreshold: {{ .Values.auth.healthCheck.failureThreshold }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: {{ .Values.auth.healthCheck.path }}
+              path: /health
               port: {{ .Values.auth.service.targetPort }}
-            initialDelaySeconds: {{ .Values.auth.healthCheck.initialDelaySeconds }}
-            periodSeconds: {{ .Values.auth.healthCheck.periodSeconds }}
-            timeoutSeconds: {{ .Values.auth.healthCheck.timeoutSeconds }}
-            failureThreshold: {{ .Values.auth.healthCheck.failureThreshold }}
-          {{- end }}
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
           resources:
             {{- toYaml .Values.auth.resources | nindent 12 }}
           {{- with .Values.securityContext }}
