@@ -68,6 +68,7 @@ user:
 
 # PostgreSQL - Staging (smaller resources)
 postgresql:
+  enabled: false
   auth:
     postgresPassword: "staging123"
     password: "staging123"
@@ -79,6 +80,7 @@ postgresql:
 # Ingress for staging
 ingress:
   enabled: true
+  annotations: {}
   hosts:
     - host: staging-api.foodfund.local
       paths:

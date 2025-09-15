@@ -147,6 +147,7 @@ externalDatabase:
 # Ingress Configuration (disabled by default)
 ingress:
   enabled: false
+  annotations: {}
   className: "nginx"
   hosts:
     - host: api.foodfund.local
