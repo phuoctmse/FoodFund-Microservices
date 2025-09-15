@@ -71,26 +71,49 @@ jobs:
             echo "REPLICAS=1" >> $GITHUB_ENV
           fi
           echo "TAG=${GITHUB_REF##*/}" >> $GITHUB_ENV
-
-      - name: Deploy with Helm
+          # default Helm timeout (can be overridden if needed)
+          echo "HELM_TIMEOUT=10m0s" >> $GITHUB_ENV
+      - name: Deploy with Helm (atomic, timeout, debug on failure)
+        env:
+          DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKER_REPO_AUTH: "${{ secrets.DOCKERHUB_USERNAME }}/foodfund-auth"
+          DOCKER_REPO_USER: "${{ secrets.DOCKERHUB_USERNAME }}/foodfund-user"
+          DOCKER_REPO_GATEWAY: "${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway"
         run: |
-          helm upgrade --install foodfund-auth k8s/auth \
-            --namespace $NAMESPACE --create-namespace \
-            --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/foodfund-auth \
-            --set image.tag=${TAG} \
-            --set replicaCount=${REPLICAS} --wait
+          set -euo pipefail
 
-          helm upgrade --install foodfund-user k8s/user \
-            --namespace $NAMESPACE \
-            --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/foodfund-user \
-            --set image.tag=${TAG} \
-            --set replicaCount=${REPLICAS} --wait
+          helm_timeout="${HELM_TIMEOUT:-10m0s}"
 
-          helm upgrade --install foodfund-gateway k8s/graphql-gateway \
-            --namespace $NAMESPACE \
-            --set image.repository=${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway \
-            --set image.tag=${TAG} \
-            --set replicaCount=${REPLICAS} --wait
+          deploy() {
+            release="$1"; chart="$2"; image_repo="$3"
+            echo "Deploying $release from $chart (image $image_repo:$TAG)"
+            if ! helm upgrade --install "$release" "$chart" \
+                --namespace "$NAMESPACE" --create-namespace \
+                --set image.repository="$image_repo" \
+                --set image.tag="$TAG" \
+                --set replicaCount="$REPLICAS" \
+                --wait --timeout "$helm_timeout" --atomic; then
+              echo "--- Helm deploy failed for $release. Gathering diagnostics... ---"
+              echo "== Helm status =="
+              helm status "$release" -n "$NAMESPACE" || true
+              echo "== Helm history =="
+              helm history "$release" -n "$NAMESPACE" || true
+              echo "== Pods in namespace =="
+              kubectl get pods -n "$NAMESPACE" -o wide || true
+              echo "== Describe pods (last 30 lines each) =="
+              for p in $(kubectl get pods -n "$NAMESPACE" -o name || true); do
+                echo "--- $p ---";
+                kubectl describe "$p" -n "$NAMESPACE" || true;
+              done
+              echo "== Recent events =="
+              kubectl get events -n "$NAMESPACE" --sort-by='.lastTimestamp' || true
+              exit 1
+            fi
+          }
+
+          deploy "foodfund-auth" "k8s/auth" "$DOCKER_REPO_AUTH"
+          deploy "foodfund-user" "k8s/user" "$DOCKER_REPO_USER"
+          deploy "foodfund-gateway" "k8s/graphql-gateway" "$DOCKER_REPO_GATEWAY"
 
       - name: Get status
         run: |
