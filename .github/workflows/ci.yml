@@ -87,8 +87,8 @@ jobs:
           # Create namespace
           kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
           
-          # Clean up any existing release
-          helm uninstall foodfund-$TAG -n $NAMESPACE || true
+          # Clean up any existing release (use fixed release name per environment)
+          helm uninstall foodfund -n $NAMESPACE || true
           
           # Test template rendering first
           echo "🧪 Testing template rendering..."
@@ -101,7 +101,7 @@ jobs:
           echo "✅ Templates are valid"
           
           # Deploy with complete configuration (without --wait for faster deployment)
-          helm upgrade --install foodfund-$TAG ./k8s \
+          helm upgrade --install foodfund ./k8s \
             --namespace $NAMESPACE \
             --set global.imageRegistry=${{ secrets.DOCKERHUB_USERNAME }} \
             --set namespace.create=false \
