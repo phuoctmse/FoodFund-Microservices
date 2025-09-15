@@ -93,9 +93,10 @@ jobs:
           # Test template rendering first
           echo "🧪 Testing template rendering..."
           helm template foodfund-$TAG ./k8s \
-            --set externalDatabase.host=test-host \
-            --set externalDatabase.username=test-user \
-            --set externalDatabase.password=test-pass \
+            --set-string externalDatabase.host="${{ secrets.DATABASE_HOST }}" \
+            --set-string externalDatabase.username="${{ secrets.DATABASE_USERNAME }}" \
+            --set-string externalDatabase.password="${{ secrets.DATABASE_PASSWORD }}" \
+            --set-string externalDatabase.port="${{ secrets.DATABASE_PORT }}" \
             --set namespace.create=false > /dev/null
           echo "✅ Templates are valid"
           
@@ -110,10 +111,10 @@ jobs:
             --set auth.replicaCount=$REPLICAS \
             --set user.replicaCount=$REPLICAS \
             --set gateway.replicaCount=$REPLICAS \
-            --set externalDatabase.host=${{ secrets.DATABASE_HOST }} \
-            --set externalDatabase.port=${{ secrets.DATABASE_PORT }} \
-            --set externalDatabase.username=${{ secrets.DATABASE_USERNAME }} \
-            --set externalDatabase.password=${{ secrets.DATABASE_PASSWORD }} \
+            --set-string externalDatabase.host="${{ secrets.DATABASE_HOST }}" \
+            --set-string externalDatabase.port="${{ secrets.DATABASE_PORT }}" \
+            --set-string externalDatabase.username="${{ secrets.DATABASE_USERNAME }}" \
+            --set-string externalDatabase.password="${{ secrets.DATABASE_PASSWORD }}" \
             --set aws.region=${{ secrets.AWS_REGION || 'us-east-1' }} \
             --set aws.cognito.userPoolId=${{ secrets.AWS_COGNITO_USER_POOL_ID || 'mock-user-pool-id' }} \
             --set aws.cognito.clientId=${{ secrets.AWS_COGNITO_CLIENT_ID || 'mock-client-id' }} \
