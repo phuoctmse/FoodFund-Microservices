@@ -62,9 +62,24 @@ jobs:
       - uses: digitalocean/action-doctl@v2
         with:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-      
+
+      - name: Export DO secrets to environment
+        env:
+          DIGITALOCEAN_CLUSTER_ID: ${{ secrets.DIGITALOCEAN_CLUSTER_ID }}
+          DIGITALOCEAN_CLUSTER_NAME: ${{ secrets.DIGITALOCEAN_CLUSTER_NAME }}
+          DO_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+        run: |
+          echo "DIGITALOCEAN_CLUSTER_ID=$DIGITALOCEAN_CLUSTER_ID" >> $GITHUB_ENV
+          echo "DIGITALOCEAN_CLUSTER_NAME=$DIGITALOCEAN_CLUSTER_NAME" >> $GITHUB_ENV
+          echo "DO_TOKEN=$DO_TOKEN" >> $GITHUB_ENV
+
       - name: Setup kubectl
-        run: doctl kubernetes cluster kubeconfig save ${{ secrets.DIGITALOCEAN_CLUSTER_NAME }}
+        run: |
+          if [ -n "$DIGITALOCEAN_CLUSTER_ID" ]; then
+            doctl kubernetes cluster kubeconfig save "$DIGITALOCEAN_CLUSTER_ID"
+          else
+            doctl kubernetes cluster kubeconfig save "$DIGITALOCEAN_CLUSTER_NAME"
+          fi
       
       - name: Setup kubectl
         run: |
@@ -81,25 +96,63 @@ jobs:
           fi
           echo "TAG=${GITHUB_REF##*/}" >> $GITHUB_ENV
       
-      - name: Deploy (apply manifests)
-        shell: pwsh
+      - name: Deploy with Helm charts
+        shell: bash
         env:
           DATABASE_HOST: ${{ secrets.DATABASE_HOST }}
           DATABASE_PORT: ${{ secrets.DATABASE_PORT }}
           DATABASE_USERNAME: ${{ secrets.DATABASE_USERNAME }}
           DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
-          DATABASE_SSL_MODE: ${{ secrets.DATABASE_SSL_MODE || 'require' }}
-          # Provide DigitalOcean token+cluster so apply.ps1 can fetch kubeconfig when needed
-          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-          DIGITALOCEAN_CLUSTER_NAME: ${{ secrets.DIGITALOCEAN_CLUSTER_NAME }}
-          AUTH_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-auth:${{ github.ref_name }}
-          USER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-user:${{ github.ref_name }}
-          GATEWAY_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway:${{ github.ref_name }}
+          AUTH_REPO: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-auth
+          USER_REPO: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-user
+          GATEWAY_REPO: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway
         run: |
-          # Run the apply script (PowerShell) to create the secret and apply manifests
-          pwsh -NoProfile -NonInteractive -Command "./k8s/apply.ps1 -namespace $env:NAMESPACE"
-          # Wait a few seconds for pods to be created
-          Start-Sleep -Seconds 15
+          set -euo pipefail
+
+          echo "Creating/updating database secret in namespace $NAMESPACE"
+          if [ -z "${DATABASE_HOST:-}" ] || [ -z "${DATABASE_PORT:-}" ] || [ -z "${DATABASE_USERNAME:-}" ] || [ -z "${DATABASE_PASSWORD:-}" ]; then
+            echo "Missing DB components in secrets; ensure DATABASE_HOST/PORT/USERNAME/PASSWORD are set"
+            exit 1
+          fi
+          USERS_DATABASE_URL="postgresql://${DATABASE_USERNAME}:${DATABASE_PASSWORD}@${DATABASE_HOST}:${DATABASE_PORT}/${USER_DATABASE_NAME:-users_db}?sslmode=${DATABASE_SSL_MODE:-require}"
+
+          kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f - || true
+          # Create secret with env-friendly keys (uppercase, underscore) so pods can consume them
+          kubectl create secret generic foodfund-database-secret -n $NAMESPACE \
+            --from-literal=USERS_DATABASE_URL="$USERS_DATABASE_URL" \
+            --from-literal=DATABASE_HOST="${DATABASE_HOST}" \
+            --from-literal=DATABASE_PORT="${DATABASE_PORT}" \
+            --from-literal=DATABASE_USERNAME="${DATABASE_USERNAME}" \
+            --from-literal=DATABASE_PASSWORD="${DATABASE_PASSWORD}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          echo "Installing Helm"
+          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+          echo "Deploying charts with helm upgrade --install"
+          # auth
+          helm upgrade --install foodfund-auth k8s/auth \
+            --namespace $NAMESPACE --create-namespace \
+            --set image.repository=${AUTH_REPO} \
+            --set image.tag=${TAG} \
+            --set replicaCount=${REPLICAS:-1} \
+            --wait --timeout 120s || true
+
+          # user
+          helm upgrade --install foodfund-user k8s/user \
+            --namespace $NAMESPACE \
+            --set image.repository=${USER_REPO} \
+            --set image.tag=${TAG} \
+            --set replicaCount=${REPLICAS:-1} \
+            --wait --timeout 120s || true
+
+          # gateway
+          helm upgrade --install foodfund-gateway k8s/graphql-gateway \
+            --namespace $NAMESPACE \
+            --set image.repository=${GATEWAY_REPO} \
+            --set image.tag=${TAG} \
+            --set replicaCount=${REPLICAS:-1} \
+            --wait --timeout 120s || true
       
       - name: Get Status
         run: |
