@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: foodfund-auth-service
+  namespace: foodfund-staging
+spec:
+  selector:
+    service: auth
+  ports:
+    - protocol: TCP
+      port: 8002
+      targetPort: 8002
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: foodfund-user-service
+  namespace: foodfund-staging
+spec:
+  selector:
+    service: user
+  ports:
+    - protocol: TCP
+      port: 8003
+      targetPort: 8003
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: foodfund-gateway-service
+  namespace: foodfund-staging
+spec:
+  selector:
+    service: gateway
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: LoadBalancer
