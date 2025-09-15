@@ -15,11 +15,11 @@ RUN npm ci
 # Copy source code (protected by .dockerignore)
 COPY . .
 
-# Generate Prisma client and build application
-WORKDIR /usr/src/app/apps/user
-RUN npx prisma generate
 
-WORKDIR /usr/src/app
+# Generate Prisma client
+RUN npx prisma generate --schema=apps/user/prisma/schema.prisma
+
+# Build application
 RUN npm run build user
 
 # Clean up dev dependencies (optional, saves space)
@@ -36,9 +36,10 @@ USER nestjs
 # Expose port
 EXPOSE 8003
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node healthcheck.js
+
+# Health check (optional, nếu có healthcheck.js thì giữ lại, nếu không thì xóa)
+# HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 
+#   CMD node healthcheck.js
 
 # Start the application
 CMD ["node", "dist/apps/user/main"]
