@@ -6,6 +6,7 @@ WORKDIR /usr/src/app
 
 # Copy package files
 COPY package*.json ./
+COPY prisma ./prisma
 COPY apps/user/package*.json ./apps/user/
 COPY apps/user/prisma ./apps/user/prisma
 
@@ -20,7 +21,7 @@ COPY . .
 RUN npx prisma generate --schema=apps/user/prisma/schema.prisma
 
 # Build application
-RUN npm run build user
+RUN npm run build --workspace=user
 
 # Clean up dev dependencies (optional, saves space)
 RUN npm prune --production
