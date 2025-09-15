@@ -129,6 +129,30 @@ jobs:
           echo "Installing Helm"
           curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
+          echo "Cleaning up legacy non-Helm resources (if any)"
+          # If legacy resources exist and are NOT managed by Helm (missing helm annotations), delete them so Helm can install the release.
+          for res in foodfund-auth foodfund-user; do
+            if kubectl get deployment "$res" -n "$NAMESPACE" >/dev/null 2>&1; then
+              owner=$(kubectl get deployment "$res" -n "$NAMESPACE" -o jsonpath='{.metadata.annotations.meta.helm.sh/release-name}' 2>/dev/null || true)
+              if [ -z "$owner" ]; then
+                echo "Deleting legacy deployment $res in $NAMESPACE (not Helm-managed)"
+                kubectl delete deployment "$res" -n "$NAMESPACE" --ignore-not-found || true
+              else
+                echo "Deployment $res is already Helm-managed by release: $owner"
+              fi
+            fi
+            svc_name="${res}-service"
+            if kubectl get service "$svc_name" -n "$NAMESPACE" >/dev/null 2>&1; then
+              svc_owner=$(kubectl get service "$svc_name" -n "$NAMESPACE" -o jsonpath='{.metadata.annotations.meta.helm.sh/release-name}' 2>/dev/null || true)
+              if [ -z "$svc_owner" ]; then
+                echo "Deleting legacy service $svc_name in $NAMESPACE (not Helm-managed)"
+                kubectl delete service "$svc_name" -n "$NAMESPACE" --ignore-not-found || true
+              else
+                echo "Service $svc_name is already Helm-managed by release: $svc_owner"
+              fi
+            fi
+          done
+
           echo "Deploying charts with helm upgrade --install"
           # auth
           helm upgrade --install foodfund-auth k8s/auth \
