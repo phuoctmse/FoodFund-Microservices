@@ -8,18 +8,17 @@ COPY package*.json ./
 COPY apps/user/package*.json ./apps/user/
 RUN npm ci
 COPY . .
-# Generate Prisma Client
-RUN cd apps/user && npx prisma generate --schema=apps/user/prisma/schema.prisma
+RUN cd apps/user && npx prisma generate
 RUN npm run build:user
 
 # Production Stage
 FROM node:${NODE_VERSION}-alpine AS production
 WORKDIR /usr/src/app
 COPY --from=build /usr/src/app/dist ./dist
-COPY --from=build /usr/src/app/node_modules ./node_modules
 COPY --from=build /usr/src/app/package*.json ./
 COPY --from=build /usr/src/app/apps/user/package*.json ./apps/user/
-COPY --from=build /usr/src/app/node_modules/.prisma ./node_modules/.prisma
-USER node
+COPY --from=build /usr/src/app/node_modules ./node_modules
+RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
+USER nestjs
 EXPOSE 8003
 CMD ["node", "dist/apps/user/main.js"]
