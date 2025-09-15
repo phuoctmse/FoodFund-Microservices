@@ -23,7 +23,7 @@ if (-not $userDatabaseUrl) {
   # Prefer an explicit DATABASE_NAME (or USER_DATABASE_NAME) if provided, otherwise default to 'users_db'
   if (-not $databaseName) { $databaseName = $env:USER_DATABASE_NAME }
   if (-not $databaseName) { $databaseName = 'users_db' }
-  $userDatabaseUrl = "postgresql://$dbUser:$dbPassword@$dbHost:$dbPort/$databaseName?sslmode=$($dbSslMode -or 'require')"
+  $userDatabaseUrl = "postgresql://${dbUser}:${dbPassword}@${dbHost}:${dbPort}/${databaseName}?sslmode=$($dbSslMode -or 'require')"
 }
 
 function To-Base64($s) {
@@ -124,7 +124,7 @@ if ($databases) {
       }
       if (-not $databaseName) { $databaseName = $env:USER_DATABASE_NAME }
       if (-not $databaseName) { $databaseName = 'users_db' }
-      $userDatabaseUrl = "postgresql://$dbUser:$dbPassword@$dbHost:$dbPort/$databaseName?sslmode=$($dbSslMode -or 'require')"
+  $userDatabaseUrl = "postgresql://${dbUser}:${dbPassword}@${dbHost}:${dbPort}/${databaseName}?sslmode=$($dbSslMode -or 'require')"
     }
     # populate legacy keys
     $dataEntries['user-database-url'] = To-Base64 $userDatabaseUrl
