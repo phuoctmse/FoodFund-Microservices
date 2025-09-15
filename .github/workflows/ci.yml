@@ -66,10 +66,9 @@ jobs:
       - name: Setup kubectl
         run: doctl kubernetes cluster kubeconfig save ${{ secrets.DIGITALOCEAN_CLUSTER_NAME }}
       
-      - name: Setup Helm
-        uses: azure/setup-helm@v3
-        with:
-          version: 'v3.13.0'
+      - name: Setup kubectl
+        run: |
+          echo "kubectl configured"
       
       - name: Set environment
         run: |
@@ -82,50 +81,25 @@ jobs:
           fi
           echo "TAG=${GITHUB_REF##*/}" >> $GITHUB_ENV
       
-      - name: Deploy
+      - name: Deploy (apply manifests)
+        shell: pwsh
+        env:
+          DATABASE_HOST: ${{ secrets.DATABASE_HOST }}
+          DATABASE_PORT: ${{ secrets.DATABASE_PORT }}
+          DATABASE_USERNAME: ${{ secrets.DATABASE_USERNAME }}
+          DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+          DATABASE_SSL_MODE: ${{ secrets.DATABASE_SSL_MODE || 'require' }}
+          # Provide DigitalOcean token+cluster so apply.ps1 can fetch kubeconfig when needed
+          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          DIGITALOCEAN_CLUSTER_NAME: ${{ secrets.DIGITALOCEAN_CLUSTER_NAME }}
+          AUTH_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-auth:${{ github.ref_name }}
+          USER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-user:${{ github.ref_name }}
+          GATEWAY_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway:${{ github.ref_name }}
         run: |
-          # Create namespace
-          kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
-          
-          # Clean up any existing release (use fixed release name per environment)
-          helm uninstall foodfund -n $NAMESPACE || true
-          
-          # Test template rendering first
-          echo "🧪 Testing template rendering..."
-          helm template foodfund-$TAG ./k8s \
-            --set-string externalDatabase.host="${{ secrets.DATABASE_HOST }}" \
-            --set-string externalDatabase.username="${{ secrets.DATABASE_USERNAME }}" \
-            --set-string externalDatabase.password="${{ secrets.DATABASE_PASSWORD }}" \
-            --set-string externalDatabase.port="${{ secrets.DATABASE_PORT }}" \
-            --set namespace.create=false > /dev/null
-          echo "✅ Templates are valid"
-          
-          # Deploy with complete configuration (without --wait for faster deployment)
-          helm upgrade --install foodfund ./k8s \
-            --namespace $NAMESPACE \
-            --set global.imageRegistry=${{ secrets.DOCKERHUB_USERNAME }} \
-            --set namespace.create=false \
-            --set auth.image.tag=$TAG \
-            --set user.image.tag=$TAG \
-            --set gateway.image.tag=$TAG \
-            --set auth.replicaCount=$REPLICAS \
-            --set user.replicaCount=$REPLICAS \
-            --set gateway.replicaCount=$REPLICAS \
-            --set-string externalDatabase.host="${{ secrets.DATABASE_HOST }}" \
-            --set-string externalDatabase.port="${{ secrets.DATABASE_PORT }}" \
-            --set-string externalDatabase.username="${{ secrets.DATABASE_USERNAME }}" \
-            --set-string externalDatabase.password="${{ secrets.DATABASE_PASSWORD }}" \
-            --set aws.region=${{ secrets.AWS_REGION || 'us-east-1' }} \
-            --set aws.cognito.userPoolId=${{ secrets.AWS_COGNITO_USER_POOL_ID || 'mock-user-pool-id' }} \
-            --set aws.cognito.clientId=${{ secrets.AWS_COGNITO_CLIENT_ID || 'mock-client-id' }} \
-            --set aws.cognito.clientSecret=${{ secrets.AWS_COGNITO_CLIENT_SECRET || '' }} \
-            --set aws.accessKeyId=${{ secrets.AWS_ACCESS_KEY_ID || '' }} \
-            --set aws.secretAccessKey=${{ secrets.AWS_SECRET_ACCESS_KEY || '' }} \
-            --timeout 5m
-          
-          # Give pods time to start
-          echo "⏳ Waiting for pods to start..."
-          sleep 30
+          # Run the apply script (PowerShell) to create the secret and apply manifests
+          pwsh -NoProfile -NonInteractive -Command "./k8s/apply.ps1 -namespace $env:NAMESPACE"
+          # Wait a few seconds for pods to be created
+          Start-Sleep -Seconds 15
       
       - name: Get Status
         run: |
@@ -133,9 +107,8 @@ jobs:
           kubectl get pods -n $NAMESPACE
           kubectl get svc -n $NAMESPACE
           
-          # Get LoadBalancer IP
+          # Get LoadBalancer IP (linux shell substitute)
           EXTERNAL_IP=$(kubectl get svc -n $NAMESPACE -o jsonpath='{.items[?(@.spec.type=="LoadBalancer")].status.loadBalancer.ingress[0].ip}' || echo "pending")
-          
           if [ "$EXTERNAL_IP" != "pending" ] && [ -n "$EXTERNAL_IP" ]; then
             echo "🌐 App URL: http://$EXTERNAL_IP"
             echo "🎯 GraphQL: http://$EXTERNAL_IP/graphql" 
