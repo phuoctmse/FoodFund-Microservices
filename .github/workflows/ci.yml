@@ -114,6 +114,7 @@ jobs:
             --set externalDatabase.port=${{ secrets.DATABASE_PORT }} \
             --set externalDatabase.username=${{ secrets.DATABASE_USERNAME }} \
             --set externalDatabase.password=${{ secrets.DATABASE_PASSWORD }} \
+            --set externalDatabase.userDatabase=${{ secrets.USER_DATABASE_NAME }} \
             --set aws.region=${{ secrets.AWS_REGION || 'us-east-1' }} \
             --set aws.cognito.userPoolId=${{ secrets.AWS_COGNITO_USER_POOL_ID || 'mock-user-pool-id' }} \
             --set aws.cognito.clientId=${{ secrets.AWS_COGNITO_CLIENT_ID || 'mock-client-id' }} \

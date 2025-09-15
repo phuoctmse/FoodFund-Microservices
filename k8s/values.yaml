@@ -170,7 +170,7 @@ namespace:
 
 # AWS Configuration (for Auth service)
 aws:
-  region: "us-east-1"
+  region: "ap-southeast-1"
   cognito:
     userPoolId: "mock-user-pool-id"  # Will be overridden by CI/CD
     clientId: "mock-client-id"       # Will be overridden by CI/CD
