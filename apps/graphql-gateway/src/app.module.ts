@@ -7,14 +7,14 @@ import { GraphQLGatewayModule } from "libs/graphql/gateway"
     imports: [
         GraphQLGatewayModule.forRoot({
             subgraphs: [
-                // {
-                //     name: "auth",
-                //     url: getHttpUrl({
-                //         host: envConfig().containers[Container.Auth]?.host,
-                //         port: envConfig().containers[Container.Auth]?.port,
-                //         path: "/graphql",
-                //     }),
-                // },
+                {
+                    name: "auth",
+                    url: getHttpUrl({
+                        host: envConfig().containers[Container.Auth]?.host,
+                        port: envConfig().containers[Container.Auth]?.port,
+                        path: "/graphql",
+                    }),
+                },
                 {
                     name: "user",
                     url: getHttpUrl({

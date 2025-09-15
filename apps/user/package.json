@@ -1,5 +1,8 @@
 {
   "name": "user",
   "version": "0.0.1",
-  "private": true
+  "private": true,
+  "scripts": {
+    "build": "nest build user"
+  }
 }

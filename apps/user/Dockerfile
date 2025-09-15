@@ -6,9 +6,7 @@ WORKDIR /usr/src/app
 
 # Copy package files
 COPY package*.json ./
-COPY prisma ./prisma
 COPY apps/user/package*.json ./apps/user/
-COPY apps/user/prisma ./apps/user/prisma
 
 # Install all dependencies (including dev dependencies for Prisma)
 RUN npm ci
@@ -16,15 +14,17 @@ RUN npm ci
 # Copy source code (protected by .dockerignore)
 COPY . .
 
+# Generate Prisma client for user service
+RUN cd apps/user && npx prisma generate
 
-# Generate Prisma client
-RUN npx prisma generate --schema=apps/user/prisma/schema.prisma
+# Build application using the correct NestJS build command
+RUN npm run build:user
 
-# Build application
-RUN npm run build --workspace=user
+# Verify build output exists
+RUN ls -la dist/apps/user/
 
-# Clean up dev dependencies (optional, saves space)
-RUN npm prune --production
+# Don't remove dev dependencies as we need them for runtime module resolution
+# RUN npm prune --production
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs
@@ -37,10 +37,9 @@ USER nestjs
 # Expose port
 EXPOSE 8003
 
-
 # Health check (optional, nếu có healthcheck.js thì giữ lại, nếu không thì xóa)
 # HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 
 #   CMD node healthcheck.js
 
 # Start the application
-CMD ["node", "dist/apps/user/main"]
+CMD ["node", "dist/apps/user/main.js"]
