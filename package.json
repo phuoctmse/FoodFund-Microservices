@@ -20,7 +20,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:auth": "nest start auth --watch",
-    "start:user": "nest start user --watch", 
+    "start:user": "nest start user --watch",
     "start:gateway": "nest start graphql-gateway --watch",
     "start:prod": "node dist/apps/graphql-gateway/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",

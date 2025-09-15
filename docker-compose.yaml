@@ -36,8 +36,6 @@ services:
       - "8003:8003"
     env_file:
       - .env.docker
-    depends_on:
-      - users-db
     networks:
       - foodfund-network
 

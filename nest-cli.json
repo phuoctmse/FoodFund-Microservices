@@ -28,15 +28,6 @@
         "tsConfigPath": "apps/campaign/tsconfig.app.json"
       }
     },
-    "campaigns-subgraph": {
-      "type": "application",
-      "root": "apps/campaigns-subgraph",
-      "entryFile": "main",
-      "sourceRoot": "apps/campaigns-subgraph/src",
-      "compilerOptions": {
-        "tsConfigPath": "apps/campaigns-subgraph/tsconfig.app.json"
-      }
-    },
     "graphql-gateway": {
       "type": "application",
       "root": "apps/graphql-gateway",
@@ -53,15 +44,6 @@
       "sourceRoot": "apps/user/src",
       "compilerOptions": {
         "tsConfigPath": "apps/user/tsconfig.app.json"
-      }
-    },
-    "users-subgraph": {
-      "type": "application",
-      "root": "apps/users-subgraph",
-      "entryFile": "main",
-      "sourceRoot": "apps/users-subgraph/src",
-      "compilerOptions": {
-        "tsConfigPath": "apps/users-subgraph/tsconfig.app.json"
       }
     }
   }
