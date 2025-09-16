@@ -1,0 +1,86 @@
+name: foodfund-microservices
+region: nyc3
+
+services:
+  # Auth Service
+  - name: auth-service
+    source_dir: /
+    dockerfile_path: apps/auth/Dockerfile
+    github:
+      repo: phuoctmse/FoodFund-Microservices
+      branch: develop
+      deploy_on_push: true
+    health_check:
+      http_path: /health
+    http_port: 8002
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    envs:
+      - key: USERS_DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: AWS_REGION
+        scope: RUN_TIME
+        type: SECRET
+      - key: AWS_ACCESS_KEY_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: AWS_SECRET_ACCESS_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: AWS_COGNITO_USER_POOL_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: AWS_COGNITO_CLIENT_ID
+        scope: RUN_TIME
+        type: SECRET
+      - key: AWS_COGNITO_CLIENT_SECRET
+        scope: RUN_TIME
+        type: SECRET
+
+  # User Service
+  - name: user-service
+    source_dir: /
+    dockerfile_path: apps/user/Dockerfile
+    github:
+      repo: ttrece/FoodFund-Microservices
+      branch: develop
+      deploy_on_push: true
+    health_check:
+      http_path: /health
+    http_port: 8003
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    envs:
+      - key: USERS_DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+
+  # GraphQL Gateway
+  - name: graphql-gateway
+    source_dir: /
+    dockerfile_path: apps/graphql-gateway/Dockerfile
+    github:
+      repo: ttrece/FoodFund-Microservices
+      branch: develop
+      deploy_on_push: true
+    health_check:
+      http_path: /health
+    http_port: 8000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    routes:
+      - path: /
+    envs:
+      - key: AUTH_HOST
+        scope: RUN_TIME
+        value: "auth-service-foodfund-microservices"
+      - key: AUTH_PORT
+        scope: RUN_TIME
+        value: "8002"
+      - key: USERS_SUBGRAPH_HOST
+        scope: RUN_TIME
+        value: "user-service-foodfund-microservices"
+      - key: USERS_SUBGRAPH_PORT
+        scope: RUN_TIME
+        value: "8003"

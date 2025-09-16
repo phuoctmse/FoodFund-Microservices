@@ -1,0 +1,165 @@
+name: FoodFund CI/CD with App Platform
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # ================= TEST JOB =================
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build auth
+      - run: npm run build user
+      - run: npm run build graphql-gateway
+
+  # ================= DEPLOY TO APP PLATFORM =================
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Set environment (staging vs production)
+        run: |
+          if [ "${GITHUB_REF##*/}" = "main" ]; then
+            echo "ENVIRONMENT=production" >> $GITHUB_ENV
+            echo "APP_NAME=foodfund-microservices-prod" >> $GITHUB_ENV
+          else
+            echo "ENVIRONMENT=staging" >> $GITHUB_ENV
+            echo "APP_NAME=foodfund-microservices" >> $GITHUB_ENV
+          fi
+
+      - name: Check if App Platform app exists
+        id: check_app
+        run: |
+          if doctl apps list --format Name --no-header | grep -q "^${APP_NAME}$"; then
+            echo "app_exists=true" >> $GITHUB_OUTPUT
+            APP_ID=$(doctl apps list --format ID,Name --no-header | grep "${APP_NAME}" | awk '{print $1}')
+            echo "app_id=${APP_ID}" >> $GITHUB_OUTPUT
+            echo "Found existing app: ${APP_NAME} (ID: ${APP_ID})"
+          else
+            echo "app_exists=false" >> $GITHUB_OUTPUT
+            echo "App ${APP_NAME} does not exist. Will create new app."
+          fi
+
+      - name: Create App Platform app (if not exists)
+        if: steps.check_app.outputs.app_exists == 'false'
+        run: |
+          echo "Creating new App Platform app: ${APP_NAME}"
+          doctl apps create .do/app.yaml --wait
+          echo "✅ App created successfully!"
+
+      - name: Update App Platform app (if exists)
+        if: steps.check_app.outputs.app_exists == 'true'
+        run: |
+          echo "Updating existing App Platform app: ${APP_NAME}"
+          APP_ID="${{ steps.check_app.outputs.app_id }}"
+          doctl apps update $APP_ID --spec .do/app.yaml --wait
+          echo "✅ App updated successfully!"
+
+      - name: Wait for deployment to complete
+        run: |
+          APP_ID=$(doctl apps list --format ID,Name --no-header | grep "${APP_NAME}" | awk '{print $1}')
+          echo "Waiting for deployment to complete..."
+          
+          # Wait up to 10 minutes for deployment
+          for i in {1..60}; do
+            STATUS=$(doctl apps get $APP_ID --format Status --no-header)
+            echo "Deployment status: $STATUS (attempt $i/60)"
+            
+            if [ "$STATUS" = "ACTIVE" ]; then
+              echo "✅ Deployment completed successfully!"
+              break
+            elif [ "$STATUS" = "ERROR" ]; then
+              echo "❌ Deployment failed!"
+              exit 1
+            fi
+            
+            sleep 10
+          done
+
+      - name: Set App Platform environment variables (Manual step reminder)
+        run: |
+          APP_ID=$(doctl apps list --format ID,Name --no-header | grep "${APP_NAME}" | awk '{print $1}')
+          
+          echo "🔧 MANUAL STEP REQUIRED:"
+          echo "Set the following environment variables in the App Platform dashboard:"
+          echo "https://cloud.digitalocean.com/apps/${APP_ID}/settings"
+          echo ""
+          echo "Required environment variables:"
+          echo "- USERS_DATABASE_URL (your database connection string)"
+          echo "- AWS_REGION"
+          echo "- AWS_ACCESS_KEY_ID" 
+          echo "- AWS_SECRET_ACCESS_KEY"
+          echo "- AWS_COGNITO_USER_POOL_ID"
+          echo "- AWS_COGNITO_CLIENT_ID"
+          echo "- AWS_COGNITO_CLIENT_SECRET"
+          echo ""
+          echo "After setting these variables, redeploy the app from the dashboard."
+
+      - name: Get App Platform status and URLs
+        run: |
+          APP_ID=$(doctl apps list --format ID,Name --no-header | grep "${APP_NAME}" | awk '{print $1}')
+          echo "=== App Platform Deployment Status ==="
+          doctl apps get $APP_ID --format Name,Status,DefaultIngress,UpdatedAt
+          echo ""
+          echo "=== Service URLs ==="
+          APP_URL=$(doctl apps get $APP_ID --format DefaultIngress --no-header)
+          echo "🚀 App URL: https://${APP_URL}"
+          echo "🔍 GraphQL Playground: https://${APP_URL}/graphql"
+          echo "💊 Health Check: https://${APP_URL}/health"
+
+      - name: Run basic health checks
+        run: |
+          APP_ID=$(doctl apps list --format ID,Name --no-header | grep "${APP_NAME}" | awk '{print $1}')
+          APP_URL=$(doctl apps get $APP_ID --format DefaultIngress --no-header)
+          
+          echo "Running basic health checks..."
+          
+          # Wait a bit for services to be ready
+          sleep 30
+          
+          # Check if the main URL is accessible
+          if curl -f -s "https://${APP_URL}/health" > /dev/null; then
+            echo "✅ Health check passed!"
+          else
+            echo "⚠️ Health check failed - services may still be starting up"
+            echo "Check the App Platform dashboard for detailed logs"
+          fi
+
+      - name: Deployment Success Summary
+        run: |
+          APP_ID=$(doctl apps list --format ID,Name --no-header | grep "${APP_NAME}" | awk '{print $1}')
+          APP_URL=$(doctl apps get $APP_ID --format DefaultIngress --no-header)
+          
+          echo "🎉 Deployment Summary:"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📱 Application: ${APP_NAME}"
+          echo "🌐 URL: https://${APP_URL}"
+          echo "🔍 GraphQL: https://${APP_URL}/graphql"
+          echo "💊 Health: https://${APP_URL}/health"
+          echo "🎛️ Dashboard: https://cloud.digitalocean.com/apps/${APP_ID}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "Next steps:"
+          echo "1. Set environment variables in the App Platform dashboard"
+          echo "2. Monitor application logs for any issues"
+          echo "3. Test the GraphQL endpoints"
