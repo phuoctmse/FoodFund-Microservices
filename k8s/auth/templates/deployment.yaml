@@ -45,11 +45,12 @@ spec:
               containerPort: {{ .Values.service.port }}
               protocol: TCP
           env:
-            - name: USER_DATABASE_URL
+            # Database configuration
+            - name: USERS_DATABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: foodfund-database-secret
-                  key: USER_DATABASE_URL
+                  key: USERS_DATABASE_URL
             - name: DATABASE_HOST
               valueFrom:
                 secretKeyRef:
@@ -70,6 +71,37 @@ spec:
                 secretKeyRef:
                   name: foodfund-database-secret
                   key: DATABASE_PASSWORD
+            # AWS Cognito configuration
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: foodfund-aws-secret
+                  key: AWS_REGION
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: foodfund-aws-secret
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: foodfund-aws-secret
+                  key: AWS_SECRET_ACCESS_KEY
+            - name: AWS_COGNITO_USER_POOL_ID
+              valueFrom:
+                secretKeyRef:
+                  name: foodfund-aws-secret
+                  key: AWS_COGNITO_USER_POOL_ID
+            - name: AWS_COGNITO_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: foodfund-aws-secret
+                  key: AWS_COGNITO_CLIENT_ID
+            - name: AWS_COGNITO_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: foodfund-aws-secret
+                  key: AWS_COGNITO_CLIENT_SECRET
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
