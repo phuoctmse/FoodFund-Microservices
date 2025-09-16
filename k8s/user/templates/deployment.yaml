@@ -50,26 +50,6 @@ spec:
                 secretKeyRef:
                   name: foodfund-database-secret
                   key: USERS_DATABASE_URL
-            - name: DATABASE_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: foodfund-database-secret
-                  key: DATABASE_HOST
-            - name: DATABASE_PORT
-              valueFrom:
-                secretKeyRef:
-                  name: foodfund-database-secret
-                  key: DATABASE_PORT
-            - name: DATABASE_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: foodfund-database-secret
-                  key: DATABASE_USERNAME
-            - name: DATABASE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: foodfund-database-secret
-                  key: DATABASE_PASSWORD
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}

@@ -31,6 +31,7 @@ export class GraphQLSubgraphModule extends ConfigurableModuleClass {
                     csrfPrevention: false,
                     debug: false,
                     playground: false,
+                    // subscriptions: {},
                     path: "/graphql",
                     formatError: (error) => {
                         // Remove the stack trace for production
