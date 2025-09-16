@@ -1,5 +1,5 @@
 name: foodfund-paas
-region: nyc3
+region: SGP1
 
 services:
   # Auth Service
