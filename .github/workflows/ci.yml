@@ -7,30 +7,44 @@ on:
     branches: [main, develop]
 
 jobs:
-  # --- CI (lint + test) ---
+  # ================= TEST JOB =================
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: '20'
+          cache: 'npm'
+
       - run: npm ci
       - run: npm run lint
       - run: npm run test
+      - run: npm run build auth
+      - run: npm run build user
+      - run: npm run build graphql-gateway
 
-  # --- Build & push docker images song song ---
-  docker-auth:
+  # ================= DOCKER BUILD & PUSH =================
+  docker:
     needs: test
     runs-on: ubuntu-latest
+    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
+
+      # Setup buildx with docker-container driver (fix cache export issue)
+      - uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+          install: true
+
       - uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+
+      - name: Build & Push Auth
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: apps/auth/Dockerfile
@@ -39,16 +53,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  docker-user:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - name: Build & Push User
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: apps/user/Dockerfile
@@ -57,16 +63,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  docker-gateway:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - name: Build & Push Gateway
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: apps/graphql-gateway/Dockerfile
@@ -75,13 +73,14 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # --- Deploy with Helm ---
+  # ================= DEPLOY TO K8S =================
   deploy:
-    needs: [docker-auth, docker-user, docker-gateway]
+    needs: docker
     runs-on: ubuntu-latest
     if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
+
       - uses: digitalocean/action-doctl@v2
         with:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
@@ -93,7 +92,7 @@ jobs:
         with:
           version: v3.15.2
 
-      - name: Set deploy env
+      - name: Set env (namespace, replicas, tag)
         run: |
           if [ "${GITHUB_REF##*/}" = "main" ]; then
             echo "NAMESPACE=foodfund-production" >> $GITHUB_ENV
@@ -103,35 +102,60 @@ jobs:
             echo "REPLICAS=1" >> $GITHUB_ENV
           fi
           echo "TAG=${GITHUB_SHA}" >> $GITHUB_ENV
+          echo "HELM_TIMEOUT=10m0s" >> $GITHUB_ENV
 
-      - name: Deploy with Helm
+      - name: Sync DB secret to cluster (create or update)
+        env:
+          DB_HOST: ${{ secrets.DATABASE_HOST }}
+          DB_PORT: ${{ secrets.DATABASE_PORT }}
+          DB_USER: ${{ secrets.DATABASE_USERNAME }}
+          DB_PASS: ${{ secrets.DATABASE_PASSWORD }}
+          USERS_DB_NAME: ${{ secrets.USERS_DATABASE_NAME }}
         run: |
           set -euo pipefail
-          for svc in auth user graphql-gateway; do
-            repo="${{ secrets.DOCKERHUB_USERNAME }}/foodfund-$svc"
-            chart="k8s/$svc"
-            release="foodfund-$svc"
+          USERS_DB_URL="postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${USERS_DB_NAME}?sslmode=require"
+          kubectl create secret generic foodfund-database-secret \
+            --from-literal=DATABASE_HOST="${DB_HOST}" \
+            --from-literal=DATABASE_PORT="${DB_PORT}" \
+            --from-literal=DATABASE_USERNAME="${DB_USER}" \
+            --from-literal=DATABASE_PASSWORD="${DB_PASS}" \
+            --from-literal=USERS_DATABASE_URL="${USERS_DB_URL}" \
+            --dry-run=client -o yaml | kubectl apply -n "$NAMESPACE" -f -
 
-            echo "Deploying $release with image $repo:$TAG"
+      - name: Deploy with Helm (atomic, debug on failure)
+        env:
+          DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKER_REPO_AUTH: "${{ secrets.DOCKERHUB_USERNAME }}/foodfund-auth"
+          DOCKER_REPO_USER: "${{ secrets.DOCKERHUB_USERNAME }}/foodfund-user"
+          DOCKER_REPO_GATEWAY: "${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway"
+        run: |
+          set -euo pipefail
+
+          helm_timeout="${HELM_TIMEOUT:-10m0s}"
+
+          deploy() {
+            release="$1"; chart="$2"; image_repo="$3"
+            echo "Deploying $release from $chart (image $image_repo:$TAG)"
             if ! helm upgrade --install "$release" "$chart" \
-              --namespace "$NAMESPACE" --create-namespace \
-              --set image.repository="$repo" \
-              --set image.tag="$TAG" \
-              --set replicaCount="$REPLICAS" \
-              --wait --timeout=2m --atomic; then
-              
-              echo "--- Helm failed for $release, debugging ---"
+                --namespace "$NAMESPACE" --create-namespace \
+                --set image.repository="$image_repo" \
+                --set image.tag="$TAG" \
+                --set replicaCount="$REPLICAS" \
+                --wait --timeout "$helm_timeout" --atomic; then
+              echo "--- Helm deploy failed for $release. Gathering diagnostics... ---"
+              helm status "$release" -n "$NAMESPACE" || true
               kubectl get pods -n "$NAMESPACE" -o wide || true
-              kubectl describe deployment "$release" -n "$NAMESPACE" || true
-              for p in $(kubectl get pods -n "$NAMESPACE" -l app=$release -o name || true); do
-                echo "--- Logs for $p ---"
-                kubectl logs "$p" -n "$NAMESPACE" --tail=50 || true
-              done
+              kubectl describe pods -n "$NAMESPACE" || true
+              kubectl get events -n "$NAMESPACE" --sort-by=.lastTimestamp || true
               exit 1
             fi
-          done
+          }
 
-      - name: Show cluster status
+          deploy "foodfund-auth" "k8s/auth" "$DOCKER_REPO_AUTH"
+          deploy "foodfund-user" "k8s/user" "$DOCKER_REPO_USER"
+          deploy "foodfund-gateway" "k8s/graphql-gateway" "$DOCKER_REPO_GATEWAY"
+
+      - name: Get status
         run: |
           kubectl get pods -n $NAMESPACE
           kubectl get svc -n $NAMESPACE
