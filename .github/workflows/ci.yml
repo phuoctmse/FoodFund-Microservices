@@ -20,89 +20,62 @@ jobs:
       - run: npm run lint
       - run: npm run test
 
-  # --- Build Docker images (chỉ build nếu có thay đổi) ---
+  # --- Build & push docker images song song ---
   docker-auth:
     needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: changes
-        with:
-          filters: |
-            src:
-              - 'apps/auth/**'
-      - if: steps.changes.outputs.src == 'true'
-        uses: docker/login-action@v3
+      - uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - if: steps.changes.outputs.src == 'true'
-        uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v6
         with:
           context: .
           file: apps/auth/Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-auth:${{ github.sha }}
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/foodfund-auth:cache
-          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/foodfund-auth:cache,mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   docker-user:
     needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: changes
-        with:
-          filters: |
-            src:
-              - 'apps/user/**'
-      - if: steps.changes.outputs.src == 'true'
-        uses: docker/login-action@v3
+      - uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - if: steps.changes.outputs.src == 'true'
-        uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v6
         with:
           context: .
           file: apps/user/Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-user:${{ github.sha }}
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/foodfund-user:cache
-          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/foodfund-user:cache,mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   docker-gateway:
     needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: changes
-        with:
-          filters: |
-            src:
-              - 'apps/graphql-gateway/**'
-      - if: steps.changes.outputs.src == 'true'
-        uses: docker/login-action@v3
+      - uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - if: steps.changes.outputs.src == 'true'
-        uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v6
         with:
           context: .
           file: apps/graphql-gateway/Dockerfile
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway:${{ github.sha }}
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway:cache
-          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway:cache,mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-  # --- Deploy ---
+  # --- Deploy with Helm ---
   deploy:
     needs: [docker-auth, docker-user, docker-gateway]
     runs-on: ubuntu-latest
