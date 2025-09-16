@@ -1,4 +1,4 @@
-name: foodfund-microservices
+name: foodfund-paas
 region: nyc3
 
 services:

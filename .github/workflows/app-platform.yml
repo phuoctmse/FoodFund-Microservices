@@ -41,31 +41,54 @@ jobs:
         run: |
           if [ "${GITHUB_REF##*/}" = "main" ]; then
             echo "ENVIRONMENT=production" >> $GITHUB_ENV
-            echo "APP_NAME=foodfund-microservices-prod" >> $GITHUB_ENV
+            echo "APP_NAME=foodfund-paas-prod" >> $GITHUB_ENV
           else
             echo "ENVIRONMENT=staging" >> $GITHUB_ENV
-            echo "APP_NAME=foodfund-microservices" >> $GITHUB_ENV
+            echo "APP_NAME=foodfund-paas" >> $GITHUB_ENV
           fi
 
       - name: Check if App Platform app exists
         id: check_app
         run: |
+          echo "Looking for app: ${APP_NAME}"
+          echo "Available apps:"
+          doctl apps list --format Name,ID,Status --no-header || true
+          echo ""
+          
           if doctl apps list --format Name --no-header | grep -q "^${APP_NAME}$"; then
             echo "app_exists=true" >> $GITHUB_OUTPUT
             APP_ID=$(doctl apps list --format ID,Name --no-header | grep "${APP_NAME}" | awk '{print $1}')
             echo "app_id=${APP_ID}" >> $GITHUB_OUTPUT
-            echo "Found existing app: ${APP_NAME} (ID: ${APP_ID})"
+            echo "✅ Found existing app: ${APP_NAME} (ID: ${APP_ID})"
           else
-            echo "app_exists=false" >> $GITHUB_OUTPUT
-            echo "App ${APP_NAME} does not exist. Will create new app."
+            # Try partial match in case of naming differences
+            PARTIAL_MATCH=$(doctl apps list --format Name --no-header | grep "foodfund-paas" || echo "")
+            if [ -n "$PARTIAL_MATCH" ]; then
+              echo "❌ Exact match not found, but found similar apps:"
+              echo "$PARTIAL_MATCH"
+              echo "app_exists=true" >> $GITHUB_OUTPUT
+              APP_ID=$(doctl apps list --format ID,Name --no-header | grep "foodfund-paas" | head -n1 | awk '{print $1}')
+              echo "app_id=${APP_ID}" >> $GITHUB_OUTPUT
+              echo "Using first match: $PARTIAL_MATCH (ID: ${APP_ID})"
+            else
+              echo "app_exists=false" >> $GITHUB_OUTPUT
+              echo "❌ No foodfund-paas apps found. Will create new app."
+            fi
           fi
 
       - name: Create App Platform app (if not exists)
         if: steps.check_app.outputs.app_exists == 'false'
         run: |
-          echo "Creating new App Platform app: ${APP_NAME}"
-          doctl apps create --spec .do/app.yaml --wait
-          echo "✅ App created successfully!"
+          echo "⚠️ Would create new app: ${APP_NAME}"
+          echo "But manual creation via dashboard is recommended."
+          echo "Please create app manually and re-run workflow."
+          echo ""
+          echo "To create manually:"
+          echo "1. Go to https://cloud.digitalocean.com/apps"
+          echo "2. Create app with name: ${APP_NAME}"
+          echo "3. Connect GitHub repo: phuoctmse/FoodFund-Microservices"
+          echo "4. Import .do/app.yaml"
+          exit 1
 
       - name: Update App Platform app (if exists)
         if: steps.check_app.outputs.app_exists == 'true'
