@@ -107,5 +107,3 @@ kubeconfig*
 
 
 /generated/prisma
-
-.github/workflows/
