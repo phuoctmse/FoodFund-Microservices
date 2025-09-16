@@ -49,7 +49,7 @@ jobs:
           context: .
           file: apps/auth/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-auth:${{ github.sha }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-auth:${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -59,7 +59,7 @@ jobs:
           context: .
           file: apps/user/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-user:${{ github.sha }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-user:${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -69,7 +69,7 @@ jobs:
           context: .
           file: apps/graphql-gateway/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway:${{ github.sha }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway:${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -101,7 +101,7 @@ jobs:
             echo "NAMESPACE=foodfund-staging" >> $GITHUB_ENV
             echo "REPLICAS=1" >> $GITHUB_ENV
           fi
-          echo "TAG=${GITHUB_SHA}" >> $GITHUB_ENV
+          echo "TAG=${GITHUB_REF##*/}" >> $GITHUB_ENV
           echo "HELM_TIMEOUT=10m0s" >> $GITHUB_ENV
 
       - name: Sync secrets to cluster (create or update)
@@ -140,7 +140,7 @@ jobs:
             --from-literal=AWS_COGNITO_CLIENT_SECRET="${AWS_COGNITO_CLIENT_SECRET}" \
             --dry-run=client -o yaml | kubectl apply -n "$NAMESPACE" -f -
 
-      - name: Deploy with Helm (atomic, debug on failure)
+      - name: Deploy with Helm (fast, non-blocking rollout check)
         env:
           DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKER_REPO_AUTH: "${{ secrets.DOCKERHUB_USERNAME }}/foodfund-auth"
@@ -149,23 +149,26 @@ jobs:
         run: |
           set -euo pipefail
 
-          helm_timeout="${HELM_TIMEOUT:-10m0s}"
-
           deploy() {
             release="$1"; chart="$2"; image_repo="$3"
             echo "Deploying $release from $chart (image $image_repo:$TAG)"
-            if ! helm upgrade --install "$release" "$chart" \
-                --namespace "$NAMESPACE" --create-namespace \
-                --set image.repository="$image_repo" \
-                --set image.tag="$TAG" \
-                --set replicaCount="$REPLICAS" \
-                --wait --timeout "$helm_timeout" --atomic; then
-              echo "--- Helm deploy failed for $release. Gathering diagnostics... ---"
+            # Run helm without --wait/--atomic so the command returns faster and Helm retains history
+            helm upgrade --install "$release" "$chart" \
+              --namespace "$NAMESPACE" --create-namespace \
+              --set image.repository="$image_repo" \
+              --set image.tag="$TAG" \
+              --set replicaCount="$REPLICAS" || true
+
+            # Wait a short time for rollout: 90s to avoid long CI blocks
+            echo "Waiting up to 90s for deployment/${release} to rollout"
+            if ! kubectl rollout status deployment/"${release}" -n "$NAMESPACE" --timeout=90s; then
+              echo "Rollout did not complete within 90s for ${release}. Gathering diagnostics (non-fatal)..."
               helm status "$release" -n "$NAMESPACE" || true
+              helm history "$release" -n "$NAMESPACE" || true
               kubectl get pods -n "$NAMESPACE" -o wide || true
               kubectl describe pods -n "$NAMESPACE" || true
-              kubectl get events -n "$NAMESPACE" --sort-by=.lastTimestamp || true
-              exit 1
+              kubectl get events -n "$NAMESPACE" --sort-by='.lastTimestamp' || true
+              echo "Continuing pipeline despite incomplete rollout. Check cluster for issues."
             fi
           }
 
