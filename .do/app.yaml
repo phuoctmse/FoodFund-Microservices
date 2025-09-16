@@ -74,13 +74,13 @@ services:
     envs:
       - key: AUTH_HOST
         scope: RUN_TIME
-        value: "auth-service-foodfund-microservices"
+        value: "auth-service"
       - key: AUTH_PORT
         scope: RUN_TIME
         value: "8002"
       - key: USERS_SUBGRAPH_HOST
         scope: RUN_TIME
-        value: "user-service-foodfund-microservices"
+        value: "user-service"
       - key: USERS_SUBGRAPH_PORT
         scope: RUN_TIME
         value: "8003"
