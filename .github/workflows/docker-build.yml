@@ -92,3 +92,31 @@ jobs:
           echo "- ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-auth:${{ env.TAG }}"
           echo "- ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-user:${{ env.TAG }}"  
           echo "- ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway:${{ env.TAG }}"
+
+      - name: Install doctl
+        if: secrets.DIGITALOCEAN_ACCESS_TOKEN != '' && secrets.DOCTL_APP_ID != ''
+        run: |
+          curl -sL https://github.com/digitalocean/doctl/releases/latest/download/doctl-1.110.0-linux-amd64.tar.gz | tar -xzv
+          sudo mv doctl /usr/local/bin/doctl
+
+      - name: Authenticate doctl
+        if: secrets.DIGITALOCEAN_ACCESS_TOKEN != '' && secrets.DOCTL_APP_ID != ''
+        env:
+          DOCTL_TOKEN: ${{ secrets.DOCTL_TOKEN }}
+        run: |
+          doctl auth init -t $DOCTL_TOKEN
+
+      - name: Deploy to DigitalOcean App Platform
+        if: secrets.DIGITALOCEAN_ACCESS_TOKEN != '' && secrets.DOCTL_APP_ID != ''
+        env:
+          DOCTL_APP_ID: ${{ secrets.DOCTL_APP_ID }}
+        run: |
+          # Replace registry and tag placeholders in .do/app.yaml with actual image names/tags
+          sed -i "s|ttrece/foodfund-auth|${{ secrets.DOCKERHUB_USERNAME }}/foodfund-auth|g" .do/app.yaml
+          sed -i "s|ttrece/foodfund-user|${{ secrets.DOCKERHUB_USERNAME }}/foodfund-user|g" .do/app.yaml
+          sed -i "s|ttrece/foodfund-graphql-gateway|${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway|g" .do/app.yaml
+          # Use commit SHA as tag for deterministic deploys
+          sed -i "s|tag: develop|tag: ${{ github.sha }}|g" .do/app.yaml
+
+          # Update the existing app with the spec; this triggers App Platform to pull those images
+          doctl apps update $DOCTL_APP_ID --spec .do/app.yaml
