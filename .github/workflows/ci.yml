@@ -73,6 +73,27 @@ jobs:
           echo "TAG=${GITHUB_REF##*/}" >> $GITHUB_ENV
           # default Helm timeout (can be overridden if needed)
           echo "HELM_TIMEOUT=10m0s" >> $GITHUB_ENV
+
+      - name: Sync DB secret to cluster (create or update)
+        env:
+          DB_HOST: ${{ secrets.DATABASE_HOST }}
+          DB_PORT: ${{ secrets.DATABASE_PORT }}
+          DB_USER: ${{ secrets.DATABASE_USERNAME }}
+          DB_PASS: ${{ secrets.DATABASE_PASSWORD }}
+          USERS_DB_NAME: ${{ secrets.USERS_DATABASE_NAME }}
+        run: |
+          set -euo pipefail
+          # Build USERS_DATABASE_URL from individual secrets if not provided
+          USERS_DB_URL="postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${USERS_DB_NAME}?sslmode=require"
+          echo "Applying secret 'foodfund-database-secret' to namespace $NAMESPACE"
+          kubectl create secret generic foodfund-database-secret \
+            --from-literal=DATABASE_HOST="${DB_HOST}" \
+            --from-literal=DATABASE_PORT="${DB_PORT}" \
+            --from-literal=DATABASE_USERNAME="${DB_USER}" \
+            --from-literal=DATABASE_PASSWORD="${DB_PASS}" \
+            --from-literal=USERS_DATABASE_URL="${USERS_DB_URL}" \
+            --dry-run=client -o yaml | kubectl apply -n "$NAMESPACE" -f -
+                  
       - name: Deploy with Helm (atomic, timeout, debug on failure)
         env:
           DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}

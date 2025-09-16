@@ -45,11 +45,11 @@ spec:
               containerPort: {{ .Values.service.port }}
               protocol: TCP
           env:
-            - name: USERS_DATABASE_URL
+            - name: USER_DATABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: foodfund-database-secret
-                  key: USERS_DATABASE_URL
+                  key: USER_DATABASE_URL
             - name: DATABASE_HOST
               valueFrom:
                 secretKeyRef:
