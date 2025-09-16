@@ -19,7 +19,12 @@ COPY --from=build /usr/src/app/package*.json ./
 COPY --from=build /usr/src/app/apps/user/package*.json ./apps/user/
 COPY --from=build /usr/src/app/node_modules ./node_modules
 COPY --from=build /usr/src/app/apps/user/prisma ./apps/user/prisma
-RUN cd apps/user && npx prisma generate
+# 🔥 Ensure working directory and generate Prisma client
+WORKDIR /usr/src/app/apps/user
+RUN npx prisma generate
+
+# 🔥 Return to main workdir
+WORKDIR /usr/src/app
 RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
 USER nestjs
 EXPOSE 8003
