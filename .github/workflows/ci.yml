@@ -104,22 +104,40 @@ jobs:
           echo "TAG=${GITHUB_SHA}" >> $GITHUB_ENV
           echo "HELM_TIMEOUT=10m0s" >> $GITHUB_ENV
 
-      - name: Sync DB secret to cluster (create or update)
+      - name: Sync secrets to cluster (create or update)
         env:
           DB_HOST: ${{ secrets.DATABASE_HOST }}
           DB_PORT: ${{ secrets.DATABASE_PORT }}
           DB_USER: ${{ secrets.DATABASE_USERNAME }}
           DB_PASS: ${{ secrets.DATABASE_PASSWORD }}
           USERS_DB_NAME: ${{ secrets.USERS_DATABASE_NAME }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_COGNITO_USER_POOL_ID: ${{ secrets.AWS_COGNITO_USER_POOL_ID }}
+          AWS_COGNITO_CLIENT_ID: ${{ secrets.AWS_COGNITO_CLIENT_ID }}
+          AWS_COGNITO_CLIENT_SECRET: ${{ secrets.AWS_COGNITO_CLIENT_SECRET }}
         run: |
           set -euo pipefail
           USERS_DB_URL="postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${USERS_DB_NAME}?sslmode=require"
+          
+          # Create database secret
           kubectl create secret generic foodfund-database-secret \
             --from-literal=DATABASE_HOST="${DB_HOST}" \
             --from-literal=DATABASE_PORT="${DB_PORT}" \
             --from-literal=DATABASE_USERNAME="${DB_USER}" \
             --from-literal=DATABASE_PASSWORD="${DB_PASS}" \
             --from-literal=USERS_DATABASE_URL="${USERS_DB_URL}" \
+            --dry-run=client -o yaml | kubectl apply -n "$NAMESPACE" -f -
+          
+          # Create AWS secret
+          kubectl create secret generic foodfund-aws-secret \
+            --from-literal=AWS_REGION="${AWS_REGION}" \
+            --from-literal=AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}" \
+            --from-literal=AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}" \
+            --from-literal=AWS_COGNITO_USER_POOL_ID="${AWS_COGNITO_USER_POOL_ID}" \
+            --from-literal=AWS_COGNITO_CLIENT_ID="${AWS_COGNITO_CLIENT_ID}" \
+            --from-literal=AWS_COGNITO_CLIENT_SECRET="${AWS_COGNITO_CLIENT_SECRET}" \
             --dry-run=client -o yaml | kubectl apply -n "$NAMESPACE" -f -
 
       - name: Deploy with Helm (atomic, debug on failure)
