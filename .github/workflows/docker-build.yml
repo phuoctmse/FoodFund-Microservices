@@ -124,11 +124,7 @@ jobs:
       - name: Set image tags
         if: needs.detect-changes.outputs[matrix.service] == 'true'
         run: |
-          if [ "${GITHUB_REF##*/}" = "main" ]; then
-            echo "TAG=latest" >> $GITHUB_ENV
-          else
-            echo "TAG=develop" >> $GITHUB_ENV
-          fi
+          echo "TAG=develop" >> $GITHUB_ENV
 
       - name: Build & Push ${{ matrix.service }} Service
         if: needs.detect-changes.outputs[matrix.service] == 'true'
@@ -207,8 +203,7 @@ jobs:
           sed -i "s|ttrece/foodfund-user|${DOCKERHUB_USERNAME}/foodfund-user|g" .do/app.yaml
           sed -i "s|ttrece/foodfund-graphql-gateway|${DOCKERHUB_USERNAME}/foodfund-graphql-gateway|g" .do/app.yaml
           
-          # Use commit SHA as tag for deterministic deploys
-          sed -i "s|tag: develop|tag: ${GITHUB_SHA}|g" .do/app.yaml
+          # Tag is already set to GITHUB_SHA in build step
 
           # Update the existing app with the spec
           doctl apps update $DOCTL_APP_ID --spec .do/app.yaml
