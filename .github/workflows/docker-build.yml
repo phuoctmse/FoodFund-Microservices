@@ -14,9 +14,8 @@ jobs:
       auth: ${{ steps.changes.outputs.auth }}
       user: ${{ steps.changes.outputs.user }}
       gateway: ${{ steps.changes.outputs.gateway }}
-      campaign: ${{ steps.changes.outputs.campaign }}
       shared: ${{ steps.changes.outputs.shared }}
-      any-service: ${{ steps.changes.outputs.auth == 'true' || steps.changes.outputs.user == 'true' || steps.changes.outputs.gateway == 'true' || steps.changes.outputs.campaign == 'true' }}
+      any-service: ${{ steps.changes.outputs.auth == 'true' || steps.changes.outputs.user == 'true' || steps.changes.outputs.gateway == 'true' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,10 +37,6 @@ jobs:
               - 'apps/graphql-gateway/**'
               - 'libs/**'
               - 'package*.json'
-            campaign:
-              - 'apps/campaign/**'
-              - 'libs/**'
-              - 'package*.json'
             shared:
               - 'libs/**'
               - 'package*.json'
@@ -55,7 +50,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [auth, user, gateway, campaign]
+        service: [auth, user, gateway]
         include:
           - service: auth
             build-script: "build:auth"
@@ -63,8 +58,6 @@ jobs:
             build-script: "build:user"
           - service: gateway
             build-script: "build:gateway"
-          - service: campaign
-            build-script: "build:campaign"
     
     steps:
       - uses: actions/checkout@v4
@@ -100,7 +93,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [auth, user, gateway, campaign]
+        service: [auth, user, gateway]
         include:
           - service: auth
             dockerfile: apps/auth/Dockerfile
@@ -111,9 +104,6 @@ jobs:
           - service: gateway
             dockerfile: apps/graphql-gateway/Dockerfile
             image: foodfund-graphql-gateway
-          - service: campaign
-            dockerfile: apps/campaign/Dockerfile
-            image: foodfund-campaign
     
     steps:
       - uses: actions/checkout@v4
@@ -168,7 +158,6 @@ jobs:
           echo "| Auth | ${{ needs.detect-changes.outputs.auth }} | ${{ needs.detect-changes.outputs.auth == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| User | ${{ needs.detect-changes.outputs.user }} | ${{ needs.detect-changes.outputs.user == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Gateway | ${{ needs.detect-changes.outputs.gateway }} | ${{ needs.detect-changes.outputs.gateway == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Campaign | ${{ needs.detect-changes.outputs.campaign }} | ${{ needs.detect-changes.outputs.campaign == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
 
   # ================= DEPLOY =================
   deploy:
@@ -217,7 +206,6 @@ jobs:
           sed -i "s|ttrece/foodfund-auth|${DOCKERHUB_USERNAME}/foodfund-auth|g" .do/app.yaml
           sed -i "s|ttrece/foodfund-user|${DOCKERHUB_USERNAME}/foodfund-user|g" .do/app.yaml
           sed -i "s|ttrece/foodfund-graphql-gateway|${DOCKERHUB_USERNAME}/foodfund-graphql-gateway|g" .do/app.yaml
-          sed -i "s|ttrece/foodfund-campaign|${DOCKERHUB_USERNAME}/foodfund-campaign|g" .do/app.yaml
           
           # Use commit SHA as tag for deterministic deploys
           sed -i "s|tag: develop|tag: ${GITHUB_SHA}|g" .do/app.yaml
