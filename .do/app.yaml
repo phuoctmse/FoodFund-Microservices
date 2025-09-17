@@ -8,8 +8,6 @@ services:
       registry_type: DOCKER_HUB
       repository: ttrece/foodfund-auth
       tag: develop
-    health_check:
-      http_path: /health
     http_port: 8002
     instance_count: 1
     instance_size_slug: basic-xxs
@@ -42,8 +40,6 @@ services:
       registry_type: DOCKER_HUB
       repository: ttrece/foodfund-user
       tag: develop
-    health_check:
-      http_path: /health
     http_port: 8003
     instance_count: 1
     instance_size_slug: basic-xxs
@@ -58,8 +54,6 @@ services:
       registry_type: DOCKER_HUB
       repository: ttrece/foodfund-graphql-gateway
       tag: develop
-    health_check:
-      http_path: /health
     http_port: 8000
     instance_count: 1
     instance_size_slug: basic-xxs
