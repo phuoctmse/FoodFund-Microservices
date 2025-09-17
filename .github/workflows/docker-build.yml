@@ -1,4 +1,4 @@
-name: Build and Push Docker Images
+name: Optimized Build and Deploy
 
 on:
   push:
@@ -7,42 +7,132 @@ on:
     branches: [main, develop]
 
 jobs:
-  # ================= TEST JOB =================
-  test:
+  # ================= DETECT CHANGES =================
+  detect-changes:
     runs-on: ubuntu-latest
+    outputs:
+      auth: ${{ steps.changes.outputs.auth }}
+      user: ${{ steps.changes.outputs.user }}
+      gateway: ${{ steps.changes.outputs.gateway }}
+      campaign: ${{ steps.changes.outputs.campaign }}
+      shared: ${{ steps.changes.outputs.shared }}
+      any-service: ${{ steps.changes.outputs.auth == 'true' || steps.changes.outputs.user == 'true' || steps.changes.outputs.gateway == 'true' || steps.changes.outputs.campaign == 'true' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            auth:
+              - 'apps/auth/**'
+              - 'libs/**'
+              - 'package*.json'
+            user:
+              - 'apps/user/**'
+              - 'libs/**'
+              - 'package*.json'
+            gateway:
+              - 'apps/graphql-gateway/**'
+              - 'libs/**'
+              - 'package*.json'
+            campaign:
+              - 'apps/campaign/**'
+              - 'libs/**'
+              - 'package*.json'
+            shared:
+              - 'libs/**'
+              - 'package*.json'
+              - '.github/workflows/**'
+
+  # ================= TEST CHANGED SERVICES =================
+  test:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    if: needs.detect-changes.outputs.any-service == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [auth, user, gateway, campaign]
+        include:
+          - service: auth
+            build-script: "build:auth"
+          - service: user
+            build-script: "build:user"
+          - service: gateway
+            build-script: "build:gateway"
+          - service: campaign
+            build-script: "build:campaign"
+    
+    steps:
+      - uses: actions/checkout@v4
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
+      
       - uses: actions/setup-node@v4
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
         with:
           node-version: '20'
           cache: 'npm'
 
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run test
-      - run: npm run build auth
-      - run: npm run build user
-      - run: npm run build graphql-gateway
+      - name: Install dependencies
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
+        run: npm ci
+
+      - name: Lint ${{ matrix.service }}
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
+        run: npm run lint:check
+
+      - name: Test ${{ matrix.service }}
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
+        run: npm run test
+
+      - name: Build ${{ matrix.service }}
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
+        run: npm run ${{ matrix.build-script }}
 
   # ================= DOCKER BUILD & PUSH =================
   docker:
-    needs: test
+    needs: [detect-changes, test]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && needs.detect-changes.outputs.any-service == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [auth, user, gateway, campaign]
+        include:
+          - service: auth
+            dockerfile: apps/auth/Dockerfile
+            image: foodfund-auth
+          - service: user
+            dockerfile: apps/user/Dockerfile
+            image: foodfund-user
+          - service: gateway
+            dockerfile: apps/graphql-gateway/Dockerfile
+            image: foodfund-graphql-gateway
+          - service: campaign
+            dockerfile: apps/campaign/Dockerfile
+            image: foodfund-campaign
+    
     steps:
       - uses: actions/checkout@v4
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
 
       - uses: docker/setup-buildx-action@v3
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
         with:
           driver: docker-container
           install: true
 
       - uses: docker/login-action@v3
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set image tags
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
         run: |
           if [ "${GITHUB_REF##*/}" = "main" ]; then
             echo "TAG=latest" >> $GITHUB_ENV
@@ -50,48 +140,43 @@ jobs:
             echo "TAG=develop" >> $GITHUB_ENV
           fi
 
-      - name: Build & Push Auth Service
+      - name: Build & Push ${{ matrix.service }} Service
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: apps/auth/Dockerfile
+          file: ${{ matrix.dockerfile }}
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-auth:${{ env.TAG }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-auth:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image }}:${{ env.TAG }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          platforms: linux/amd64
 
-      - name: Build & Push User Service
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/user/Dockerfile
-          push: true
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-user:${{ env.TAG }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-user:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build & Push GraphQL Gateway
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/graphql-gateway/Dockerfile
-          push: true
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway:${{ env.TAG }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Image build summary
+  # ================= BUILD SUMMARY =================
+  build-summary:
+    needs: [detect-changes, docker]
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'push'
+    steps:
+      - name: Build Summary
         run: |
-          echo "🐳 Docker images built and pushed:"
-          echo "- ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-auth:${{ env.TAG }}"
-          echo "- ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-user:${{ env.TAG }}"  
-          echo "- ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway:${{ env.TAG }}"
+          echo "## 🚀 Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Changed | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Auth | ${{ needs.detect-changes.outputs.auth }} | ${{ needs.detect-changes.outputs.auth == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| User | ${{ needs.detect-changes.outputs.user }} | ${{ needs.detect-changes.outputs.user == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Gateway | ${{ needs.detect-changes.outputs.gateway }} | ${{ needs.detect-changes.outputs.gateway == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Campaign | ${{ needs.detect-changes.outputs.campaign }} | ${{ needs.detect-changes.outputs.campaign == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+
+  # ================= DEPLOY =================
+  deploy:
+    needs: [detect-changes, docker]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && needs.detect-changes.outputs.any-service == 'true'
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Install doctl
         env:
@@ -127,15 +212,17 @@ jobs:
             echo "Deployment secrets not set, skipping deployment"
             exit 0
           fi
+          
           # Replace registry placeholders in .do/app.yaml with actual image names
           sed -i "s|ttrece/foodfund-auth|${DOCKERHUB_USERNAME}/foodfund-auth|g" .do/app.yaml
           sed -i "s|ttrece/foodfund-user|${DOCKERHUB_USERNAME}/foodfund-user|g" .do/app.yaml
           sed -i "s|ttrece/foodfund-graphql-gateway|${DOCKERHUB_USERNAME}/foodfund-graphql-gateway|g" .do/app.yaml
+          sed -i "s|ttrece/foodfund-campaign|${DOCKERHUB_USERNAME}/foodfund-campaign|g" .do/app.yaml
+          
           # Use commit SHA as tag for deterministic deploys
           sed -i "s|tag: develop|tag: ${GITHUB_SHA}|g" .do/app.yaml
 
-          # Authenticate just in case (doctl already authenticated in prior step)
-          doctl auth init -t $DIGITALOCEAN_ACCESS_TOKEN
-
-          # Update the existing app with the spec; this triggers App Platform to pull those images
+          # Update the existing app with the spec
           doctl apps update $DOCTL_APP_ID --spec .do/app.yaml
+          
+          echo "🚀 Deployment triggered for changed services"
