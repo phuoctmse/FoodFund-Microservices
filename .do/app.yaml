@@ -1,4 +1,4 @@
-name: foodfund-paas
+name: foodfund-microservices
 region: sgp1
 
 services:
