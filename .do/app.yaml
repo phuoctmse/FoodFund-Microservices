@@ -1,5 +1,5 @@
 name: foodfund-paas
-region: SGP1
+region: sgp1
 
 services:
   # Auth Service
