@@ -139,7 +139,6 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image }}:${{ env.TAG }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image }}:${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
           platforms: linux/amd64
@@ -207,8 +206,8 @@ jobs:
           sed -i "s|ttrece/foodfund-user|${DOCKERHUB_USERNAME}/foodfund-user|g" .do/app.yaml
           sed -i "s|ttrece/foodfund-graphql-gateway|${DOCKERHUB_USERNAME}/foodfund-graphql-gateway|g" .do/app.yaml
           
-          # Use commit SHA as tag for deterministic deploys
-          sed -i "s|tag: develop|tag: ${GITHUB_SHA}|g" .do/app.yaml
+          # Keep develop tag - override existing image
+          echo "Using develop tag to override existing images"
 
           # Update the existing app with the spec
           doctl apps update $DOCTL_APP_ID --spec .do/app.yaml
