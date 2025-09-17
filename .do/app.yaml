@@ -70,3 +70,16 @@ services:
       - key: USERS_SUBGRAPH_PORT
         scope: RUN_TIME
         value: "8003"
+
+ingress:
+  rules:
+    - match:
+        path:
+          prefix: /
+      component:
+        name: graphql-gateway
+    - match:
+        path:
+          prefix: /auth
+      component:
+        name: auth-service
