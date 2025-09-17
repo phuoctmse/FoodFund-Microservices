@@ -102,7 +102,7 @@ jobs:
             echo "Deployment secrets not set, skipping doctl installation"
             exit 0
           fi
-          curl -sL https://github.com/digitalocean/doctl/releases/latest/download/doctl-1.110.0-linux-amd64.tar.gz | tar -xzv
+          curl -sL https://github.com/digitalocean/doctl/releases/download/v1.110.0/doctl-1.110.0-linux-amd64.tar.gz | tar -xzv
           sudo mv doctl /usr/local/bin/doctl
 
       - name: Authenticate doctl
