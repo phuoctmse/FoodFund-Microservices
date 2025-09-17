@@ -94,26 +94,39 @@ jobs:
           echo "- ${{ secrets.DOCKERHUB_USERNAME }}/foodfund-graphql-gateway:${{ env.TAG }}"
 
       - name: Install doctl
-        if: secrets.DIGITALOCEAN_ACCESS_TOKEN != '' && secrets.DOCTL_APP_ID != ''
+        env:
+          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          DOCTL_APP_ID: ${{ secrets.DOCTL_APP_ID }}
         run: |
+          if [ -z "$DIGITALOCEAN_ACCESS_TOKEN" ] || [ -z "$DOCTL_APP_ID" ]; then
+            echo "Deployment secrets not set, skipping doctl installation"
+            exit 0
+          fi
           curl -sL https://github.com/digitalocean/doctl/releases/latest/download/doctl-1.110.0-linux-amd64.tar.gz | tar -xzv
           sudo mv doctl /usr/local/bin/doctl
 
       - name: Authenticate doctl
-        if: secrets.DIGITALOCEAN_ACCESS_TOKEN != '' && secrets.DOCTL_APP_ID != ''
         env:
           DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          DOCTL_APP_ID: ${{ secrets.DOCTL_APP_ID }}
         run: |
+          if [ -z "$DIGITALOCEAN_ACCESS_TOKEN" ] || [ -z "$DOCTL_APP_ID" ]; then
+            echo "Deployment secrets not set, skipping authentication"
+            exit 0
+          fi
           doctl auth init -t $DIGITALOCEAN_ACCESS_TOKEN
 
       - name: Deploy to DigitalOcean App Platform
-        if: secrets.DIGITALOCEAN_ACCESS_TOKEN != '' && secrets.DOCTL_APP_ID != ''
         env:
           DOCTL_APP_ID: ${{ secrets.DOCTL_APP_ID }}
           DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           GITHUB_SHA: ${{ github.sha }}
         run: |
+          if [ -z "$DIGITALOCEAN_ACCESS_TOKEN" ] || [ -z "$DOCTL_APP_ID" ]; then
+            echo "Deployment secrets not set, skipping deployment"
+            exit 0
+          fi
           # Replace registry placeholders in .do/app.yaml with actual image names
           sed -i "s|ttrece/foodfund-auth|${DOCKERHUB_USERNAME}/foodfund-auth|g" .do/app.yaml
           sed -i "s|ttrece/foodfund-user|${DOCKERHUB_USERNAME}/foodfund-user|g" .do/app.yaml
