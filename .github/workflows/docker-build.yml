@@ -210,6 +210,6 @@ jobs:
           echo "Using develop tag to override existing images"
 
           # Update the existing app with the spec
-          doctl apps create-deployment $DOCTL_APP_ID --spec .do/app-spec.yaml
+          doctl apps create-deployment $DOCTL_APP_ID
           
           echo "🚀 Deployment triggered for changed services"
