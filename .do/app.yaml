@@ -1,5 +1,5 @@
 name: foodfund-microservices
-region: sgp1
+region: sgp
 
 services:
   # Auth Service
