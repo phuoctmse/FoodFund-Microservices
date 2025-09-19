@@ -107,3 +107,5 @@ kubeconfig*
 
 
 /generated/prisma
+
+.kiro/specs
