@@ -7,7 +7,7 @@ export class SentryService {
 
     constructor(
     @Inject("SENTRY_OPTIONS")
-    private options: { serviceName: string },
+    private readonly options: { serviceName: string },
     ) {}
 
     // Capture error with context

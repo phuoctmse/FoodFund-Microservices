@@ -13,7 +13,7 @@ import { SentryService } from "./sentry.service"
 export class SentryInterceptor implements NestInterceptor {
     private readonly logger = new Logger(SentryInterceptor.name)
 
-    constructor(private sentryService: SentryService) {}
+    constructor(private readonly sentryService: SentryService) {}
 
     intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
         const request = context.switchToHttp().getRequest()
