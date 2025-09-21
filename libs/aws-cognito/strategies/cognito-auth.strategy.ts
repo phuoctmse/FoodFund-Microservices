@@ -24,6 +24,8 @@ export class CognitoAuthStrategy extends PassportStrategy(
 
             const token = authHeader.substring(7)
 
+            console.debug(token)
+
             // Verify token with Cognito
             const decodedToken = await this.cognitoService.validateToken(token)
 

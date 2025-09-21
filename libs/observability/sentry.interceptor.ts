@@ -8,6 +8,7 @@ import {
 import { Observable, throwError } from "rxjs"
 import { catchError, tap } from "rxjs/operators"
 import { SentryService } from "./sentry.service"
+import { GqlExecutionContext } from "@nestjs/graphql"
 
 @Injectable()
 export class SentryInterceptor implements NestInterceptor {
@@ -15,31 +16,33 @@ export class SentryInterceptor implements NestInterceptor {
 
     constructor(private readonly sentryService: SentryService) {}
 
-    intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-        const request = context.switchToHttp().getRequest()
+    intercept(
+        context: GqlExecutionContext,
+        next: CallHandler,
+    ): Observable<any> {
+        const ctx = GqlExecutionContext.create(context)
+        const request = ctx.getContext().req
         const response = context.switchToHttp().getResponse()
-    
+
+        this.logger.debug(response)
+
         const { method, url, body, query, params, headers } = request
         const startTime = Date.now()
 
         // Add breadcrumb for request
-        this.sentryService.addBreadcrumb(
-            `${method} ${url}`,
-            "http",
-            {
-                method,
-                url,
-                query,
-                params,
-                userAgent: headers["user-agent"],
-            }
-        )
+        this.sentryService.addBreadcrumb(`${method} ${url}`, "http", {
+            method,
+            url,
+            query,
+            params,
+            userAgent: headers["user-agent"],
+        })
 
         return next.handle().pipe(
             tap(() => {
                 // Log successful requests
                 const duration = Date.now() - startTime
-        
+
                 if (duration > 1000) {
                     // Log slow requests
                     this.sentryService.captureMessage(
@@ -50,7 +53,7 @@ export class SentryInterceptor implements NestInterceptor {
                             url,
                             duration,
                             statusCode: response.statusCode,
-                        }
+                        },
                     )
                 }
             }),
@@ -72,36 +75,36 @@ export class SentryInterceptor implements NestInterceptor {
                 })
 
                 return throwError(() => error)
-            })
+            }),
         )
     }
 
     private sanitizeBody(body: any): any {
         if (!body) return body
-    
+
         // Remove sensitive fields
         const sensitiveFields = ["password", "token", "secret", "key"]
         const sanitized = { ...body }
-    
-        sensitiveFields.forEach(field => {
+
+        sensitiveFields.forEach((field) => {
             if (sanitized[field]) {
                 sanitized[field] = "[REDACTED]"
             }
         })
-    
+
         return sanitized
     }
 
     private sanitizeHeaders(headers: any): any {
         const sanitized = { ...headers }
         const sensitiveHeaders = ["authorization", "cookie", "x-api-key"]
-    
-        sensitiveHeaders.forEach(header => {
+
+        sensitiveHeaders.forEach((header) => {
             if (sanitized[header]) {
                 sanitized[header] = "[REDACTED]"
             }
         })
-    
+
         return sanitized
     }
 }

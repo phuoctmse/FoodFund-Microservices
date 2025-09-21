@@ -37,13 +37,11 @@ import { CognitoGraphQLGuard } from "libs/aws-cognito/guards"
 export class AuthResolver {
     constructor(private authService: AuthSubgraphService) {}
 
-  // Health Check
   @Query((returns) => HealthResponse)
     async authHealth(): Promise<HealthResponse> {
         return this.authService.getHealth()
     }
 
-  // **SIGN UP FLOW**
   @Mutation((returns) => SignUpResponse)
   async signUp(@Args("input") input: SignUpInput): Promise<SignUpResponse> {
       return this.authService.signUp(input)
@@ -63,13 +61,11 @@ export class AuthResolver {
       return this.authService.resendConfirmationCode(input.email)
   }
 
-  // **SIGN IN FLOW**
   @Mutation((returns) => SignInResponse)
   async signIn(@Args("input") input: SignInInput): Promise<SignInResponse> {
       return this.authService.signIn(input)
   }
 
-  // **FORGOT PASSWORD FLOW**
   @Mutation((returns) => ForgotPasswordResponse)
   async forgotPassword(
     @Args("input") input: ForgotPasswordInput,
@@ -88,7 +84,6 @@ export class AuthResolver {
       )
   }
 
-  // **PROTECTED ENDPOINTS**
   @Query((returns) => AuthUser)
   @UseGuards(CognitoGraphQLGuard)
   async getCurrentUser(@Context() context: any): Promise<AuthUser> {
@@ -112,7 +107,6 @@ export class AuthResolver {
       return this.authService.getUserById(reference.id)
   }
 
-  // **LEGACY SUPPORT**
   @Mutation((returns) => AuthResponse)
   async verifyToken(
     @Args("input") input: VerifyTokenInput,
