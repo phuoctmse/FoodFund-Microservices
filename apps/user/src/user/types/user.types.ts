@@ -2,6 +2,7 @@ import { Role, VerificationStatus, AvailabilityStatus } from "libs/databases/pri
 
 // User Domain Types
 export interface CreateUserInput {
+    cognito_id?: string
     full_name: string
     avatar_url: string
     email: string
@@ -12,6 +13,7 @@ export interface CreateUserInput {
 }
 
 export interface UpdateUserInput {
+    cognito_id?: string
     full_name?: string
     avatar_url?: string
     email?: string

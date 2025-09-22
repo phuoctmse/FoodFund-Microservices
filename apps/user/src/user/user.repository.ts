@@ -41,9 +41,9 @@ export class UserRepository {
             },
             include: {
                 Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
-                Fundraiser_Profile: true,
-                Delivery_Staff_Profile: true
+                // Kitchen_Staff_Profile: true,
+                // Fundraiser_Profile: true,
+                // Delivery_Staff_Profile: true
             }
         })
     }
@@ -91,6 +91,18 @@ export class UserRepository {
     async findUserByUsername(user_name: string) {
         return this.prisma.user.findUnique({
             where: { user_name },
+            include: {
+                Donor_Profile: true,
+                Kitchen_Staff_Profile: true,
+                Fundraiser_Profile: true,
+                Delivery_Staff_Profile: true
+            }
+        })
+    }
+
+    async findUserByCognitoId(cognito_id: string) {
+        return this.prisma.user.findUnique({
+            where: { cognito_id },
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,

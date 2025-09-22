@@ -42,6 +42,7 @@ export class UserService {
             }
 
             const user = await this.userRepository.createUser(createUserInput)
+            console.debug("Created user:", user)
 
             // Automatically create corresponding profile based on role
             await this.createProfileForUser(user.id, user.role as Role)
@@ -81,6 +82,10 @@ export class UserService {
             throw new NotFoundException(`User with username ${user_name} not found`)
         }
         return user
+    }
+
+    async findUserByCognitoId(cognito_id: string) {
+        return this.userRepository.findUserByCognitoId(cognito_id)
     }
 
     async updateUser(id: string, updateUserInput: UpdateUserInput) {

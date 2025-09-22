@@ -1,9 +1,8 @@
 import { Module } from "@nestjs/common"
-import { ConfigModule } from "@nestjs/config"
 import { EnvModule, envConfig } from "libs/env"
 import { PrismaModule } from "libs/databases/prisma"
-import { UserSubgraphModule } from "./user/user-subgraph.module"
 import { SentryModule } from "libs/observability/sentry.module"
+import { UserModule } from "./user/user.module"
 
 @Module({
     imports: [
@@ -23,7 +22,7 @@ import { SentryModule } from "libs/observability/sentry.module"
                 : ["error"],
             datasourceUrl: process.env.USERS_DATABASE_URL,
         }),
-        UserSubgraphModule
+        UserModule,
     ],
     controllers: [],
     providers: [],

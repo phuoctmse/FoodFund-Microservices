@@ -67,38 +67,38 @@
                 "order": 2
             }
         },
-        // {
-        //     "type": "node",
-        //     "request": "launch",
-        //     "name": "Debug User Service",
-        //     "program": "${workspaceFolder}/apps/user/src/main.ts",
-        //     "cwd": "${workspaceFolder}",
-        //     "runtimeArgs": [
-        //         "--nolazy",
-        //         "-r",
-        //         "tsconfig-paths/register",
-        //         "-r",
-        //         "ts-node/register"
-        //     ],
-        //     "env": {
-        //         "NODE_ENV": "development",
-        //         "PORT": "8003",
-        //         "USERS_GRPC_PORT": "50002",
-        //         "DEBUG": "*",
-        //         "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json",
-        //         "TS_NODE_TRANSPILE_ONLY": "true"
-        //     },
-        //     "envFile": "${workspaceFolder}/.env.debug.user",
-        //     "autoAttachChildProcesses": true,
-        //     "skipFiles": ["<node_internals>/**"],
-        //     "restart": true,
-        //     "console": "integratedTerminal",
-        //     "presentation": {
-        //         "hidden": false,
-        //         "group": "individual",
-        //         "order": 3
-        //     }
-        // },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug User Service",
+            "program": "${workspaceFolder}/apps/user/src/main.ts",
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--nolazy",
+                "-r",
+                "tsconfig-paths/register",
+                "-r",
+                "ts-node/register"
+            ],
+            "env": {
+                "NODE_ENV": "development",
+                "PORT": "8003",
+                "USERS_GRPC_PORT": "50002",
+                "DEBUG": "*",
+                "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json",
+                "TS_NODE_TRANSPILE_ONLY": "true"
+            },
+            "envFile": "${workspaceFolder}/apps/user/.env",
+            "autoAttachChildProcesses": true,
+            "skipFiles": ["<node_internals>/**"],
+            "restart": true,
+            "console": "integratedTerminal",
+            "presentation": {
+                "hidden": false,
+                "group": "individual",
+                "order": 3
+            }
+        },
         // {
         //     "type": "node",
         //     "request": "launch",
