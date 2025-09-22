@@ -19,6 +19,8 @@ COPY --from=build /usr/src/app/package*.json ./
 COPY --from=build /usr/src/app/apps/user/package*.json ./apps/user/
 COPY --from=build /usr/src/app/node_modules ./node_modules
 COPY --from=build /usr/src/app/apps/user/prisma ./apps/user/prisma
+# Copy proto files for gRPC service registration
+COPY --from=build /usr/src/app/libs/grpc/proto ./libs/grpc/proto
 # 🔥 Ensure working directory and generate Prisma client
 WORKDIR /usr/src/app/apps/user
 RUN npx prisma generate

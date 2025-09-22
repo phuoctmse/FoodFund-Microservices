@@ -22,7 +22,6 @@ services:
       dockerfile: apps/auth/Dockerfile
     ports:
       - "8002:8002"
-      - "50001:50001"
     env_file:
       - .env.docker
     networks:
@@ -40,7 +39,6 @@ services:
       dockerfile: apps/user/Dockerfile
     ports:
       - "8003:8003"
-      - "50002:50002"
     env_file:
       - .env.docker
     networks:

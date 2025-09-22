@@ -15,6 +15,8 @@ FROM node:${NODE_VERSION}-alpine AS production
 WORKDIR /usr/src/app
 COPY --from=build /usr/src/app/dist ./dist
 COPY --from=build /usr/src/app/package*.json ./
+# Copy proto files for gRPC service registration
+COPY --from=build /usr/src/app/libs/grpc/proto ./libs/grpc/proto
 RUN npm ci --omit=dev && npm cache clean --force
 RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
 USER nestjs
