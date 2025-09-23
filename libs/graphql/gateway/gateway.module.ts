@@ -29,6 +29,7 @@ export class GraphQLGatewayModule extends ConfigurableModuleClass {
                         plugins: [ApolloServerPluginLandingPageLocalDefault()],
                         context: ({ req, res }) => ({ req, res }),
                         debug: false,
+                        csrfPrevention: false,
                         playground: false,
                         path: "/graphql",
                         formatError: (error) => {

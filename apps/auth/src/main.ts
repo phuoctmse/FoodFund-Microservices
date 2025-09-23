@@ -16,17 +16,6 @@ async function bootstrap() {
     // Enable GraphQL exception filter (better for GraphQL APIs)
     app.useGlobalFilters(new GraphQLExceptionFilter(sentryService))
 
-    app.enableCors({
-        // origin: [
-        //     "http://localhost:3000", // Thay bằng domain FE của bạn
-        //     "https://your-frontend-domain.com"
-        // ],
-        origin: "http://localhost:3000",
-        credentials: true, // Cho phép gửi cookie, token
-        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization"],
-    })
-
     await app.listen(process.env.PORT ?? 8002)
 }
 bootstrap()
