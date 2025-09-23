@@ -1,7 +1,7 @@
 import { Field, ObjectType } from "@nestjs/graphql"
 
 @ObjectType()
-export class HealthResponse {
+export class AuthHealthResponse {
   @Field()
       status: string
 

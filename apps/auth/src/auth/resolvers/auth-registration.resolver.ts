@@ -10,7 +10,7 @@ import {
     ForgotPasswordResponse,
     ResetPasswordResponse,
     ResendCodeResponse,
-    HealthResponse,
+    AuthHealthResponse,
 } from "../models"
 import { AuthResolver } from "../auth.resolver"
 import {
@@ -25,8 +25,8 @@ import {
 export class AuthRegistrationResolver {
     constructor(private authResolver: AuthResolver) {}
 
-    @Query(() => HealthResponse)
-    async authHealth(): Promise<HealthResponse> {
+    @Query(() => AuthHealthResponse)
+    async authHealth(): Promise<AuthHealthResponse> {
         return this.authResolver.getHealth()
     }
 

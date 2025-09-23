@@ -1,14 +1,14 @@
 import { Resolver, Query, Args, ID, ResolveReference } from "@nestjs/graphql"
 import { UserProfileSchema, Role } from "libs/databases/prisma/schemas"
-import { HealthResponse } from "../types/health-response.model"
+import { UserHealthResponse } from "../types/health-response.model"
 import { UserResolver as UserResolverFacade } from "../user.resolver"
 
 @Resolver(() => UserProfileSchema)
 export class UserQueryResolver {
     constructor(private readonly userResolverFacade: UserResolverFacade) {}
 
-    @Query(() => HealthResponse, { name: "userHealth" })
-    async userHealth(): Promise<HealthResponse> {
+    @Query(() => UserHealthResponse, { name: "userHealth" })
+    async userHealth(): Promise<UserHealthResponse> {
         return this.userResolverFacade.getHealth()
     }
 

@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common"
 import {
     AuthUser,
     AuthResponse,
-    HealthResponse,
+    AuthHealthResponse,
     SignUpResponse,
     SignInResponse,
     ConfirmSignUpResponse,
@@ -29,7 +29,7 @@ export class AuthResolver {
     constructor(private authService: AuthService) {}
 
     // Health
-    async getHealth(): Promise<HealthResponse> {
+    async getHealth(): Promise<AuthHealthResponse> {
         return this.authService.getHealth()
     }
 

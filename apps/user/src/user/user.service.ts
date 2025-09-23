@@ -11,7 +11,7 @@ import {
 
 // Import GraphQL models from shared libs for response typing
 import { Role } from "libs/databases/prisma/schemas"
-import { HealthResponse } from "./types/health-response.model"
+import { UserHealthResponse } from "./types/health-response.model"
 import {
     UserCreationService,
     UserQueryService,
@@ -135,7 +135,7 @@ export class UserService {
     /**
    * Health check endpoint
    */
-    getHealth(): HealthResponse {
+    getHealth(): UserHealthResponse {
         return {
             status: "healthy",
             service: "User Subgraph",

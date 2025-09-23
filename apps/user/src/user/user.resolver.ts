@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common"
 import { UserService } from "./user.service"
 import { CreateUserInput, UpdateUserInput } from "./dto/user.input"
 import { Role } from "libs/databases/prisma/schemas"
-import { HealthResponse } from "./types/health-response.model"
+import { UserHealthResponse } from "./types/health-response.model"
 import {
     CreateUserInput as RepoCreateUserInput,
     CreateStaffUserInput,
@@ -22,7 +22,7 @@ export class UserResolver {
     constructor(private readonly userService: UserService) {}
 
     // Health
-    getHealth(): HealthResponse {
+    getHealth(): UserHealthResponse {
         return this.userService.getHealth()
     }
 

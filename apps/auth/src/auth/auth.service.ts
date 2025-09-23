@@ -2,7 +2,7 @@ import { Injectable, Logger } from "@nestjs/common"
 import {
     AuthUser,
     AuthResponse,
-    HealthResponse,
+    AuthHealthResponse,
     SignUpResponse,
     ConfirmSignUpResponse,
     SignInResponse,
@@ -32,7 +32,7 @@ export class AuthService {
         private readonly authUserService: AuthUserService,
     ) {}
 
-    async getHealth(): Promise<HealthResponse> {
+    async getHealth(): Promise<AuthHealthResponse> {
         return {
             status: "OK",
             timestamp: new Date().toISOString(),
