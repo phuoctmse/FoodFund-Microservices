@@ -110,18 +110,18 @@ export class AuthAdminService {
 
     private mapRoleToProtoEnum(role: Role): number {
         switch (role) {
-            case Role.DONOR:
-                return 0
-            case Role.FUNDRAISER:
-                return 1
-            case Role.KITCHEN_STAFF:
-                return 2
-            case Role.DELIVERY_STAFF:
-                return 3
-            case Role.ADMIN:
-                return 4
-            default:
-                throw new Error(`Invalid role: ${role}`)
+        case Role.DONOR:
+            return 0
+        case Role.FUNDRAISER:
+            return 1
+        case Role.KITCHEN_STAFF:
+            return 2
+        case Role.DELIVERY_STAFF:
+            return 3
+        case Role.ADMIN:
+            return 4
+        default:
+            throw new Error(`Invalid role: ${role}`)
         }
     }
 }
