@@ -8,10 +8,20 @@ import {
     DeliveryStaffProfileResolver,
     DonorProfileResolver,
 } from "./resolvers/profile.resolver"
-import { UserResolver } from "./resolvers"
+import { 
+    UserQueryResolver,
+    UserMutationResolver
+} from "./resolvers"
+import { UserResolver } from "./user.resolver"
 import { UserGrpcService } from "./grpc"
 import { HealthController } from "./health.controller"
 import { GrpcModule } from "libs/grpc"
+import {
+    UserCreationService,
+    UserQueryService,
+    UserUpdateService,
+    ProfileService,
+} from "./services"
 
 @Module({
     imports: [
@@ -22,13 +32,28 @@ import { GrpcModule } from "libs/grpc"
         }),
     ],
     providers: [
+        // Services
         UserService,
         UserRepository,
+        UserCreationService,
+        UserQueryService,
+        UserUpdateService,
+        ProfileService,
+        
+        // Resolver facade (không có @Resolver decorators)
         UserResolver,
+        
+        // GraphQL resolvers (có @Resolver decorators)
+        UserQueryResolver,
+        UserMutationResolver,
+        
+        // Profile resolvers
         DonorProfileResolver,
         KitchenStaffProfileResolver,
         FundraiserProfileResolver,
         DeliveryStaffProfileResolver,
+        
+        // gRPC
         UserGrpcService,
     ],
     controllers: [HealthController],

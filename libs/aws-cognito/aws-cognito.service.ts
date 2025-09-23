@@ -15,6 +15,8 @@ import {
     ResendConfirmationCodeCommand,
     ForgotPasswordCommand,
     ConfirmForgotPasswordCommand,
+    AdminCreateUserCommand,
+    AdminConfirmSignUpCommand,
     AuthFlowType,
 } from "@aws-sdk/client-cognito-identity-provider"
 import { CognitoJwtVerifier } from "aws-jwt-verify"
@@ -508,5 +510,97 @@ export class AwsCognitoService {
                 `Token refresh failed: ${errorMessage}`,
             )
         }
+    }
+
+    /**
+     * Create user with temporary password (Admin operation)
+     */
+    async createUserWithTemporaryPassword(
+        email: string,
+        attributes?: Record<string, string>,
+    ) {
+        try {
+            const userAttributes = [
+                { Name: "email", Value: email },
+                { Name: "email_verified", Value: "true" }, // Skip email verification for admin-created users
+                ...(attributes
+                    ? Object.entries(attributes).map(([key, value]) => ({
+                        Name: key,
+                        Value: value,
+                    }))
+                    : []),
+            ]
+
+            const command = new AdminCreateUserCommand({
+                UserPoolId: this.userPoolId,
+                Username: email,
+                UserAttributes: userAttributes,
+                TemporaryPassword: this.generateTemporaryPassword(),
+                MessageAction: "SUPPRESS", // Don't send welcome email, we'll handle it ourselves
+                DesiredDeliveryMediums: ["EMAIL"],
+            })
+
+            const response = await this.cognitoClient.send(command)
+            this.logger.log(`Admin created user: ${email}`)
+
+            return {
+                userSub: response.User?.Attributes?.find(attr => attr.Name === "sub")?.Value,
+                username: response.User?.Username,
+                temporaryPassword: command.input.TemporaryPassword,
+                userStatus: response.User?.UserStatus,
+            }
+        } catch (error) {
+            const errorMessage =
+                error instanceof Error ? error.message : String(error)
+            this.logger.error(`Admin create user failed: ${errorMessage}`)
+            throw new UnauthorizedException(`Admin create user failed: ${errorMessage}`)
+        }
+    }
+
+    /**
+     * Admin confirm sign up (bypass email confirmation)
+     */
+    async adminConfirmSignUp(email: string) {
+        try {
+            const command = new AdminConfirmSignUpCommand({
+                UserPoolId: this.userPoolId,
+                Username: email,
+            })
+
+            await this.cognitoClient.send(command)
+            this.logger.log(`Admin confirmed user: ${email}`)
+
+            return { confirmed: true } as ConfirmationResponse
+        } catch (error) {
+            const errorMessage =
+                error instanceof Error ? error.message : String(error)
+            this.logger.error(`Admin confirmation failed: ${errorMessage}`)
+            throw new UnauthorizedException(
+                `Admin confirmation failed: ${errorMessage}`,
+            )
+        }
+    }
+
+    /**
+     * Generate a secure temporary password
+     */
+    private generateTemporaryPassword(): string {
+        const length = 12
+        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
+        let password = ""
+        
+        // Ensure at least one of each required character type
+        password += "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)] // uppercase
+        password += "abcdefghijklmnopqrstuvwxyz"[Math.floor(Math.random() * 26)] // lowercase
+        password += "0123456789"[Math.floor(Math.random() * 10)] // number
+        password += "!@#$%^&*"[Math.floor(Math.random() * 8)] // special char
+        
+        // Fill the rest randomly
+        for (let i = password.length; i < length; i++) {
+            password += charset[Math.floor(Math.random() * charset.length)]
+        }
+        
+        // Shuffle the password
+        return password.split("").sort(() => Math.random() - 0.5).join("")
     }
 }

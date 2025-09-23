@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common"
 import { GrpcServerService } from "libs/grpc"
-import { AuthSubgraphService } from "../auth.service"
+import { AuthService } from "../auth.service"
 import { AwsCognitoService } from "libs/aws-cognito"
 import { envConfig } from "libs/env"
 
@@ -10,7 +10,7 @@ export class AuthGrpcService implements OnModuleInit {
 
     constructor(
         private readonly grpcServer: GrpcServerService,
-        private readonly authService: AuthSubgraphService,
+        private readonly authService: AuthService,
         private readonly cognitoService: AwsCognitoService,
     ) {}
 
@@ -87,7 +87,6 @@ export class AuthGrpcService implements OnModuleInit {
                 username: decodedToken["cognito:username"] || "",
                 name: decodedToken.name || "",
                 provider: "aws-cognito",
-                roles: decodedToken["cognito:groups"] || [],
                 attributes: this.cognitoService.extractCustomAttributes(
                     cognitoUser.UserAttributes || [],
                 ),

@@ -1,9 +1,9 @@
 import { Controller, Get } from "@nestjs/common"
-import { AuthSubgraphService } from "./auth.service"
+import { AuthService } from "./auth.service"
 
 @Controller("health")
 export class HealthController {
-    constructor(private readonly service: AuthSubgraphService) {}
+    constructor(private readonly service: AuthService) {}
 
   @Get()
     getHealth() {

@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client"
 import { Role } from "libs/databases/prisma/schemas"
 import { 
     CreateUserInput, 
+    CreateStaffUserInput,
     UpdateUserInput,
     CreateDonorProfileInput,
     UpdateDonorProfileInput,
@@ -17,6 +18,7 @@ import {
 // Re-export types for use in other modules
 export type {
     CreateUserInput,
+    CreateStaffUserInput,
     UpdateUserInput,
     CreateDonorProfileInput,
     UpdateDonorProfileInput,
@@ -44,6 +46,17 @@ export class UserRepository {
                 // Kitchen_Staff_Profile: true,
                 // Fundraiser_Profile: true,
                 // Delivery_Staff_Profile: true
+            }
+        })
+    }
+
+    async createStaffUser(data: CreateStaffUserInput) {
+        const { organization_address, ...userData } = data
+        
+        return this.prisma.user.create({
+            data: {
+                ...userData,
+                is_active: true
             }
         })
     }
@@ -156,11 +169,10 @@ export class UserRepository {
         })
     }
 
-    async createFundraiserProfile(userId: string, organizationName: string, organizationAddress?: string) {
+    async createFundraiserProfile(userId: string, organizationAddress?: string) {
         return this.prisma.fundraiser_Profile.create({
             data: {
                 user_id: userId,
-                organization_name: organizationName,
                 organization_address: organizationAddress
             },
             include: { user: true }
@@ -200,7 +212,6 @@ export class UserRepository {
         return this.prisma.fundraiser_Profile.update({
             where: { id },
             data: {
-                ...(data.organization_name !== undefined && { organization_name: data.organization_name }),
                 ...(data.organization_address !== undefined && { organization_address: data.organization_address }),
                 ...(data.verification_status !== undefined && { verification_status: data.verification_status as any }),
                 ...(data.total_campaign_created !== undefined && { total_campaign_created: data.total_campaign_created })

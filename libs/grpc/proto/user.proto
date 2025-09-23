@@ -7,6 +7,9 @@ service UserService {
   // Create user from auth service
   rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
   
+  // Create staff user from admin service
+  rpc CreateStaffUser(CreateStaffUserRequest) returns (CreateStaffUserResponse);
+  
   // Get user by ID
   rpc GetUser(GetUserRequest) returns (GetUserResponse);
   
@@ -100,4 +103,23 @@ message UserExistsResponse {
 // Get User by Email
 message GetUserByEmailRequest {
   string email = 1;
+}
+
+// Create Staff User
+message CreateStaffUserRequest {
+  string cognito_id = 1;
+  string email = 2;
+  string username = 3;
+  string full_name = 4;
+  string phone_number = 5;
+  string avatar_url = 6;
+  Role role = 7;
+  string bio = 8;
+  string organization_address = 9; // For FUNDRAISER
+}
+
+message CreateStaffUserResponse {
+  bool success = 1;
+  User user = 2;
+  string error = 3;
 }

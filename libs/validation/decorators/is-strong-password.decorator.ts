@@ -12,24 +12,13 @@ export function IsStrongPassword(validationOptions?: ValidationOptions) {
                     if (typeof value !== "string") return false
                     
                     // At least 8 characters
-                    if (value.length < 8) return false
-                    
-                    // At least one uppercase letter
-                    if (!/[A-Z]/.test(value)) return false
-                    
-                    // At least one lowercase letter
-                    if (!/[a-z]/.test(value)) return false
-                    
-                    // At least one number
-                    if (!/\d/.test(value)) return false
-                    
-                    // At least one special character
-                    if (!/[!@#$%^&*(),.?":{}|<>]/.test(value)) return false
+                    if (value.length < 6) return false
+                
                     
                     return true
                 },
                 defaultMessage(args: ValidationArguments) {
-                    return "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character"
+                    return "Password must be at least 6 characters long"
                 },
             },
         })

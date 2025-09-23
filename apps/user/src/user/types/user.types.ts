@@ -10,6 +10,19 @@ export interface CreateUserInput {
     role: Role
     user_name: string
     bio?: string
+    cognito_attributes?: Record<string, string>
+}
+
+export interface CreateStaffUserInput {
+    cognito_id: string
+    full_name: string
+    avatar_url: string
+    email: string
+    phone_number: string
+    role: Role
+    user_name: string
+    bio?: string
+    organization_address?: string // For FUNDRAISER
 }
 
 export interface UpdateUserInput {
@@ -44,12 +57,10 @@ export interface UpdateKitchenStaffProfileInput {
 
 export interface CreateFundraiserProfileInput {
     user_id: string
-    organization_name: string
     organization_address?: string
 }
 
 export interface UpdateFundraiserProfileInput {
-    organization_name?: string
     organization_address?: string
     verification_status?: VerificationStatus
     total_campaign_created?: number

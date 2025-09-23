@@ -27,6 +27,7 @@ export class UserGrpcService implements OnModuleInit {
 
             // User service methods
             CreateUser: this.createUser.bind(this),
+            CreateStaffUser: this.createStaffUser.bind(this),
             GetUser: this.getUser.bind(this),
             UpdateUser: this.updateUser.bind(this),
             UserExists: this.userExists.bind(this),
@@ -49,8 +50,15 @@ export class UserGrpcService implements OnModuleInit {
     // Create user from auth service
     private async createUser(call: any, callback: any) {
         try {
-            const { cognito_id, email, full_name, phone_number, role } =
-                call.request
+            const {
+                cognito_id,
+                email,
+                username,
+                full_name,
+                phone_number,
+                role,
+                cognito_attributes,
+            } = call.request
 
             if (!cognito_id || !email) {
                 callback(null, {
@@ -70,26 +78,19 @@ export class UserGrpcService implements OnModuleInit {
                 4: "ADMIN",
             }
 
-            const username = this.extractUsernameFromEmail(email)
-
-            console.debug("Created user input:", {
-                cognito_id: cognito_id,
-                email,
-                user_name: username,
-                full_name: full_name || "",
-                phone_number: phone_number || "",
-                avatar_url: "", // Default empty avatar
-                role: roleMap[role] || "DONOR",
-            })
+            const finalUsername =
+                username || this.extractUsernameFromEmail(email)
 
             const user = await this.userService.createUser({
                 cognito_id: cognito_id,
                 email,
-                user_name: username,
+                user_name: finalUsername,
                 full_name: full_name || "",
                 phone_number: phone_number || "",
-                avatar_url: "", // Default empty avatar
+                avatar_url: cognito_attributes?.avatar_url || "",
+                bio: cognito_attributes?.bio || "",
                 role: roleMap[role] || "DONOR",
+                cognito_attributes,
             })
 
             if (!user) {
@@ -124,6 +125,120 @@ export class UserGrpcService implements OnModuleInit {
             })
         } catch (error) {
             this.logger.error("Create user failed:", error)
+
+            callback(null, {
+                success: false,
+                user: null,
+                error: error.message,
+            })
+        }
+    }
+
+    // Create staff user from admin service
+    private async createStaffUser(call: any, callback: any) {
+        try {
+            const {
+                cognito_id,
+                email,
+                username,
+                full_name,
+                phone_number,
+                avatar_url,
+                role,
+                bio,
+                organization_address,
+            } = call.request
+
+            if (!cognito_id || !email || !full_name || !username) {
+                callback(null, {
+                    success: false,
+                    user: null,
+                    error: "Cognito ID, email, full name, and username are required",
+                })
+                return
+            }
+
+            // Map role enum to string
+            const roleMap = {
+                DONOR: "DONOR",
+                FUNDRAISER: "FUNDRAISER",
+                KITCHEN_STAFF: "KITCHEN_STAFF",
+                DELIVERY_STAFF: "DELIVERY_STAFF",
+                ADMIN: "ADMIN",
+            }
+
+            const staffRole = roleMap[role]
+
+            // Validate that it's a staff role
+            if (
+                !["KITCHEN_STAFF", "FUNDRAISER", "DELIVERY_STAFF"].includes(
+                    staffRole,
+                )
+            ) {
+                callback(null, {
+                    success: false,
+                    user: null,
+                    error: "Invalid staff role. Must be KITCHEN_STAFF, FUNDRAISER, or DELIVERY_STAFF",
+                })
+                return
+            }
+
+            this.logger.log("Creating staff user:", {
+                cognito_id,
+                email,
+                user_name: username,
+                full_name,
+                phone_number: phone_number || "",
+                avatar_url: avatar_url || "",
+                bio: bio || "",
+                role: staffRole,
+                organization_address,
+            })
+
+            const user = await this.userService.createStaffUser({
+                cognito_id,
+                email,
+                user_name: username,
+                full_name,
+                phone_number: phone_number || "",
+                avatar_url: avatar_url || "",
+                bio: bio || "",
+                role: staffRole,
+                organization_address,
+            })
+
+            if (!user) {
+                callback(null, {
+                    success: false,
+                    user: null,
+                    error: "Failed to create staff user",
+                })
+                return
+            }
+
+            callback(null, {
+                success: true,
+                user: {
+                    id: user.id,
+                    cognito_id: user.cognito_id,
+                    email: user.email,
+                    username: user.user_name,
+                    full_name: user.full_name,
+                    phone_number: user.phone_number,
+                    avatar_url: user.avatar_url || "",
+                    bio: user.bio || "",
+                    role:
+                        Object.keys(roleMap).find(
+                            (key) => roleMap[key] === user.role,
+                        ) || 0,
+                    is_active: user.is_active,
+                    created_at: user.created_at.toISOString(),
+                    updated_at: user.updated_at.toISOString(),
+                },
+                error: null,
+            })
+        } catch (error) {
+            this.logger.error("Create staff user failed:", error)
 
             callback(null, {
                 success: false,
@@ -317,14 +432,6 @@ export class UserGrpcService implements OnModuleInit {
                 return
             }
 
-            const roleMap = {
-                DONOR: 0,
-                FUNDRAISER: 1,
-                KITCHEN_STAFF: 2,
-                DELIVERY_STAFF: 3,
-                ADMIN: 4,
-            }
-
             callback(null, {
                 success: true,
                 user: {
@@ -336,7 +443,7 @@ export class UserGrpcService implements OnModuleInit {
                     phone_number: user.phone_number,
                     avatar_url: user.avatar_url || "",
                     bio: user.bio || "",
-                    role: roleMap[user.role] || 0,
+                    role: user.role,
                     is_active: user.is_active,
                     created_at: user.created_at.toISOString(),
                     updated_at: user.updated_at.toISOString(),
