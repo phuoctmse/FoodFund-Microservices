@@ -29,9 +29,10 @@ export class UserCreationService {
             }
 
             // Check if username already exists
-            const existingUsernameUser = await this.userRepository.findUserByUsername(
-                createUserInput.user_name,
-            )
+            const existingUsernameUser =
+                await this.userRepository.findUserByUsername(
+                    createUserInput.user_name,
+                )
             if (existingUsernameUser) {
                 throw new ConflictException("Username already exists")
             }
@@ -40,9 +41,9 @@ export class UserCreationService {
 
             // Automatically create corresponding profile based on role
             await this.profileService.createProfileForUser(
-                user.id, 
-                user.role as Role, 
-                createUserInput.cognito_attributes
+                user.id,
+                user.role as Role,
+                createUserInput.cognito_attributes,
             )
 
             return await this.userRepository.findUserById(user.id)
@@ -65,20 +66,22 @@ export class UserCreationService {
             }
 
             // Check if username already exists
-            const existingUsernameUser = await this.userRepository.findUserByUsername(
-                createStaffUserInput.user_name,
-            )
+            const existingUsernameUser =
+                await this.userRepository.findUserByUsername(
+                    createStaffUserInput.user_name,
+                )
             if (existingUsernameUser) {
                 throw new ConflictException("Username already exists")
             }
 
-            const user = await this.userRepository.createStaffUser(createStaffUserInput)
+            const user =
+                await this.userRepository.createStaffUser(createStaffUserInput)
 
             // Create role-specific profile with staff-specific data
             await this.profileService.createStaffProfileForUser(
-                user.id, 
-                user.role as Role, 
-                createStaffUserInput
+                user.id,
+                user.role as Role,
+                createStaffUserInput,
             )
 
             return await this.userRepository.findUserById(user.id)

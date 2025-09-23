@@ -22,9 +22,7 @@ export interface CreateStaffUserInput {
     role: Role
     user_name: string
     bio?: string
-    organization_name?: string // For FUNDRAISER
     organization_address?: string // For FUNDRAISER
-    created_by_admin_id?: string // Audit trail
 }
 
 export interface UpdateUserInput {
@@ -59,12 +57,10 @@ export interface UpdateKitchenStaffProfileInput {
 
 export interface CreateFundraiserProfileInput {
     user_id: string
-    organization_name: string
     organization_address?: string
 }
 
 export interface UpdateFundraiserProfileInput {
-    organization_name?: string
     organization_address?: string
     verification_status?: VerificationStatus
     total_campaign_created?: number

@@ -17,7 +17,6 @@ export class ProfileService {
         case Role.FUNDRAISER:
             await this.userRepository.createFundraiserProfile(
                 userId,
-                cognitoAttributes?.organization_name || "Default Organization",
                 cognitoAttributes?.organization_address,
             )
             break
@@ -38,7 +37,6 @@ export class ProfileService {
         case Role.FUNDRAISER:
             await this.userRepository.createFundraiserProfile(
                 userId,
-                staffData.organization_name || "Default Organization",
                 staffData.organization_address,
             )
             break

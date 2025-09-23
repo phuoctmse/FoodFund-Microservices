@@ -87,7 +87,6 @@ export class AuthGrpcService implements OnModuleInit {
                 username: decodedToken["cognito:username"] || "",
                 name: decodedToken.name || "",
                 provider: "aws-cognito",
-                roles: decodedToken["cognito:groups"] || [],
                 attributes: this.cognitoService.extractCustomAttributes(
                     cognitoUser.UserAttributes || [],
                 ),

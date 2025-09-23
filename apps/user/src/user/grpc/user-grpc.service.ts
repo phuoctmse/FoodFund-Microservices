@@ -50,8 +50,15 @@ export class UserGrpcService implements OnModuleInit {
     // Create user from auth service
     private async createUser(call: any, callback: any) {
         try {
-            const { cognito_id, email, username, full_name, phone_number, role, cognito_attributes } =
-                call.request
+            const {
+                cognito_id,
+                email,
+                username,
+                full_name,
+                phone_number,
+                role,
+                cognito_attributes,
+            } = call.request
 
             if (!cognito_id || !email) {
                 callback(null, {
@@ -71,19 +78,8 @@ export class UserGrpcService implements OnModuleInit {
                 4: "ADMIN",
             }
 
-            const finalUsername = username || this.extractUsernameFromEmail(email)
-
-            console.debug("Created user input:", {
-                cognito_id: cognito_id,
-                email,
-                user_name: finalUsername,
-                full_name: full_name || "",
-                phone_number: phone_number || "",
-                avatar_url: cognito_attributes?.avatar_url || "", 
-                bio: cognito_attributes?.bio || "",
-                role: roleMap[role] || "DONOR",
-                cognito_attributes,
-            })
+            const finalUsername =
+                username || this.extractUsernameFromEmail(email)
 
             const user = await this.userService.createUser({
                 cognito_id: cognito_id,
@@ -141,18 +137,16 @@ export class UserGrpcService implements OnModuleInit {
     // Create staff user from admin service
     private async createStaffUser(call: any, callback: any) {
         try {
-            const { 
-                cognito_id, 
-                email, 
-                username, 
-                full_name, 
-                phone_number, 
+            const {
+                cognito_id,
+                email,
+                username,
+                full_name,
+                phone_number,
                 avatar_url,
-                role, 
+                role,
                 bio,
-                organization_name,
                 organization_address,
-                created_by_admin_id
             } = call.request
 
             if (!cognito_id || !email || !full_name || !username) {
@@ -166,31 +160,25 @@ export class UserGrpcService implements OnModuleInit {
 
             // Map role enum to string
             const roleMap = {
-                0: "DONOR",
-                1: "FUNDRAISER",
-                2: "KITCHEN_STAFF",
-                3: "DELIVERY_STAFF",
-                4: "ADMIN",
+                DONOR: "DONOR",
+                FUNDRAISER: "FUNDRAISER",
+                KITCHEN_STAFF: "KITCHEN_STAFF",
+                DELIVERY_STAFF: "DELIVERY_STAFF",
+                ADMIN: "ADMIN",
             }
 
             const staffRole = roleMap[role]
-            
+
             // Validate that it's a staff role
-            if (!["KITCHEN_STAFF", "FUNDRAISER", "DELIVERY_STAFF"].includes(staffRole)) {
+            if (
+                !["KITCHEN_STAFF", "FUNDRAISER", "DELIVERY_STAFF"].includes(
+                    staffRole,
+                )
+            ) {
                 callback(null, {
                     success: false,
                     user: null,
                     error: "Invalid staff role. Must be KITCHEN_STAFF, FUNDRAISER, or DELIVERY_STAFF",
-                })
-                return
-            }
-
-            // Validate organization_name is required for FUNDRAISER
-            if (staffRole === "FUNDRAISER" && !organization_name) {
-                callback(null, {
-                    success: false,
-                    user: null,
-                    error: "Organization name is required for FUNDRAISER role",
                 })
                 return
             }
@@ -204,9 +192,7 @@ export class UserGrpcService implements OnModuleInit {
                 avatar_url: avatar_url || "",
                 bio: bio || "",
                 role: staffRole,
-                organization_name,
                 organization_address,
-                created_by_admin_id,
             })
 
             const user = await this.userService.createStaffUser({
@@ -218,9 +204,7 @@ export class UserGrpcService implements OnModuleInit {
                 avatar_url: avatar_url || "",
                 bio: bio || "",
                 role: staffRole,
-                organization_name,
                 organization_address,
-                created_by_admin_id,
             })
 
             if (!user) {
@@ -243,9 +227,10 @@ export class UserGrpcService implements OnModuleInit {
                     phone_number: user.phone_number,
                     avatar_url: user.avatar_url || "",
                     bio: user.bio || "",
-                    role: Object.keys(roleMap).find(
-                        (key) => roleMap[key] === user.role,
-                    ) || 0,
+                    role:
+                        Object.keys(roleMap).find(
+                            (key) => roleMap[key] === user.role,
+                        ) || 0,
                     is_active: user.is_active,
                     created_at: user.created_at.toISOString(),
                     updated_at: user.updated_at.toISOString(),

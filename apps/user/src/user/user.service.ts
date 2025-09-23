@@ -67,14 +67,15 @@ export class UserService {
         return this.userUpdateService.softDeleteUser(id)
     }
 
-
-
     // Profile operations - delegate to update service
     async updateDonorProfile(
         id: string,
         updateDonorProfileInput: UpdateDonorProfileInput,
     ) {
-        return this.userUpdateService.updateDonorProfile(id, updateDonorProfileInput)
+        return this.userUpdateService.updateDonorProfile(
+            id,
+            updateDonorProfileInput,
+        )
     }
 
     async deleteDonorProfile(id: string) {
@@ -85,7 +86,10 @@ export class UserService {
         id: string,
         updateKitchenStaffProfileInput: UpdateKitchenStaffProfileInput,
     ) {
-        return this.userUpdateService.updateKitchenStaffProfile(id, updateKitchenStaffProfileInput)
+        return this.userUpdateService.updateKitchenStaffProfile(
+            id,
+            updateKitchenStaffProfileInput,
+        )
     }
 
     async deleteKitchenStaffProfile(id: string) {
@@ -96,7 +100,10 @@ export class UserService {
         id: string,
         updateFundraiserProfileInput: UpdateFundraiserProfileInput,
     ) {
-        return this.userUpdateService.updateFundraiserProfile(id, updateFundraiserProfileInput)
+        return this.userUpdateService.updateFundraiserProfile(
+            id,
+            updateFundraiserProfileInput,
+        )
     }
 
     async deleteFundraiserProfile(id: string) {
@@ -107,7 +114,10 @@ export class UserService {
         id: string,
         updateDeliveryStaffProfileInput: UpdateDeliveryStaffProfileInput,
     ) {
-        return this.userUpdateService.updateDeliveryStaffProfile(id, updateDeliveryStaffProfileInput)
+        return this.userUpdateService.updateDeliveryStaffProfile(
+            id,
+            updateDeliveryStaffProfileInput,
+        )
     }
 
     async deleteDeliveryStaffProfile(id: string) {
@@ -133,8 +143,8 @@ export class UserService {
     }
 
     /**
-   * Health check endpoint
-   */
+     * Health check endpoint
+     */
     getHealth(): UserHealthResponse {
         return {
             status: "healthy",

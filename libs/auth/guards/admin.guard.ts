@@ -1,79 +1,123 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, ForbiddenException } from "@nestjs/common"
+import {
+    Injectable,
+    CanActivate,
+    ExecutionContext,
+    UnauthorizedException,
+    ForbiddenException,
+} from "@nestjs/common"
 import { GqlExecutionContext } from "@nestjs/graphql"
 import { GrpcClientService } from "libs/grpc"
 
+// Định nghĩa enum cho role để tránh hardcode số
+enum UserRole {
+    DONOR = "DONOR",
+    FUNDRAISER = "FUNDRAISER",
+    KITCHEN_STAFF = "KITCHEN_STAFF",
+    ADMIN = "ADMIN",
+    DELIVERY_STAFF = "DELIVERY_STAFF",
+}
+
 @Injectable()
 export class AdminGuard implements CanActivate {
-    constructor(
-        private readonly grpcClient: GrpcClientService,
-    ) {}
+    constructor(private readonly grpcClient: GrpcClientService) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
-        const request = this.getRequest(context)
-        const token = this.extractTokenFromHeader(request)
+        // Lấy request từ GraphQL context
+        const request = this.getRequestFromGraphQLContext(context)
 
+        // Lấy access token từ header Authorization
+        const token = this.extractTokenFromHeader(request)
         if (!token) {
             throw new UnauthorizedException("No authorization token provided")
         }
 
-        try {
-            // Verify token using Auth service gRPC call
-            const authResponse = await this.grpcClient.callAuthService("VerifyToken", {
-                accessToken: token
-            })
-
-            if (!authResponse.success || !authResponse.user) {
-                throw new UnauthorizedException("Invalid token")
-            }
-
-            const user = authResponse.user
-
-            // Check if user has admin role via gRPC call to User service
-            const userDetails = await this.getUserRole(user.id)
-            
-            if (!userDetails || userDetails.role !== 4) { // ADMIN = 4 from proto enum
-                throw new ForbiddenException("Admin access required")
-            }
-
-            // Add user to request context for use in resolvers
-            request.user = user
-            request.userRole = userDetails.role
-
-            return true
-        } catch (error) {
-            if (error instanceof UnauthorizedException || error instanceof ForbiddenException) {
-                throw error
-            }
-            throw new UnauthorizedException("Authentication failed")
+        // Xác thực token với Auth service qua gRPC
+        const authResponse = await this.verifyTokenWithAuthService(token)
+        if (!authResponse.valid || !authResponse.user) {
+            throw new UnauthorizedException("Invalid or expired token")
         }
+
+        const user = authResponse.user
+
+        // Lấy thông tin user từ User service để kiểm tra role
+        const userDetails = await this.getUserRole(user.id)
+        if (!userDetails || typeof userDetails.role !== "string") {
+            throw new ForbiddenException("User role not found")
+        }
+
+        let isAdmin = false
+        if (typeof userDetails.role === "string") {
+            isAdmin = userDetails.role === UserRole.ADMIN
+        } 
+
+        if (!isAdmin) {
+            throw new ForbiddenException("Admin access required")
+        }
+
+        // Gắn user vào request context để các resolver có thể sử dụng
+        request.user = user
+        request.userRole = userDetails.role
+
+        return true
     }
 
-    private getRequest(context: ExecutionContext) {
+    private getRequestFromGraphQLContext(context: ExecutionContext) {
         const gqlContext = GqlExecutionContext.create(context).getContext()
+        if (!gqlContext || !gqlContext.req) {
+            throw new UnauthorizedException("Request context not found")
+        }
         return gqlContext.req
     }
 
     private extractTokenFromHeader(request: any): string | null {
         const authHeader = request.headers?.authorization
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        if (
+            typeof authHeader !== "string" ||
+            !authHeader.startsWith("Bearer ")
+        ) {
             return null
         }
         return authHeader.substring(7)
     }
 
-    private async getUserRole(cognitoId: string): Promise<{ role: number } | null> {
+    private async verifyTokenWithAuthService(token: string): Promise<any> {
+        try {
+            console.log(
+                "AdminGuard: Calling Auth service ValidateToken with token:",
+                token.substring(0, 20) + "...",
+            )
+            const result = await this.grpcClient.callAuthService(
+                "ValidateToken",
+                {
+                    access_token: token,
+                },
+            )
+            console.log("AdminGuard: Auth service response:", result)
+            return result
+        } catch (error) {
+            console.error("AdminGuard: Auth service call failed:", error)
+            throw new UnauthorizedException("Token verification failed")
+        }
+    }
+
+    private async getUserRole(
+        cognitoId: string,
+    ): Promise<{ role: string } | null> {
         try {
             const response = await this.grpcClient.callUserService("GetUser", {
                 id: cognitoId,
             })
 
-            if (response.success && response.user) {
+            if (
+                response.success &&
+                response.user &&
+                typeof response.user.role === "string"
+            ) {
                 return { role: response.user.role }
             }
-            
             return null
         } catch (error) {
-            // Log error but don't expose internal details
+            // Log lỗi nội bộ, không trả về chi tiết cho client
             console.error("Failed to get user role:", error)
             return null
         }

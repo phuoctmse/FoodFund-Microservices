@@ -27,10 +27,10 @@ export class UpdateKitchenStaffProfileInput {
 
 @InputType()
 export class UpdateFundraiserProfileInput {
-    @Field(() => String, { nullable: true, description: "Organization name" })
+    @Field(() => String, { nullable: true, description: "Full name" })
     @IsOptional()
     @IsString()
-        organization_name?: string
+        full_name?: string
 
     @Field(() => String, { nullable: true, description: "Organization address" })
     @IsOptional()

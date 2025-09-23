@@ -13,7 +13,7 @@ model User {
   full_name              String                  @db.Text()
   avatar_url             String                  @db.VarChar(255)
   email                  String                  @unique @db.VarChar(100)
-  phone_number           String                  @db.VarChar(20)
+  phone_number           String?                 @db.VarChar(20)
   role                   Role                    @default(DONOR)
   is_active              Boolean                 @default(true)
   user_name              String                  @unique @db.VarChar(20)
@@ -67,7 +67,6 @@ model Fundraiser_Profile {
   id                     String              @id @default(uuid())
   user_id                String              @unique
   user                   User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  organization_name      String              @db.Text()
   organization_address   String?             @db.Text()
   verification_status    Verification_Status @default(PENDING)
   total_campaign_created Int                 @default(0)

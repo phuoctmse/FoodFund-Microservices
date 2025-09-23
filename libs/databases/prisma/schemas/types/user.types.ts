@@ -45,7 +45,6 @@ export interface KitchenStaffProfile {
 export interface FundraiserProfile {
     id: string
     user_id: string
-    organization_name: string
     organization_address?: string
     verification_status: VerificationStatus
     total_campaign_created: number

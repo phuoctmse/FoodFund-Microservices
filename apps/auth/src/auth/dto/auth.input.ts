@@ -9,9 +9,12 @@ import {
     IsEnum,
 } from "class-validator"
 import { Transform } from "class-transformer"
-import { IsStrongPassword, IsVietnamesePhone } from "libs/validation"
+import {
+    AtLeastOneName,
+    IsStrongPassword,
+    IsVietnamesePhone,
+} from "libs/validation"
 import { Role } from "libs/databases/prisma/schemas/enums/user.enums"
-import { IsValidStaffRole } from "libs/auth"
 
 @InputType()
 export class SignUpInput {
@@ -159,10 +162,9 @@ export class CreateStaffAccountInput {
 
     @Field(() => Role)
     @IsNotEmpty({ message: "Role is required" })
-    @IsEnum([Role.KITCHEN_STAFF, Role.FUNDRAISER, Role.DELIVERY_STAFF], { 
-        message: "Role must be KITCHEN_STAFF, FUNDRAISER, or DELIVERY_STAFF" 
+    @IsEnum([Role.KITCHEN_STAFF, Role.FUNDRAISER, Role.DELIVERY_STAFF], {
+        message: "Role must be KITCHEN_STAFF, FUNDRAISER, or DELIVERY_STAFF",
     })
-    @IsValidStaffRole()
         role: Role
 
     @Field()
@@ -183,11 +185,50 @@ export class CreateStaffAccountInput {
 
     @Field({ nullable: true })
     @IsOptional()
-    @IsString({ message: "Organization name must be a string" })
-        organization_name?: string
+    @IsString({ message: "Organization address must be a string" })
+        organization_address?: string
+}
+
+@InputType()
+export class CreateFundraiserAccountInput {
+    @Field()
+    @IsNotEmpty({ message: "Full name is required" })
+    @IsString({ message: "Full name must be a string" })
+    @Transform(({ value }) => value?.trim())
+        full_name?: string
+
+    @Field()
+    @IsNotEmpty({ message: "Email is required" })
+    @IsEmail({}, { message: "Please provide a valid email address" })
+    @Transform(({ value }) => value?.toLowerCase().trim())
+        email: string
+
+    @Field()
+    @IsNotEmpty({ message: "Password is required" })
+    @IsStrongPassword({ message: "Password must be strong" })
+        password: string
+
+    @Field()
+    @IsNotEmpty({ message: "Phone number is required" })
+    @IsString({ message: "Phone number must be a string" })
+    @IsVietnamesePhone({
+        message: "Please provide a valid Vietnamese phone number",
+    })
+    @Transform(({ value }) => value?.trim())
+        phone_number: string
 
     @Field({ nullable: true })
     @IsOptional()
     @IsString({ message: "Organization address must be a string" })
         organization_address?: string
+
+    @Field({ nullable: true })
+    @IsOptional()
+    @IsString({ message: "Avatar URL must be a string" })
+        avatar_url?: string
+
+    @Field({ nullable: true })
+    @IsOptional()
+    @IsString({ message: "Bio must be a string" })
+        bio?: string
 }
