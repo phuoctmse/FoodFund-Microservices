@@ -103,21 +103,6 @@ export class CreateStaffAccountResponse {
     @Field()
         message: string
 
-    @Field({ nullable: true })
-        userId?: string
-
-    @Field({ nullable: true })
-        cognitoId?: string
-}
-
-@ObjectType()
-export class CreateFundraiserAccountResponse {
-    @Field()
-        success: boolean
-
-    @Field()
-        message: string
-
     @Field()
         userId: string
 
@@ -130,3 +115,5 @@ export class CreateFundraiserAccountResponse {
     @Field()
         temporaryPasswordSent: boolean
 }
+
+

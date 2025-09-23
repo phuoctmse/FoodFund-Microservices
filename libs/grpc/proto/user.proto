@@ -115,7 +115,7 @@ message CreateStaffUserRequest {
   string avatar_url = 6;
   Role role = 7;
   string bio = 8;
-  string organization_address = 10; // For FUNDRAISER
+  string organization_address = 9; // For FUNDRAISER
 }
 
 message CreateStaffUserResponse {

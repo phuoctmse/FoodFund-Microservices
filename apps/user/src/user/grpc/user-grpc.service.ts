@@ -432,14 +432,6 @@ export class UserGrpcService implements OnModuleInit {
                 return
             }
 
-            const roleMap = {
-                DONOR: 0,
-                FUNDRAISER: 1,
-                KITCHEN_STAFF: 2,
-                DELIVERY_STAFF: 3,
-                ADMIN: 4,
-            }
-
             callback(null, {
                 success: true,
                 user: {
@@ -451,7 +443,7 @@ export class UserGrpcService implements OnModuleInit {
                     phone_number: user.phone_number,
                     avatar_url: user.avatar_url || "",
                     bio: user.bio || "",
-                    role: roleMap[user.role] || 0,
+                    role: user.role,
                     is_active: user.is_active,
                     created_at: user.created_at.toISOString(),
                     updated_at: user.updated_at.toISOString(),

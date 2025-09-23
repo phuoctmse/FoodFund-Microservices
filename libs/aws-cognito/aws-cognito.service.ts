@@ -16,6 +16,7 @@ import {
     ForgotPasswordCommand,
     ConfirmForgotPasswordCommand,
     AdminCreateUserCommand,
+    AdminConfirmSignUpCommand,
     AuthFlowType,
 } from "@aws-sdk/client-cognito-identity-provider"
 import { CognitoJwtVerifier } from "aws-jwt-verify"
@@ -553,6 +554,30 @@ export class AwsCognitoService {
                 error instanceof Error ? error.message : String(error)
             this.logger.error(`Admin create user failed: ${errorMessage}`)
             throw new UnauthorizedException(`Admin create user failed: ${errorMessage}`)
+        }
+    }
+
+    /**
+     * Admin confirm sign up (bypass email confirmation)
+     */
+    async adminConfirmSignUp(email: string) {
+        try {
+            const command = new AdminConfirmSignUpCommand({
+                UserPoolId: this.userPoolId,
+                Username: email,
+            })
+
+            await this.cognitoClient.send(command)
+            this.logger.log(`Admin confirmed user: ${email}`)
+
+            return { confirmed: true } as ConfirmationResponse
+        } catch (error) {
+            const errorMessage =
+                error instanceof Error ? error.message : String(error)
+            this.logger.error(`Admin confirmation failed: ${errorMessage}`)
+            throw new UnauthorizedException(
+                `Admin confirmation failed: ${errorMessage}`,
+            )
         }
     }
 
