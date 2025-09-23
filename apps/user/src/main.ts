@@ -25,7 +25,7 @@ async function bootstrap() {
         //     "http://localhost:3000", // Thay bằng domain FE của bạn
         //     "https://your-frontend-domain.com"
         // ],
-        origin: "*",
+        origin: "http://localhost:3000",
         credentials: true, // Cho phép gửi cookie, token
         methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allowedHeaders: ["Content-Type", "Authorization"],
