@@ -230,6 +230,6 @@ jobs:
           echo "📝 Updated app-spec.yaml with secrets and registry info"
           
           # Update the existing app with the spec
-          doctl apps update $DOCTL_APP_ID --spec .do/app-spec.yaml --wait
+          doctl apps create-deployment $DOCTL_APP_ID
           
           echo "🚀 Deployment triggered for changed services"
