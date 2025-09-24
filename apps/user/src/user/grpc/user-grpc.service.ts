@@ -2,6 +2,8 @@ import { Injectable, Logger, OnModuleInit } from "@nestjs/common"
 import { GrpcServerService } from "libs/grpc"
 import { envConfig } from "libs/env"
 import { UserService } from "../user.service"
+import { v7 as uuidv7 } from "uuid"
+
 
 @Injectable()
 export class UserGrpcService implements OnModuleInit {
@@ -90,7 +92,6 @@ export class UserGrpcService implements OnModuleInit {
                 avatar_url: cognito_attributes?.avatar_url || "",
                 bio: cognito_attributes?.bio || "",
                 role: roleMap[role] || "DONOR",
-                cognito_attributes,
             })
 
             if (!user) {

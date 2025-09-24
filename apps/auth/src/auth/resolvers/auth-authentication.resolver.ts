@@ -24,6 +24,8 @@ import { CognitoGraphQLGuard } from "libs/aws-cognito/guards"
 export class AuthAuthenticationResolver {
     constructor(private authResolver: AuthResolver) {}
 
+    //thieu ham sign out
+
     @Mutation(() => SignInResponse)
     async signIn(@Args("input") input: SignInInput): Promise<SignInResponse> {
         return this.authResolver.signIn(input)

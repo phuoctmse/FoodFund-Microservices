@@ -7,7 +7,10 @@ import {
     ConfigurableModuleClass,
     OPTIONS_TYPE,
 } from "./gateway.module-definition"
-import { DefaultRemoteGraphQLDataSource, DataSourceOptions } from "./default.remote-graphql-data-source"
+import {
+    DefaultRemoteGraphQLDataSource,
+    DataSourceOptions,
+} from "./default.remote-graphql-data-source"
 
 @Module({})
 export class GraphQLGatewayModule extends ConfigurableModuleClass {
@@ -40,15 +43,21 @@ export class GraphQLGatewayModule extends ConfigurableModuleClass {
                                 extensions: error.extensions,
                             }
                         },
+                        
                     },
                     gateway: {
                         buildService: ({ url, name }) => {
-                            const sub = subgraphs.find((s) => s.url === url || s.name === name) as any
+                            const sub = subgraphs.find(
+                                (s) => s.url === url || s.name === name,
+                            ) as any
                             const dsOptions: DataSourceOptions = {
                                 url: url!,
                                 subgraphName: name ?? sub?.name ?? url!,
-                                retryOptions: sub?.retryOptions ?? retryDefaults,
-                                circuitBreakerOptions: sub?.circuitBreakerOptions ?? circuitDefaults,
+                                retryOptions:
+                                    sub?.retryOptions ?? retryDefaults,
+                                circuitBreakerOptions:
+                                    sub?.circuitBreakerOptions ??
+                                    circuitDefaults,
                                 fallback: sub?.fallback ?? fallback,
                                 monitoring,
                             }
@@ -57,7 +66,8 @@ export class GraphQLGatewayModule extends ConfigurableModuleClass {
                         supergraphSdl: new IntrospectAndCompose({
                             subgraphs,
                             introspectionHeaders: {},
-                            pollIntervalInMs: (options as any).pollIntervalInMs ?? 30000,
+                            pollIntervalInMs:
+                                (options as any).pollIntervalInMs ?? 30000,
                         }),
                     },
                 }),

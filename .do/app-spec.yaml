@@ -6,6 +6,18 @@ envs:
     value: "development"
     scope: RUN_TIME
     type: GENERAL
+  - key: SENTRY_DSN
+    value: ${SENTRY_DSN}
+    scope: RUN_TIME
+    type: SECRET
+  - key: SENTRY_ENVIRONMENT
+    value: ${SENTRY_ENVIRONMENT}
+    scope: RUN_TIME
+    type: SECRET
+  - key: SENTRY_RELEASE
+    value: ${SENTRY_RELEASE}
+    scope: RUN_TIME
+    type: SECRET  
 
 services:
   # Auth Service
