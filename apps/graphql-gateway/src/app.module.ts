@@ -21,23 +21,13 @@ import { GraphQLGatewayModule } from "libs/graphql/gateway"
                 const userPort =
                     parseInt(process.env.USERS_SUBGRAPH_PORT || "8003") ||
                     envConfig().containers[Container.UsersSubgraph]?.port
-
-                console.log("🔍 Environment Debug:")
-                console.log("AUTH_HOST env:", process.env.AUTH_HOST)
-                console.log("AUTH_PORT env:", process.env.AUTH_PORT)
-                console.log(
-                    "USERS_SUBGRAPH_HOST env:",
-                    process.env.USERS_SUBGRAPH_HOST,
-                )
-                console.log(
-                    "USERS_SUBGRAPH_PORT env:",
-                    process.env.USERS_SUBGRAPH_PORT,
-                )
-                console.log("Resolved authHost:", authHost)
-                console.log("Resolved authPort:", authPort)
-                console.log("Resolved userHost:", userHost)
-                console.log("Resolved userPort:", userPort)
-
+                const campaignHost =
+                    process.env.CAMPAIGNS_SUBGRAPH_HOST ||
+                    envConfig().containers[Container.CampaignsSubgraph]?.host ||
+                    "campaign-service"    
+                const campaignPort= parseInt(process.env.CAMPAIGNS_SUBGRAPH_PORT || "8004") ||
+                    envConfig().containers[Container.CampaignsSubgraph]?.port
+            
                 const authUrl = getHttpUrl({
                     host: authHost,
                     port: authPort,
@@ -48,9 +38,11 @@ import { GraphQLGatewayModule } from "libs/graphql/gateway"
                     port: userPort,
                     path: "/graphql",
                 })
-
-                console.log("🚀 Auth URL:", authUrl)
-                console.log("🚀 User URL:", userUrl)
+                const campaignUrl = getHttpUrl({
+                    host: campaignHost,
+                    port: campaignPort,
+                    path: "/graphql",
+                })
 
                 return [
                     {
@@ -61,16 +53,37 @@ import { GraphQLGatewayModule } from "libs/graphql/gateway"
                         name: "user",
                         url: userUrl,
                     },
+                    {
+                        name: "campaign",
+                        url: campaignUrl,
+                        retryOptions: {
+                            retries: 3,
+                            initialDelayMs: 500,
+                            maxDelayMs: 3000,
+                            factor: 2,
+                        },
+                        circuitBreakerOptions: {
+                            failureThreshold: 5,
+                            resetTimeoutMs: 30000,
+                        },
+                        fallback: {
+                            response: {
+                                data: null,
+                                errors: [{
+                                    message: "Campaign service temporarily unavailable",
+                                    extensions: { code: "SERVICE_UNAVAILABLE" }
+                                }]
+                            }
+                        }
+                    },
                 ]
             })(),
-            // Gateway initialization retry configuration
             gatewayRetryOptions: {
-                maxRetries: 5, // Try up to 5 times per subgraph
-                initialDelayMs: 2000, // Start with 2 second delay
-                maxDelayMs: 10000, // Max 10 second delay
-                factor: 2, // Exponential backoff
+                maxRetries: 5,
+                initialDelayMs: 2000,
+                maxDelayMs: 10000,
+                factor: 2, 
             },
-            // Monitoring events
             monitoring: {
                 onEvent: (event) => {
                     const timestamp = new Date().toISOString()

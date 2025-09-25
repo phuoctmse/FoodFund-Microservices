@@ -76,6 +76,22 @@ services:
         scope: RUN_TIME
         type: SECRET
         value: ${USERS_DATABASE_URL}
+  
+  # Campaign Service
+  - name: campaign-service
+    image:
+      registry_type: DOCKER_HUB
+      registry: "ttrece"
+      repository: "foodfund-campaign"
+      tag: develop
+    http_port: 8004
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    envs:
+      - key: CAMPAIGN_DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+        value: ${CAMPAIGN_DATABASE_URL}
 
   # GraphQL Gateway
   - name: graphql-gateway
@@ -104,6 +120,14 @@ services:
         value: "8003"
         scope: RUN_TIME
         type: GENERAL
+      - key: CAMPAIGNS_SUBGRAPH_HOST
+        value: "campaign-service"
+        scope: RUN_TIME
+        type: GENERAL
+      - key: CAMPAIGNS_SUBGRAPH_PORT
+        value: "8004"
+        scope: RUN_TIME
+        type: GENERAL
 
 ingress:
   rules:
@@ -117,3 +141,8 @@ ingress:
           prefix: /auth
       component:
         name: auth-service
+    - match:
+        path:
+          prefix: /campaigns
+      component:
+        name: campaign-service
