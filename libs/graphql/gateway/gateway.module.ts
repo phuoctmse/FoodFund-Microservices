@@ -1,4 +1,3 @@
-import { IntrospectAndCompose } from "@apollo/gateway"
 import { ApolloServerPluginLandingPageLocalDefault } from "@apollo/server/plugin/landingPage/default"
 import { ApolloGatewayDriver, ApolloGatewayDriverConfig } from "@nestjs/apollo"
 import { Module } from "@nestjs/common"
@@ -15,7 +14,6 @@ import { ResilientIntrospectAndCompose } from "./resilient-introspect-compose"
 
 @Module({})
 export class GraphQLGatewayModule extends ConfigurableModuleClass {
-    //gateway
     public static forRoot(options: typeof OPTIONS_TYPE) {
         const subgraphs = options.subgraphs ?? []
         const retryDefaults = options.retryOptions
@@ -31,7 +29,6 @@ export class GraphQLGatewayModule extends ConfigurableModuleClass {
                 NestGraphQLModule.forRootAsync<ApolloGatewayDriverConfig>({
                     driver: ApolloGatewayDriver,
                     useFactory: async () => {
-                        // Create resilient supergraph manager
                         const resilientManager = new ResilientIntrospectAndCompose({
                             subgraphs,
                             retryOptions: gatewayRetryOptions,
@@ -49,17 +46,19 @@ export class GraphQLGatewayModule extends ConfigurableModuleClass {
 
                         return {
                             server: {
-                                plugins: [ApolloServerPluginLandingPageLocalDefault()],
+                                introspection: true,
+                                plugins: [ApolloServerPluginLandingPageLocalDefault({
+                                    includeCookies: true,
+                                })],
                                 context: ({ req, res }) => ({ req, res }),
                                 debug: false,
                                 csrfPrevention: false,
                                 playground: false,
                                 path: "/graphql",
                                 formatError: (error) => {
-                                    // remove the stack trace
                                     delete error.extensions?.stacktrace
                                     return {
-                                        message: error.message, // Only show the error message
+                                        message: error.message,
                                         extensions: error.extensions,
                                     }
                                 },

@@ -15,6 +15,7 @@ import {
 export class GraphQLSubgraphModule extends ConfigurableModuleClass {
     public static forRoot(options: typeof OPTIONS_TYPE = {}) {
         const dynamicModule = super.forRoot(options)
+        const isDevelopment = process.env.NODE_ENV === "development"
 
         return {
             ...dynamicModule,
@@ -25,16 +26,18 @@ export class GraphQLSubgraphModule extends ConfigurableModuleClass {
                         federation: 2,
                     },
                     plugins: [
-                        ApolloServerPluginLandingPageLocalDefault(),
+                        ApolloServerPluginLandingPageLocalDefault({
+                            includeCookies: true,
+                        }),
                         ApolloServerPluginInlineTrace(),
                     ],
                     csrfPrevention: false,
+                    introspection: true,
                     debug: false,
                     playground: false,
                     // subscriptions: {},
                     path: "/graphql",
                     formatError: (error) => {
-                        // Remove the stack trace for production
                         if (process.env.NODE_ENV !== "development") {
                             delete error.extensions?.stacktrace
                         }
