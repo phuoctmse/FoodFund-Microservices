@@ -4,23 +4,25 @@ import { ApiGatewayModule } from "./app.module"
 async function bootstrap() {
     const app = await NestFactory.create(ApiGatewayModule)
 
-    const allowedOrigins = [
-        "http://localhost:3000", // FE local dev
-        "https://food-fund.vercel.app", // FE production trên Vercel
-    ]
+    // const allowedOrigins = [
+    //     "http://localhost:3000", // FE local dev
+    //     "https://food-fund.vercel.app", // FE production trên Vercel
+    //     "https://seahorse-app-i62zf.ondigitalocean.app",
+    // ]
 
     app.enableCors({
-        origin: (origin, callback) => {
-            // Cho phép request không có origin (ví dụ: curl, Postman)
-            if (!origin) return callback(null, true)
-            if (allowedOrigins.includes(origin)) {
-                return callback(null, true)
-            }
-            return callback(
-                new Error(`CORS policy: This origin is not allowed: ${origin}`),
-                false,
-            )
-        },
+        // origin: (origin, callback) => {
+        //     // Cho phép request không có origin (ví dụ: curl, Postman)
+        //     if (!origin) return callback(null, true)
+        //     if (allowedOrigins.includes(origin)) {
+        //         return callback(null, true)
+        //     }
+        //     return callback(
+        //         new Error(`CORS policy: This origin is not allowed: ${origin}`),
+        //         false,
+        //     )
+        // },
+        origin: true,
         credentials: true,
         methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allowedHeaders: ["Content-Type", "Authorization"],
