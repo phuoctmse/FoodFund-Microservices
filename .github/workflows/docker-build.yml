@@ -224,6 +224,8 @@ jobs:
           sed -i "s|\${SENTRY_DSN}|${SENTRY_DSN}|g" .do/app-spec.yaml
           sed -i "s|\${SENTRY_ENVIRONMENT}|${SENTRY_ENVIRONMENT}|g" .do/app-spec.yaml
           sed -i "s|\${SENTRY_RELEASE}|${SENTRY_RELEASE}|g" .do/app-spec.yaml
+          sed -i "s|\${USER_GRPC_URL}|${USER_GRPC_URL}|g" .do/app-spec.yaml
+          sed -i "s|\${AUTH_GRPC_URL}|${AUTH_GRPC_URL}|g" .do/app-spec.yaml
 
           
           # Set correct tag based on branch

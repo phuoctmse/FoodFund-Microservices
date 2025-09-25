@@ -11,6 +11,7 @@ import {
     DefaultRemoteGraphQLDataSource,
     DataSourceOptions,
 } from "./default.remote-graphql-data-source"
+import { ResilientIntrospectAndCompose } from "./resilient-introspect-compose"
 
 @Module({})
 export class GraphQLGatewayModule extends ConfigurableModuleClass {
@@ -21,54 +22,70 @@ export class GraphQLGatewayModule extends ConfigurableModuleClass {
         const circuitDefaults = options.circuitBreakerOptions
         const monitoring = options.monitoring
         const fallback = options.fallback
+        const gatewayRetryOptions = options.gatewayRetryOptions
 
         const dynamicModule = super.forRoot(options)
         return {
             ...dynamicModule,
             imports: [
-                NestGraphQLModule.forRoot<ApolloGatewayDriverConfig>({
+                NestGraphQLModule.forRootAsync<ApolloGatewayDriverConfig>({
                     driver: ApolloGatewayDriver,
-                    server: {
-                        plugins: [ApolloServerPluginLandingPageLocalDefault()],
-                        context: ({ req, res }) => ({ req, res }),
-                        debug: false,
-                        csrfPrevention: false,
-                        playground: false,
-                        path: "/graphql",
-                        formatError: (error) => {
-                            // remove the stack trace
-                            delete error.extensions?.stacktrace
-                            return {
-                                message: error.message, // Only show the error message
-                                extensions: error.extensions,
-                            }
-                        },
-                        
-                    },
-                    gateway: {
-                        buildService: ({ url, name }) => {
-                            const sub = subgraphs.find(
-                                (s) => s.url === url || s.name === name,
-                            ) as any
-                            const dsOptions: DataSourceOptions = {
-                                url: url!,
-                                subgraphName: name ?? sub?.name ?? url!,
-                                retryOptions:
-                                    sub?.retryOptions ?? retryDefaults,
-                                circuitBreakerOptions:
-                                    sub?.circuitBreakerOptions ??
-                                    circuitDefaults,
-                                fallback: sub?.fallback ?? fallback,
-                                monitoring,
-                            }
-                            return new DefaultRemoteGraphQLDataSource(dsOptions)
-                        },
-                        supergraphSdl: new IntrospectAndCompose({
+                    useFactory: async () => {
+                        // Create resilient supergraph manager
+                        const resilientManager = new ResilientIntrospectAndCompose({
                             subgraphs,
-                            introspectionHeaders: {},
-                            pollIntervalInMs:
-                                (options as any).pollIntervalInMs ?? 30000,
-                        }),
+                            retryOptions: gatewayRetryOptions,
+                            onSubgraphUnavailable: (subgraphName, error) => {
+                                console.warn(`🚨 Subgraph "${subgraphName}" is unavailable:`, error.message)
+                                monitoring?.onEvent?.({
+                                    type: "error",
+                                    subgraph: subgraphName,
+                                    details: { error: error.message },
+                                })
+                            },
+                        })
+
+                        const supergraphManager = await resilientManager.createSupergraphManager()
+
+                        return {
+                            server: {
+                                plugins: [ApolloServerPluginLandingPageLocalDefault()],
+                                context: ({ req, res }) => ({ req, res }),
+                                debug: false,
+                                csrfPrevention: false,
+                                playground: false,
+                                path: "/graphql",
+                                formatError: (error) => {
+                                    // remove the stack trace
+                                    delete error.extensions?.stacktrace
+                                    return {
+                                        message: error.message, // Only show the error message
+                                        extensions: error.extensions,
+                                    }
+                                },
+                                
+                            },
+                            gateway: {
+                                buildService: ({ url, name }) => {
+                                    const sub = subgraphs.find(
+                                        (s) => s.url === url || s.name === name,
+                                    ) as any
+                                    const dsOptions: DataSourceOptions = {
+                                        url: url!,
+                                        subgraphName: name ?? sub?.name ?? url!,
+                                        retryOptions:
+                                            sub?.retryOptions ?? retryDefaults,
+                                        circuitBreakerOptions:
+                                            sub?.circuitBreakerOptions ??
+                                            circuitDefaults,
+                                        fallback: sub?.fallback ?? fallback,
+                                        monitoring,
+                                    }
+                                    return new DefaultRemoteGraphQLDataSource(dsOptions)
+                                },
+                                supergraphSdl: supergraphManager,
+                            },
+                        }
                     },
                 }),
             ],

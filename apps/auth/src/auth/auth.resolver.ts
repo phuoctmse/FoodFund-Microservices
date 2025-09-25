@@ -10,6 +10,7 @@ import {
     ResetPasswordResponse,
     ResendCodeResponse,
     RefreshTokenResponse,
+    SignOutResponse,
 } from "./models"
 import {
     SignUpInput,
@@ -81,6 +82,15 @@ export class AuthResolver {
         input: RefreshTokenInput,
     ): Promise<RefreshTokenResponse> {
         return this.authService.refreshToken(input)
+    }
+
+    async signOut(accessToken: string): Promise<SignOutResponse> {
+        const result = await this.authService.signOut(accessToken)
+        return {
+            message: result.message,
+            success: result.success,
+            timestamp: new Date().toISOString(),
+        }
     }
 
     // User operations

@@ -6,6 +6,8 @@ export interface GraphqlGatewayOptions {
   monitoring?: MonitoringOptions;
   // Optional global fallback when a subgraph is unavailable
   fallback?: FallbackOptions;
+  // Gateway initialization retry options
+  gatewayRetryOptions?: GatewayRetryOptions;
 }
 
 export interface SubgraphConfig {
@@ -41,4 +43,11 @@ export interface MonitoringOptions {
     subgraph: string;
     details?: any;
   }) => void;
+}
+
+export interface GatewayRetryOptions {
+  maxRetries?: number; // number of retry attempts for gateway initialization (default: 5)
+  initialDelayMs?: number; // initial backoff delay for gateway initialization (default: 1000)
+  maxDelayMs?: number; // max backoff delay for gateway initialization (default: 10000)
+  factor?: number; // exponential backoff factor for gateway initialization (default: 2)
 }

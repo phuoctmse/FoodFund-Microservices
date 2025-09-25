@@ -10,6 +10,7 @@ import {
 } from "../user.repository"
 import { Role } from "libs/databases/prisma/schemas"
 import { ProfileService } from "./profile.service"
+import { generateUniqueUsername } from "libs/common"
 
 @Injectable()
 export class UserCreationService {
@@ -28,16 +29,16 @@ export class UserCreationService {
                 throw new ConflictException("Email already exists")
             }
 
-            // Check if username already exists
-            const existingUsernameUser =
-                await this.userRepository.findUserByUsername(
-                    createUserInput.user_name,
-                )
-            if (existingUsernameUser) {
-                throw new ConflictException("Username already exists")
-            }
+            // Ensure unique username
+            const uniqueUsername = await this.ensureUniqueUsername(
+                createUserInput.user_name,
+                createUserInput.email
+            )
 
-            const user = await this.userRepository.createUser(createUserInput)
+            const user = await this.userRepository.createUser({
+                ...createUserInput,
+                user_name: uniqueUsername
+            })
 
             // Automatically create corresponding profile based on role
             await this.profileService.createProfileForUser(
@@ -65,17 +66,16 @@ export class UserCreationService {
                 throw new ConflictException("Email already exists")
             }
 
-            // Check if username already exists
-            const existingUsernameUser =
-                await this.userRepository.findUserByUsername(
-                    createStaffUserInput.user_name,
-                )
-            if (existingUsernameUser) {
-                throw new ConflictException("Username already exists")
-            }
+            // Ensure unique username
+            const uniqueUsername = await this.ensureUniqueUsername(
+                createStaffUserInput.user_name,
+                createStaffUserInput.email
+            )
 
-            const user =
-                await this.userRepository.createStaffUser(createStaffUserInput)
+            const user = await this.userRepository.createStaffUser({
+                ...createStaffUserInput,
+                user_name: uniqueUsername
+            })
 
             // Create role-specific profile with staff-specific data
             await this.profileService.createStaffProfileForUser(
@@ -90,6 +90,43 @@ export class UserCreationService {
                 throw error
             }
             throw new BadRequestException("Failed to create staff user")
+        }
+    }
+
+    /**
+     * Ensure username is unique by checking database and generating alternatives if needed
+     */
+    private async ensureUniqueUsername(proposedUsername: string, email: string): Promise<string> {
+        // If no username provided, generate from email
+        if (!proposedUsername) {
+            proposedUsername = generateUniqueUsername(email)
+        }
+
+        // Check if proposed username is available
+        const existingUser = await this.userRepository.findUserByUsername(proposedUsername)
+        if (!existingUser) {
+            return proposedUsername
+        }
+
+        // Get all existing usernames to avoid conflicts
+        const existingUsernames = await this.getAllExistingUsernames()
+        
+        // Generate unique username
+        return generateUniqueUsername(email, existingUsernames)
+    }
+
+    /**
+     * Get all existing usernames from database (for uniqueness check)
+     */
+    private async getAllExistingUsernames(): Promise<string[]> {
+        try {
+            // This is a simplified approach - in production you might want to optimize this
+            const users = await this.userRepository.findAllUsers(0, 10000) // Get first 10k users
+            return users.map(user => user.user_name).filter(Boolean)
+        } catch (error) {
+            // If we can't get existing usernames, return empty array
+            // The generateUniqueUsername will still work with random fallback
+            return []
         }
     }
 }
