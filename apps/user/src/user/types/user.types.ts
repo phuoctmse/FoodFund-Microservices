@@ -6,7 +6,6 @@ export interface CreateUserInput {
     full_name: string
     avatar_url: string
     email: string
-    phone_number: string
     role: Role
     user_name: string
     bio?: string

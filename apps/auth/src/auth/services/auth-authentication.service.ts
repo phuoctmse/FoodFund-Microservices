@@ -104,6 +104,24 @@ export class AuthAuthenticationService {
         }
     }
 
+    async signOut(accessToken: string): Promise<{ success: boolean; message: string }> {
+        try {
+            this.logger.log("Processing sign out request")
+
+            const result = await this.awsCognitoService.signOut(accessToken)
+
+            this.logger.log("User signed out successfully")
+
+            return {
+                success: result.success,
+                message: "User signed out successfully",
+            }
+        } catch (error) {
+            this.logger.error("Sign out failed:", error)
+            throw AuthErrorHelper.mapCognitoError(error, "signOut")
+        }
+    }
+
     private convertGetUserOutputToCognitoUser(
         output: GetUserCommandOutput,
     ): CognitoUser {

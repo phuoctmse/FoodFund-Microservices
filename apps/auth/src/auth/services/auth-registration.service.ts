@@ -14,6 +14,8 @@ import {
 } from "../models"
 import { AuthErrorHelper } from "../helpers"
 import { GrpcClientService } from "libs/grpc"
+import { Role } from "@libs/databases"
+import { generateUniqueUsername } from "libs/common"
 
 @Injectable()
 export class AuthRegistrationService {
@@ -25,14 +27,6 @@ export class AuthRegistrationService {
     ) {}
 
     async signUp(input: SignUpInput): Promise<SignUpResponse> {
-        function extractUserNameFromEmail(email: string): string {
-            if (typeof email !== "string") return ""
-            const atIndex = email.indexOf("@")
-            if (atIndex > 0) {
-                return email.substring(0, atIndex)
-            }
-            return ""
-        }
         try {
             this.logger.log(
                 `Attempting to sign up user with email: ${input.email}`,
@@ -43,19 +37,21 @@ export class AuthRegistrationService {
                 input.password,
                 {
                     name: input.name,
-                    phone_number: input.phoneNumber,
+                    "custom:role": Role.DONOR,
                 },
             )
+
+            // Generate unique username - we'll handle duplicates in the User service
+            const username = generateUniqueUsername(input.email)
 
             const userResult = await this.grpcClient.callUserService(
                 "CreateUser",
                 {
                     cognito_id: result.userSub || "",
                     email: input.email,
-                    username: extractUserNameFromEmail(input.email),
+                    username: username,
                     full_name: input.name,
-                    phone_number: input.phoneNumber,
-                    role: "DONOR",
+                    role: Role.DONOR,
                 },
             )
 

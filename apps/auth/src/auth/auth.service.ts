@@ -78,6 +78,10 @@ export class AuthService {
         return this.authAuthenticationService.refreshToken(input)
     }
 
+    async signOut(accessToken: string): Promise<{ success: boolean; message: string }> {
+        return this.authAuthenticationService.signOut(accessToken)
+    }
+
     // User methods
     async getUserById(id: string): Promise<AuthUser | null> {
         return this.authUserService.getUserById(id)

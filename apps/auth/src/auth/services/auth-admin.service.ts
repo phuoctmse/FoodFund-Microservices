@@ -5,6 +5,7 @@ import { CreateStaffAccountInput } from "../dto"
 import { Role } from "libs/databases/prisma/schemas/enums/user.enums"
 import { AuthErrorHelper } from "../helpers"
 import { GrpcClientService } from "libs/grpc"
+import { generateUniqueUsername } from "libs/common"
 
 @Injectable()
 export class AuthAdminService {
@@ -19,14 +20,6 @@ export class AuthAdminService {
         input: CreateStaffAccountInput,
         adminUser: AuthUser,
     ): Promise<CreateStaffAccountResponse> {
-        function extractUserNameFromEmail(email: string): string {
-            if (typeof email !== "string") return ""
-            const atIndex = email.indexOf("@")
-            if (atIndex > 0) {
-                return email.substring(0, atIndex)
-            }
-            return ""
-        }
         try {
             this.logger.log(
                 `Admin ${adminUser.id} creating staff account for: ${input.email}`,
@@ -50,6 +43,7 @@ export class AuthAdminService {
                 {
                     name: input.full_name,
                     phone_number: input.phone_number,
+                    "custom:role": input.role,
                 },
             )
 
@@ -65,7 +59,6 @@ export class AuthAdminService {
                 {
                     cognito_id: cognitoResult.userSub || "",
                     email: input.email,
-                    username: extractUserNameFromEmail(input.email),
                     full_name: input.full_name,
                     phone_number: input.phone_number,
                     avatar_url: input.avatar_url || "",
@@ -76,8 +69,20 @@ export class AuthAdminService {
             )
 
             if (!userResult.success) {
-                // Rollback Cognito user if database creation fails
-                // Note: We'll need to implement adminDeleteUser in AwsCognitoService
+                this.logger.error(
+                    `Failed to create user in database, rolling back Cognito user for: ${input.email}`,
+                )
+                try {
+                    await this.awsCognitoService.adminDeleteUser(input.email)
+                    this.logger.log(
+                        `Rolled back Cognito user for: ${input.email}`,
+                    )
+                } catch (deleteError) {
+                    this.logger.error(
+                        `Failed to rollback Cognito user for ${input.email}:`,
+                        deleteError,
+                    )
+                }
                 throw new Error(
                     `Failed to create user in database: ${userResult.error}`,
                 )

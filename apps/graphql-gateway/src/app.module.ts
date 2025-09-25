@@ -63,6 +63,39 @@ import { GraphQLGatewayModule } from "libs/graphql/gateway"
                     },
                 ]
             })(),
+            // Gateway initialization retry configuration
+            gatewayRetryOptions: {
+                maxRetries: 5, // Try up to 5 times per subgraph
+                initialDelayMs: 2000, // Start with 2 second delay
+                maxDelayMs: 10000, // Max 10 second delay
+                factor: 2, // Exponential backoff
+            },
+            // Monitoring events
+            monitoring: {
+                onEvent: (event) => {
+                    const timestamp = new Date().toISOString()
+                    switch (event.type) {
+                    case "retry":
+                        console.log(`🔄 [${timestamp}] Retrying ${event.subgraph}: ${JSON.stringify(event.details)}`)
+                        break
+                    case "circuitOpen":
+                        console.warn(`⚡ [${timestamp}] Circuit opened for ${event.subgraph}: ${JSON.stringify(event.details)}`)
+                        break
+                    case "circuitClose":
+                        console.log(`✅ [${timestamp}] Circuit closed for ${event.subgraph}`)
+                        break
+                    case "fallback":
+                        console.warn(`🔀 [${timestamp}] Using fallback for ${event.subgraph}: ${JSON.stringify(event.details)}`)
+                        break
+                    case "error":
+                        console.error(`❌ [${timestamp}] Error in ${event.subgraph}: ${JSON.stringify(event.details)}`)
+                        break
+                    case "subgraphError":
+                        console.warn(`⚠️  [${timestamp}] Subgraph error in ${event.subgraph}: ${JSON.stringify(event.details)}`)
+                        break
+                    }
+                },
+            },
         }),
     ],
     controllers: [],
