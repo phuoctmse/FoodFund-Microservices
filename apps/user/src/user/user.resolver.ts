@@ -59,21 +59,6 @@ export class UserResolver {
         return this.userService.getActiveUsers()
     }
 
-    // Mutation operations
-    async createUser(createUserInput: CreateUserInput) {
-        // Convert GraphQL input to repository input
-        const repoInput: RepoCreateUserInput = {
-            full_name: createUserInput.full_name,
-            avatar_url: createUserInput.avatar_url || "",
-            email: createUserInput.email,
-            phone_number: createUserInput.phone_number || "",
-            role: createUserInput.role as Role,
-            user_name: createUserInput.user_name,
-            bio: createUserInput.bio,
-        }
-        return this.userService.createUser(repoInput)
-    }
-
     async createStaffUser(createStaffUserInput: CreateStaffUserInput) {
         return this.userService.createStaffUser(createStaffUserInput)
     }

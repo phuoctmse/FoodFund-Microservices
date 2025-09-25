@@ -9,13 +9,6 @@ export class UserMutationResolver {
     constructor(private readonly userResolverFacade: UserResolverFacade) {}
 
     @Mutation(() => UserProfileSchema)
-    async createUser(
-        @Args("createUserInput", new ValidationPipe()) createUserInput: CreateUserInput
-    ) {
-        return this.userResolverFacade.createUser(createUserInput)
-    }
-
-    @Mutation(() => UserProfileSchema)
     async updateUser(
         @Args("id", { type: () => ID }) id: string,
         @Args("updateUserInput", new ValidationPipe()) updateUserInput: UpdateUserInput

@@ -34,15 +34,6 @@ export class SignUpInput {
     @IsNotEmpty({ message: "Name is required" })
     @Transform(({ value }) => value?.trim())
         name: string
-
-    @Field()
-    @IsString({ message: "Phone number must be a string" })
-    @IsNotEmpty({ message: "Phone Number is required" })
-    @IsVietnamesePhone({
-        message: "Please provide a valid Vietnamese phone number",
-    })
-    @Transform(({ value }) => value?.trim())
-        phoneNumber: string
 }
 
 @InputType()

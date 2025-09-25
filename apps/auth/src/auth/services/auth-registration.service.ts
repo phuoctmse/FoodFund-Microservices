@@ -37,7 +37,6 @@ export class AuthRegistrationService {
                 input.password,
                 {
                     name: input.name,
-                    phone_number: input.phoneNumber,
                     "custom:role": Role.DONOR,
                 },
             )
@@ -52,7 +51,6 @@ export class AuthRegistrationService {
                     email: input.email,
                     username: username,
                     full_name: input.name,
-                    phone_number: input.phoneNumber,
                     role: Role.DONOR,
                 },
             )

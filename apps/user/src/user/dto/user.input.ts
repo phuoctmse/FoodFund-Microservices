@@ -16,10 +16,6 @@ export class CreateUserInput {
     @IsEmail()
         email: string
 
-    @Field(() => String, { description: "User's phone number" })
-    // @IsPhoneNumber()
-        phone_number: string
-
     @Field(() => Role, { description: "User's role in the system" })
     @IsEnum(Role)
         role: Role

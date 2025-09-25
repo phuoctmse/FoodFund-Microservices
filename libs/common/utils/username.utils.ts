@@ -1,12 +1,8 @@
 /**
- * Utility functions for generating unique usernames
- */
-
-/**
- * Generate a unique username from email with fallback strategies
+ * Generate a unique username from email, avoiding domain exposure.
  * @param email - User's email address
  * @param existingUsernames - Array of existing usernames to avoid duplicates
- * @returns A unique username
+ * @returns A unique, privacy-friendly username
  */
 export function generateUniqueUsername(
     email: string,
@@ -17,65 +13,51 @@ export function generateUniqueUsername(
     }
 
     const baseUsername = extractBaseUsername(email)
+    if (!baseUsername) {
+        return generateRandomUsername()
+    }
 
-    // If base username is not taken, use it
+    // Nếu chưa trùng, dùng luôn
     if (!existingUsernames.includes(baseUsername)) {
         return baseUsername
     }
 
-    // Try with domain suffix
-    const domainUsername = generateUsernameWithDomain(email)
-    if (!existingUsernames.includes(domainUsername)) {
-        return domainUsername
-    }
-
-    // Try with numbers
-    for (let i = 1; i <= 999; i++) {
-        const numberedUsername = `${baseUsername}${i}`
-        if (!existingUsernames.includes(numberedUsername)) {
-            return numberedUsername
+    // Thử tối đa 3 lần với hậu tố random ngắn (không dùng domain)
+    for (let i = 0; i < 3; i++) {
+        const randomSuffix = getRandomString(4)
+        const candidate = `${baseUsername}${randomSuffix}`.slice(0, 20)
+        if (!existingUsernames.includes(candidate)) {
+            return candidate
         }
     }
 
-    // Last resort: random username
+    // Nếu vẫn trùng, fallback random hoàn toàn
     return generateRandomUsername()
 }
 
 /**
  * Extract base username from email (part before @)
  * @param email - User's email address
- * @returns Base username (max 20 chars)
+ * @returns Base username (max 14 chars)
  */
 function extractBaseUsername(email: string): string {
     const atIndex = email.indexOf("@")
     if (atIndex <= 0) return ""
-
-    // Clean and limit to 20 characters
+    // Clean và giới hạn 14 ký tự để còn chỗ cho hậu tố
     return email
         .substring(0, atIndex)
-        .replace(/[^a-zA-Z0-9_]/g, "") // Remove special chars except underscore
+        .replace(/[^a-zA-Z0-9_]/g, "")
         .toLowerCase()
-        .slice(0, 20)
+        .slice(0, 14)
 }
 
 /**
- * Generate username with domain suffix
- * @param email - User's email address
- * @returns Username with domain suffix
+ * Sinh chuỗi random gồm 4 ký tự chữ và số
  */
-function generateUsernameWithDomain(email: string): string {
-    const [localPart, domain] = email.split("@")
-    if (!localPart || !domain) return ""
-
-    const cleanLocal = localPart.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase()
-    const cleanDomain = domain
-        .split(".")[0]
-        .replace(/[^a-zA-Z0-9]/g, "")
-        .toLowerCase()
-
-    // Combine and limit to 20 characters
-    const combined = `${cleanLocal}_${cleanDomain}`
-    return combined.slice(0, 20)
+function getRandomString(length: number): string {
+    return Math.random()
+        .toString(36)
+        .substring(2, 2 + length)
 }
 
 /**
@@ -83,9 +65,9 @@ function generateUsernameWithDomain(email: string): string {
  * @returns Random username
  */
 function generateRandomUsername(): string {
-    const timestamp = Date.now().toString().slice(-6) // Last 6 digits
-    const random = Math.random().toString(36).substring(2, 8) // 6 random chars
-    return `user_${timestamp}_${random}`.slice(0, 20)
+    const timestamp = Date.now().toString().slice(-6)
+    const random = getRandomString(6)
+    return `user${timestamp}${random}`.slice(0, 20)
 }
 
 /**
@@ -95,7 +77,6 @@ function generateRandomUsername(): string {
  */
 export function isValidUsername(username: string): boolean {
     if (!username || typeof username !== "string") return false
-
     // Must be 3-20 characters, alphanumeric and underscore only
     const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/
     return usernameRegex.test(username)

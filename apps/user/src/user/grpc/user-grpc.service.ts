@@ -58,7 +58,6 @@ export class UserGrpcService implements OnModuleInit {
                 email,
                 username,
                 full_name,
-                phone_number,
                 role,
                 cognito_attributes,
             } = call.request
@@ -88,7 +87,6 @@ export class UserGrpcService implements OnModuleInit {
                 email,
                 user_name: finalUsername,
                 full_name: full_name || "",
-                phone_number: phone_number || "",
                 avatar_url: cognito_attributes?.avatar_url || "",
                 bio: cognito_attributes?.bio || "",
                 role: roleMap[role] || "DONOR",
