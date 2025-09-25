@@ -221,6 +221,10 @@ jobs:
           sed -i "s|\${AWS_COGNITO_USER_POOL_ID}|${AWS_COGNITO_USER_POOL_ID}|g" .do/app-spec.yaml
           sed -i "s|\${AWS_COGNITO_CLIENT_ID}|${AWS_COGNITO_CLIENT_ID}|g" .do/app-spec.yaml
           sed -i "s|\${AWS_COGNITO_CLIENT_SECRET}|${AWS_COGNITO_CLIENT_SECRET}|g" .do/app-spec.yaml
+          sed -i "s|\${SENTRY_DSN}|${SENTRY_DSN}|g" .do/app-spec.yaml
+          sed -i "s|\${SENTRY_ENVIRONMENT}|${SENTRY_ENVIRONMENT}|g" .do/app-spec.yaml
+          sed -i "s|\${SENTRY_RELEASE}|${SENTRY_RELEASE}|g" .do/app-spec.yaml
+
           
           # Set correct tag based on branch
           if [ "${GITHUB_REF##*/}" = "main" ]; then

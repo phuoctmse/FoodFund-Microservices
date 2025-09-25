@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common"
 import { PrismaClient } from "@prisma/client"
 import { Role } from "libs/databases/prisma/schemas"
+import { v7 as uuidv7 } from "uuid"
 import { 
     CreateUserInput, 
     CreateStaffUserInput,
@@ -38,6 +39,7 @@ export class UserRepository {
     async createUser(data: CreateUserInput) {
         return this.prisma.user.create({
             data: {
+                id: uuidv7(),
                 ...data,
                 is_active: true
             },

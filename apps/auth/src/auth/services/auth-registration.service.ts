@@ -5,10 +5,7 @@ import {
     GetUserCommandOutput,
     AdminGetUserCommandOutput,
 } from "@aws-sdk/client-cognito-identity-provider"
-import {
-    ConfirmSignUpInput,
-    SignUpInput,
-} from "../dto"
+import { ConfirmSignUpInput, SignUpInput } from "../dto"
 import {
     SignUpResponse,
     ConfirmSignUpResponse,
@@ -16,6 +13,7 @@ import {
     ResetPasswordResponse,
 } from "../models"
 import { AuthErrorHelper } from "../helpers"
+import { GrpcClientService } from "libs/grpc"
 
 @Injectable()
 export class AuthRegistrationService {
@@ -23,9 +21,18 @@ export class AuthRegistrationService {
 
     constructor(
         private readonly awsCognitoService: AwsCognitoService,
+        private readonly grpcClient: GrpcClientService,
     ) {}
 
     async signUp(input: SignUpInput): Promise<SignUpResponse> {
+        function extractUserNameFromEmail(email: string): string {
+            if (typeof email !== "string") return ""
+            const atIndex = email.indexOf("@")
+            if (atIndex > 0) {
+                return email.substring(0, atIndex)
+            }
+            return ""
+        }
         try {
             this.logger.log(
                 `Attempting to sign up user with email: ${input.email}`,
@@ -39,6 +46,24 @@ export class AuthRegistrationService {
                     phone_number: input.phoneNumber,
                 },
             )
+
+            const userResult = await this.grpcClient.callUserService(
+                "CreateUser",
+                {
+                    cognito_id: result.userSub || "",
+                    email: input.email,
+                    username: extractUserNameFromEmail(input.email),
+                    full_name: input.name,
+                    phone_number: input.phoneNumber,
+                    role: "DONOR",
+                },
+            )
+
+            if (!userResult.success) {
+                throw new Error(
+                    `Failed to create user in database: ${userResult.error}`,
+                )
+            }
 
             this.logger.log(`User signed up successfully: ${result.userSub}`)
 

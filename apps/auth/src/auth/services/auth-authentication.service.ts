@@ -33,6 +33,7 @@ export class AuthAuthenticationService {
                 input.password,
             )
 
+
             // Get user details from access token
             const userOutput = await this.awsCognitoService.getUser(
                 result.AccessToken!,
