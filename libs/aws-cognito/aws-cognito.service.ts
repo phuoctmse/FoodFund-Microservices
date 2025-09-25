@@ -53,7 +53,6 @@ export class AwsCognitoService {
             throw new Error("AWS configuration not found in environment")
         }
 
-        // Use options if provided, otherwise fall back to env config
         this.userPoolId = this.options.userPoolId || config.cognito.userPoolId
         this.clientId = this.options.clientId || config.cognito.clientId
         this.clientSecret =
@@ -86,10 +85,8 @@ export class AwsCognitoService {
                         accessKeyId: config.accessKeyId,
                         secretAccessKey: config.secretAccessKey,
                     }
-                    : undefined, // Use default credentials if not provided
+                    : undefined,
         })
-
-        // JWT verifier will be created when needed
 
         this.logger.log(
             `AWS Cognito Service initialized for region: ${region}, User Pool: ${this.userPoolId}`,
@@ -233,20 +230,9 @@ export class AwsCognitoService {
 
                 throw new Error("Authentication result is missing")
             } catch (flowError: unknown) {
-                const errorMessage =
-                    flowError instanceof Error
-                        ? flowError.message
-                        : String(flowError)
-                this.logger.debug(
-                    `Auth flow ${authFlow} failed: ${errorMessage}`,
-                )
-
-                // If this is not an auth flow configuration error, rethrow immediately
                 if (!this.isAuthFlowConfigError(flowError)) {
                     throw flowError
                 }
-
-                // Continue to next auth flow if available
                 continue
             }
         }
@@ -367,9 +353,6 @@ export class AwsCognitoService {
                 Password: newPassword,
                 ...(secretHash && { SecretHash: secretHash }),
             })
-
-            this.logger.debug(command)
-
             await this.cognitoClient.send(command)
 
             return { passwordReset: true } as PasswordResetResponse
@@ -405,7 +388,6 @@ export class AwsCognitoService {
             })
 
             const payload = await jwtVerifier.verify(token)
-            this.logger.debug(`Token validated for user: ${payload.sub}`)
             return payload
         } catch (error) {
             const errorMessage =
@@ -425,7 +407,6 @@ export class AwsCognitoService {
             })
 
             const response = await this.cognitoClient.send(command)
-            this.logger.debug(`User retrieved: ${response.Username}`)
             return response
         } catch (error) {
             const errorMessage =
@@ -446,7 +427,6 @@ export class AwsCognitoService {
             })
 
             const response = await this.cognitoClient.send(command)
-            this.logger.debug(`Admin user retrieved: ${username}`)
             return response
         } catch (error) {
             const errorMessage =

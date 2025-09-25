@@ -1,5 +1,6 @@
 import { NestFactory } from "@nestjs/core"
 import { ApiGatewayModule } from "./app.module"
+import * as compression from 'compression';
 
 async function bootstrap() {
     const app = await NestFactory.create(ApiGatewayModule)
@@ -12,10 +13,9 @@ async function bootstrap() {
         "http://localhost:8001", // Auth service local
         "http://localhost:8002", // User service local
     ]
-
+    app.use(compression())
     app.enableCors({
         origin: (origin, callback) => {
-            // Cho phép request không có origin (ví dụ: curl, Postman)
             if (!origin) return callback(null, true)
             if (allowedOrigins.includes(origin)) {
                 return callback(null, true)

@@ -13,9 +13,10 @@ jobs:
     outputs:
       auth: ${{ steps.changes.outputs.auth }}
       user: ${{ steps.changes.outputs.user }}
+      campaign: ${{ steps.changes.outputs.campaign }}
       gateway: ${{ steps.changes.outputs.gateway }}
       shared: ${{ steps.changes.outputs.shared }}
-      any-service: ${{ steps.changes.outputs.auth == 'true' || steps.changes.outputs.user == 'true' || steps.changes.outputs.gateway == 'true' }}
+      any-service: ${{ steps.changes.outputs.auth == 'true' || steps.changes.outputs.user == 'true' || steps.changes.outputs.campaign == 'true' || steps.changes.outputs.gateway == 'true' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,6 +32,10 @@ jobs:
               - 'package*.json'
             user:
               - 'apps/user/**'
+              - 'libs/**'
+              - 'package*.json'
+            campaign:
+              - 'apps/campaign/**'
               - 'libs/**'
               - 'package*.json'
             gateway:
@@ -50,12 +55,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [auth, user, gateway]
+        service: [auth, user, campaign, gateway]
         include:
           - service: auth
             build-script: "build:auth"
           - service: user
             build-script: "build:user"
+          - service: campaign
+            build-script: "build:campaign"
           - service: gateway
             build-script: "build:gateway"
     
@@ -93,7 +100,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [auth, user, gateway]
+        service: [auth, user, campaign, gateway]
         include:
           - service: auth
             dockerfile: apps/auth/Dockerfile
@@ -101,6 +108,9 @@ jobs:
           - service: user
             dockerfile: apps/user/Dockerfile
             image: foodfund-user
+          - service: campaign
+            dockerfile: apps/campaign/Dockerfile
+            image: foodfund-campaign
           - service: gateway
             dockerfile: apps/graphql-gateway/Dockerfile
             image: foodfund-graphql-gateway
@@ -156,6 +166,7 @@ jobs:
           echo "|---------|---------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Auth | ${{ needs.detect-changes.outputs.auth }} | ${{ needs.detect-changes.outputs.auth == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| User | ${{ needs.detect-changes.outputs.user }} | ${{ needs.detect-changes.outputs.user == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Campaign | ${{ needs.detect-changes.outputs.campaign }} | ${{ needs.detect-changes.outputs.campaign == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Gateway | ${{ needs.detect-changes.outputs.gateway }} | ${{ needs.detect-changes.outputs.gateway == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
 
   # ================= DEPLOY =================
