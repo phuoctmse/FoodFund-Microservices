@@ -1,13 +1,5 @@
-import {
-    Args,
-    ID,
-    Query,
-    Resolver,
-    ResolveReference,
-} from "@nestjs/graphql"
-import {
-    AuthUser,
-} from "../models"
+import { Args, ID, Query, Resolver, ResolveReference } from "@nestjs/graphql"
+import { AuthUser } from "../models"
 import { AuthResolver } from "../auth.resolver"
 
 @Resolver(() => AuthUser)

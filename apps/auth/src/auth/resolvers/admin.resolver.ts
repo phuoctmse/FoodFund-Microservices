@@ -1,17 +1,6 @@
-import {
-    Args,
-    ID,
-    Query,
-    Resolver,
-    Mutation,
-    Context,
-} from "@nestjs/graphql"
-import {
-    CreateStaffAccountResponse,
-} from "../models"
-import {
-    CreateStaffAccountInput,
-} from "../dto"
+import { Args, ID, Query, Resolver, Mutation, Context } from "@nestjs/graphql"
+import { CreateStaffAccountResponse } from "../models"
+import { CreateStaffAccountInput } from "../dto"
 import { RequireRole } from "libs/auth"
 import { Role } from "libs/databases/prisma/schemas/enums/user.enums"
 import { AuthUser } from "../models"

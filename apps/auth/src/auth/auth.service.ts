@@ -45,11 +45,15 @@ export class AuthService {
         return this.authRegistrationService.signUp(input)
     }
 
-    async confirmSignUp(input: ConfirmSignUpInput): Promise<ConfirmSignUpResponse> {
+    async confirmSignUp(
+        input: ConfirmSignUpInput,
+    ): Promise<ConfirmSignUpResponse> {
         return this.authRegistrationService.confirmSignUp(input)
     }
 
-    async resendConfirmationCode(email: string): Promise<{ emailSent: boolean; message: string }> {
+    async resendConfirmationCode(
+        email: string,
+    ): Promise<{ emailSent: boolean; message: string }> {
         return this.authRegistrationService.resendConfirmationCode(email)
     }
 
@@ -62,7 +66,11 @@ export class AuthService {
         confirmationCode: string,
         newPassword: string,
     ): Promise<ResetPasswordResponse> {
-        return this.authRegistrationService.confirmForgotPassword(email, confirmationCode, newPassword)
+        return this.authRegistrationService.confirmForgotPassword(
+            email,
+            confirmationCode,
+            newPassword,
+        )
     }
 
     // Authentication methods
@@ -74,11 +82,15 @@ export class AuthService {
         return this.authAuthenticationService.verifyToken(accessToken)
     }
 
-    async refreshToken(input: RefreshTokenInput): Promise<RefreshTokenResponse> {
+    async refreshToken(
+        input: RefreshTokenInput,
+    ): Promise<RefreshTokenResponse> {
         return this.authAuthenticationService.refreshToken(input)
     }
 
-    async signOut(accessToken: string): Promise<{ success: boolean; message: string }> {
+    async signOut(
+        accessToken: string,
+    ): Promise<{ success: boolean; message: string }> {
         return this.authAuthenticationService.signOut(accessToken)
     }
 

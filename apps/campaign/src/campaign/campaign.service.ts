@@ -221,67 +221,52 @@ export class CampaignService {
     }
 
     private validateCampaignDates(startDate: Date, endDate: Date): void {
-        try {
-            if (!(startDate instanceof Date) || !(endDate instanceof Date)) {
-                throw new BadRequestException(
-                    "Start date and end date must be valid Date objects",
-                )
-            }
-
-            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-                throw new BadRequestException(
-                    "Start date and end date must be valid dates",
-                )
-            }
-
-            const now = new Date()
-            const start = new Date(startDate)
-            const end = new Date(endDate)
-            const today = new Date(
-                now.getFullYear(),
-                now.getMonth(),
-                now.getDate(),
+        if (!(startDate instanceof Date) || !(endDate instanceof Date)) {
+            throw new BadRequestException(
+                "Start date and end date must be valid Date objects"
             )
-            const startDay = new Date(
-                start.getFullYear(),
-                start.getMonth(),
-                start.getDate(),
+        }
+
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            throw new BadRequestException(
+                "Start date and end date must be valid dates"
             )
-            const endDay = new Date(
-                end.getFullYear(),
-                end.getMonth(),
-                end.getDate(),
+        }
+
+        const now = new Date()
+        const start = new Date(startDate)
+        const end = new Date(endDate)
+
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+        const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+
+        if (startDay < today) {
+            throw new BadRequestException(
+                "Start date cannot be in the past. Please select today or a future date."
             )
+        }
 
-            if (startDay < today) {
-                throw new BadRequestException(
-                    "Start date cannot be in the past. Please select today or a future date.",
-                )
-            }
+        if (endDay <= startDay) {
+            throw new BadRequestException(
+                "End date must be after the start date. Please ensure there's at least one day between start and end dates."
+            )
+        }
 
-            if (endDay <= startDay) {
-                throw new BadRequestException(
-                    "End date must be after the start date. Please ensure there's at least one day between start and end dates.",
-                )
-            }
+        const maxDurationMs = 365 * 24 * 60 * 60 * 1000
+        const durationMs = end.getTime() - start.getTime()
+    
+        if (durationMs > maxDurationMs) {
+            throw new BadRequestException(
+                "Campaign duration cannot exceed 1 year. Please select an end date within one year of the start date."
+            )
+        }
 
-            const maxDurationMs = 365 * 24 * 60 * 60 * 1000
-            const durationMs = end.getTime() - start.getTime()
-
-            if (durationMs > maxDurationMs) {
-                throw new BadRequestException(
-                    "Campaign duration cannot exceed 1 year. Please select an end date within one year of the start date.",
-                )
-            }
-
-            const minDurationMs = 24 * 60 * 60 * 1000 // 1 day in milliseconds
-            if (durationMs < minDurationMs) {
-                throw new BadRequestException(
-                    "Campaign must run for at least 1 day. Please ensure there's adequate time between start and end dates.",
-                )
-            }
-        } catch (error) {
-            throw error
+        const minDurationMs = 24 * 60 * 60 * 1000 
+        if (durationMs < minDurationMs) {
+            throw new BadRequestException(
+                "Campaign must run for at least 1 day. Please ensure there's adequate time between start and end dates."
+            )
         }
     }
 

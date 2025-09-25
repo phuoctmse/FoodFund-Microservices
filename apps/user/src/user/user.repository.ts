@@ -2,8 +2,8 @@ import { Injectable } from "@nestjs/common"
 import { PrismaClient } from "@prisma/client"
 import { Role } from "libs/databases/prisma/schemas"
 import { v7 as uuidv7 } from "uuid"
-import { 
-    CreateUserInput, 
+import {
+    CreateUserInput,
     CreateStaffUserInput,
     UpdateUserInput,
     CreateDonorProfileInput,
@@ -13,7 +13,7 @@ import {
     CreateFundraiserProfileInput,
     UpdateFundraiserProfileInput,
     CreateDeliveryStaffProfileInput,
-    UpdateDeliveryStaffProfileInput
+    UpdateDeliveryStaffProfileInput,
 } from "./types/user.types"
 
 // Re-export types for use in other modules
@@ -28,7 +28,7 @@ export type {
     CreateFundraiserProfileInput,
     UpdateFundraiserProfileInput,
     CreateDeliveryStaffProfileInput,
-    UpdateDeliveryStaffProfileInput
+    UpdateDeliveryStaffProfileInput,
 }
 
 @Injectable()
@@ -41,25 +41,25 @@ export class UserRepository {
             data: {
                 id: uuidv7(),
                 ...data,
-                is_active: true
+                is_active: true,
             },
             include: {
                 Donor_Profile: true,
                 // Kitchen_Staff_Profile: true,
                 // Fundraiser_Profile: true,
                 // Delivery_Staff_Profile: true
-            }
+            },
         })
     }
 
     async createStaffUser(data: CreateStaffUserInput) {
         const { organization_address, ...userData } = data
-        
+
         return this.prisma.user.create({
             data: {
                 ...userData,
-                is_active: true
-            }
+                is_active: true,
+            },
         })
     }
 
@@ -71,11 +71,11 @@ export class UserRepository {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
                 Fundraiser_Profile: true,
-                Delivery_Staff_Profile: true
+                Delivery_Staff_Profile: true,
             },
             orderBy: {
-                created_at: "desc"
-            }
+                created_at: "desc",
+            },
         })
     }
 
@@ -86,8 +86,8 @@ export class UserRepository {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
                 Fundraiser_Profile: true,
-                Delivery_Staff_Profile: true
-            }
+                Delivery_Staff_Profile: true,
+            },
         })
     }
 
@@ -98,8 +98,8 @@ export class UserRepository {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
                 Fundraiser_Profile: true,
-                Delivery_Staff_Profile: true
-            }
+                Delivery_Staff_Profile: true,
+            },
         })
     }
 
@@ -110,8 +110,8 @@ export class UserRepository {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
                 Fundraiser_Profile: true,
-                Delivery_Staff_Profile: true
-            }
+                Delivery_Staff_Profile: true,
+            },
         })
     }
 
@@ -122,8 +122,8 @@ export class UserRepository {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
                 Fundraiser_Profile: true,
-                Delivery_Staff_Profile: true
-            }
+                Delivery_Staff_Profile: true,
+            },
         })
     }
 
@@ -135,8 +135,8 @@ export class UserRepository {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
                 Fundraiser_Profile: true,
-                Delivery_Staff_Profile: true
-            }
+                Delivery_Staff_Profile: true,
+            },
         })
     }
 
@@ -147,8 +147,8 @@ export class UserRepository {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
                 Fundraiser_Profile: true,
-                Delivery_Staff_Profile: true
-            }
+                Delivery_Staff_Profile: true,
+            },
         })
     }
 
@@ -160,31 +160,34 @@ export class UserRepository {
     async createDonorProfile(userId: string) {
         return this.prisma.donor_Profile.create({
             data: { user_id: userId },
-            include: { user: true }
+            include: { user: true },
         })
     }
 
     async createKitchenStaffProfile(userId: string) {
         return this.prisma.kitchen_Staff_Profile.create({
             data: { user_id: userId },
-            include: { user: true }
+            include: { user: true },
         })
     }
 
-    async createFundraiserProfile(userId: string, organizationAddress?: string) {
+    async createFundraiserProfile(
+        userId: string,
+        organizationAddress?: string,
+    ) {
         return this.prisma.fundraiser_Profile.create({
             data: {
                 user_id: userId,
-                organization_address: organizationAddress
+                organization_address: organizationAddress,
             },
-            include: { user: true }
+            include: { user: true },
         })
     }
 
     async createDeliveryStaffProfile(userId: string) {
         return this.prisma.delivery_Staff_Profile.create({
             data: { user_id: userId },
-            include: { user: true }
+            include: { user: true },
         })
     }
 
@@ -193,43 +196,68 @@ export class UserRepository {
         return this.prisma.donor_Profile.update({
             where: { id },
             data: {
-                ...(data.donation_count !== undefined && { donation_count: data.donation_count }),
-                ...(data.total_donated !== undefined && { total_donated: data.total_donated })
+                ...(data.donation_count !== undefined && {
+                    donation_count: data.donation_count,
+                }),
+                ...(data.total_donated !== undefined && {
+                    total_donated: data.total_donated,
+                }),
             },
-            include: { user: true }
+            include: { user: true },
         })
     }
 
-    async updateKitchenStaffProfile(id: string, data: UpdateKitchenStaffProfileInput) {
+    async updateKitchenStaffProfile(
+        id: string,
+        data: UpdateKitchenStaffProfileInput,
+    ) {
         return this.prisma.kitchen_Staff_Profile.update({
             where: { id },
             data: {
-                ...(data.total_batch_prepared !== undefined && { total_batch_prepared: data.total_batch_prepared })
+                ...(data.total_batch_prepared !== undefined && {
+                    total_batch_prepared: data.total_batch_prepared,
+                }),
             },
-            include: { user: true }
+            include: { user: true },
         })
     }
 
-    async updateFundraiserProfile(id: string, data: UpdateFundraiserProfileInput) {
+    async updateFundraiserProfile(
+        id: string,
+        data: UpdateFundraiserProfileInput,
+    ) {
         return this.prisma.fundraiser_Profile.update({
             where: { id },
             data: {
-                ...(data.organization_address !== undefined && { organization_address: data.organization_address }),
-                ...(data.verification_status !== undefined && { verification_status: data.verification_status as any }),
-                ...(data.total_campaign_created !== undefined && { total_campaign_created: data.total_campaign_created })
+                ...(data.organization_address !== undefined && {
+                    organization_address: data.organization_address,
+                }),
+                ...(data.verification_status !== undefined && {
+                    verification_status: data.verification_status as any,
+                }),
+                ...(data.total_campaign_created !== undefined && {
+                    total_campaign_created: data.total_campaign_created,
+                }),
             },
-            include: { user: true }
+            include: { user: true },
         })
     }
 
-    async updateDeliveryStaffProfile(id: string, data: UpdateDeliveryStaffProfileInput) {
+    async updateDeliveryStaffProfile(
+        id: string,
+        data: UpdateDeliveryStaffProfileInput,
+    ) {
         return this.prisma.delivery_Staff_Profile.update({
             where: { id },
             data: {
-                ...(data.availability_status !== undefined && { availability_status: data.availability_status as any }),
-                ...(data.total_deliveries !== undefined && { total_deliveries: data.total_deliveries })
+                ...(data.availability_status !== undefined && {
+                    availability_status: data.availability_status as any,
+                }),
+                ...(data.total_deliveries !== undefined && {
+                    total_deliveries: data.total_deliveries,
+                }),
             },
-            include: { user: true }
+            include: { user: true },
         })
     }
 
@@ -256,12 +284,27 @@ export class UserRepository {
             AND: [
                 {
                     OR: [
-                        { full_name: { contains: searchTerm, mode: "insensitive" } },
-                        { email: { contains: searchTerm, mode: "insensitive" } },
-                        { user_name: { contains: searchTerm, mode: "insensitive" } }
-                    ]
-                }
-            ]
+                        {
+                            full_name: {
+                                contains: searchTerm,
+                                mode: "insensitive",
+                            },
+                        },
+                        {
+                            email: {
+                                contains: searchTerm,
+                                mode: "insensitive",
+                            },
+                        },
+                        {
+                            user_name: {
+                                contains: searchTerm,
+                                mode: "insensitive",
+                            },
+                        },
+                    ],
+                },
+            ],
         }
 
         if (role) {
@@ -274,9 +317,9 @@ export class UserRepository {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
                 Fundraiser_Profile: true,
-                Delivery_Staff_Profile: true
+                Delivery_Staff_Profile: true,
             },
-            orderBy: { created_at: "desc" }
+            orderBy: { created_at: "desc" },
         })
     }
 
@@ -287,9 +330,9 @@ export class UserRepository {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
                 Fundraiser_Profile: true,
-                Delivery_Staff_Profile: true
+                Delivery_Staff_Profile: true,
             },
-            orderBy: { created_at: "desc" }
+            orderBy: { created_at: "desc" },
         })
     }
 
@@ -300,9 +343,9 @@ export class UserRepository {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
                 Fundraiser_Profile: true,
-                Delivery_Staff_Profile: true
+                Delivery_Staff_Profile: true,
             },
-            orderBy: { created_at: "desc" }
+            orderBy: { created_at: "desc" },
         })
     }
 }

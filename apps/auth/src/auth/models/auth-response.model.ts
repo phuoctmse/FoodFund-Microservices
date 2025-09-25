@@ -115,5 +115,3 @@ export class CreateStaffAccountResponse {
     @Field()
         temporaryPasswordSent: boolean
 }
-
-

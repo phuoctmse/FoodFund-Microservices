@@ -7,7 +7,7 @@ import { SentryModule } from "@libs/observability/sentry.module"
 @Module({
     imports: [
         EnvModule.forRoot(),
-         SentryModule.forRoot({
+        SentryModule.forRoot({
             dsn: envConfig().sentry.dsn,
             serviceName: "campaign-service",
             environment: envConfig().sentry.environment,

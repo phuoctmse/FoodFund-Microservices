@@ -19,7 +19,9 @@ export class CognitoAuthStrategy extends PassportStrategy(
             // Extract token from Authorization header
             const authHeader = req.headers?.authorization
             if (!authHeader || !authHeader.startsWith("Bearer ")) {
-                throw new UnauthorizedException("No valid authorization header found")
+                throw new UnauthorizedException(
+                    "No valid authorization header found",
+                )
             }
 
             const token = authHeader.substring(7)
@@ -34,49 +36,49 @@ export class CognitoAuthStrategy extends PassportStrategy(
             const user: CognitoUser = {
                 sub: decodedToken.sub,
                 email:
-          (decodedToken as any).email ||
-          this.cognitoService.getAttributeValue(
-              cognitoUserResponse.UserAttributes || [],
-              "email",
-          ) ||
-          "",
+                    (decodedToken as any).email ||
+                    this.cognitoService.getAttributeValue(
+                        cognitoUserResponse.UserAttributes || [],
+                        "email",
+                    ) ||
+                    "",
                 emailVerified: (decodedToken as any).email_verified || false,
                 username:
-          (decodedToken as any)["cognito:username"] ||
-          cognitoUserResponse.Username ||
-          "",
+                    (decodedToken as any)["cognito:username"] ||
+                    cognitoUserResponse.Username ||
+                    "",
                 name:
-          (decodedToken as any).name ||
-          this.cognitoService.getAttributeValue(
-              cognitoUserResponse.UserAttributes || [],
-              "name",
-          ),
+                    (decodedToken as any).name ||
+                    this.cognitoService.getAttributeValue(
+                        cognitoUserResponse.UserAttributes || [],
+                        "name",
+                    ),
                 givenName:
-          (decodedToken as any).given_name ||
-          this.cognitoService.getAttributeValue(
-              cognitoUserResponse.UserAttributes || [],
-              "given_name",
-          ),
+                    (decodedToken as any).given_name ||
+                    this.cognitoService.getAttributeValue(
+                        cognitoUserResponse.UserAttributes || [],
+                        "given_name",
+                    ),
                 familyName:
-          (decodedToken as any).family_name ||
-          this.cognitoService.getAttributeValue(
-              cognitoUserResponse.UserAttributes || [],
-              "family_name",
-          ),
+                    (decodedToken as any).family_name ||
+                    this.cognitoService.getAttributeValue(
+                        cognitoUserResponse.UserAttributes || [],
+                        "family_name",
+                    ),
                 picture:
-          (decodedToken as any).picture ||
-          this.cognitoService.getAttributeValue(
-              cognitoUserResponse.UserAttributes || [],
-              "picture",
-          ),
+                    (decodedToken as any).picture ||
+                    this.cognitoService.getAttributeValue(
+                        cognitoUserResponse.UserAttributes || [],
+                        "picture",
+                    ),
                 phoneNumber:
-          (decodedToken as any).phone_number ||
-          this.cognitoService.getAttributeValue(
-              cognitoUserResponse.UserAttributes || [],
-              "phone_number",
-          ),
+                    (decodedToken as any).phone_number ||
+                    this.cognitoService.getAttributeValue(
+                        cognitoUserResponse.UserAttributes || [],
+                        "phone_number",
+                    ),
                 phoneNumberVerified:
-          (decodedToken as any).phone_number_verified || false,
+                    (decodedToken as any).phone_number_verified || false,
                 groups: (decodedToken as any)["cognito:groups"] || [],
                 customAttributes: this.cognitoService.extractCustomAttributes(
                     cognitoUserResponse.UserAttributes || [],

@@ -2,7 +2,7 @@ export const getHttpUrl = ({
     host = "localhost",
     port,
     path,
-    useSsl = false
+    useSsl = false,
 }: GetHttpUrlParams) => {
     const prefix = useSsl ? "https://" : "http://"
     // Ensure path starts without a leading slash if it's provided

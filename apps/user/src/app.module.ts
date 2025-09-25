@@ -17,9 +17,10 @@ import { UserModule } from "./user/user.module"
         PrismaModule.forRoot({
             isGlobal: true,
             enableLogging: true,
-            logLevel: process.env.NODE_ENV === "development" 
-                ? ["query", "info", "warn", "error"] 
-                : ["error"],
+            logLevel:
+                process.env.NODE_ENV === "development"
+                    ? ["query", "info", "warn", "error"]
+                    : ["error"],
             datasourceUrl: process.env.USERS_DATABASE_URL,
         }),
         UserModule,

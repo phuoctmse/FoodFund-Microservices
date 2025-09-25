@@ -6,7 +6,11 @@ import { Role } from "libs/databases/prisma/schemas"
 export class ProfileService {
     constructor(private readonly userRepository: UserRepository) {}
 
-    async createProfileForUser(userId: string, role: Role, cognitoAttributes?: Record<string, string>) {
+    async createProfileForUser(
+        userId: string,
+        role: Role,
+        cognitoAttributes?: Record<string, string>,
+    ) {
         switch (role) {
         case Role.DONOR:
             await this.userRepository.createDonorProfile(userId)
@@ -24,12 +28,16 @@ export class ProfileService {
             await this.userRepository.createDeliveryStaffProfile(userId)
             break
         default:
-        // Admin doesn't need a specific profile
+            // Admin doesn't need a specific profile
             break
         }
     }
 
-    async createStaffProfileForUser(userId: string, role: Role, staffData: CreateStaffUserInput) {
+    async createStaffProfileForUser(
+        userId: string,
+        role: Role,
+        staffData: CreateStaffUserInput,
+    ) {
         switch (role) {
         case Role.KITCHEN_STAFF:
             await this.userRepository.createKitchenStaffProfile(userId)
@@ -44,7 +52,7 @@ export class ProfileService {
             await this.userRepository.createDeliveryStaffProfile(userId)
             break
         default:
-        // Admin and other roles don't need specific profiles for staff creation
+            // Admin and other roles don't need specific profiles for staff creation
             break
         }
     }

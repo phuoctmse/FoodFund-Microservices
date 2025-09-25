@@ -5,13 +5,13 @@ import {
     DonorProfileSchema,
     KitchenStaffProfileSchema,
     FundraiserProfileSchema,
-    DeliveryStaffProfileSchema
+    DeliveryStaffProfileSchema,
 } from "libs/databases/prisma/schemas"
 import {
     UpdateDonorProfileInput,
     UpdateKitchenStaffProfileInput,
     UpdateFundraiserProfileInput,
-    UpdateDeliveryStaffProfileInput
+    UpdateDeliveryStaffProfileInput,
 } from "../dto/profile.input"
 
 @Resolver(() => DonorProfileSchema)
@@ -21,7 +21,8 @@ export class DonorProfileResolver {
     @Mutation(() => DonorProfileSchema)
     async updateDonorProfile(
         @Args("id", { type: () => ID }) id: string,
-        @Args("updateDonorProfileInput", new ValidationPipe()) updateDonorProfileInput: UpdateDonorProfileInput
+        @Args("updateDonorProfileInput", new ValidationPipe())
+            updateDonorProfileInput: UpdateDonorProfileInput,
     ) {
         return this.userService.updateDonorProfile(id, updateDonorProfileInput)
     }
@@ -39,13 +40,19 @@ export class KitchenStaffProfileResolver {
     @Mutation(() => KitchenStaffProfileSchema)
     async updateKitchenStaffProfile(
         @Args("id", { type: () => ID }) id: string,
-        @Args("updateKitchenStaffProfileInput", new ValidationPipe()) updateKitchenStaffProfileInput: UpdateKitchenStaffProfileInput
+        @Args("updateKitchenStaffProfileInput", new ValidationPipe())
+            updateKitchenStaffProfileInput: UpdateKitchenStaffProfileInput,
     ) {
-        return this.userService.updateKitchenStaffProfile(id, updateKitchenStaffProfileInput)
+        return this.userService.updateKitchenStaffProfile(
+            id,
+            updateKitchenStaffProfileInput,
+        )
     }
 
     @Mutation(() => KitchenStaffProfileSchema)
-    async deleteKitchenStaffProfile(@Args("id", { type: () => ID }) id: string) {
+    async deleteKitchenStaffProfile(
+        @Args("id", { type: () => ID }) id: string,
+    ) {
         return this.userService.deleteKitchenStaffProfile(id)
     }
 }
@@ -57,9 +64,13 @@ export class FundraiserProfileResolver {
     @Mutation(() => FundraiserProfileSchema)
     async updateFundraiserProfile(
         @Args("id", { type: () => ID }) id: string,
-        @Args("updateFundraiserProfileInput", new ValidationPipe()) updateFundraiserProfileInput: UpdateFundraiserProfileInput
+        @Args("updateFundraiserProfileInput", new ValidationPipe())
+            updateFundraiserProfileInput: UpdateFundraiserProfileInput,
     ) {
-        return this.userService.updateFundraiserProfile(id, updateFundraiserProfileInput)
+        return this.userService.updateFundraiserProfile(
+            id,
+            updateFundraiserProfileInput,
+        )
     }
 
     @Mutation(() => FundraiserProfileSchema)
@@ -75,13 +86,19 @@ export class DeliveryStaffProfileResolver {
     @Mutation(() => DeliveryStaffProfileSchema)
     async updateDeliveryStaffProfile(
         @Args("id", { type: () => ID }) id: string,
-        @Args("updateDeliveryStaffProfileInput", new ValidationPipe()) updateDeliveryStaffProfileInput: UpdateDeliveryStaffProfileInput
+        @Args("updateDeliveryStaffProfileInput", new ValidationPipe())
+            updateDeliveryStaffProfileInput: UpdateDeliveryStaffProfileInput,
     ) {
-        return this.userService.updateDeliveryStaffProfile(id, updateDeliveryStaffProfileInput)
+        return this.userService.updateDeliveryStaffProfile(
+            id,
+            updateDeliveryStaffProfileInput,
+        )
     }
 
     @Mutation(() => DeliveryStaffProfileSchema)
-    async deleteDeliveryStaffProfile(@Args("id", { type: () => ID }) id: string) {
+    async deleteDeliveryStaffProfile(
+        @Args("id", { type: () => ID }) id: string,
+    ) {
         return this.userService.deleteDeliveryStaffProfile(id)
     }
 }

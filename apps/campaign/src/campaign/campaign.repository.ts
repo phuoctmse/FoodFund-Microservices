@@ -320,18 +320,18 @@ export class CampaignRepository {
 
     private buildOrderByClause(sortBy: CampaignSortOrder): any {
         switch (sortBy) {
-            case CampaignSortOrder.ACTIVE_FIRST:
-                return [{ status: "desc" }, { created_at: "desc" }]
-            case CampaignSortOrder.NEWEST_FIRST:
-                return { created_at: "desc" }
-            case CampaignSortOrder.OLDEST_FIRST:
-                return { created_at: "asc" }
-            case CampaignSortOrder.TARGET_AMOUNT_ASC:
-                return { target_amount: "asc" }
-            case CampaignSortOrder.TARGET_AMOUNT_DESC:
-                return { target_amount: "desc" }
-            default:
-                return { created_at: "desc" }
+        case CampaignSortOrder.ACTIVE_FIRST:
+            return [{ status: "desc" }, { created_at: "desc" }]
+        case CampaignSortOrder.NEWEST_FIRST:
+            return { created_at: "desc" }
+        case CampaignSortOrder.OLDEST_FIRST:
+            return { created_at: "asc" }
+        case CampaignSortOrder.TARGET_AMOUNT_ASC:
+            return { target_amount: "asc" }
+        case CampaignSortOrder.TARGET_AMOUNT_DESC:
+            return { target_amount: "desc" }
+        default:
+            return { created_at: "desc" }
         }
     }
 

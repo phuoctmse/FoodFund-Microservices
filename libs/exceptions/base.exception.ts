@@ -3,13 +3,17 @@ import { HttpException, HttpStatus } from "@nestjs/common"
 // Base Exception cho tất cả services
 export abstract class BaseException extends HttpException {
     abstract readonly errorCode: string
-    abstract readonly errorType: "VALIDATION" | "BUSINESS" | "EXTERNAL" | "SECURITY"
+    abstract readonly errorType:
+        | "VALIDATION"
+        | "BUSINESS"
+        | "EXTERNAL"
+        | "SECURITY"
     abstract readonly service: string
-    
+
     constructor(
         message: string,
         status: HttpStatus,
-        public readonly context?: Record<string, any>
+        public readonly context?: Record<string, any>,
     ) {
         super(message, status)
     }
@@ -31,7 +35,9 @@ export class InvalidEmailFormatException extends BaseException {
     readonly service = "common"
 
     constructor(email: string) {
-        super(`Invalid email format: ${email}`, HttpStatus.BAD_REQUEST, { email })
+        super(`Invalid email format: ${email}`, HttpStatus.BAD_REQUEST, {
+            email,
+        })
     }
 }
 
@@ -44,7 +50,7 @@ export class WeakPasswordException extends BaseException {
         super(
             "Password does not meet security requirements",
             HttpStatus.BAD_REQUEST,
-            { requirements }
+            { requirements },
         )
     }
 }
@@ -55,7 +61,9 @@ export class MissingRequiredFieldException extends BaseException {
     readonly service = "common"
 
     constructor(field: string) {
-        super(`Required field missing: ${field}`, HttpStatus.BAD_REQUEST, { field })
+        super(`Required field missing: ${field}`, HttpStatus.BAD_REQUEST, {
+            field,
+        })
     }
 }
 
@@ -65,7 +73,11 @@ export class InvalidPhoneNumberException extends BaseException {
     readonly service = "common"
 
     constructor(phoneNumber: string) {
-        super(`Invalid phone number format: ${phoneNumber}`, HttpStatus.BAD_REQUEST, { phoneNumber })
+        super(
+            `Invalid phone number format: ${phoneNumber}`,
+            HttpStatus.BAD_REQUEST,
+            { phoneNumber },
+        )
     }
 }
 
@@ -76,7 +88,9 @@ export class InvalidTokenException extends BaseException {
     readonly service = "common"
 
     constructor(tokenType: string) {
-        super(`Invalid ${tokenType} token`, HttpStatus.UNAUTHORIZED, { tokenType })
+        super(`Invalid ${tokenType} token`, HttpStatus.UNAUTHORIZED, {
+            tokenType,
+        })
     }
 }
 
@@ -86,7 +100,9 @@ export class TokenExpiredException extends BaseException {
     readonly service = "common"
 
     constructor(tokenType: string) {
-        super(`${tokenType} token has expired`, HttpStatus.UNAUTHORIZED, { tokenType })
+        super(`${tokenType} token has expired`, HttpStatus.UNAUTHORIZED, {
+            tokenType,
+        })
     }
 }
 
@@ -99,7 +115,7 @@ export class UnauthorizedException extends BaseException {
         super(
             reason ? `Unauthorized: ${reason}` : "Unauthorized access",
             HttpStatus.UNAUTHORIZED,
-            { reason }
+            { reason },
         )
     }
 }
@@ -113,7 +129,7 @@ export class ForbiddenException extends BaseException {
         super(
             reason ? `Forbidden: ${reason}` : "Access forbidden",
             HttpStatus.FORBIDDEN,
-            { reason }
+            { reason },
         )
     }
 }
@@ -127,7 +143,7 @@ export class TooManyAttemptsException extends BaseException {
         super(
             `Too many attempts for ${resource}. Please try again after ${retryAfter} minutes.`,
             HttpStatus.TOO_MANY_REQUESTS,
-            { resource, retryAfter }
+            { resource, retryAfter },
         )
     }
 }
@@ -142,7 +158,7 @@ export class ExternalServiceException extends BaseException {
         super(
             `External service error: ${serviceName}`,
             HttpStatus.SERVICE_UNAVAILABLE,
-            { serviceName, operation, error }
+            { serviceName, operation, error },
         )
     }
 }
@@ -156,7 +172,7 @@ export class DatabaseException extends BaseException {
         super(
             `Database error during ${operation}`,
             HttpStatus.INTERNAL_SERVER_ERROR,
-            { operation, error }
+            { operation, error },
         )
     }
 }
@@ -168,11 +184,10 @@ export class ResourceNotFoundException extends BaseException {
     readonly service = "common"
 
     constructor(resource: string, identifier: string) {
-        super(
-            `${resource} not found`,
-            HttpStatus.NOT_FOUND,
-            { resource, identifier }
-        )
+        super(`${resource} not found`, HttpStatus.NOT_FOUND, {
+            resource,
+            identifier,
+        })
     }
 }
 
@@ -182,11 +197,10 @@ export class ResourceAlreadyExistsException extends BaseException {
     readonly service = "common"
 
     constructor(resource: string, identifier: string) {
-        super(
-            `${resource} already exists`,
-            HttpStatus.CONFLICT,
-            { resource, identifier }
-        )
+        super(`${resource} already exists`, HttpStatus.CONFLICT, {
+            resource,
+            identifier,
+        })
     }
 }
 
@@ -199,7 +213,7 @@ export class InvalidOperationException extends BaseException {
         super(
             `Invalid operation: ${operation}. ${reason}`,
             HttpStatus.BAD_REQUEST,
-            { operation, reason }
+            { operation, reason },
         )
     }
 }

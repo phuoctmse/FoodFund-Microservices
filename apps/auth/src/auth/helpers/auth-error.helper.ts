@@ -79,7 +79,11 @@ export class AuthErrorHelper {
         throw new TokenExpiredException(tokenType)
     }
 
-    static throwSuspiciousActivity(activity: string, userAgent?: string, ip?: string): never {
+    static throwSuspiciousActivity(
+        activity: string,
+        userAgent?: string,
+        ip?: string,
+    ): never {
         throw new SuspiciousActivityException(activity, userAgent, ip)
     }
 
@@ -89,60 +93,74 @@ export class AuthErrorHelper {
         // This is business logic, not basic validation
         const blockedDomains = ["tempmail.com", "guerrillamail.com"]
         const domain = email.split("@")[1]?.toLowerCase()
-        
+
         if (blockedDomains.includes(domain)) {
-            throw new InvalidEmailFormatException(`Email domain ${domain} is not allowed`)
+            throw new InvalidEmailFormatException(
+                `Email domain ${domain} is not allowed`,
+            )
         }
     }
 
     static validatePasswordComplexity(password: string): void {
         // Business rule: Check against common passwords or company-specific rules
         const commonPasswords = ["password", "123456", "qwerty"]
-        
+
         if (commonPasswords.includes(password.toLowerCase())) {
-            this.throwWeakPassword(["Password is too common, please choose a more secure password"])
+            this.throwWeakPassword([
+                "Password is too common, please choose a more secure password",
+            ])
         }
     }
 
     // Cognito error mapper
-    static mapCognitoError(cognitoError: any, operation: string, email?: string): never {
-        const errorCode = cognitoError.name || cognitoError.code || "UnknownError"
-    
+    static mapCognitoError(
+        cognitoError: any,
+        operation: string,
+        email?: string,
+    ): never {
+        const errorCode =
+            cognitoError.name || cognitoError.code || "UnknownError"
+
         switch (errorCode) {
         case "UsernameExistsException":
             this.throwUserAlreadyExists(email || "unknown")
             break
-        
+
         case "UserNotConfirmedException":
             this.throwUserNotConfirmed(email || "unknown")
             break
-        
+
         case "NotAuthorizedException":
             this.throwInvalidCredentials(email || "unknown")
             break
-        
+
         case "UserNotFoundException":
             this.throwInvalidCredentials(email || "unknown")
             break
-        
+
         case "CodeMismatchException":
             this.throwInvalidConfirmationCode(email || "unknown")
             break
-        
+
         case "ExpiredCodeException":
             this.throwConfirmationCodeExpired(email || "unknown")
             break
-        
+
         case "TooManyRequestsException":
             this.throwTooManyAttempts(email || "unknown", 5)
             break
-        
+
         case "InvalidPasswordException":
-            this.throwWeakPassword(["Password does not meet AWS Cognito requirements"])
+            this.throwWeakPassword([
+                "Password does not meet AWS Cognito requirements",
+            ])
             break
-        
+
         default:
-            this.throwCognitoError(operation, `${errorCode}: ${cognitoError.message}`)
+            this.throwCognitoError(
+                operation,
+                `${errorCode}: ${cognitoError.message}`,
+            )
         }
     }
 }

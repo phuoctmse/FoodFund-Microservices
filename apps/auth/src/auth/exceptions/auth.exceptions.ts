@@ -10,7 +10,9 @@ export class UserAlreadyExistsException extends BaseException {
     readonly service = "auth-service"
 
     constructor(email: string) {
-        super(`User with email ${email} already exists`, HttpStatus.CONFLICT, { email })
+        super(`User with email ${email} already exists`, HttpStatus.CONFLICT, {
+            email,
+        })
     }
 }
 
@@ -20,7 +22,11 @@ export class UserNotConfirmedException extends BaseException {
     readonly service = "auth-service"
 
     constructor(email: string) {
-        super(`User ${email} is not confirmed. Please check your email for confirmation code.`, HttpStatus.FORBIDDEN, { email })
+        super(
+            `User ${email} is not confirmed. Please check your email for confirmation code.`,
+            HttpStatus.FORBIDDEN,
+            { email },
+        )
     }
 }
 
@@ -40,7 +46,10 @@ export class AccountLockedException extends BaseException {
     readonly service = "auth-service"
 
     constructor(email: string, lockReason: string) {
-        super(`Account is locked: ${lockReason}`, HttpStatus.FORBIDDEN, { email, lockReason })
+        super(`Account is locked: ${lockReason}`, HttpStatus.FORBIDDEN, {
+            email,
+            lockReason,
+        })
     }
 }
 
@@ -50,7 +59,9 @@ export class InvalidConfirmationCodeException extends BaseException {
     readonly service = "auth-service"
 
     constructor(email: string) {
-        super("Invalid or expired confirmation code", HttpStatus.BAD_REQUEST, { email })
+        super("Invalid or expired confirmation code", HttpStatus.BAD_REQUEST, {
+            email,
+        })
     }
 }
 
@@ -60,7 +71,11 @@ export class ConfirmationCodeExpiredException extends BaseException {
     readonly service = "auth-service"
 
     constructor(email: string) {
-        super("Confirmation code has expired. Please request a new one.", HttpStatus.BAD_REQUEST, { email })
+        super(
+            "Confirmation code has expired. Please request a new one.",
+            HttpStatus.BAD_REQUEST,
+            { email },
+        )
     }
 }
 
@@ -74,7 +89,7 @@ export class CognitoServiceException extends BaseException {
         super(
             `AWS Cognito error during ${operation}`,
             HttpStatus.SERVICE_UNAVAILABLE,
-            { operation, cognitoError }
+            { operation, cognitoError },
         )
     }
 }
@@ -88,7 +103,7 @@ export class EmailServiceException extends BaseException {
         super(
             "Failed to send email notification",
             HttpStatus.SERVICE_UNAVAILABLE,
-            { email, reason }
+            { email, reason },
         )
     }
 }
@@ -103,7 +118,7 @@ export class SuspiciousActivityException extends BaseException {
         super(
             `Suspicious activity detected: ${activity}`,
             HttpStatus.FORBIDDEN,
-            { activity, userAgent, ip }
+            { activity, userAgent, ip },
         )
     }
 }

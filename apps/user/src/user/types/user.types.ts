@@ -1,4 +1,8 @@
-import { Role, VerificationStatus, AvailabilityStatus } from "libs/databases/prisma/schemas"
+import {
+    Role,
+    VerificationStatus,
+    AvailabilityStatus,
+} from "libs/databases/prisma/schemas"
 
 // User Domain Types
 export interface CreateUserInput {

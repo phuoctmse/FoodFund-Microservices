@@ -3,7 +3,6 @@ import { AuthSubgraphModule } from "./auth/auth-subgraph.module"
 import { EnvModule, envConfig } from "libs/env"
 import { SentryModule } from "libs/observability/sentry.module"
 
-
 @Module({
     imports: [
         EnvModule.forRoot(),
@@ -16,7 +15,7 @@ import { SentryModule } from "libs/observability/sentry.module"
             enableTracing: true,
         }),
 
-        AuthSubgraphModule
+        AuthSubgraphModule,
     ],
     controllers: [],
     providers: [],

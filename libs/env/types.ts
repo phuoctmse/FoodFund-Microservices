@@ -1,95 +1,95 @@
 // Enums
 export enum NodeEnv {
-  Development = "development",
-  Production = "production",
-  Test = "test",
+    Development = "development",
+    Production = "production",
+    Test = "test",
 }
 
 export enum Container {
-  Auth = "auth",
-  GraphQLGateway = "graphql-gateway",
-  UsersSubgraph = "users-subgraph",
-  CampaignsSubgraph = "campaigns-subgraph",
+    Auth = "auth",
+    GraphQLGateway = "graphql-gateway",
+    UsersSubgraph = "users-subgraph",
+    CampaignsSubgraph = "campaigns-subgraph",
 }
 
 export enum GrpcService {
-  Auth = "auth",
-  User = "user",
-  Campaign = "campaign",
-  Donation = "donation",
+    Auth = "auth",
+    User = "user",
+    Campaign = "campaign",
+    Donation = "donation",
 }
 
 // Configuration interfaces
 export interface ContainerConfig {
-  host: string;
-  port?: number;
-  healthCheckPort: number;
+    host: string
+    port?: number
+    healthCheckPort: number
 }
 
 export interface GrpcServiceConfig {
-  port: number;
-  url: string;
+    port: number
+    url: string
 }
 
 export interface DatabaseConfig {
-  url: string;
+    url: string
 }
 
 export interface JwtConfig {
-  secret: string;
-  accessTokenExpiration: string;
-  refreshTokenExpiration: string;
+    secret: string
+    accessTokenExpiration: string
+    refreshTokenExpiration: string
 }
 
 export interface AwsCognitoConfig {
-  region: string;
-  userPoolId: string;
-  clientId: string;
-  clientSecret: string;
+    region: string
+    userPoolId: string
+    clientId: string
+    clientSecret: string
 }
 
 export interface AwsConfig {
-  region: string;
-  cognito: AwsCognitoConfig;
-  accessKeyId: string;
-  secretAccessKey: string;
+    region: string
+    cognito: AwsCognitoConfig
+    accessKeyId: string
+    secretAccessKey: string
 }
 
 // Main environment configuration interface
 export interface EnvironmentConfig {
-  nodeEnv: NodeEnv;
+    nodeEnv: NodeEnv
 
-  // Container configurations
-  containers: {
-    [key in Container]?: ContainerConfig;
-  };
+    // Container configurations
+    containers: {
+        [key in Container]?: ContainerConfig
+    }
 
-  // gRPC configurations
-  grpc: {
-    [key in GrpcService]?: GrpcServiceConfig;
-  };
+    // gRPC configurations
+    grpc: {
+        [key in GrpcService]?: GrpcServiceConfig
+    }
 
-  // Database configurations
-  databases: {
-    // main: DatabaseConfig;
-    users: DatabaseConfig;
-    campaigns: DatabaseConfig;
-  };
+    // Database configurations
+    databases: {
+        // main: DatabaseConfig;
+        users: DatabaseConfig
+        campaigns: DatabaseConfig
+    }
 
-  // Authentication & Security
-  jwt: JwtConfig;
+    // Authentication & Security
+    jwt: JwtConfig
 
-  // AWS Configuration
-  aws: AwsConfig;
+    // AWS Configuration
+    aws: AwsConfig
 
-  // Sentry Configuration
-  sentry: {
-    dsn: string;
-    environment: string;
-    release: string;
-  };
+    // Sentry Configuration
+    sentry: {
+        dsn: string
+        environment: string
+        release: string
+    }
 }
 
 export interface EnvModuleOptions {
-  isGlobal?: boolean;
+    isGlobal?: boolean
 }

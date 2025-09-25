@@ -1,9 +1,4 @@
-import {
-    EnvironmentConfig,
-    NodeEnv,
-    Container,
-    GrpcService,
-} from "./types"
+import { EnvironmentConfig, NodeEnv, Container, GrpcService } from "./types"
 import {
     DEFAULT_HEALTH_PORT,
     LOCALHOST,
@@ -49,7 +44,9 @@ export const envConfig = (): EnvironmentConfig => ({
                 ? Number.parseInt(process.env.CAMPAIGNS_SUBGRAPH_PORT)
                 : 8004,
             healthCheckPort: process.env.CAMPAIGNS_SUBGRAPH_HEALTH_CHECK_PORT
-                ? Number.parseInt(process.env.CAMPAIGNS_SUBGRAPH_HEALTH_CHECK_PORT)
+                ? Number.parseInt(
+                    process.env.CAMPAIGNS_SUBGRAPH_HEALTH_CHECK_PORT,
+                )
                 : DEFAULT_HEALTH_PORT + 3,
         },
     },
@@ -144,7 +141,6 @@ export function isProduction(): boolean {
 
 export function isTest(): boolean {
     return (
-        process.env.NODE_ENV === "test" || 
-        process.env.NODE_ENV === NodeEnv.Test
+        process.env.NODE_ENV === "test" || process.env.NODE_ENV === NodeEnv.Test
     )
 }

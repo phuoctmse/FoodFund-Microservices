@@ -9,4 +9,3 @@ export * from "./models/user-profiles.model"
 
 // Note: Repositories are now service-specific
 // Each service should have its own repository implementation
-

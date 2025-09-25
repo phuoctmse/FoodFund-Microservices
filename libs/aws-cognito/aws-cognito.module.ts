@@ -12,8 +12,8 @@ import { GuardConstructor } from "./aws-cognito.types"
 @Module({})
 export class AwsCognitoModule extends ConfigurableModuleClass {
     /**
-   * Configure AWS Cognito for root module with authentication setup
-   */
+     * Configure AWS Cognito for root module with authentication setup
+     */
     static forRoot(options: typeof OPTIONS_TYPE = {}): DynamicModule {
         const dynamicModule = super.forRoot(options)
 
@@ -33,8 +33,8 @@ export class AwsCognitoModule extends ConfigurableModuleClass {
     }
 
     /**
-   * Configure AWS Cognito for feature modules with specific guards
-   */
+     * Configure AWS Cognito for feature modules with specific guards
+     */
     static forFeature(guards: GuardConstructor[] = []): DynamicModule {
         return {
             module: AwsCognitoModule,

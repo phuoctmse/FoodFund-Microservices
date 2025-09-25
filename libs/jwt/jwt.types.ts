@@ -1,27 +1,28 @@
 import { UserProfileSchema } from "libs/databases"
 
-
 export interface BaseOptions {
-  isGlobal?: boolean;
-  useGlobalImports?: boolean;
+    isGlobal?: boolean
+    useGlobalImports?: boolean
 }
 
-
-export type UserLike = Partial<UserProfileSchema> & { id: string; refresh?: boolean };
+export type UserLike = Partial<UserProfileSchema> & {
+    id: string
+    refresh?: boolean
+}
 
 export interface AuthCredentials {
-  accessToken: string;
-  refreshToken: RefreshToken;
+    accessToken: string
+    refreshToken: RefreshToken
 }
 
 export interface RefreshToken {
-  token: string;
-  expiredAt: Date;
+    token: string
+    expiredAt: Date
 }
 
-export type JwtOptions = BaseOptions;
+export type JwtOptions = BaseOptions
 
 export enum AuthCredentialType {
-  AccessToken = "accessToken",
-  RefreshToken = "refreshToken",
+    AccessToken = "accessToken",
+    RefreshToken = "refreshToken",
 }

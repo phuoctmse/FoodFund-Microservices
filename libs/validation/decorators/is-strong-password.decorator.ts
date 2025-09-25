@@ -1,4 +1,8 @@
-import { registerDecorator, ValidationOptions, ValidationArguments } from "class-validator"
+import {
+    registerDecorator,
+    ValidationOptions,
+    ValidationArguments,
+} from "class-validator"
 
 export function IsStrongPassword(validationOptions?: ValidationOptions) {
     return function (object: object, propertyName: string) {
@@ -10,11 +14,10 @@ export function IsStrongPassword(validationOptions?: ValidationOptions) {
             validator: {
                 validate(value: any, args: ValidationArguments) {
                     if (typeof value !== "string") return false
-                    
+
                     // At least 8 characters
                     if (value.length < 6) return false
-                
-                    
+
                     return true
                 },
                 defaultMessage(args: ValidationArguments) {

@@ -5,19 +5,14 @@ import {
     GetUserCommandOutput,
     AdminGetUserCommandOutput,
 } from "@aws-sdk/client-cognito-identity-provider"
-import {
-    AuthUser,
-    AuthResponse,
-} from "../models"
+import { AuthUser, AuthResponse } from "../models"
 import { AuthErrorHelper } from "../helpers"
 
 @Injectable()
 export class AuthUserService {
     private readonly logger = new Logger(AuthUserService.name)
 
-    constructor(
-        private readonly awsCognitoService: AwsCognitoService,
-    ) {}
+    constructor(private readonly awsCognitoService: AwsCognitoService) {}
 
     async getUserById(id: string): Promise<AuthUser | null> {
         try {

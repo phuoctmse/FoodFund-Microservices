@@ -16,7 +16,7 @@ export class AuthUser {
         phoneNumber: string
 
     @Field()
-        emailVerified: boolean    
+        emailVerified: boolean
 
     @Field()
         name: string
@@ -28,5 +28,5 @@ export class AuthUser {
         createdAt: Date
 
     @Field()
-        updatedAt: Date  
+        updatedAt: Date
 }

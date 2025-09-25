@@ -1,5 +1,12 @@
 import { InputType, Field } from "@nestjs/graphql"
-import { IsString, IsEmail, IsPhoneNumber, IsOptional, IsEnum, IsBoolean } from "class-validator"
+import {
+    IsString,
+    IsEmail,
+    IsPhoneNumber,
+    IsOptional,
+    IsEnum,
+    IsBoolean,
+} from "class-validator"
 import { Role } from "libs/databases/prisma/schemas"
 
 @InputType()
@@ -24,7 +31,10 @@ export class CreateUserInput {
     @IsString()
         user_name: string
 
-    @Field(() => String, { nullable: true, description: "User's bio/description" })
+    @Field(() => String, {
+        nullable: true,
+        description: "User's bio/description",
+    })
     @IsOptional()
     @IsString()
         bio?: string
@@ -52,12 +62,18 @@ export class UpdateUserInput {
     @IsPhoneNumber()
         phone_number?: string
 
-    @Field(() => Role, { nullable: true, description: "User's role in the system" })
+    @Field(() => Role, {
+        nullable: true,
+        description: "User's role in the system",
+    })
     @IsOptional()
     @IsEnum(Role)
         role?: Role
 
-    @Field(() => Boolean, { nullable: true, description: "Whether the user is active" })
+    @Field(() => Boolean, {
+        nullable: true,
+        description: "Whether the user is active",
+    })
     @IsOptional()
     @IsBoolean()
         is_active?: boolean
@@ -67,7 +83,10 @@ export class UpdateUserInput {
     @IsString()
         user_name?: string
 
-    @Field(() => String, { nullable: true, description: "User's bio/description" })
+    @Field(() => String, {
+        nullable: true,
+        description: "User's bio/description",
+    })
     @IsOptional()
     @IsString()
         bio?: string

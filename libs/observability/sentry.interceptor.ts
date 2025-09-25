@@ -24,7 +24,6 @@ export class SentryInterceptor implements NestInterceptor {
         const request = ctx.getContext().req
         const response = context.switchToHttp().getResponse()
 
-
         const { method, url, body, query, params, headers } = request
         const startTime = Date.now()
 

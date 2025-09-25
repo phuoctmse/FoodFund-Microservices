@@ -1,4 +1,8 @@
-import { AvailabilityStatus, Role, VerificationStatus } from "../enums/user.enums"
+import {
+    AvailabilityStatus,
+    Role,
+    VerificationStatus,
+} from "../enums/user.enums"
 
 // Shared GraphQL Federation Types
 export interface UserReference {

@@ -8,10 +8,7 @@ import {
     DeliveryStaffProfileResolver,
     DonorProfileResolver,
 } from "./resolvers/profile.resolver"
-import { 
-    UserQueryResolver,
-    UserMutationResolver
-} from "./resolvers"
+import { UserQueryResolver, UserMutationResolver } from "./resolvers"
 import { UserResolver } from "./user.resolver"
 import { UserGrpcService } from "./grpc"
 import { HealthController } from "./health.controller"
@@ -39,20 +36,20 @@ import {
         UserQueryService,
         UserUpdateService,
         ProfileService,
-        
+
         // Resolver facade (không có @Resolver decorators)
         UserResolver,
-        
+
         // GraphQL resolvers (có @Resolver decorators)
         UserQueryResolver,
         UserMutationResolver,
-        
+
         // Profile resolvers
         DonorProfileResolver,
         KitchenStaffProfileResolver,
         FundraiserProfileResolver,
         DeliveryStaffProfileResolver,
-        
+
         // gRPC
         UserGrpcService,
     ],

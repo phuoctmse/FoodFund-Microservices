@@ -13,14 +13,14 @@ export class HealthController {
                 status: "healthy",
                 service: "campaign-service",
                 timestamp: new Date().toISOString(),
-                details: health
+                details: health,
             }
         } catch (error) {
             return {
                 status: "unhealthy",
-                service: "campaign-service", 
+                service: "campaign-service",
                 timestamp: new Date().toISOString(),
-                error: "Service health check failed"
+                error: "Service health check failed",
             }
         }
     }
@@ -29,18 +29,18 @@ export class HealthController {
     async getDatabaseHealth() {
         try {
             const dbHealth = await this.campaignService.checkDatabaseHealth()
-            return { 
-                status: "healthy", 
+            return {
+                status: "healthy",
                 database: "connected",
                 details: dbHealth,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
             }
         } catch (error) {
-            return { 
-                status: "unhealthy", 
+            return {
+                status: "unhealthy",
                 database: "disconnected",
                 error: "Database connection failed",
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
             }
         }
     }

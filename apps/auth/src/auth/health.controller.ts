@@ -5,7 +5,7 @@ import { AuthService } from "./auth.service"
 export class HealthController {
     constructor(private readonly service: AuthService) {}
 
-  @Get()
+    @Get()
     getHealth() {
         return this.service.getHealth()
     }

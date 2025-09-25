@@ -24,10 +24,11 @@ import { GraphQLGatewayModule } from "libs/graphql/gateway"
                 const campaignHost =
                     process.env.CAMPAIGNS_SUBGRAPH_HOST ||
                     envConfig().containers[Container.CampaignsSubgraph]?.host ||
-                    "campaign-service"    
-                const campaignPort= parseInt(process.env.CAMPAIGNS_SUBGRAPH_PORT || "8004") ||
+                    "campaign-service"
+                const campaignPort =
+                    parseInt(process.env.CAMPAIGNS_SUBGRAPH_PORT || "8004") ||
                     envConfig().containers[Container.CampaignsSubgraph]?.port
-            
+
                 const authUrl = getHttpUrl({
                     host: authHost,
                     port: authPort,
@@ -69,12 +70,17 @@ import { GraphQLGatewayModule } from "libs/graphql/gateway"
                         fallback: {
                             response: {
                                 data: null,
-                                errors: [{
-                                    message: "Campaign service temporarily unavailable",
-                                    extensions: { code: "SERVICE_UNAVAILABLE" }
-                                }]
-                            }
-                        }
+                                errors: [
+                                    {
+                                        message:
+                                            "Campaign service temporarily unavailable",
+                                        extensions: {
+                                            code: "SERVICE_UNAVAILABLE",
+                                        },
+                                    },
+                                ],
+                            },
+                        },
                     },
                 ]
             })(),
@@ -82,29 +88,41 @@ import { GraphQLGatewayModule } from "libs/graphql/gateway"
                 maxRetries: 5,
                 initialDelayMs: 2000,
                 maxDelayMs: 10000,
-                factor: 2, 
+                factor: 2,
             },
             monitoring: {
                 onEvent: (event) => {
                     const timestamp = new Date().toISOString()
                     switch (event.type) {
                     case "retry":
-                        console.log(`🔄 [${timestamp}] Retrying ${event.subgraph}: ${JSON.stringify(event.details)}`)
+                        console.log(
+                            `🔄 [${timestamp}] Retrying ${event.subgraph}: ${JSON.stringify(event.details)}`,
+                        )
                         break
                     case "circuitOpen":
-                        console.warn(`⚡ [${timestamp}] Circuit opened for ${event.subgraph}: ${JSON.stringify(event.details)}`)
+                        console.warn(
+                            `⚡ [${timestamp}] Circuit opened for ${event.subgraph}: ${JSON.stringify(event.details)}`,
+                        )
                         break
                     case "circuitClose":
-                        console.log(`✅ [${timestamp}] Circuit closed for ${event.subgraph}`)
+                        console.log(
+                            `✅ [${timestamp}] Circuit closed for ${event.subgraph}`,
+                        )
                         break
                     case "fallback":
-                        console.warn(`🔀 [${timestamp}] Using fallback for ${event.subgraph}: ${JSON.stringify(event.details)}`)
+                        console.warn(
+                            `🔀 [${timestamp}] Using fallback for ${event.subgraph}: ${JSON.stringify(event.details)}`,
+                        )
                         break
                     case "error":
-                        console.error(`❌ [${timestamp}] Error in ${event.subgraph}: ${JSON.stringify(event.details)}`)
+                        console.error(
+                            `❌ [${timestamp}] Error in ${event.subgraph}: ${JSON.stringify(event.details)}`,
+                        )
                         break
                     case "subgraphError":
-                        console.warn(`⚠️  [${timestamp}] Subgraph error in ${event.subgraph}: ${JSON.stringify(event.details)}`)
+                        console.warn(
+                            `⚠️  [${timestamp}] Subgraph error in ${event.subgraph}: ${JSON.stringify(event.details)}`,
+                        )
                         break
                     }
                 },

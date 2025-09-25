@@ -438,7 +438,9 @@ export class AwsCognitoService {
 
     async adminDeleteUser(email: string): Promise<{ deleted: boolean }> {
         if (!email || typeof email !== "string") {
-            this.logger.error("adminDeleteUser: Email is required and must be a string")
+            this.logger.error(
+                "adminDeleteUser: Email is required and must be a string",
+            )
             throw new UnauthorizedException("Email is required to delete user")
         }
 

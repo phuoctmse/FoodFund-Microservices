@@ -11,10 +11,10 @@ import { AwsCognitoModule } from "@libs/aws-cognito"
 @Module({
     imports: [
         GraphQLSubgraphModule.forRoot({
-            debug: process.env.NODE_ENV === 'development',
-            playground: process.env.NODE_ENV === 'development',
+            debug: process.env.NODE_ENV === "development",
+            playground: process.env.NODE_ENV === "development",
             federationVersion: 2,
-            path: "/graphql"
+            path: "/graphql",
         }),
         AwsCognitoModule.forRoot({
             isGlobal: false,
@@ -26,17 +26,8 @@ import { AwsCognitoModule } from "@libs/aws-cognito"
             useGlobalImports: true,
         }),
     ],
-    providers: [
-        CampaignService,
-        CampaignResolver,
-        CampaignRepository,
-    ],
-    controllers: [
-        HealthController
-    ],
-    exports: [
-        CampaignService,
-        CampaignRepository,
-    ],
+    providers: [CampaignService, CampaignResolver, CampaignRepository],
+    controllers: [HealthController],
+    exports: [CampaignService, CampaignRepository],
 })
 export class CampaignModule {}

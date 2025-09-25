@@ -1,7 +1,4 @@
-import {
-    Injectable,
-    NotFoundException,
-} from "@nestjs/common"
+import { Injectable, NotFoundException } from "@nestjs/common"
 import { UserRepository } from "../user.repository"
 import { Role } from "libs/databases/prisma/schemas"
 
@@ -32,7 +29,9 @@ export class UserQueryService {
     async findUserByUsername(user_name: string) {
         const user = await this.userRepository.findUserByUsername(user_name)
         if (!user) {
-            throw new NotFoundException(`User with username ${user_name} not found`)
+            throw new NotFoundException(
+                `User with username ${user_name} not found`,
+            )
         }
         return user
     }

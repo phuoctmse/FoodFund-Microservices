@@ -1,5 +1,10 @@
 import { RemoteGraphQLDataSource } from "@apollo/gateway"
-import type { RetryOptions, CircuitBreakerOptions, FallbackOptions, MonitoringOptions } from "./gateway.types"
+import type {
+    RetryOptions,
+    CircuitBreakerOptions,
+    FallbackOptions,
+    MonitoringOptions,
+} from "./gateway.types"
 
 function wait(ms: number) {
     return new Promise((resolve) => setTimeout(resolve, ms))
@@ -33,8 +38,10 @@ export class DefaultRemoteGraphQLDataSource extends RemoteGraphQLDataSource {
             factor: options.retryOptions?.factor ?? 2,
         }
         this.circuitOptions = {
-            failureThreshold: options.circuitBreakerOptions?.failureThreshold ?? 3,
-            resetTimeoutMs: options.circuitBreakerOptions?.resetTimeoutMs ?? 60000,
+            failureThreshold:
+                options.circuitBreakerOptions?.failureThreshold ?? 3,
+            resetTimeoutMs:
+                options.circuitBreakerOptions?.resetTimeoutMs ?? 60000,
         }
         this.fallback = options.fallback
         this.monitoring = options.monitoring
@@ -60,9 +67,17 @@ export class DefaultRemoteGraphQLDataSource extends RemoteGraphQLDataSource {
         // If circuit is open, fast-fail to fallback or throw
         const now = Date.now()
         if (this.circuitOpenUntil > now) {
-            this.monitoring?.onEvent?.({ type: "circuitOpen", subgraph: this.subgraphName, details: { until: this.circuitOpenUntil } })
+            this.monitoring?.onEvent?.({
+                type: "circuitOpen",
+                subgraph: this.subgraphName,
+                details: { until: this.circuitOpenUntil },
+            })
             if (this.fallback?.response) {
-                this.monitoring?.onEvent?.({ type: "fallback", subgraph: this.subgraphName, details: { reason: "circuitOpen" } })
+                this.monitoring?.onEvent?.({
+                    type: "fallback",
+                    subgraph: this.subgraphName,
+                    details: { reason: "circuitOpen" },
+                })
                 return this.createFallbackResponse(this.fallback.response)
             }
             throw new Error(`Subgraph ${this.subgraphName} circuit is open`)
@@ -82,7 +97,11 @@ export class DefaultRemoteGraphQLDataSource extends RemoteGraphQLDataSource {
                     // increase failure count but allow partial results to return
                     this.failureCount += 1
                     this.checkOpenCircuit()
-                    this.monitoring?.onEvent?.({ type: "subgraphError", subgraph: this.subgraphName, details: { errors: result.errors } })
+                    this.monitoring?.onEvent?.({
+                        type: "subgraphError",
+                        subgraph: this.subgraphName,
+                        details: { errors: result.errors },
+                    })
                     // Return result so gateway can partial-execute other subgraphs
                     return result
                 }
@@ -90,32 +109,56 @@ export class DefaultRemoteGraphQLDataSource extends RemoteGraphQLDataSource {
                 // success -> reset failure count and return
                 if (this.failureCount > 0) {
                     this.failureCount = 0
-                    this.monitoring?.onEvent?.({ type: "circuitClose", subgraph: this.subgraphName })
+                    this.monitoring?.onEvent?.({
+                        type: "circuitClose",
+                        subgraph: this.subgraphName,
+                    })
                 }
                 return result
             } catch (err) {
                 lastError = err
                 attempt += 1
                 this.failureCount += 1
-                this.monitoring?.onEvent?.({ type: "error", subgraph: this.subgraphName, details: { attempt, error: err } })
+                this.monitoring?.onEvent?.({
+                    type: "error",
+                    subgraph: this.subgraphName,
+                    details: { attempt, error: err },
+                })
                 this.checkOpenCircuit()
                 if (attempt > this.retryOptions.retries) break
                 // backoff
                 await wait(Math.min(delay, this.retryOptions.maxDelayMs))
-                delay = Math.min(delay * this.retryOptions.factor, this.retryOptions.maxDelayMs)
-                this.monitoring?.onEvent?.({ type: "retry", subgraph: this.subgraphName, details: { attempt, nextDelay: delay } })
+                delay = Math.min(
+                    delay * this.retryOptions.factor,
+                    this.retryOptions.maxDelayMs,
+                )
+                this.monitoring?.onEvent?.({
+                    type: "retry",
+                    subgraph: this.subgraphName,
+                    details: { attempt, nextDelay: delay },
+                })
             }
         }
 
         // All retries exhausted: either return fallback response or throw to let gateway propagate partial execution
         if (this.fallback?.response) {
-            this.monitoring?.onEvent?.({ type: "fallback", subgraph: this.subgraphName, details: { reason: "retries_exhausted" } })
+            this.monitoring?.onEvent?.({
+                type: "fallback",
+                subgraph: this.subgraphName,
+                details: { reason: "retries_exhausted" },
+            })
             return this.createFallbackResponse(this.fallback.response)
         }
 
         // If no fallback, return a GraphQL-shaped error response so Gateway can partial-execute
-        const errorMessage = lastError?.message ?? String(lastError ?? `Subgraph ${this.subgraphName} failed`)
-        this.monitoring?.onEvent?.({ type: "error", subgraph: this.subgraphName, details: { finalError: errorMessage } })
+        const errorMessage =
+            lastError?.message ??
+            String(lastError ?? `Subgraph ${this.subgraphName} failed`)
+        this.monitoring?.onEvent?.({
+            type: "error",
+            subgraph: this.subgraphName,
+            details: { finalError: errorMessage },
+        })
 
         const errorResponse = {
             data: null,
@@ -135,15 +178,23 @@ export class DefaultRemoteGraphQLDataSource extends RemoteGraphQLDataSource {
 
     private checkOpenCircuit() {
         if (this.failureCount >= this.circuitOptions.failureThreshold) {
-            this.circuitOpenUntil = Date.now() + this.circuitOptions.resetTimeoutMs
-            this.monitoring?.onEvent?.({ type: "circuitOpen", subgraph: this.subgraphName, details: { until: this.circuitOpenUntil } })
+            this.circuitOpenUntil =
+                Date.now() + this.circuitOptions.resetTimeoutMs
+            this.monitoring?.onEvent?.({
+                type: "circuitOpen",
+                subgraph: this.subgraphName,
+                details: { until: this.circuitOpenUntil },
+            })
         }
     }
 
     private createFallbackResponse(responseBody: any): any {
         // Minimal Response shape that Apollo Gateway expects from a subgraph.
         // Ensure body is a string (HTTP body) so the gateway can parse it.
-        const body = typeof responseBody === "string" ? responseBody : JSON.stringify(responseBody)
+        const body =
+            typeof responseBody === "string"
+                ? responseBody
+                : JSON.stringify(responseBody)
         // Return a minimal object that the gateway can interpret as an HTTP-like response.
         return { body, headers: new Map<string, string>(), status: 200 }
     }

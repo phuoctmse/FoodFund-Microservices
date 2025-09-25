@@ -1,51 +1,55 @@
 import { ObjectType, Field, ID } from "@nestjs/graphql"
 import { Directive } from "@nestjs/graphql"
 import { AbstractSchema } from "../abstract.schema"
-import { Role, VerificationStatus, AvailabilityStatus } from "../enums/user.enums"
+import {
+    Role,
+    VerificationStatus,
+    AvailabilityStatus,
+} from "../enums/user.enums"
 
 // Main User GraphQL Schema
 @ObjectType()
 @Directive("@key(fields: \"id\")")
 export class UserProfileSchema extends AbstractSchema {
     @Field(() => String, {
-        description: "User's full name"
+        description: "User's full name",
     })
         fullName: string
 
     @Field(() => String, {
-        description: "User's avatar URL"
+        description: "User's avatar URL",
     })
         avatarUrl: string
 
     @Field(() => String, {
-        description: "User email address"
+        description: "User email address",
     })
         email: string
 
     @Field(() => String, {
-        description: "User's phone number"
+        description: "User's phone number",
     })
         phoneNumber: string
 
     @Field(() => Role, {
-        description: "User's role in the system"
+        description: "User's role in the system",
     })
         role: Role
 
     @Field(() => Boolean, {
         description: "Whether the user is active",
-        defaultValue: true
+        defaultValue: true,
     })
         isActive: boolean
 
     @Field(() => String, {
-        description: "Unique username"
+        description: "Unique username",
     })
         userName: string
 
     @Field(() => String, {
         nullable: true,
-        description: "User's bio/description"
+        description: "User's bio/description",
     })
         bio?: string
 
@@ -57,17 +61,17 @@ export class UserProfileSchema extends AbstractSchema {
 @ObjectType()
 export class DonorProfileSchema extends AbstractSchema {
     @Field(() => String, {
-        description: "User ID reference"
+        description: "User ID reference",
     })
         userId: string
 
     @Field(() => Number, {
-        description: "Total number of donations made"
+        description: "Total number of donations made",
     })
         donationCount: number
 
     @Field(() => String, {
-        description: "Total amount donated (as string for BigInt)"
+        description: "Total amount donated (as string for BigInt)",
     })
         totalDonated: string
 
@@ -79,12 +83,12 @@ export class DonorProfileSchema extends AbstractSchema {
 @ObjectType()
 export class KitchenStaffProfileSchema extends AbstractSchema {
     @Field(() => String, {
-        description: "User ID reference"
+        description: "User ID reference",
     })
         userId: string
 
     @Field(() => Number, {
-        description: "Total batches prepared"
+        description: "Total batches prepared",
     })
         totalBatchPrepared: number
 }
@@ -93,28 +97,28 @@ export class KitchenStaffProfileSchema extends AbstractSchema {
 @ObjectType()
 export class FundraiserProfileSchema extends AbstractSchema {
     @Field(() => String, {
-        description: "User ID reference"
+        description: "User ID reference",
     })
         userId: string
 
     @Field(() => String, {
-        description: "Organization name"
+        description: "Organization name",
     })
         organizationName: string
 
     @Field(() => String, {
         nullable: true,
-        description: "Organization address"
+        description: "Organization address",
     })
         organizationAddress?: string
 
     @Field(() => VerificationStatus, {
-        description: "Verification status"
+        description: "Verification status",
     })
         verificationStatus: VerificationStatus
 
     @Field(() => Number, {
-        description: "Total campaigns created"
+        description: "Total campaigns created",
     })
         totalCampaignCreated: number
 }
@@ -123,17 +127,17 @@ export class FundraiserProfileSchema extends AbstractSchema {
 @ObjectType()
 export class DeliveryStaffProfileSchema extends AbstractSchema {
     @Field(() => String, {
-        description: "User ID reference"
+        description: "User ID reference",
     })
         userId: string
 
     @Field(() => AvailabilityStatus, {
-        description: "Current availability status"
+        description: "Current availability status",
     })
         availabilityStatus: AvailabilityStatus
 
     @Field(() => Number, {
-        description: "Total deliveries completed"
+        description: "Total deliveries completed",
     })
         totalDeliveries: number
 }

@@ -15,7 +15,7 @@ export class UserQueryResolver {
     @Query(() => [UserProfileSchema], { name: "users" })
     async findAllUsers(
         @Args("skip", { type: () => Number, nullable: true }) skip?: number,
-        @Args("take", { type: () => Number, nullable: true }) take?: number
+        @Args("take", { type: () => Number, nullable: true }) take?: number,
     ) {
         return this.userResolverFacade.findAllUsers(skip, take)
     }
@@ -38,7 +38,7 @@ export class UserQueryResolver {
     @Query(() => [UserProfileSchema], { name: "searchUsers" })
     async searchUsers(
         @Args("searchTerm") searchTerm: string,
-        @Args("role", { nullable: true }) role?: string
+        @Args("role", { nullable: true }) role?: string,
     ) {
         return this.userResolverFacade.searchUsers(searchTerm, role as Role)
     }

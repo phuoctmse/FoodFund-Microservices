@@ -19,20 +19,22 @@ export class CustomValidationPipe extends ValidationPipe {
 
     private extractErrorMessages(errors: ValidationError[]): any[] {
         const formattedErrors: any[] = []
-        
+
         errors.forEach((error) => {
             if (error.constraints) {
                 // Add each constraint as a separate error for clarity
-                Object.entries(error.constraints).forEach(([constraintKey, message]) => {
-                    formattedErrors.push({
-                        field: error.property,
-                        value: error.value,
-                        constraint: constraintKey,
-                        message: message,
-                    })
-                })
+                Object.entries(error.constraints).forEach(
+                    ([constraintKey, message]) => {
+                        formattedErrors.push({
+                            field: error.property,
+                            value: error.value,
+                            constraint: constraintKey,
+                            message: message,
+                        })
+                    },
+                )
             }
-            
+
             // Handle nested validation errors
             if (error.children && error.children.length > 0) {
                 const nestedErrors = this.extractErrorMessages(error.children)
@@ -44,7 +46,7 @@ export class CustomValidationPipe extends ValidationPipe {
                 })
             }
         })
-        
+
         return formattedErrors
     }
 }

@@ -5,18 +5,18 @@ import { SentryInterceptor } from "./sentry.interceptor"
 import { SentryService } from "./sentry.service"
 
 export interface SentryModuleOptions {
-  dsn: string
-  serviceName: string
-  environment?: string
-  release?: string
-  enableTracing?: boolean
+    dsn: string
+    serviceName: string
+    environment?: string
+    release?: string
+    enableTracing?: boolean
 }
 
 @Global()
 @Module({})
 export class SentryModule {
     static forRoot(options: SentryModuleOptions): DynamicModule {
-    // Initialize Sentry
+        // Initialize Sentry
         Sentry.init({
             dsn: options.dsn,
             environment: options.environment || "development",

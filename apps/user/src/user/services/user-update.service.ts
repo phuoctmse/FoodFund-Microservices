@@ -30,9 +30,10 @@ export class UserUpdateService {
                 updateUserInput.email &&
                 updateUserInput.email !== existingUser.email
             ) {
-                const existingEmailUser = await this.userRepository.findUserByEmail(
-                    updateUserInput.email,
-                )
+                const existingEmailUser =
+                    await this.userRepository.findUserByEmail(
+                        updateUserInput.email,
+                    )
                 if (existingEmailUser) {
                     throw new ConflictException("Email already exists")
                 }
@@ -129,7 +130,9 @@ export class UserUpdateService {
                 updateKitchenStaffProfileInput,
             )
         } catch (error) {
-            throw new BadRequestException("Failed to update kitchen staff profile")
+            throw new BadRequestException(
+                "Failed to update kitchen staff profile",
+            )
         }
     }
 
@@ -137,7 +140,9 @@ export class UserUpdateService {
         try {
             return await this.userRepository.deleteKitchenStaffProfile(id)
         } catch (error) {
-            throw new BadRequestException("Failed to delete kitchen staff profile")
+            throw new BadRequestException(
+                "Failed to delete kitchen staff profile",
+            )
         }
     }
 
@@ -173,7 +178,9 @@ export class UserUpdateService {
                 updateDeliveryStaffProfileInput,
             )
         } catch (error) {
-            throw new BadRequestException("Failed to update delivery staff profile")
+            throw new BadRequestException(
+                "Failed to update delivery staff profile",
+            )
         }
     }
 
@@ -181,7 +188,9 @@ export class UserUpdateService {
         try {
             return await this.userRepository.deleteDeliveryStaffProfile(id)
         } catch (error) {
-            throw new BadRequestException("Failed to delete delivery staff profile")
+            throw new BadRequestException(
+                "Failed to delete delivery staff profile",
+            )
         }
     }
 }

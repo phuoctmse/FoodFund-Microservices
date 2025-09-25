@@ -1,10 +1,4 @@
-import {
-    Args,
-    Query,
-    Mutation,
-    Context,
-    Resolver,
-} from "@nestjs/graphql"
+import { Args, Query, Mutation, Context, Resolver } from "@nestjs/graphql"
 import { UseGuards } from "@nestjs/common"
 import { UnauthorizedException } from "@nestjs/common"
 import {
@@ -15,11 +9,7 @@ import {
     SignOutResponse,
 } from "../models"
 import { AuthResolver } from "../auth.resolver"
-import {
-    SignInInput,
-    VerifyTokenInput,
-    RefreshTokenInput,
-} from "../dto"
+import { SignInInput, VerifyTokenInput, RefreshTokenInput } from "../dto"
 import { CognitoGraphQLGuard } from "libs/aws-cognito/guards"
 
 @Resolver()
@@ -31,7 +21,9 @@ export class AuthAuthenticationResolver {
     async signOut(@Context() context: any): Promise<SignOutResponse> {
         const token = context.req.headers.authorization?.split(" ")[1]
         if (!token) {
-            throw new UnauthorizedException("Access token not found in request headers")
+            throw new UnauthorizedException(
+                "Access token not found in request headers",
+            )
         }
         return this.authResolver.signOut(token)
     }

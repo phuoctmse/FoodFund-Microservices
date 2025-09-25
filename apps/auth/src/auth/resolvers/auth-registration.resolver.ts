@@ -1,9 +1,4 @@
-import {
-    Args,
-    Query,
-    Mutation,
-    Resolver,
-} from "@nestjs/graphql"
+import { Args, Query, Mutation, Resolver } from "@nestjs/graphql"
 import {
     SignUpResponse,
     ConfirmSignUpResponse,

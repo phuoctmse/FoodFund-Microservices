@@ -29,27 +29,37 @@ export class GraphQLGatewayModule extends ConfigurableModuleClass {
                 NestGraphQLModule.forRootAsync<ApolloGatewayDriverConfig>({
                     driver: ApolloGatewayDriver,
                     useFactory: async () => {
-                        const resilientManager = new ResilientIntrospectAndCompose({
-                            subgraphs,
-                            retryOptions: gatewayRetryOptions,
-                            onSubgraphUnavailable: (subgraphName, error) => {
-                                console.warn(`🚨 Subgraph "${subgraphName}" is unavailable:`, error.message)
-                                monitoring?.onEvent?.({
-                                    type: "error",
-                                    subgraph: subgraphName,
-                                    details: { error: error.message },
-                                })
-                            },
-                        })
+                        const resilientManager =
+                            new ResilientIntrospectAndCompose({
+                                subgraphs,
+                                retryOptions: gatewayRetryOptions,
+                                onSubgraphUnavailable: (
+                                    subgraphName,
+                                    error,
+                                ) => {
+                                    console.warn(
+                                        `🚨 Subgraph "${subgraphName}" is unavailable:`,
+                                        error.message,
+                                    )
+                                    monitoring?.onEvent?.({
+                                        type: "error",
+                                        subgraph: subgraphName,
+                                        details: { error: error.message },
+                                    })
+                                },
+                            })
 
-                        const supergraphManager = await resilientManager.createSupergraphManager()
+                        const supergraphManager =
+                            await resilientManager.createSupergraphManager()
 
                         return {
                             server: {
                                 introspection: true,
-                                plugins: [ApolloServerPluginLandingPageLocalDefault({
-                                    includeCookies: true,
-                                })],
+                                plugins: [
+                                    ApolloServerPluginLandingPageLocalDefault({
+                                        includeCookies: true,
+                                    }),
+                                ],
                                 context: ({ req, res }) => ({ req, res }),
                                 debug: false,
                                 csrfPrevention: false,
@@ -62,7 +72,6 @@ export class GraphQLGatewayModule extends ConfigurableModuleClass {
                                         extensions: error.extensions,
                                     }
                                 },
-                                
                             },
                             gateway: {
                                 buildService: ({ url, name }) => {
@@ -80,7 +89,9 @@ export class GraphQLGatewayModule extends ConfigurableModuleClass {
                                         fallback: sub?.fallback ?? fallback,
                                         monitoring,
                                     }
-                                    return new DefaultRemoteGraphQLDataSource(dsOptions)
+                                    return new DefaultRemoteGraphQLDataSource(
+                                        dsOptions,
+                                    )
                                 },
                                 supergraphSdl: supergraphManager,
                             },

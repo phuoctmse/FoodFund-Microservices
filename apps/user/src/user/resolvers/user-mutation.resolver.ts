@@ -11,7 +11,8 @@ export class UserMutationResolver {
     @Mutation(() => UserProfileSchema)
     async updateUser(
         @Args("id", { type: () => ID }) id: string,
-        @Args("updateUserInput", new ValidationPipe()) updateUserInput: UpdateUserInput
+        @Args("updateUserInput", new ValidationPipe())
+            updateUserInput: UpdateUserInput,
     ) {
         return this.userResolverFacade.updateUser(id, updateUserInput)
     }

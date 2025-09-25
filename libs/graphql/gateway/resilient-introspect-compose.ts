@@ -41,21 +41,34 @@ export class ResilientIntrospectAndCompose {
 
     async createSupergraphManager(): Promise<IntrospectAndCompose> {
         const availableSubgraphs = await this.findAvailableSubgraphs()
-        
+
         if (availableSubgraphs.length === 0) {
-            throw new Error("No subgraphs are available after retries. Cannot start gateway.")
+            throw new Error(
+                "No subgraphs are available after retries. Cannot start gateway.",
+            )
         }
 
-        console.log(`🚀 Starting gateway with ${availableSubgraphs.length}/${this.originalSubgraphs.length} available subgraphs`)
-        console.log(`📋 Available: ${availableSubgraphs.map(s => s.name).join(", ")}`)
+        console.log(
+            `🚀 Starting gateway with ${availableSubgraphs.length}/${this.originalSubgraphs.length} available subgraphs`,
+        )
+        console.log(
+            `📋 Available: ${availableSubgraphs.map((s) => s.name).join(", ")}`,
+        )
 
         const unavailableSubgraphs = this.originalSubgraphs.filter(
-            original => !availableSubgraphs.some(available => available.name === original.name)
+            (original) =>
+                !availableSubgraphs.some(
+                    (available) => available.name === original.name,
+                ),
         )
 
         if (unavailableSubgraphs.length > 0) {
-            console.log(`⚠️  Unavailable: ${unavailableSubgraphs.map(s => s.name).join(", ")}`)
-            console.log("🔄 Gateway will continue checking unavailable subgraphs in background")
+            console.log(
+                `⚠️  Unavailable: ${unavailableSubgraphs.map((s) => s.name).join(", ")}`,
+            )
+            console.log(
+                "🔄 Gateway will continue checking unavailable subgraphs in background",
+            )
         }
 
         return new IntrospectAndCompose({
@@ -65,7 +78,9 @@ export class ResilientIntrospectAndCompose {
         })
     }
 
-    private async findAvailableSubgraphs(): Promise<Array<{ name: string; url: string }>> {
+    private async findAvailableSubgraphs(): Promise<
+        Array<{ name: string; url: string }>
+        > {
         const availableSubgraphs: Array<{ name: string; url: string }> = []
 
         for (const subgraph of this.originalSubgraphs) {
@@ -74,7 +89,9 @@ export class ResilientIntrospectAndCompose {
                 availableSubgraphs.push(subgraph)
                 console.log(`✅ Subgraph "${subgraph.name}" is available`)
             } else {
-                const error = new Error(`Failed to connect to subgraph "${subgraph.name}" at ${subgraph.url}`)
+                const error = new Error(
+                    `Failed to connect to subgraph "${subgraph.name}" at ${subgraph.url}`,
+                )
                 console.warn(`❌ Subgraph "${subgraph.name}" is unavailable`)
                 this.onSubgraphUnavailable?.(subgraph.name, error)
             }
@@ -83,14 +100,19 @@ export class ResilientIntrospectAndCompose {
         return availableSubgraphs
     }
 
-    private async tryConnectWithRetry(subgraph: { name: string; url: string }): Promise<boolean> {
+    private async tryConnectWithRetry(subgraph: {
+        name: string
+        url: string
+    }): Promise<boolean> {
         let attempt = 0
         let delay = this.retryOptions.initialDelayMs
 
         while (attempt <= this.retryOptions.maxRetries) {
             try {
-                console.log(`🔄 Checking "${subgraph.name}" (attempt ${attempt + 1}/${this.retryOptions.maxRetries + 1})`)
-                
+                console.log(
+                    `🔄 Checking "${subgraph.name}" (attempt ${attempt + 1}/${this.retryOptions.maxRetries + 1})`,
+                )
+
                 const response = await fetch(subgraph.url, {
                     method: "POST",
                     headers: {
@@ -116,19 +138,26 @@ export class ResilientIntrospectAndCompose {
                         return true
                     }
                 }
-                
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+
+                throw new Error(
+                    `HTTP ${response.status}: ${response.statusText}`,
+                )
             } catch (error) {
                 attempt++
-                
+
                 if (attempt > this.retryOptions.maxRetries) {
-                    console.log(`❌ Failed to connect to "${subgraph.name}" after ${this.retryOptions.maxRetries + 1} attempts`)
+                    console.log(
+                        `❌ Failed to connect to "${subgraph.name}" after ${this.retryOptions.maxRetries + 1} attempts`,
+                    )
                     break
                 }
-                
+
                 console.log(`⏳ Retrying "${subgraph.name}" in ${delay}ms...`)
                 await this.wait(delay)
-                delay = Math.min(delay * this.retryOptions.factor, this.retryOptions.maxDelayMs)
+                delay = Math.min(
+                    delay * this.retryOptions.factor,
+                    this.retryOptions.maxDelayMs,
+                )
             }
         }
 
@@ -136,6 +165,6 @@ export class ResilientIntrospectAndCompose {
     }
 
     private wait(ms: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, ms))
+        return new Promise((resolve) => setTimeout(resolve, ms))
     }
 }

@@ -5,24 +5,15 @@ import {
     GetUserCommandOutput,
     AdminGetUserCommandOutput,
 } from "@aws-sdk/client-cognito-identity-provider"
-import {
-    SignInInput,
-    RefreshTokenInput,
-} from "../dto"
-import {
-    AuthUser,
-    SignInResponse,
-    RefreshTokenResponse,
-} from "../models"
+import { SignInInput, RefreshTokenInput } from "../dto"
+import { AuthUser, SignInResponse, RefreshTokenResponse } from "../models"
 import { AuthErrorHelper } from "../helpers"
 
 @Injectable()
 export class AuthAuthenticationService {
     private readonly logger = new Logger(AuthAuthenticationService.name)
 
-    constructor(
-        private readonly awsCognitoService: AwsCognitoService,
-    ) {}
+    constructor(private readonly awsCognitoService: AwsCognitoService) {}
 
     async signIn(input: SignInInput): Promise<SignInResponse> {
         try {
@@ -32,7 +23,6 @@ export class AuthAuthenticationService {
                 input.email,
                 input.password,
             )
-
 
             // Get user details from access token
             const userOutput = await this.awsCognitoService.getUser(
@@ -104,7 +94,9 @@ export class AuthAuthenticationService {
         }
     }
 
-    async signOut(accessToken: string): Promise<{ success: boolean; message: string }> {
+    async signOut(
+        accessToken: string,
+    ): Promise<{ success: boolean; message: string }> {
         try {
             this.logger.log("Processing sign out request")
 

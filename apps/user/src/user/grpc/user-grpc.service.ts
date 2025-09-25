@@ -5,7 +5,6 @@ import { UserService } from "../user.service"
 import { generateUniqueUsername } from "libs/common"
 import { v7 as uuidv7 } from "uuid"
 
-
 @Injectable()
 export class UserGrpcService implements OnModuleInit {
     private readonly logger = new Logger(UserGrpcService.name)
@@ -246,8 +245,6 @@ export class UserGrpcService implements OnModuleInit {
             })
         }
     }
-
-
 
     // Get user by ID
     private async getUser(call: any, callback: any) {

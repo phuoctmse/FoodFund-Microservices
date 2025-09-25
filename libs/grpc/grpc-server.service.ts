@@ -40,7 +40,13 @@ export class GrpcServerService implements OnModuleInit, OnModuleDestroy {
 
         try {
             // Load proto file
-            const protoPath = join(process.cwd(), "libs", "grpc", "proto", config.protoPath)
+            const protoPath = join(
+                process.cwd(),
+                "libs",
+                "grpc",
+                "proto",
+                config.protoPath,
+            )
             const packageDefinition = protoLoader.loadSync(protoPath, {
                 keepCase: true,
                 longs: String,
