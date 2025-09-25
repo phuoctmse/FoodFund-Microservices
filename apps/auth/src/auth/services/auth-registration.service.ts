@@ -14,6 +14,7 @@ import {
 } from "../models"
 import { AuthErrorHelper } from "../helpers"
 import { GrpcClientService } from "libs/grpc"
+import { Role } from "@libs/databases"
 
 @Injectable()
 export class AuthRegistrationService {
@@ -44,6 +45,7 @@ export class AuthRegistrationService {
                 {
                     name: input.name,
                     phone_number: input.phoneNumber,
+                    "custom:role": Role.DONOR,
                 },
             )
 
@@ -55,7 +57,7 @@ export class AuthRegistrationService {
                     username: extractUserNameFromEmail(input.email),
                     full_name: input.name,
                     phone_number: input.phoneNumber,
-                    role: "DONOR",
+                    role: Role.DONOR,
                 },
             )
 

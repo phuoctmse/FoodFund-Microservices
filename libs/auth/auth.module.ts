@@ -1,10 +1,10 @@
 import { Module } from "@nestjs/common"
-import { AdminGuard } from "./guards/admin.guard"
 import { GrpcModule } from "libs/grpc"
+import { RoleGuard } from "./guards/role.guard"
 
 @Module({
     imports: [GrpcModule],
-    providers: [AdminGuard],
-    exports: [AdminGuard],
+    providers: [RoleGuard],
+    exports: [RoleGuard],
 })
 export class AuthLibModule {}

@@ -19,10 +19,10 @@ export class RoleGuard implements CanActivate {
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
         // Lấy required roles từ metadata
-        const requiredRoles = this.reflector.getAllAndOverride<Role[]>("roles", [
-            context.getHandler(),
-            context.getClass(),
-        ])
+        const requiredRoles = this.reflector.getAllAndOverride<Role[]>(
+            "roles",
+            [context.getHandler(), context.getClass()],
+        )
 
         if (!requiredRoles || requiredRoles.length === 0) {
             return true // Không có role requirement
@@ -45,26 +45,28 @@ export class RoleGuard implements CanActivate {
 
         const user = authResponse.user
 
-        // Lấy thông tin user từ User service để kiểm tra role
-        const userDetails = await this.getUserRole(user.id)
-        if (!userDetails || typeof userDetails.role !== "string") {
-            throw new ForbiddenException("User role not found")
+        const customRole = user.attributes.role
+
+        if (!customRole || typeof customRole !== "string") {
+            throw new ForbiddenException("User role not found in token")
         }
 
         // Kiểm tra xem user có role được yêu cầu không
-        const hasRequiredRole = requiredRoles.some(role => 
-            userDetails.role === role
+        const hasRequiredRole = requiredRoles.some(
+            (role) => customRole === role,
         )
 
         if (!hasRequiredRole) {
             throw new ForbiddenException(
-                `Access denied. Required roles: ${requiredRoles.join(", ")}. Your role: ${userDetails.role}`
+                `Access denied. Required roles: ${requiredRoles.join(
+                    ", ",
+                )}. Your role: ${customRole}`,
             )
         }
 
-        // Gắn user vào request context để các resolver có thể sử dụng
+        // Gắn user và role vào request context để các resolver có thể sử dụng
         request.user = user
-        request.userRole = userDetails.role
+        request.userRole = customRole
 
         return true
     }
@@ -90,43 +92,16 @@ export class RoleGuard implements CanActivate {
 
     private async verifyTokenWithAuthService(token: string): Promise<any> {
         try {
-            console.log(
-                "RoleGuard: Calling Auth service ValidateToken with token:",
-                token.substring(0, 20) + "...",
-            )
             const result = await this.grpcClient.callAuthService(
                 "ValidateToken",
                 {
                     access_token: token,
                 },
             )
-            console.log("RoleGuard: Auth service response:", result)
             return result
         } catch (error) {
             console.error("RoleGuard: Auth service call failed:", error)
             throw new UnauthorizedException("Token verification failed")
-        }
-    }
-
-    private async getUserRole(
-        cognitoId: string,
-    ): Promise<{ role: string } | null> {
-        try {
-            const response = await this.grpcClient.callUserService("GetUser", {
-                id: cognitoId,
-            })
-
-            if (
-                response.success &&
-                response.user &&
-                typeof response.user.role === "string"
-            ) {
-                return { role: response.user.role }
-            }
-            return null
-        } catch (error) {
-            console.error("Failed to get user role:", error)
-            return null
         }
     }
 }

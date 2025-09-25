@@ -50,6 +50,7 @@ export class AuthAdminService {
                 {
                     name: input.full_name,
                     phone_number: input.phone_number,
+                    "custom:role": input.role,
                 },
             )
 
@@ -76,8 +77,20 @@ export class AuthAdminService {
             )
 
             if (!userResult.success) {
-                // Rollback Cognito user if database creation fails
-                // Note: We'll need to implement adminDeleteUser in AwsCognitoService
+                this.logger.error(
+                    `Failed to create user in database, rolling back Cognito user for: ${input.email}`,
+                )
+                try {
+                    await this.awsCognitoService.adminDeleteUser(input.email)
+                    this.logger.log(
+                        `Rolled back Cognito user for: ${input.email}`,
+                    )
+                } catch (deleteError) {
+                    this.logger.error(
+                        `Failed to rollback Cognito user for ${input.email}:`,
+                        deleteError,
+                    )
+                }
                 throw new Error(
                     `Failed to create user in database: ${userResult.error}`,
                 )
