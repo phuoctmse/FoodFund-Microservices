@@ -8,19 +8,6 @@ services:
       - "8000:8000"
     env_file:
       - .env.docker
-    environment:
-      - DOCKER_ENV=true
-      - NODE_ENV=production
-      
-      - AUTH_HOST=auth-service
-      - AUTH_PORT=8002
-      - USERS_SUBGRAPH_HOST=user-service
-      - USERS_SUBGRAPH_PORT=8003
-      - CAMPAIGNS_SUBGRAPH_HOST=campaign-service
-      - CAMPAIGNS_SUBGRAPH_PORT=8004
-     
-      - PORT=8000
-      - GRAPHQL_GATEWAY_PORT=8000
     depends_on:
       auth-service:
         condition: service_healthy
@@ -46,10 +33,6 @@ services:
       - "8002:8002"
     env_file:
       - .env.docker
-    environment:
-      - DOCKER_ENV=true
-      - NODE_ENV=production
-      - PORT=8002
     networks:
       - foodfund-network
     healthcheck:
@@ -68,11 +51,6 @@ services:
       - "8003:8003"
     env_file:
       - .env.docker
-    environment:
-      - DOCKER_ENV=true
-      - NODE_ENV=production
-      - PORT=8003
-      - USERS_GRPC_PORT=50002
     networks:
       - foodfund-network
     healthcheck:
@@ -91,10 +69,6 @@ services:
       - "8004:8004"
     env_file:
       - .env.docker
-    environment:
-      - DOCKER_ENV=true
-      - NODE_ENV=production
-      - PORT=8004
     networks:
       - foodfund-network
     healthcheck:

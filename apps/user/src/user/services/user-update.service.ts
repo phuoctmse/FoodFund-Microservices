@@ -19,13 +19,11 @@ export class UserUpdateService {
 
     async updateUser(id: string, updateUserInput: UpdateUserInput) {
         try {
-            // Check if user exists
             const existingUser = await this.userRepository.findUserById(id)
             if (!existingUser) {
                 throw new NotFoundException(`User with ID ${id} not found`)
             }
 
-            // Check if email is being updated and if it already exists
             if (
                 updateUserInput.email &&
                 updateUserInput.email !== existingUser.email
@@ -39,7 +37,6 @@ export class UserUpdateService {
                 }
             }
 
-            // Check if username is being updated and if it already exists
             if (
                 updateUserInput.user_name &&
                 updateUserInput.user_name !== existingUser.user_name

@@ -27,6 +27,9 @@ export class UserResolver {
     }
 
     // Query operations
+
+    
+
     async findAllUsers(skip?: number, take?: number) {
         return this.userService.findAllUsers(skip, take)
     }

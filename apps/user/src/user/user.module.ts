@@ -19,6 +19,7 @@ import {
     UserUpdateService,
     ProfileService,
 } from "./services"
+import { AwsCognitoModule } from "@libs/aws-cognito"
 
 @Module({
     imports: [
@@ -26,6 +27,10 @@ import {
         GraphQLSubgraphModule.forRoot({
             debug: true,
             playground: true,
+        }),
+        AwsCognitoModule.forRoot({
+            isGlobal: false,
+            mockMode: false,
         }),
     ],
     providers: [

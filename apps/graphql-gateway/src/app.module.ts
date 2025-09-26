@@ -57,30 +57,6 @@ import { GraphQLGatewayModule } from "libs/graphql/gateway"
                     {
                         name: "campaign",
                         url: campaignUrl,
-                        retryOptions: {
-                            retries: 3,
-                            initialDelayMs: 500,
-                            maxDelayMs: 3000,
-                            factor: 2,
-                        },
-                        circuitBreakerOptions: {
-                            failureThreshold: 5,
-                            resetTimeoutMs: 30000,
-                        },
-                        fallback: {
-                            response: {
-                                data: null,
-                                errors: [
-                                    {
-                                        message:
-                                            "Campaign service temporarily unavailable",
-                                        extensions: {
-                                            code: "SERVICE_UNAVAILABLE",
-                                        },
-                                    },
-                                ],
-                            },
-                        },
                     },
                 ]
             })(),

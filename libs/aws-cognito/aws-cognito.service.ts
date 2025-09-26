@@ -20,6 +20,8 @@ import {
     AuthFlowType,
     AdminDeleteUserCommand,
     GlobalSignOutCommand,
+    AdminSetUserPasswordCommand,
+    AdminUpdateUserAttributesCommand,
 } from "@aws-sdk/client-cognito-identity-provider"
 import { CognitoJwtVerifier } from "aws-jwt-verify"
 import { createHmac } from "crypto"
@@ -566,6 +568,57 @@ export class AwsCognitoService {
                 error instanceof Error ? error.message : String(error)
             this.logger.error(`Sign out failed: ${errorMessage}`)
             throw new UnauthorizedException(`Sign out failed: ${errorMessage}`)
+        }
+    }
+
+    // Update user attributes (stub)
+    async updateUserAttributes(
+        username: string,
+        attributes: Record<string, string>,
+    ) {
+        try {
+            const userAttributes = Object.entries(attributes).map(
+                ([key, value]) => ({
+                    Name: key,
+                    Value: value,
+                }),
+            )
+            const command = new AdminUpdateUserAttributesCommand({
+                UserPoolId: this.userPoolId,
+                Username: username,
+                UserAttributes: userAttributes,
+            })
+            await this.cognitoClient.send(command)
+            this.logger.log(`Updated attributes for user: ${username}`)
+            return true
+        } catch (error) {
+            const errorMessage =
+                error instanceof Error ? error.message : String(error)
+            this.logger.error(`Update user attributes failed: ${errorMessage}`)
+            throw new UnauthorizedException(
+                `Update user attributes failed: ${errorMessage}`,
+            )
+        }
+    }
+
+    async changePassword(username: string, newPassword: string) {
+        try {
+            const command = new AdminSetUserPasswordCommand({
+                UserPoolId: this.userPoolId,
+                Username: username,
+                Password: newPassword,
+                Permanent: true,
+            })
+            await this.cognitoClient.send(command)
+            this.logger.log(`Changed password for user: ${username}`)
+            return true
+        } catch (error) {
+            const errorMessage =
+                error instanceof Error ? error.message : String(error)
+            this.logger.error(`Change password failed: ${errorMessage}`)
+            throw new UnauthorizedException(
+                `Change password failed: ${errorMessage}`,
+            )
         }
     }
 }

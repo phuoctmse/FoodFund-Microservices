@@ -208,6 +208,7 @@ jobs:
           GITHUB_SHA: ${{ github.sha }}
           # Database secrets
           USERS_DATABASE_URL: ${{ secrets.USERS_DATABASE_URL }}
+          CAMPAIGN_DATABASE_URL: ${{ secrets.CAMPAIGN_DATABASE_URL }}
           # AWS secrets
           AWS_REGION: ${{ secrets.AWS_REGION }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -215,6 +216,12 @@ jobs:
           AWS_COGNITO_USER_POOL_ID: ${{ secrets.AWS_COGNITO_USER_POOL_ID }}
           AWS_COGNITO_CLIENT_ID: ${{ secrets.AWS_COGNITO_CLIENT_ID }}
           AWS_COGNITO_CLIENT_SECRET: ${{ secrets.AWS_COGNITO_CLIENT_SECRET }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_ENVIRONMENT: ${{ secrets.SENTRY_ENVIRONMENT }}
+          SENTRY_RELEASE: ${{ secrets.SENTRY_RELEASE }}
+          # gRPC URLs
+          USER_GRPC_URL: ${{ secrets.USER_GRPC_URL }}
+          AUTH_GRPC_URL: ${{ secrets.AUTH_GRPC_URL }}
         run: |
           if [ -z "$DIGITALOCEAN_ACCESS_TOKEN" ] || [ -z "$DOCTL_APP_ID" ]; then
             echo "Deployment secrets not set, skipping deployment"

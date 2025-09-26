@@ -133,9 +133,9 @@ export class UserRepository {
             data,
             include: {
                 Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
-                Fundraiser_Profile: true,
-                Delivery_Staff_Profile: true,
+                // Kitchen_Staff_Profile: true,
+                // Fundraiser_Profile: true,
+                // Delivery_Staff_Profile: true,
             },
         })
     }
@@ -278,7 +278,6 @@ export class UserRepository {
         return this.prisma.delivery_Staff_Profile.delete({ where: { id } })
     }
 
-    // Search operations
     async searchUsers(searchTerm: string, role?: Role) {
         const where: any = {
             AND: [

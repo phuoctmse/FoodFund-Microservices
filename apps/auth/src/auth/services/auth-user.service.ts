@@ -8,6 +8,9 @@ import {
 import { AuthUser, AuthResponse } from "../models"
 import { AuthErrorHelper } from "../helpers"
 
+import { UpdateUserInput, ChangePasswordInput } from "../dto/auth.input"
+import { GrpcClientService } from "libs/grpc"
+
 @Injectable()
 export class AuthUserService {
     private readonly logger = new Logger(AuthUserService.name)
@@ -34,6 +37,32 @@ export class AuthUserService {
         } catch (error) {
             this.logger.error(`Get user by ID failed for ${id}:`, error)
             throw AuthErrorHelper.mapCognitoError(error, "getUserById")
+        }
+    }
+    async checkCurrentPassword(id: string, password: string): Promise<boolean> {
+        try {
+            await this.awsCognitoService.signIn(id, password)
+            return true
+        } catch (error) {
+            return false
+        }
+    }
+
+    async changePassword(
+        id: string,
+        input: ChangePasswordInput,
+    ): Promise<boolean> {
+        if (input.newPassword !== input.confirmNewPassword) {
+            throw new Error(
+                "New password and confirm new password do not match",
+            )
+        }
+        try {
+            await this.awsCognitoService.changePassword(id, input.newPassword)
+            return true
+        } catch (error) {
+            this.logger.error(`Change password failed for ${id}:`, error)
+            throw AuthErrorHelper.mapCognitoError(error, "changePassword")
         }
     }
 

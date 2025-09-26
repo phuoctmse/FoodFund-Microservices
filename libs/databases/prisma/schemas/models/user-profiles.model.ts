@@ -14,12 +14,13 @@ export class UserProfileSchema extends AbstractSchema {
     @Field(() => String, {
         description: "User's full name",
     })
-        fullName: string
+        full_name: string
 
     @Field(() => String, {
         description: "User's avatar URL",
+        nullable: true,
     })
-        avatarUrl: string
+        avatar_url: string
 
     @Field(() => String, {
         description: "User email address",
@@ -28,8 +29,9 @@ export class UserProfileSchema extends AbstractSchema {
 
     @Field(() => String, {
         description: "User's phone number",
+        nullable: true,
     })
-        phoneNumber: string
+        phone_number: string
 
     @Field(() => Role, {
         description: "User's role in the system",
@@ -40,18 +42,19 @@ export class UserProfileSchema extends AbstractSchema {
         description: "Whether the user is active",
         defaultValue: true,
     })
-        isActive: boolean
+        is_active: boolean
 
     @Field(() => String, {
         description: "Unique username",
     })
-        userName: string
+        user_name: string
 
     @Field(() => String, {
         nullable: true,
         description: "User's bio/description",
     })
         bio?: string
+
 
     // Remove profile relationships to avoid circular dependency
     // Profiles will be resolved separately in resolvers

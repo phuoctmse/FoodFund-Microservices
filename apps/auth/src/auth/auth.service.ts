@@ -22,6 +22,8 @@ import {
     AuthUserService,
 } from "./services"
 
+import { UpdateUserInput, ChangePasswordInput } from "./dto/auth.input"
+
 @Injectable()
 export class AuthService {
     private readonly logger = new Logger(AuthService.name)
@@ -101,5 +103,8 @@ export class AuthService {
 
     async validateUser(user: AuthUser): Promise<AuthResponse> {
         return this.authUserService.validateUser(user)
+    }
+    async changePassword(id: string, input: ChangePasswordInput): Promise<boolean> {
+        return this.authUserService.changePassword(id, input)
     }
 }

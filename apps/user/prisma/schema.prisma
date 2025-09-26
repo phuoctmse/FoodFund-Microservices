@@ -11,7 +11,7 @@ model User {
   id                     String                  @id @default(uuid())
   cognito_id             String?                 @unique @db.VarChar(255)
   full_name              String                  @db.Text()
-  avatar_url             String                  @db.VarChar(255)
+  avatar_url             String?                 @db.VarChar(255)
   email                  String                  @unique @db.VarChar(100)
   phone_number           String?                 @db.VarChar(20)
   role                   Role                    @default(DONOR)
@@ -24,6 +24,7 @@ model User {
   Kitchen_Staff_Profile  Kitchen_Staff_Profile?
   Fundraiser_Profile     Fundraiser_Profile?
   Delivery_Staff_Profile Delivery_Staff_Profile?
+  User_Badge             User_Badge?
 
   @@map("users")
 }
@@ -74,6 +75,31 @@ model Fundraiser_Profile {
   updated_at             DateTime            @updatedAt
 
   @@map("fundraiser_profiles")
+}
+
+model Badge {
+  id          String       @id @default(uuid())
+  name        String       @db.Text()
+  description String       @db.Text()
+  icon_url    String       @db.Text()
+  sort_order  Int          @default(0)
+  is_active   Boolean      @default(true)
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+  User_Badge  User_Badge[]
+
+  @@map("badges")
+}
+
+model User_Badge {
+  id         String   @id @default(uuid())
+  user_id    String   @unique
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  badge_id   String   @unique
+  badge      Badge    @relation(fields: [badge_id], references: [id], onDelete: Cascade)
+  awarded_at DateTime @default(now())
+
+  @@map("user_badges")
 }
 
 enum Role {

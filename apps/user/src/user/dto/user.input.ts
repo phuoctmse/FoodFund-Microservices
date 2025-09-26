@@ -1,3 +1,4 @@
+import { IsVietnamesePhone } from "@libs/validation"
 import { InputType, Field } from "@nestjs/graphql"
 import {
     IsString,
@@ -42,46 +43,19 @@ export class CreateUserInput {
 
 @InputType()
 export class UpdateUserInput {
-    @Field(() => String, { nullable: true, description: "User's full name" })
-    @IsOptional()
+    @Field(() => String, { description: "User's full name" })
     @IsString()
-        full_name?: string
+        full_name: string
 
     @Field(() => String, { nullable: true, description: "User's avatar URL" })
     @IsOptional()
     @IsString()
         avatar_url?: string
 
-    @Field(() => String, { nullable: true, description: "User email address" })
-    @IsOptional()
-    @IsEmail()
-        email?: string
-
     @Field(() => String, { nullable: true, description: "User's phone number" })
     @IsOptional()
-    @IsPhoneNumber()
+    @IsVietnamesePhone()
         phone_number?: string
-
-    @Field(() => Role, {
-        nullable: true,
-        description: "User's role in the system",
-    })
-    @IsOptional()
-    @IsEnum(Role)
-        role?: Role
-
-    @Field(() => Boolean, {
-        nullable: true,
-        description: "Whether the user is active",
-    })
-    @IsOptional()
-    @IsBoolean()
-        is_active?: boolean
-
-    @Field(() => String, { nullable: true, description: "Unique username" })
-    @IsOptional()
-    @IsString()
-        user_name?: string
 
     @Field(() => String, {
         nullable: true,

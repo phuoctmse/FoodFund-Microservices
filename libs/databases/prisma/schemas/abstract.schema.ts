@@ -13,10 +13,10 @@ export abstract class AbstractSchema {
     @Field(() => Date, {
         description: "Creation timestamp",
     })
-        createdAt: Date
+        created_at: Date
 
     @Field(() => Date, {
         description: "Last update timestamp",
     })
-        updatedAt: Date
+        updated_at: Date
 }

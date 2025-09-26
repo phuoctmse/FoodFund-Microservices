@@ -34,7 +34,6 @@ export interface UpdateUserInput {
     avatar_url?: string
     email?: string
     phone_number?: string
-    role?: Role
     is_active?: boolean
     user_name?: string
     bio?: string

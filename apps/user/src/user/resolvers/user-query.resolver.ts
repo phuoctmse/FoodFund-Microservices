@@ -1,7 +1,16 @@
-import { Resolver, Query, Args, ID, ResolveReference } from "@nestjs/graphql"
+import {
+    Resolver,
+    Query,
+    Args,
+    ID,
+    ResolveReference,
+    Context,
+} from "@nestjs/graphql"
 import { UserProfileSchema, Role } from "libs/databases/prisma/schemas"
 import { UserHealthResponse } from "../types/health-response.model"
 import { UserResolver as UserResolverFacade } from "../user.resolver"
+import { UseGuards } from "@nestjs/common"
+import { CognitoAuthGuard, CognitoGraphQLGuard } from "@libs/aws-cognito"
 
 @Resolver(() => UserProfileSchema)
 export class UserQueryResolver {
@@ -10,6 +19,25 @@ export class UserQueryResolver {
     @Query(() => UserHealthResponse, { name: "userHealth" })
     async userHealth(): Promise<UserHealthResponse> {
         return this.userResolverFacade.getHealth()
+    }
+
+    @Query(() => UserProfileSchema, { name: "getUserProfile" })
+    @UseGuards(CognitoGraphQLGuard)
+    async getUserProfile(@Context() context: any) {
+        const user = context.req.user
+        console.debug("Authenticated user:", user)
+        // Lấy thông tin user theo cognito_id và role Donor
+        if (!user || !user.username) {
+            throw new Error("Unauthorized: missing Cognito user info")
+        }
+        const userProfile = await this.userResolverFacade.findUserByCognitoId(
+            user.username,
+        )
+        if (!userProfile) {
+            throw new Error("User not found")
+        }
+        console.debug("User profile found:", userProfile)
+        return userProfile
     }
 
     @Query(() => [UserProfileSchema], { name: "users" })
