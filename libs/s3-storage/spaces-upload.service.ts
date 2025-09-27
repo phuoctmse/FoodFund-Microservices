@@ -6,6 +6,8 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import { SentryService } from "@libs/observability/sentry.service"
 import { BadRequestException, Injectable, Logger } from "@nestjs/common"
+import { randomBytes } from "crypto"
+import { v4 as uuidv4 } from "uuid"
 
 @Injectable()
 export class SpacesUploadService {
@@ -163,12 +165,19 @@ export class SpacesUploadService {
     }
 
     private generateRandomPrefix(): string {
-        const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-        let result = ""
-        for (let i = 0; i < 8; i++) {
-            result += chars.charAt(Math.floor(Math.random() * chars.length))
+        try {
+            return uuidv4().replace(/-/g, "").substring(0, 8)
+        } catch (error) {
+            this.logger.error("Failed to generate UUID-based prefix:", error)
+            this.sentryService.captureError(error as Error, {
+                operation: "generateRandomPrefix",
+                fallback: true,
+            })
+
+            const timestamp = Date.now().toString(36)
+            const randomSuffix = randomBytes(3).toString("hex")
+            return `${timestamp}${randomSuffix}`.substring(0, 8)
         }
-        return result
     }
 
     getHealth(): { status: string; endpoint: string; region: string } {
