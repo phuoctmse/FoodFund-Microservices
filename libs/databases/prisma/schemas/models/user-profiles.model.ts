@@ -55,7 +55,6 @@ export class UserProfileSchema extends AbstractSchema {
     })
         bio?: string
 
-
     // Remove profile relationships to avoid circular dependency
     // Profiles will be resolved separately in resolvers
 }

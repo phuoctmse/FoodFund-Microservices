@@ -7,6 +7,7 @@ import { JwtModule } from "@libs/jwt"
 import { HealthController } from "./health.controller"
 import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 import { AwsCognitoModule } from "@libs/aws-cognito"
+import { SpacesUploadService } from "libs/s3-storage/spaces-upload.service"
 
 @Module({
     imports: [
@@ -26,7 +27,12 @@ import { AwsCognitoModule } from "@libs/aws-cognito"
             useGlobalImports: true,
         }),
     ],
-    providers: [CampaignService, CampaignResolver, CampaignRepository],
+    providers: [
+        CampaignService,
+        CampaignResolver,
+        CampaignRepository,
+        SpacesUploadService,
+    ],
     controllers: [HealthController],
     exports: [CampaignService, CampaignRepository],
 })

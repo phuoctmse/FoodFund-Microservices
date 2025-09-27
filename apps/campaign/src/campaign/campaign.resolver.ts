@@ -21,11 +21,13 @@ import {
     CampaignFilterInput,
     CampaignSortOrder,
     CreateCampaignInput,
+    GenerateUploadUrlInput,
     UpdateCampaignInput,
-} from "./dtos/campaign.input"
+} from "./dtos/request/campaign.input"
 import { CurrentUser } from "libs/auth"
 import { CampaignStatus } from "./enums/campaign.enums"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
+import { SignedUrlResponse } from "./dtos/response/signed-url.response"
 
 @Resolver(() => Campaign)
 @UseInterceptors(SentryInterceptor)
@@ -33,6 +35,26 @@ export class CampaignResolver {
     private readonly logger = new Logger(CampaignResolver.name)
 
     constructor(private readonly campaignService: CampaignService) {}
+
+    @Mutation(() => SignedUrlResponse, {
+        description:
+            "Generate signed URL for campaign image upload (requires authentication)",
+    })
+    @UseGuards(CognitoGraphQLGuard)
+    async generateCampaignImageUploadUrl(
+        @Args(
+            "input",
+            { type: () => GenerateUploadUrlInput },
+            new ValidationPipe(),
+        )
+            input: GenerateUploadUrlInput,
+        @CurrentUser("sub") userId: string,
+    ): Promise<SignedUrlResponse> {
+        return this.campaignService.generateCampaignImageUploadUrl(
+            input,
+            userId,
+        )
+    }
 
     @Mutation(() => Campaign, {
         description: "Create a new campaign (requires authentication)",

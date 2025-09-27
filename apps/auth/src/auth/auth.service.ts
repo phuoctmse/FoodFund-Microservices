@@ -104,7 +104,10 @@ export class AuthService {
     async validateUser(user: AuthUser): Promise<AuthResponse> {
         return this.authUserService.validateUser(user)
     }
-    async changePassword(id: string, input: ChangePasswordInput): Promise<boolean> {
+    async changePassword(
+        id: string,
+        input: ChangePasswordInput,
+    ): Promise<boolean> {
         return this.authUserService.changePassword(id, input)
     }
 }

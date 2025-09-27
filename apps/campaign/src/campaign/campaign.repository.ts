@@ -4,7 +4,7 @@ import {
     CampaignSortOrder,
     CreateCampaignInput,
     UpdateCampaignInput,
-} from "./dtos/campaign.input"
+} from "./dtos/request/campaign.input"
 import { CampaignStatus } from "./enums/campaign.enums"
 import { Campaign } from "./models/campaign.model"
 import { PrismaClient } from "@prisma/client"
@@ -18,6 +18,26 @@ export interface FindManyOptions {
     offset?: number
 }
 
+interface CreateCampaignData {
+    title: string
+    description: string
+    coverImage: string
+    location: string
+    targetAmount: string
+    startDate: Date
+    endDate: Date
+    createdBy: string
+    status: CampaignStatus
+    coverImageFileKey?: string
+}
+
+interface UpdateCampaignData extends Partial<UpdateCampaignInput> {
+    coverImage?: string
+    status?: CampaignStatus
+    approvedAt?: Date
+    coverImageFileKey?: string
+}
+
 @Injectable()
 export class CampaignRepository {
     private readonly logger = new Logger(CampaignRepository.name)
@@ -27,18 +47,14 @@ export class CampaignRepository {
         private readonly sentryService: SentryService,
     ) {}
 
-    async create(
-        data: CreateCampaignInput & {
-            createdBy: string
-            status: CampaignStatus
-        },
-    ): Promise<Campaign> {
+    async create(data: CreateCampaignData): Promise<Campaign> {
         try {
             const campaign = await this.prisma.campaign.create({
                 data: {
                     title: data.title,
                     description: data.description,
                     cover_image: data.coverImage,
+                    cover_image_file_key: data.coverImageFileKey || null,
                     location: data.location,
                     target_amount: BigInt(data.targetAmount),
                     start_date: data.startDate,
@@ -54,6 +70,7 @@ export class CampaignRepository {
                     title: true,
                     description: true,
                     cover_image: true,
+                    cover_image_file_key: true,
                     location: true,
                     target_amount: true,
                     donation_count: true,
@@ -74,7 +91,11 @@ export class CampaignRepository {
             this.logger.error("Failed to create campaign:", error)
             this.sentryService.captureError(error as Error, {
                 operation: "createCampaign",
-                data,
+                data: {
+                    title: data.title,
+                    hasFileKey: !!data.coverImageFileKey,
+                    createdBy: data.createdBy,
+                },
             })
             throw error
         }
@@ -89,6 +110,7 @@ export class CampaignRepository {
                     title: true,
                     description: true,
                     cover_image: true,
+                    cover_image_file_key: true,
                     location: true,
                     target_amount: true,
                     donation_count: true,
@@ -177,6 +199,7 @@ export class CampaignRepository {
                     title: true,
                     description: true,
                     cover_image: true,
+                    cover_image_file_key: true,
                     location: true,
                     target_amount: true,
                     donation_count: true,
@@ -206,13 +229,7 @@ export class CampaignRepository {
         }
     }
 
-    async update(
-        id: string,
-        data: Partial<UpdateCampaignInput> & {
-            status?: CampaignStatus
-            approvedAt?: Date
-        },
-    ): Promise<Campaign> {
+    async update(id: string, data: UpdateCampaignData): Promise<Campaign> {
         try {
             const updateData: any = {}
 
@@ -221,6 +238,8 @@ export class CampaignRepository {
                 updateData.description = data.description
             if (data.coverImage !== undefined)
                 updateData.cover_image = data.coverImage
+            if (data.coverImageFileKey !== undefined)
+                updateData.cover_image_file_key = data.coverImageFileKey
             if (data.location !== undefined) updateData.location = data.location
             if (data.targetAmount !== undefined)
                 updateData.target_amount = BigInt(data.targetAmount)
@@ -239,6 +258,7 @@ export class CampaignRepository {
                     title: true,
                     description: true,
                     cover_image: true,
+                    cover_image_file_key: true,
                     location: true,
                     target_amount: true,
                     donation_count: true,
@@ -260,7 +280,10 @@ export class CampaignRepository {
             this.sentryService.captureError(error as Error, {
                 operation: "updateCampaign",
                 campaignId: id,
-                data,
+                data: {
+                    hasFileKey: !!data.coverImageFileKey,
+                    updateFields: Object.keys(data),
+                },
             })
             throw error
         }
@@ -341,6 +364,7 @@ export class CampaignRepository {
             title: dbCampaign.title,
             description: dbCampaign.description,
             coverImage: dbCampaign.cover_image,
+            coverImageFileKey: dbCampaign.cover_image_file_key || undefined,
             location: dbCampaign.location,
             targetAmount: dbCampaign.target_amount.toString(),
             donationCount: dbCampaign.donation_count,

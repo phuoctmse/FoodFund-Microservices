@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common"
 import { UserService } from "./user.service"
-import { CreateUserInput, UpdateUserInput } from "./dto/user.input"
+import { UpdateUserInput } from "./dto/user.input"
 import { Role } from "libs/databases/prisma/schemas"
 import { UserHealthResponse } from "./types/health-response.model"
 import {
@@ -27,8 +27,6 @@ export class UserResolver {
     }
 
     // Query operations
-
-    
 
     async findAllUsers(skip?: number, take?: number) {
         return this.userService.findAllUsers(skip, take)

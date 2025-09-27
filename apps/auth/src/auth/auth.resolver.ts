@@ -99,7 +99,10 @@ export class AuthResolver {
     async getUserById(id: string): Promise<AuthUser | null> {
         return this.authService.getUserById(id)
     }
-    async changePassword(id: string, input: ChangePasswordInput): Promise<boolean> {
+    async changePassword(
+        id: string,
+        input: ChangePasswordInput,
+    ): Promise<boolean> {
         return this.authService.changePassword(id, input)
     }
 }

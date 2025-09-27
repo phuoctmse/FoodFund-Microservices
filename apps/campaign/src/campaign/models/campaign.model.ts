@@ -13,19 +13,32 @@ export class Campaign {
     @Field(() => String, { description: "Campaign description" })
         description: string
 
-    @Field(() => String, { description: "Campaign cover image URL" })
+    @Field(() => String, {
+        description: "Campaign cover image URL (CDN or external)",
+    })
         coverImage: string
+
+    @Field(() => String, {
+        nullable: true,
+        description:
+            "File key in Digital Ocean Spaces (for internal management)",
+    })
+        coverImageFileKey?: string
 
     @Field(() => String, { description: "Campaign location" })
         location: string
 
-    @Field(() => String, { description: "Target amount as string (BigInt)" })
+    @Field(() => String, {
+        description: "Target amount as string (BigInt compatible)",
+    })
         targetAmount: string
 
     @Field(() => Int, { description: "Number of donations received" })
         donationCount: number
 
-    @Field(() => String, { description: "Received amount as string (BigInt)" })
+    @Field(() => String, {
+        description: "Received amount as string (BigInt compatible)",
+    })
         receivedAmount: string
 
     @Field(() => CampaignStatus, { description: "Campaign status" })

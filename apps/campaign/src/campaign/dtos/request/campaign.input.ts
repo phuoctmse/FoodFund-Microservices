@@ -7,8 +7,27 @@ import {
     IsString,
     IsUUID,
 } from "class-validator"
-import { CampaignStatus } from "../enums/campaign.enums"
+import { CampaignStatus } from "../../enums/campaign.enums"
 import { Transform, Type } from "class-transformer"
+
+@InputType()
+export class GenerateUploadUrlInput {
+    @Field(() => String, {
+        nullable: true,
+        description: "Optional campaign ID if updating existing campaign",
+    })
+    @IsOptional()
+    @IsUUID(4, { message: "Campaign ID must be a valid UUID" })
+        campaignId?: string
+
+    @Field(() => String, {
+        nullable: true,
+        description: "File type hint (jpeg, png, webp)",
+    })
+    @IsOptional()
+    @IsString()
+        fileType?: string
+}
 
 @InputType()
 export class CreateCampaignInput {
@@ -22,10 +41,13 @@ export class CreateCampaignInput {
     @IsNotEmpty({ message: "Description is required and cannot be empty" })
         description: string
 
-    @Field(() => String, { description: "Campaign cover image URL" })
-    @IsString({ message: "Cover image URL must be a string" })
-    @IsNotEmpty({ message: "Cover image URL is required" })
-        coverImage: string
+    @Field(() => String, {
+        description:
+            "File key of uploaded cover image (from generateUploadUrl)",
+    })
+    @IsString({ message: "Cover image file key must be a string" })
+    @IsNotEmpty({ message: "Cover image file key is required" })
+        coverImageFileKey: string
 
     @Field(() => String, { description: "Campaign location" })
     @IsString({ message: "Location must be a string" })
@@ -89,26 +111,33 @@ export class UpdateCampaignInput {
 
     @Field(() => String, {
         nullable: true,
-        description: "Campaign cover image URL",
+        description:
+            "File key for uploaded cover image (from generateUploadUrl)",
     })
     @IsOptional()
-    @IsString({ message: "Cover image URL must be a string" })
-        coverImage?: string
+    @IsString({ message: "Cover image file key must be a string" })
+    @IsNotEmpty({ message: "Cover image file key cannot be empty if provided" })
+        coverImageFileKey?: string
 
     @Field(() => String, { nullable: true, description: "Campaign location" })
     @IsOptional()
     @IsString({ message: "Location must be a string" })
+    @IsNotEmpty({ message: "Location cannot be empty if provided" })
         location?: string
 
     @Field(() => String, {
         nullable: true,
-        description: "Target amount as string",
+        description: "Target amount as string (BigInt compatible)",
     })
     @IsOptional()
     @IsString({ message: "Target amount must be a string" })
+    @IsNotEmpty({ message: "Target amount cannot be empty if provided" })
         targetAmount?: string
 
-    @Field(() => Date, { nullable: true, description: "Campaign start date" })
+    @Field(() => Date, {
+        nullable: true,
+        description: "Campaign start date (ISO 8601)",
+    })
     @IsOptional()
     @Type(() => Date)
     @IsDate({ message: "Start date must be a valid date" })
@@ -125,7 +154,10 @@ export class UpdateCampaignInput {
     })
         startDate?: Date
 
-    @Field(() => Date, { nullable: true, description: "Campaign end date" })
+    @Field(() => Date, {
+        nullable: true,
+        description: "Campaign end date (ISO 8601)",
+    })
     @IsOptional()
     @Type(() => Date)
     @IsDate({ message: "End date must be a valid date" })
