@@ -7,8 +7,8 @@ import {
     AvailabilityStatus,
 } from "../enums/user.enums"
 
-// Main User GraphQL Schema
-@ObjectType()
+@ObjectType("User")
+@Directive("@shareable")
 @Directive("@key(fields: \"id\")")
 export class UserProfileSchema extends AbstractSchema {
     @Field(() => String, {
@@ -20,7 +20,7 @@ export class UserProfileSchema extends AbstractSchema {
         description: "User's avatar URL",
         nullable: true,
     })
-        avatar_url: string
+        avatar_url?: string
 
     @Field(() => String, {
         description: "User email address",
@@ -31,7 +31,7 @@ export class UserProfileSchema extends AbstractSchema {
         description: "User's phone number",
         nullable: true,
     })
-        phone_number: string
+        phone_number?: string
 
     @Field(() => Role, {
         description: "User's role in the system",
@@ -55,8 +55,11 @@ export class UserProfileSchema extends AbstractSchema {
     })
         bio?: string
 
-    // Remove profile relationships to avoid circular dependency
-    // Profiles will be resolved separately in resolvers
+    __typename?: string
+
+    constructor() {
+        super()
+    }
 }
 
 // Donor Profile Schema
@@ -76,9 +79,6 @@ export class DonorProfileSchema extends AbstractSchema {
         description: "Total amount donated (as string for BigInt)",
     })
         totalDonated: string
-
-    // Remove user relationship to avoid circular dependency
-    // User will be resolved separately in resolvers
 }
 
 // Kitchen Staff Profile Schema
