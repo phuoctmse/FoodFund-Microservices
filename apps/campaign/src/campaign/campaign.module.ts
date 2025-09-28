@@ -5,18 +5,15 @@ import { CampaignResolver } from "./campaign.resolver"
 import { CampaignRepository } from "./campaign.repository"
 import { JwtModule } from "@libs/jwt"
 import { HealthController } from "./health.controller"
-import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 import { AwsCognitoModule } from "@libs/aws-cognito"
 import { SpacesUploadService } from "libs/s3-storage/spaces-upload.service"
+import { CampaignSchedulerService } from "./services/campaign-scheduler.service"
+import { CampaignStatusJob } from "./jobs/campaign-status.job"
+import { ScheduleModule } from "@nestjs/schedule"
+import { CampaignMapper } from "./campaign.mapper"
 
 @Module({
     imports: [
-        GraphQLSubgraphModule.forRoot({
-            debug: process.env.NODE_ENV === "development",
-            playground: process.env.NODE_ENV === "development",
-            federationVersion: 2,
-            path: "/graphql",
-        }),
         AwsCognitoModule.forRoot({
             isGlobal: false,
             mockMode: false,
@@ -26,14 +23,18 @@ import { SpacesUploadService } from "libs/s3-storage/spaces-upload.service"
             isGlobal: false,
             useGlobalImports: true,
         }),
+        ScheduleModule.forRoot(),
     ],
     providers: [
+        SpacesUploadService,
         CampaignService,
         CampaignResolver,
         CampaignRepository,
-        SpacesUploadService,
+        CampaignMapper,
+        CampaignSchedulerService,
+        CampaignStatusJob,
     ],
     controllers: [HealthController],
-    exports: [CampaignService, CampaignRepository],
+    exports: [CampaignService, CampaignRepository, CampaignSchedulerService],
 })
 export class CampaignModule {}
