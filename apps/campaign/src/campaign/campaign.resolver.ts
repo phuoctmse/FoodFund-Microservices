@@ -49,7 +49,7 @@ export class CampaignResolver {
             { type: () => GenerateUploadUrlInput },
             new ValidationPipe(),
         )
-        input: GenerateUploadUrlInput,
+            input: GenerateUploadUrlInput,
         @CurrentUser("sub") userId: string,
     ): Promise<SignedUrlResponse> {
         return this.campaignService.generateCampaignImageUploadUrl(
@@ -68,7 +68,7 @@ export class CampaignResolver {
             { type: () => CreateCampaignInput },
             new ValidationPipe(),
         )
-        input: CreateCampaignInput,
+            input: CreateCampaignInput,
         @CurrentUser("sub") userId: string,
     ): Promise<Campaign> {
         return this.campaignService.createCampaign(input, userId)
@@ -85,7 +85,7 @@ export class CampaignResolver {
             { type: () => UpdateCampaignInput },
             new ValidationPipe(),
         )
-        input: UpdateCampaignInput,
+            input: UpdateCampaignInput,
         @CurrentUser("sub") userId: string,
     ): Promise<Campaign> {
         return this.campaignService.updateCampaign(id, input, userId)
@@ -108,29 +108,29 @@ export class CampaignResolver {
     })
     async campaigns(
         @Args("filter", { type: () => CampaignFilterInput, nullable: true })
-        filter?: CampaignFilterInput,
+            filter?: CampaignFilterInput,
         @Args("search", { type: () => String, nullable: true })
-        search?: string,
+            search?: string,
         @Args("sortBy", {
             type: () => CampaignSortOrder,
             nullable: true,
             defaultValue: CampaignSortOrder.ACTIVE_FIRST,
         })
-        sortBy: CampaignSortOrder = CampaignSortOrder.ACTIVE_FIRST,
+            sortBy: CampaignSortOrder = CampaignSortOrder.ACTIVE_FIRST,
         @Args("limit", {
             type: () => Int,
             nullable: true,
             defaultValue: 10,
             description: "Number of campaigns to return (max 100)",
         })
-        limit: number = 10,
+            limit: number = 10,
         @Args("offset", {
             type: () => Int,
             nullable: true,
             defaultValue: 0,
             description: "Number of campaigns to skip",
         })
-        offset: number = 0,
+            offset: number = 0,
     ): Promise<Campaign[]> {
         const safeLimit = Math.min(Math.max(limit, 1), 100)
         const safeOffset = Math.max(offset, 0)
@@ -171,19 +171,19 @@ export class CampaignResolver {
             nullable: true,
             defaultValue: CampaignSortOrder.NEWEST_FIRST,
         })
-        sortBy: CampaignSortOrder = CampaignSortOrder.NEWEST_FIRST,
+            sortBy: CampaignSortOrder = CampaignSortOrder.NEWEST_FIRST,
         @Args("limit", {
             type: () => Int,
             nullable: true,
             defaultValue: 10,
         })
-        limit: number = 10,
+            limit: number = 10,
         @Args("offset", {
             type: () => Int,
             nullable: true,
             defaultValue: 0,
         })
-        offset: number = 0,
+            offset: number = 0,
     ): Promise<Campaign[]> {
         const safeLimit = Math.min(Math.max(limit, 1), 100)
         const safeOffset = Math.max(offset, 0)

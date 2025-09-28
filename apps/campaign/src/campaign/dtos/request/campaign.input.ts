@@ -7,8 +7,8 @@ import {
     IsString,
     IsUUID,
 } from "class-validator"
-import { CampaignStatus } from "../../enums/campaign.enums"
 import { Transform, Type } from "class-transformer"
+import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
 
 @InputType()
 export class GenerateUploadUrlInput {

@@ -10,7 +10,7 @@ import { UserProfileSchema, Role } from "libs/databases/prisma/schemas"
 import { UserHealthResponse } from "../types/health-response.model"
 import { UserResolver as UserResolverFacade } from "../user.resolver"
 import { UseGuards } from "@nestjs/common"
-import { CognitoAuthGuard, CognitoGraphQLGuard } from "@libs/aws-cognito"
+import { CognitoGraphQLGuard } from "@libs/aws-cognito"
 
 @Resolver(() => UserProfileSchema)
 export class UserQueryResolver {
@@ -81,7 +81,6 @@ export class UserQueryResolver {
         return this.userResolverFacade.getActiveUsers()
     }
 
-    // GraphQL Federation resolver
     @ResolveReference()
     async resolveReference(reference: { __typename: string; id: string }) {
         return this.userResolverFacade.resolveReference(reference)
