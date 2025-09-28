@@ -6,8 +6,6 @@ import {
     NotFoundException,
     UnauthorizedException,
 } from "@nestjs/common"
-import { CampaignStatus } from "./enums/campaign.enums"
-import { Campaign } from "./models/campaign.model"
 import {
     CampaignFilterInput,
     CampaignSortOrder,
@@ -18,6 +16,8 @@ import {
 import { SentryService } from "@libs/observability/sentry.service"
 import { CampaignRepository } from "./campaign.repository"
 import { SpacesUploadService } from "libs/s3-storage/spaces-upload.service"
+import { Campaign } from "@libs/databases/prisma/schemas/models/campaign.model"
+import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
 
 @Injectable()
 export class CampaignService {
@@ -304,19 +304,81 @@ export class CampaignService {
                     "User authentication required to change campaign status",
                 )
             }
+
             const campaign = await this.findCampaignById(id)
             this.validateStatusTransition(campaign.status, newStatus)
             this.validateCampaignOwnership(campaign, userId)
 
-            const updatedData: any = { status: newStatus }
+            let finalStatus = newStatus
+            const updateData: any = { status: newStatus }
 
-            if (newStatus === CampaignStatus.APPROVED) {
-                updatedData.approvedAt = new Date()
+            if (
+                campaign.status === CampaignStatus.PENDING &&
+                newStatus === CampaignStatus.APPROVED
+            ) {
+                const today = new Date()
+                const startDate = new Date(campaign.startDate)
+
+                const todayNormalized = new Date(
+                    today.getFullYear(),
+                    today.getMonth(),
+                    today.getDate(),
+                )
+                const startDateNormalized = new Date(
+                    startDate.getFullYear(),
+                    startDate.getMonth(),
+                    startDate.getDate(),
+                )
+
+                if (
+                    startDateNormalized.getTime() === todayNormalized.getTime()
+                ) {
+                    finalStatus = CampaignStatus.ACTIVE
+                    updateData.status = CampaignStatus.ACTIVE
+                    updateData.approvedAt = new Date()
+
+                    this.logger.log(
+                        `Campaign ${id} auto-activated because start date is today`,
+                    )
+
+                    this.sentryService.addBreadcrumb(
+                        "Campaign auto-activated on approval",
+                        "campaign",
+                        {
+                            campaignId: id,
+                            originalStatus: campaign.status,
+                            requestedStatus: newStatus,
+                            finalStatus: finalStatus,
+                            startDate: campaign.startDate.toISOString(),
+                            reason: "start_date_is_today",
+                        },
+                    )
+                } else {
+                    updateData.approvedAt = new Date()
+
+                    this.logger.log(
+                        `Campaign ${id} approved, will activate on ${startDate.toDateString()}`,
+                    )
+                }
+            } else if (newStatus === CampaignStatus.APPROVED) {
+                updateData.approvedAt = new Date()
             }
 
             const updatedCampaign = await this.campaignRepository.update(
                 id,
-                updatedData,
+                updateData,
+            )
+
+            this.sentryService.addBreadcrumb(
+                "Campaign status changed",
+                "campaign",
+                {
+                    campaignId: id,
+                    userId,
+                    oldStatus: campaign.status,
+                    newStatus: finalStatus,
+                    autoActivated: finalStatus !== newStatus,
+                },
             )
 
             return updatedCampaign
@@ -325,7 +387,7 @@ export class CampaignService {
                 operation: "changeStatus",
                 campaignId: id,
                 userId,
-                newStatus,
+                requestedStatus: newStatus,
                 authenticated: !!userId,
             })
             throw error
@@ -385,7 +447,6 @@ export class CampaignService {
         __typename: string
         id: string
     }): Promise<Campaign> {
-        this.logger.log(`Resolving Campaign reference: ${reference.id}`)
         return this.findCampaignById(reference.id)
     }
 
