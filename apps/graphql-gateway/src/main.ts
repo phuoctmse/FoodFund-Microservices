@@ -12,6 +12,7 @@ async function bootstrap() {
         "http://localhost:8000", // GraphQL Gateway local
         "http://localhost:8001", // Auth service local
         "http://localhost:8002", // User service local
+        "http://localhost:8004", // Campaign Service
     ]
     app.use(compression())
     app.enableCors({

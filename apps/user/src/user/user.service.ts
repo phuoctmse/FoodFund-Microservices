@@ -8,8 +8,6 @@ import {
     UpdateFundraiserProfileInput,
     UpdateDeliveryStaffProfileInput,
 } from "./user.repository"
-
-// Import GraphQL models from shared libs for response typing
 import { Role } from "libs/databases/prisma/schemas"
 import { UserHealthResponse } from "./types/health-response.model"
 import {

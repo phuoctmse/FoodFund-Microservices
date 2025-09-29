@@ -1,12 +1,12 @@
-import { Directive, Field, ID, Int, ObjectType } from "@nestjs/graphql"
-import { CampaignStatus } from "../enums/campaign.enums"
+import { Directive, Field, Int, ObjectType } from "@nestjs/graphql"
+import { AbstractSchema } from "../abstract.schema"
+import { UserProfileSchema } from "./user-profiles.model"
+import { Donation } from "./donation.model"
+import { CampaignStatus } from "../enums/campaign.enum"
 
-@ObjectType()
+@ObjectType("Campaign")
 @Directive("@key(fields: \"id\")")
-export class Campaign {
-    @Field(() => ID, { description: "Unique campaign identifier" })
-        id: string
-
+export class Campaign extends AbstractSchema {
     @Field(() => String, { description: "Campaign title" })
         title: string
 
@@ -64,54 +64,20 @@ export class Campaign {
     })
         approvedAt?: Date
 
-    @Field(() => Date, { description: "Campaign creation timestamp" })
-        createdAt: Date
-
-    @Field(() => Date, { description: "Campaign last update timestamp" })
-        updatedAt: Date
-}
-
-@ObjectType()
-@Directive("@extends")
-@Directive("@key(fields: \"id\")")
-export class User {
-    @Field(() => ID)
-    @Directive("@external")
-        id: string
-}
-
-@ObjectType()
-@Directive("@key(fields: \"id\")")
-export class Donation {
-    @Field(() => ID, { description: "Unique donation identifier" })
-        id: string
-
-    @Field(() => String, { description: "ID of user who made the donation" })
-        donorId: string
-
-    @Field(() => String, {
-        description: "ID of campaign receiving the donation",
-    })
-        campaignId: string
-
-    @Field(() => String, { description: "Donation amount as string (BigInt)" })
-        amount: string
-
-    @Field(() => String, {
+    @Field(() => UserProfileSchema, {
         nullable: true,
-        description: "Optional message from donor",
+        description:
+            "Campaign Creator - resolved by User service via federation",
     })
-        message?: string
+        creator?: UserProfileSchema
 
-    @Field(() => String, {
-        nullable: true,
-        description: "Payment reference/transaction ID",
+    @Field(() => [Donation], {
+        description: "Campaign donations - resolved by federation",
+        defaultValue: [],
     })
-        paymentReference?: string
+        donations?: Donation[]
 
-    @Field(() => Boolean, { description: "Whether donation is anonymous" })
-        isAnonymous: boolean
-
-    @Field(() => Date, { description: "Donation timestamp" })
-        createdAt: Date
+    constructor() {
+        super()
+    }
 }

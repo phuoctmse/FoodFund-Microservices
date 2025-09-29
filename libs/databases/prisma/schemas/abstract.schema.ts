@@ -1,11 +1,11 @@
-import { ObjectType, Field } from "@nestjs/graphql"
+import { ObjectType, Field, ID } from "@nestjs/graphql"
 
 @ObjectType({
     isAbstract: true,
     description: "Abstract base schema with common fields",
 })
 export abstract class AbstractSchema {
-    @Field(() => String, {
+    @Field(() => ID, {
         description: "Unique identifier",
     })
         id: string
@@ -13,10 +13,10 @@ export abstract class AbstractSchema {
     @Field(() => Date, {
         description: "Creation timestamp",
     })
-        created_at: Date
+        createdAt: Date
 
     @Field(() => Date, {
         description: "Last update timestamp",
     })
-        updated_at: Date
+        updatedAt: Date
 }

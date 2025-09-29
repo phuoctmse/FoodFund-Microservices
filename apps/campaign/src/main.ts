@@ -12,7 +12,6 @@ async function bootstrap() {
                     ? ["error", "warn", "log", "debug", "verbose"]
                     : ["error", "warn", "log"],
         })
-
         const sentryService = app.get(SentryService)
 
         app.useGlobalPipes(
@@ -23,11 +22,11 @@ async function bootstrap() {
                     exposeDefaultValues: true,
                 },
                 whitelist: true,
-                forbidNonWhitelisted: true,
+                forbidNonWhitelisted: false,
                 validateCustomDecorators: true,
                 disableErrorMessages: process.env.NODE_ENV === "production",
                 stopAtFirstError: false,
-                forbidUnknownValues: true,
+                forbidUnknownValues: false,
             }),
         )
         app.useGlobalFilters(new GraphQLExceptionFilter(sentryService))
@@ -60,8 +59,6 @@ async function bootstrap() {
         const port = process.env.PORT ?? 8004
         await app.listen(port)
 
-        const isDevelopment = process.env.NODE_ENV === "development"
-
         sentryService.captureMessage(
             "Campaign service started successfully",
             "info",
@@ -70,15 +67,16 @@ async function bootstrap() {
                 environment: process.env.NODE_ENV,
                 federation: "enabled",
                 validation: "enhanced",
-                development: isDevelopment,
             },
         )
     } catch (error) {
+        console.error("❌ Failed to start Campaign Service:", error)
+        console.error("Stack trace:", error.stack)
         process.exit(1)
     }
 }
 
 bootstrap().catch((error) => {
-    console.error("Failed to start campaign service:", error)
+    console.error("Bootstrap failed:", error)
     process.exit(1)
 })
