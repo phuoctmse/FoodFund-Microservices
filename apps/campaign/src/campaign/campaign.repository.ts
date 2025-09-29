@@ -63,7 +63,7 @@ export class CampaignRepository {
                     created_by: data.createdBy,
                     status: this.campaignMapper.graphQLStatusToPrisma(
                         data.status,
-                    ),
+                    ) as any,
                     donation_count: 0,
                     received_amount: BigInt(0),
                     is_active: true,
@@ -79,6 +79,7 @@ export class CampaignRepository {
                     title: data.title,
                     hasFileKey: !!data.coverImageFileKey,
                     createdBy: data.createdBy,
+                    status: data.status,
                 },
             })
             throw error
@@ -105,15 +106,15 @@ export class CampaignRepository {
     }
 
     async findMany(options: FindManyOptions): Promise<Campaign[]> {
-        try {
-            const {
-                filter,
-                search,
-                sortBy = CampaignSortOrder.ACTIVE_FIRST,
-                limit = 10,
-                offset = 0,
-            } = options
+        const {
+            filter,
+            search,
+            sortBy = CampaignSortOrder.ACTIVE_FIRST,
+            limit = 10,
+            offset = 0,
+        } = options
 
+        try {
             const whereClause: any = {
                 AND: [],
             }
@@ -160,11 +161,9 @@ export class CampaignRepository {
                 })
             }
 
-            const orderBy = this.buildOrderByClause(sortBy)
-
             const campaigns = await this.prisma.campaign.findMany({
                 where: whereClause.AND.length > 0 ? whereClause : undefined,
-                orderBy,
+                orderBy: this.buildOrderByClause(sortBy),
                 take: Math.min(limit, 100),
                 skip: offset,
             })
@@ -174,7 +173,12 @@ export class CampaignRepository {
             this.logger.error("Failed to find campaigns:", error)
             this.sentryService.captureError(error as Error, {
                 operation: "findManyCampaigns",
-                options,
+                filterData: filter,
+                searchTerm: search,
+                sortOrder: sortBy,
+                limitValue: limit,
+                offsetValue: offset,
+                originalOptions: options,
             })
             throw error
         }
@@ -282,7 +286,10 @@ export class CampaignRepository {
     private buildOrderByClause(sortBy: CampaignSortOrder): any {
         switch (sortBy) {
         case CampaignSortOrder.ACTIVE_FIRST:
-            return [{ status: "desc" }, { created_at: "desc" }]
+            return [
+                { status: "asc" },
+                { created_at: "desc" },
+            ]
         case CampaignSortOrder.NEWEST_FIRST:
             return { created_at: "desc" }
         case CampaignSortOrder.OLDEST_FIRST:
