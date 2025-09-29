@@ -40,6 +40,25 @@ interface UpdateCampaignData extends Partial<UpdateCampaignInput> {
 @Injectable()
 export class CampaignRepository {
     private readonly logger = new Logger(CampaignRepository.name)
+    private readonly CAMPAIGN_SELECT_FIELDS = {
+        id: true,
+        title: true,
+        description: true,
+        cover_image: true,
+        cover_image_file_key: true,
+        location: true,
+        target_amount: true,
+        donation_count: true,
+        received_amount: true,
+        status: true,
+        start_date: true,
+        end_date: true,
+        is_active: true,
+        created_by: true,
+        approved_at: true,
+        created_at: true,
+        updated_at: true,
+    } as const
 
     constructor(
         private readonly prisma: PrismaClient,
@@ -64,25 +83,7 @@ export class CampaignRepository {
                     received_amount: BigInt(0),
                     is_active: true,
                 },
-                select: {
-                    id: true,
-                    title: true,
-                    description: true,
-                    cover_image: true,
-                    cover_image_file_key: false,
-                    location: true,
-                    target_amount: true,
-                    donation_count: true,
-                    received_amount: true,
-                    status: true,
-                    start_date: true,
-                    end_date: true,
-                    is_active: false,
-                    created_by: true,
-                    approved_at: true,
-                    created_at: true,
-                    updated_at: true,
-                },
+                select: this.CAMPAIGN_SELECT_FIELDS,
             })
 
             return this.mapToGraphQLModel(campaign)
@@ -108,25 +109,7 @@ export class CampaignRepository {
                     id,
                     is_active: true,
                 },
-                select: {
-                    id: true,
-                    title: true,
-                    description: true,
-                    cover_image: true,
-                    cover_image_file_key: false,
-                    location: true,
-                    target_amount: true,
-                    donation_count: true,
-                    received_amount: true,
-                    status: true,
-                    start_date: true,
-                    end_date: true,
-                    is_active: false,
-                    created_by: true,
-                    approved_at: true,
-                    created_at: true,
-                    updated_at: true,
-                },
+                select: this.CAMPAIGN_SELECT_FIELDS,
             })
 
             return campaign ? this.mapToGraphQLModel(campaign) : null
@@ -169,51 +152,36 @@ export class CampaignRepository {
             }
 
             if (search) {
-                whereClause.AND.push({
-                    OR: [
-                        {
-                            title: {
-                                contains: search,
-                                mode: "insensitive",
+                const sanitizedSearch = this.sanitizeSearchTerm(search)
+                if (sanitizedSearch) {
+                    whereClause.AND.push({
+                        OR: [
+                            {
+                                title: {
+                                    contains: sanitizedSearch,
+                                    mode: "insensitive",
+                                },
                             },
-                        },
-                        {
-                            description: {
-                                contains: search,
-                                mode: "insensitive",
+                            {
+                                description: {
+                                    contains: sanitizedSearch,
+                                    mode: "insensitive",
+                                },
                             },
-                        },
-                        {
-                            location: {
-                                contains: search,
-                                mode: "insensitive",
+                            {
+                                location: {
+                                    contains: sanitizedSearch,
+                                    mode: "insensitive",
+                                },
                             },
-                        },
-                    ],
-                })
+                        ],
+                    })
+                }
             }
 
             const campaigns = await this.prisma.campaign.findMany({
                 where: whereClause,
-                select: {
-                    id: true,
-                    title: true,
-                    description: true,
-                    cover_image: true,
-                    cover_image_file_key: false,
-                    location: true,
-                    target_amount: true,
-                    donation_count: true,
-                    received_amount: true,
-                    status: true,
-                    start_date: true,
-                    end_date: true,
-                    is_active: false,
-                    created_by: true,
-                    approved_at: true,
-                    created_at: true,
-                    updated_at: true,
-                },
+                select: this.CAMPAIGN_SELECT_FIELDS,
                 orderBy: this.buildOrderByClause(sortBy),
                 take: Math.min(limit, 100),
                 skip: offset,
@@ -256,34 +224,17 @@ export class CampaignRepository {
             if (data.approvedAt !== undefined)
                 updateData.approved_at = data.approvedAt
 
-            const campaign = await this.prisma.campaign.update({
-                where: {
-                    id,
-                    is_active: true,
-                },
-                data: updateData,
-                select: {
-                    id: true,
-                    title: true,
-                    description: true,
-                    cover_image: true,
-                    cover_image_file_key: false,
-                    location: true,
-                    target_amount: true,
-                    donation_count: true,
-                    received_amount: true,
-                    status: true,
-                    start_date: true,
-                    end_date: true,
-                    is_active: false,
-                    created_by: true,
-                    approved_at: true,
-                    created_at: true,
-                    updated_at: true,
-                },
+            return await this.prisma.$transaction(async (tx) => {
+                const campaign = await tx.campaign.update({
+                    where: {
+                        id,
+                        is_active: true,
+                    },
+                    data: updateData,
+                    select: this.CAMPAIGN_SELECT_FIELDS,
+                })
+                return this.mapToGraphQLModel(campaign)
             })
-
-            return this.mapToGraphQLModel(campaign)
         } catch (error) {
             this.logger.error(`Failed to update campaign ${id}:`, error)
             this.sentryService.captureError(error as Error, {
@@ -386,25 +337,7 @@ export class CampaignRepository {
                     is_active: true,
                     updated_at: new Date(),
                 },
-                select: {
-                    id: true,
-                    title: true,
-                    description: true,
-                    cover_image: true,
-                    cover_image_file_key: false,
-                    location: true,
-                    target_amount: true,
-                    donation_count: true,
-                    received_amount: true,
-                    status: true,
-                    start_date: true,
-                    end_date: true,
-                    is_active: false,
-                    created_by: true,
-                    approved_at: true,
-                    created_at: true,
-                    updated_at: true,
-                },
+                select: this.CAMPAIGN_SELECT_FIELDS,
             })
 
             return this.mapToGraphQLModel(campaign)
@@ -435,7 +368,23 @@ export class CampaignRepository {
         }
     }
 
+    private sanitizeSearchTerm(search: string): string {
+        if (!search || typeof search !== "string") {
+            return ""
+        }
+
+        return search
+            .trim()
+            .replace(/[%_\\]/g, "\\$&")
+            .replace(/['";]/g, "")
+            .slice(0, 100)
+    }
+
     private mapToGraphQLModel(dbCampaign: any): Campaign {
+        const bigIntFields = {
+            targetAmount: dbCampaign.target_amount?.toString() ?? "0",
+            receivedAmount: dbCampaign.received_amount?.toString() ?? "0",
+        }
         return {
             id: dbCampaign.id,
             title: dbCampaign.title,
@@ -443,9 +392,8 @@ export class CampaignRepository {
             coverImage: dbCampaign.cover_image,
             coverImageFileKey: dbCampaign.cover_image_file_key || undefined,
             location: dbCampaign.location,
-            targetAmount: dbCampaign.target_amount.toString(),
             donationCount: dbCampaign.donation_count,
-            receivedAmount: dbCampaign.received_amount.toString(),
+            ...bigIntFields,
             status: dbCampaign.status as CampaignStatus,
             startDate: dbCampaign.start_date,
             endDate: dbCampaign.end_date,
