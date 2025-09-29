@@ -36,7 +36,7 @@ import { Donation } from "@libs/databases/prisma/schemas/models/donation.model"
 export class CampaignResolver {
     private readonly logger = new Logger(CampaignResolver.name)
 
-    constructor(private readonly campaignService: CampaignService) { }
+    constructor(private readonly campaignService: CampaignService) {}
 
     @Mutation(() => SignedUrlResponse, {
         description:
@@ -211,7 +211,6 @@ export class CampaignResolver {
             id: campaign.createdBy,
         }
         return userReference
-
     }
 
     @ResolveField(() => [Donation])
