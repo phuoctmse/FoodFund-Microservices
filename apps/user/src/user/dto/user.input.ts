@@ -1,4 +1,4 @@
-import { IsVietnamesePhone } from "@libs/validation"
+import { IsVietnamesePhone, IsStrongPassword } from "@libs/validation"
 import { InputType, Field } from "@nestjs/graphql"
 import {
     IsString,
@@ -7,7 +7,10 @@ import {
     IsOptional,
     IsEnum,
     IsBoolean,
+    IsNotEmpty,
+    MinLength,
 } from "class-validator"
+import { Transform } from "class-transformer"
 import { Role } from "libs/databases/prisma/schemas"
 
 @InputType()
@@ -64,4 +67,94 @@ export class UpdateUserInput {
     @IsOptional()
     @IsString()
         bio?: string
+}
+
+@InputType()
+export class CreateStaffAccountInput {
+    @Field()
+    @IsNotEmpty({ message: "Full name is required" })
+    @IsString({ message: "Full name must be a string" })
+    @Transform(({ value }) => value?.trim())
+        full_name: string
+
+    @Field()
+    @IsNotEmpty({ message: "Email is required" })
+    @IsEmail({}, { message: "Please provide a valid email address" })
+    @Transform(({ value }) => value?.toLowerCase().trim())
+        email: string
+
+    @Field()
+    @IsNotEmpty({ message: "Password is required" })
+    @IsStrongPassword({ message: "Password must be strong" })
+        password: string
+
+    @Field()
+    @IsNotEmpty({ message: "Phone number is required" })
+    @IsString({ message: "Phone number must be a string" })
+    @IsVietnamesePhone({
+        message: "Please provide a valid Vietnamese phone number",
+    })
+    @Transform(({ value }) => value?.trim())
+        phone_number: string
+
+    @Field(() => Role)
+    @IsNotEmpty({ message: "Role is required" })
+    @IsEnum([Role.KITCHEN_STAFF, Role.DELIVERY_STAFF, Role.FUNDRAISER], {
+        message: "Role must be KITCHEN_STAFF, DELIVERY_STAFF, or FUNDRAISER",
+    })
+        role: Role
+
+    @Field({ nullable: true })
+    @IsOptional()
+    @IsString({ message: "Avatar URL must be a string" })
+        avatar_url?: string
+
+    @Field({ nullable: true })
+    @IsOptional()
+    @IsString({ message: "Bio must be a string" })
+        bio?: string
+
+    @Field({ nullable: true })
+    @IsOptional()
+    @IsString({ message: "Organization address must be a string" })
+        organization_address?: string
+}
+
+@InputType()
+export class UpdateUserAccountInput {
+    @Field({ nullable: true })
+    @IsOptional()
+    @IsString({ message: "Full name must be a string" })
+    @Transform(({ value }) => value?.trim())
+        full_name?: string
+
+    @Field({ nullable: true })
+    @IsOptional()
+    @IsEmail({}, { message: "Please provide a valid email address" })
+    @Transform(({ value }) => value?.toLowerCase().trim())
+        email?: string
+
+    @Field({ nullable: true })
+    @IsOptional()
+    @IsString({ message: "Phone number must be a string" })
+    @IsVietnamesePhone({
+        message: "Please provide a valid Vietnamese phone number",
+    })
+    @Transform(({ value }) => value?.trim())
+        phone_number?: string
+
+    @Field({ nullable: true })
+    @IsOptional()
+    @IsString({ message: "Avatar URL must be a string" })
+        avatar_url?: string
+
+    @Field({ nullable: true })
+    @IsOptional()
+    @IsString({ message: "Bio must be a string" })
+        bio?: string
+
+    @Field({ nullable: true })
+    @IsOptional()
+    @IsBoolean({ message: "Active status must be boolean" })
+        is_active?: boolean
 }

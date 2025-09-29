@@ -1,5 +1,15 @@
+// Export role-based repositories
+export * from "./admin"
+export * from "./common"
+export * from "./donor"
+export * from "./kitchen-staff"
+export * from "./fundraiser"
+export * from "./delivery-staff"
+export * from "./types/user.types"
+
+// Keep original UserRepository for backward compatibility
 import { Injectable } from "@nestjs/common"
-import { PrismaClient } from "@prisma/client"
+import { PrismaClient } from "../../generated/user-client"
 import { Role } from "libs/databases/prisma/schemas"
 import { v7 as uuidv7 } from "uuid"
 import {
@@ -15,21 +25,6 @@ import {
     CreateDeliveryStaffProfileInput,
     UpdateDeliveryStaffProfileInput,
 } from "./types/user.types"
-
-// Re-export types for use in other modules
-export type {
-    CreateUserInput,
-    CreateStaffUserInput,
-    UpdateUserInput,
-    CreateDonorProfileInput,
-    UpdateDonorProfileInput,
-    CreateKitchenStaffProfileInput,
-    UpdateKitchenStaffProfileInput,
-    CreateFundraiserProfileInput,
-    UpdateFundraiserProfileInput,
-    CreateDeliveryStaffProfileInput,
-    UpdateDeliveryStaffProfileInput,
-}
 
 @Injectable()
 export class UserRepository {

@@ -1,23 +1,50 @@
 import { Module } from "@nestjs/common"
 import { GraphQLSubgraphModule } from "libs/graphql/subgraph"
-import { UserService } from "./user.service"
-import { UserRepository } from "./user.repository"
+import { 
+    UserRepository,
+    // Role-based repositories
+    UserAdminRepository,
+    UserCommonRepository,
+    DonorRepository,
+    KitchenStaffRepository,
+    FundraiserRepository,
+    DeliveryStaffRepository,
+} from "./repositories"
 import {
-    KitchenStaffProfileResolver,
-    FundraiserProfileResolver,
-    DeliveryStaffProfileResolver,
+    // Admin resolvers
+    UserAdminResolver,
+    
+    // Role-based resolvers
     DonorProfileResolver,
-} from "./resolvers/profile.resolver"
-import { UserQueryResolver, UserMutationResolver } from "./resolvers"
-import { UserResolver } from "./user.resolver"
-import { UserGrpcService } from "./grpc"
+    FundraiserProfileResolver,
+    KitchenStaffProfileResolver,
+    DeliveryStaffProfileResolver,
+    
+    // General resolvers
+    UserQueryResolver,
+    UserMutationResolver,
+} from "./resolvers"
+import { 
+    UserGrpcService,
+    // Role-based gRPC services
+    UserCommonGrpcService,
+    UserAdminGrpcService,
+} from "./grpc"
 import { HealthController } from "./health.controller"
 import { GrpcModule } from "libs/grpc"
 import {
-    UserCreationService,
-    UserQueryService,
-    UserUpdateService,
-    ProfileService,
+    // Admin services
+    UserAdminService,
+    
+    // Role-based services
+    DonorService,
+    FundraiserService,
+    KitchenStaffService,
+    DeliveryStaffService,
+    
+    // General services
+    UserQueryService as GeneralUserQueryService,
+    UserMutationService as GeneralUserMutationService,
 } from "./services"
 import { AwsCognitoModule } from "@libs/aws-cognito"
 
@@ -34,20 +61,36 @@ import { AwsCognitoModule } from "@libs/aws-cognito"
         }),
     ],
     providers: [
-        // Services
-        UserService,
+        // Core repositories
         UserRepository,
-        UserCreationService,
-        UserQueryService,
-        UserUpdateService,
-        ProfileService,
+        
+        // Role-based repositories
+        UserAdminRepository,
+        UserCommonRepository,
+        DonorRepository,
+        KitchenStaffRepository,
+        FundraiserRepository,
+        DeliveryStaffRepository,
+        
+        // Admin services
+        UserAdminService,
+        
+        // Role-based services
+        DonorService,
+        FundraiserService,
+        KitchenStaffService,
+        DeliveryStaffService,
+        
+        // General services
+        GeneralUserQueryService,
+        GeneralUserMutationService,
 
-        // Resolver facade (không có @Resolver decorators)
-        UserResolver,
+
 
         // GraphQL resolvers (có @Resolver decorators)
         UserQueryResolver,
         UserMutationResolver,
+        UserAdminResolver,
 
         // Profile resolvers
         DonorProfileResolver,
@@ -55,10 +98,12 @@ import { AwsCognitoModule } from "@libs/aws-cognito"
         FundraiserProfileResolver,
         DeliveryStaffProfileResolver,
 
-        // gRPC
+        // gRPC services
         UserGrpcService,
+        UserCommonGrpcService,
+        UserAdminGrpcService,
     ],
     controllers: [HealthController],
-    exports: [UserService, UserRepository, UserGrpcService],
+    exports: [UserRepository, UserGrpcService],
 })
 export class UserModule {}

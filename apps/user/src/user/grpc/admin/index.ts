@@ -1,0 +1,1 @@
+export * from "./user-admin-grpc.service"

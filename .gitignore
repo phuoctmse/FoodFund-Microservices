@@ -108,8 +108,17 @@ kubeconfig*
 
 /generated/prisma
 
+# Prisma generated clients for each microservice
+apps/*/src/generated/
+**/generated/user-client/
+**/generated/campaign-client/
+**/generated/auth-client/
+**/generated/*-client/
+
 .kiro/specs
 
 libs/grpc/generated/
 libs/grpc/**/*.js
 libs/grpc/**/*.d.ts
+
+

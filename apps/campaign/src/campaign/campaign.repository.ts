@@ -7,8 +7,8 @@ import {
 } from "./dtos/campaign.input"
 import { CampaignStatus } from "./enums/campaign.enums"
 import { Campaign } from "./models/campaign.model"
-import { PrismaClient } from "@prisma/client"
 import { Injectable, Logger } from "@nestjs/common"
+import { PrismaClient } from "../generated/campaign-client"
 
 export interface FindManyOptions {
     filter?: CampaignFilterInput

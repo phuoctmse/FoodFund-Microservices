@@ -6,7 +6,6 @@ import { AuthGrpcService } from "./grpc"
 import { GrpcModule } from "libs/grpc"
 import { AuthLibModule } from "libs/auth/auth.module"
 import {
-    AdminResolver,
     AuthRegistrationResolver,
     AuthAuthenticationResolver,
     AuthUserResolver,
@@ -14,17 +13,14 @@ import {
 import { AuthService } from "./auth.service"
 import { AuthResolver } from "./auth.resolver"
 import {
-    AdminService,
     AuthRegistrationService,
     AuthAuthenticationService,
     AuthUserService,
-    AuthAdminService,
 } from "./services"
 
 @Module({
     providers: [
         // Resolvers
-        AdminResolver,
         AuthRegistrationResolver,
         AuthAuthenticationResolver,
         AuthUserResolver,
@@ -34,14 +30,11 @@ import {
 
         // Main services
         AuthService,
-        AdminService,
 
         // Sub-services
         AuthRegistrationService,
         AuthAuthenticationService,
         AuthUserService,
-        AuthAdminService,
-
         // gRPC
         AuthGrpcService,
     ],

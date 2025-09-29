@@ -1,4 +1,9 @@
-export { UserCreationService } from "./user-creation.service"
-export { UserQueryService } from "./user-query.service"
-export { UserUpdateService } from "./user-update.service"
-export { ProfileService } from "./profile.service"
+// Role-based services
+export * from "./admin"
+export * from "./donor"
+export * from "./fundraiser"
+export * from "./kitchen-staff"
+export * from "./delivery-staff"
+
+// General services (used by multiple roles)
+export * from "./common"
