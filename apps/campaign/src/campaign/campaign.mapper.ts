@@ -3,6 +3,10 @@ import { Campaign } from "@libs/databases/prisma/schemas/models/campaign.model"
 import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
 import { Campaign_Status } from "@prisma/client"
 
+/**
+ * Database Campaign Model Interface
+ * Represents the structure returned from Prisma queries
+ */
 export interface DatabaseCampaign {
     id: string
     title: string
@@ -25,6 +29,7 @@ export interface DatabaseCampaign {
 
 /**
  * Campaign Mapper Service
+ * Handles conversion between database models and GraphQL schemas
  */
 @Injectable()
 export class CampaignMapper {
@@ -40,7 +45,6 @@ export class CampaignMapper {
             COMPLETED: CampaignStatus.COMPLETED,
             CANCELLED: CampaignStatus.CANCELLED,
         }
-
         return statusMapping[prismaStatus]
     }
 
@@ -56,16 +60,16 @@ export class CampaignMapper {
             [CampaignStatus.COMPLETED]: "COMPLETED",
             [CampaignStatus.CANCELLED]: "CANCELLED",
         }
-
         return statusMapping[graphqlStatus]
     }
 
     /**
      * Maps database campaign model to GraphQL Campaign schema
+     * Creates plain object with proper __typename for GraphQL Federation
      */
     mapToGraphQLModel(dbCampaign: DatabaseCampaign): Campaign {
         const campaignData = {
-            __typename: "Campaign",
+            __typename: "Campaign" as const,
             id: dbCampaign.id,
             createdAt: dbCampaign.created_at,
             updatedAt: dbCampaign.updated_at,
@@ -140,14 +144,7 @@ export class CampaignMapper {
             throw new Error("received_amount must be a BigInt")
         }
 
-        const validStatuses = [
-            "PENDING",
-            "APPROVED",
-            "REJECTED",
-            "ACTIVE",
-            "COMPLETED",
-            "CANCELLED",
-        ]
+        const validStatuses = Object.values(Campaign_Status)
         if (!validStatuses.includes(dbCampaign.status)) {
             throw new Error(`Invalid status: ${dbCampaign.status}`)
         }
