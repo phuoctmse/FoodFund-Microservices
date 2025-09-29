@@ -10,7 +10,6 @@ import { SpacesUploadService } from "libs/s3-storage/spaces-upload.service"
 import { CampaignSchedulerService } from "./services/campaign-scheduler.service"
 import { CampaignStatusJob } from "./jobs/campaign-status.job"
 import { ScheduleModule } from "@nestjs/schedule"
-import { CampaignMapper } from "./campaign.mapper"
 
 @Module({
     imports: [
@@ -30,7 +29,6 @@ import { CampaignMapper } from "./campaign.mapper"
         CampaignService,
         CampaignResolver,
         CampaignRepository,
-        CampaignMapper,
         CampaignSchedulerService,
         CampaignStatusJob,
     ],
