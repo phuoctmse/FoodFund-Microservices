@@ -18,6 +18,7 @@ import { CampaignRepository } from "./campaign.repository"
 import { SpacesUploadService } from "libs/s3-storage/spaces-upload.service"
 import { Campaign } from "@libs/databases/prisma/schemas/models/campaign.model"
 import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
+import { CampaignNotFoundException } from "./exceptions/campaign.exception"
 
 @Injectable()
 export class CampaignService {
@@ -337,10 +338,6 @@ export class CampaignService {
                     updateData.status = CampaignStatus.ACTIVE
                     updateData.approvedAt = new Date()
 
-                    this.logger.log(
-                        `Campaign ${id} auto-activated because start date is today`,
-                    )
-
                     this.sentryService.addBreadcrumb(
                         "Campaign auto-activated on approval",
                         "campaign",
@@ -355,10 +352,6 @@ export class CampaignService {
                     )
                 } else {
                     updateData.approvedAt = new Date()
-
-                    this.logger.log(
-                        `Campaign ${id} approved, will activate on ${startDate.toDateString()}`,
-                    )
                 }
             } else if (newStatus === CampaignStatus.APPROVED) {
                 updateData.approvedAt = new Date()
@@ -427,7 +420,7 @@ export class CampaignService {
         try {
             const campaign = await this.campaignRepository.findById(id)
             if (!campaign) {
-                throw new NotFoundException(`Campaign with ID ${id} not found`)
+                throw new CampaignNotFoundException(id)
             }
             return campaign
         } catch (error) {
