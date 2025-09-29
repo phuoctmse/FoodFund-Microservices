@@ -1,6 +1,17 @@
-import { Args, Mutation, Resolver, Context, ID } from "@nestjs/graphql"
+import {
+    Args,
+    Mutation,
+    Resolver,
+    Context,
+    ID,
+    Query,
+    Int,
+} from "@nestjs/graphql"
 import { CreateStaffAccountResponse } from "../../types/staff-response.model"
-import { CreateStaffAccountInput, UpdateUserAccountInput } from "../../dto/user.input"
+import {
+    CreateStaffAccountInput,
+    UpdateUserAccountInput,
+} from "../../dto/user.input"
 import { RequireRole } from "libs/auth"
 import { Role, UserProfileSchema } from "libs/databases/prisma/schemas"
 import { UserAdminService } from "../../services/admin/user-admin.service"
@@ -9,6 +20,31 @@ import { ValidationPipe } from "@nestjs/common"
 @Resolver()
 export class UserAdminResolver {
     constructor(private userAdminService: UserAdminService) {}
+
+    // Admin Query: Get all users
+    @Query(() => [UserProfileSchema], { name: "getAllUsers" })
+    @RequireRole(Role.ADMIN)
+    async getAllUsers(
+        @Args("offset", {
+            type: () => Int,
+            nullable: true,
+            defaultValue: 0,
+            description: "Number of users to skip",
+        })
+            offset: number = 0,
+        @Args("limit", {
+            type: () => Int,
+            nullable: true,
+            defaultValue: 10,
+            description: "Number of users to return (max 100)",
+        })
+            limit: number = 10,
+    ) {
+        const safeLimit = Math.min(Math.max(limit, 1), 100)
+        const safeOffset = Math.max(offset, 0)
+
+        return this.userAdminService.getAllUsers(safeOffset, safeLimit)
+    }
 
     @Mutation(() => CreateStaffAccountResponse)
     @RequireRole(Role.ADMIN)

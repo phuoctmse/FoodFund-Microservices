@@ -115,8 +115,10 @@ export class UserAdminService {
 
     // 3. Admin Business Logic: Get all accounts (staff + donor)
     async getAllAccounts(skip?: number, take?: number) {
-        this.logger.log(`Getting all accounts with skip: ${skip}, take: ${take}`)
-        return this.userAdminRepository.findAllUsers(skip, take)
+        const validSkip = skip ?? 0
+        const validTake = take ?? 10
+        this.logger.log(`Getting all accounts with skip: ${validSkip}, take: ${validTake}`)
+        return this.userAdminRepository.findAllUsers(validSkip, validTake)
     }
 
     // 4. Admin Business Logic: Update account status (is_active)
@@ -200,10 +202,15 @@ export class UserAdminService {
             throw new Error("User is not an admin")
         }
 
-
-        // Admin doesn't have specific profile table, return user info
         return {
             user: admin
         }
+    }
+
+    async getAllUsers(offset?: number, limit?: number) {
+        const validOffset = offset ?? 0
+        const validLimit = limit ?? 10
+        this.logger.log(`Admin getting all users with offset: ${validOffset}, limit: ${validLimit}`)
+        return this.userAdminRepository.findAllUsers(validOffset, validLimit)
     }
 }

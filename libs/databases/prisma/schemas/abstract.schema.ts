@@ -21,12 +21,6 @@ export abstract class AbstractSchema {
     })
         updated_at: Date
 
-    // Common User fields that profiles might need
-    @Field(() => String, {
-        description: "User ID reference",
-    })
-        user_id: string
-
     @Field(() => String, {
         description: "User's full name",
     })

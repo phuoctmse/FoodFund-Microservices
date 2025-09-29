@@ -73,49 +73,6 @@ export class UserQueryResolver {
             timestamp: new Date().toISOString(),
         }
     }
-
-    @Query(() => [UserProfileSchema], { name: "users" })
-    async findAllUsers(
-        @Args("skip", { type: () => Number, nullable: true }) skip?: number,
-        @Args("take", { type: () => Number, nullable: true }) take?: number,
-    ) {
-        return this.userQueryService.findAllUsers(skip, take)
-    }
-
-    @Query(() => UserProfileSchema, { name: "user" })
-    async findUserById(@Args("id", { type: () => ID }) id: string) {
-        return this.userQueryService.findUserById(id)
-    }
-
-    @Query(() => UserProfileSchema, { name: "userByEmail" })
-    async findUserByEmail(@Args("email") email: string) {
-        return this.userQueryService.findUserByEmail(email)
-    }
-
-    @Query(() => UserProfileSchema, { name: "userByUsername" })
-    async findUserByUsername(@Args("user_name") user_name: string) {
-        return this.userQueryService.findUserByUsername(user_name)
-    }
-
-    @Query(() => [UserProfileSchema], { name: "searchUsers" })
-    async searchUsers(
-        @Args("searchTerm") searchTerm: string,
-        @Args("role", { nullable: true }) role?: string,
-    ) {
-        return this.userQueryService.searchUsers(searchTerm, role as Role)
-    }
-
-    @Query(() => [UserProfileSchema], { name: "usersByRole" })
-    async getUsersByRole(@Args("role") role: string) {
-        return this.userQueryService.getUsersByRole(role as Role)
-    }
-
-    @Query(() => [UserProfileSchema], { name: "activeUsers" })
-    async getActiveUsers() {
-        return this.userQueryService.getActiveUsers()
-    }
-
-    // Common role profile getter - replaces individual role profile resolvers
     @Query(() => RoleProfileResponse, { name: "getMyRoleProfile" })
     @UseGuards(CognitoGraphQLGuard)
     async getMyRoleProfile(@CurrentUser() user: any): Promise<RoleProfileResponse> {

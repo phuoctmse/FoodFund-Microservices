@@ -28,9 +28,12 @@ export class UserAdminRepository {
     }
 
     async findAllUsers(skip?: number, take?: number) {
+        const validSkip = skip ?? 0
+        const validTake = take ?? 10
+        
         return this.prisma.user.findMany({
-            skip,
-            take,
+            skip: validSkip,
+            take: validTake,
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
@@ -124,10 +127,6 @@ export class UserAdminRepository {
                 Delivery_Staff_Profile: true,
             },
         })
-    }
-
-    async softDeleteUser(id: string) {
-        return this.updateUser(id, { is_active: false })
     }
 
     async deleteUser(id: string) {

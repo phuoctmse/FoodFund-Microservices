@@ -13,29 +13,4 @@ export class UserMutationResolver {
         private readonly userQueryService: UserQueryService,
     ) {}
 
-    @Mutation(() => UserProfileSchema)
-    @UseGuards(CognitoGraphQLGuard)
-    async updateUser(
-        @Args("updateUserProfileInput", new ValidationPipe())
-            updateUserInput: UpdateUserInput,
-        @Context() context: any,
-    ) {
-        const cognitoId = context.req.user?.username
-        if (!cognitoId) throw new Error("Unauthorized: missing Cognito ID")
-        
-        const user = await this.userQueryService.findUserByCognitoId(cognitoId)
-        if (!user) throw new Error("User not found")
-        
-        return await this.userMutationService.updateUser(user.id, updateUserInput)
-    }
-
-    @Mutation(() => UserProfileSchema)
-    async deleteUser(@Args("id", { type: () => ID }) id: string) {
-        return this.userMutationService.deleteUser(id)
-    }
-
-    @Mutation(() => UserProfileSchema)
-    async softDeleteUser(@Args("id", { type: () => ID }) id: string) {
-        return this.userMutationService.softDeleteUser(id)
-    }
 }
