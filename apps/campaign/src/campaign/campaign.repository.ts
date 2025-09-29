@@ -2,12 +2,11 @@ import { SentryService } from "@libs/observability/sentry.service"
 import {
     CampaignFilterInput,
     CampaignSortOrder,
-    CreateCampaignInput,
     UpdateCampaignInput,
-} from "./dtos/campaign.input"
-import { CampaignStatus } from "./enums/campaign.enums"
-import { Campaign } from "./models/campaign.model"
+} from "./dtos/request/campaign.input"
 import { Injectable, Logger } from "@nestjs/common"
+import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
+import { Campaign } from "@libs/databases/prisma/schemas/models/campaign.model"
 import { PrismaClient } from "../generated/campaign-client"
 
 export interface FindManyOptions {
@@ -18,27 +17,62 @@ export interface FindManyOptions {
     offset?: number
 }
 
+interface CreateCampaignData {
+    title: string
+    description: string
+    coverImage: string
+    location: string
+    targetAmount: string
+    startDate: Date
+    endDate: Date
+    createdBy: string
+    status: CampaignStatus
+    coverImageFileKey?: string
+}
+
+interface UpdateCampaignData extends Partial<UpdateCampaignInput> {
+    coverImage?: string
+    status?: CampaignStatus
+    approvedAt?: Date
+    coverImageFileKey?: string
+}
+
 @Injectable()
 export class CampaignRepository {
     private readonly logger = new Logger(CampaignRepository.name)
+    private readonly CAMPAIGN_SELECT_FIELDS = {
+        id: true,
+        title: true,
+        description: true,
+        cover_image: true,
+        cover_image_file_key: true,
+        location: true,
+        target_amount: true,
+        donation_count: true,
+        received_amount: true,
+        status: true,
+        start_date: true,
+        end_date: true,
+        is_active: true,
+        created_by: true,
+        approved_at: true,
+        created_at: true,
+        updated_at: true,
+    } as const
 
     constructor(
         private readonly prisma: PrismaClient,
         private readonly sentryService: SentryService,
     ) {}
 
-    async create(
-        data: CreateCampaignInput & {
-            createdBy: string
-            status: CampaignStatus
-        },
-    ): Promise<Campaign> {
+    async create(data: CreateCampaignData): Promise<Campaign> {
         try {
             const campaign = await this.prisma.campaign.create({
                 data: {
                     title: data.title,
                     description: data.description,
                     cover_image: data.coverImage,
+                    cover_image_file_key: data.coverImageFileKey || null,
                     location: data.location,
                     target_amount: BigInt(data.targetAmount),
                     start_date: data.startDate,
@@ -49,24 +83,7 @@ export class CampaignRepository {
                     received_amount: BigInt(0),
                     is_active: true,
                 },
-                select: {
-                    id: true,
-                    title: true,
-                    description: true,
-                    cover_image: true,
-                    location: true,
-                    target_amount: true,
-                    donation_count: true,
-                    received_amount: true,
-                    status: true,
-                    start_date: true,
-                    end_date: true,
-                    is_active: true,
-                    created_by: true,
-                    approved_at: true,
-                    created_at: true,
-                    updated_at: true,
-                },
+                select: this.CAMPAIGN_SELECT_FIELDS,
             })
 
             return this.mapToGraphQLModel(campaign)
@@ -74,7 +91,12 @@ export class CampaignRepository {
             this.logger.error("Failed to create campaign:", error)
             this.sentryService.captureError(error as Error, {
                 operation: "createCampaign",
-                data,
+                data: {
+                    title: data.title,
+                    hasFileKey: !!data.coverImageFileKey,
+                    createdBy: data.createdBy,
+                    status: data.status,
+                },
             })
             throw error
         }
@@ -83,25 +105,11 @@ export class CampaignRepository {
     async findById(id: string): Promise<Campaign | null> {
         try {
             const campaign = await this.prisma.campaign.findUnique({
-                where: { id },
-                select: {
-                    id: true,
-                    title: true,
-                    description: true,
-                    cover_image: true,
-                    location: true,
-                    target_amount: true,
-                    donation_count: true,
-                    received_amount: true,
-                    status: true,
-                    start_date: true,
-                    end_date: true,
+                where: {
+                    id,
                     is_active: true,
-                    created_by: true,
-                    approved_at: true,
-                    created_at: true,
-                    updated_at: true,
                 },
+                select: this.CAMPAIGN_SELECT_FIELDS,
             })
 
             return campaign ? this.mapToGraphQLModel(campaign) : null
@@ -116,17 +124,17 @@ export class CampaignRepository {
     }
 
     async findMany(options: FindManyOptions): Promise<Campaign[]> {
-        try {
-            const {
-                filter,
-                search,
-                sortBy = CampaignSortOrder.ACTIVE_FIRST,
-                limit = 10,
-                offset = 0,
-            } = options
+        const {
+            filter,
+            search,
+            sortBy = CampaignSortOrder.ACTIVE_FIRST,
+            limit = 10,
+            offset = 0,
+        } = options
 
+        try {
             const whereClause: any = {
-                AND: [],
+                AND: [{ is_active: true }],
             }
 
             if (filter?.status && filter.status.length > 0) {
@@ -144,53 +152,37 @@ export class CampaignRepository {
             }
 
             if (search) {
-                whereClause.AND.push({
-                    OR: [
-                        {
-                            title: {
-                                contains: search,
-                                mode: "insensitive",
+                const sanitizedSearch = this.sanitizeSearchTerm(search)
+                if (sanitizedSearch) {
+                    whereClause.AND.push({
+                        OR: [
+                            {
+                                title: {
+                                    contains: sanitizedSearch,
+                                    mode: "insensitive",
+                                },
                             },
-                        },
-                        {
-                            description: {
-                                contains: search,
-                                mode: "insensitive",
+                            {
+                                description: {
+                                    contains: sanitizedSearch,
+                                    mode: "insensitive",
+                                },
                             },
-                        },
-                        {
-                            location: {
-                                contains: search,
-                                mode: "insensitive",
+                            {
+                                location: {
+                                    contains: sanitizedSearch,
+                                    mode: "insensitive",
+                                },
                             },
-                        },
-                    ],
-                })
+                        ],
+                    })
+                }
             }
 
-            const orderBy = this.buildOrderByClause(sortBy)
-
             const campaigns = await this.prisma.campaign.findMany({
-                where: whereClause.AND.length > 0 ? whereClause : undefined,
-                select: {
-                    id: true,
-                    title: true,
-                    description: true,
-                    cover_image: true,
-                    location: true,
-                    target_amount: true,
-                    donation_count: true,
-                    received_amount: true,
-                    status: true,
-                    start_date: true,
-                    end_date: true,
-                    is_active: true,
-                    created_by: true,
-                    approved_at: true,
-                    created_at: true,
-                    updated_at: true,
-                },
-                orderBy,
+                where: whereClause,
+                select: this.CAMPAIGN_SELECT_FIELDS,
+                orderBy: this.buildOrderByClause(sortBy),
                 take: Math.min(limit, 100),
                 skip: offset,
             })
@@ -200,19 +192,18 @@ export class CampaignRepository {
             this.logger.error("Failed to find campaigns:", error)
             this.sentryService.captureError(error as Error, {
                 operation: "findManyCampaigns",
-                options,
+                filterData: filter,
+                searchTerm: search,
+                sortOrder: sortBy,
+                limitValue: limit,
+                offsetValue: offset,
+                originalOptions: options,
             })
             throw error
         }
     }
 
-    async update(
-        id: string,
-        data: Partial<UpdateCampaignInput> & {
-            status?: CampaignStatus
-            approvedAt?: Date
-        },
-    ): Promise<Campaign> {
+    async update(id: string, data: UpdateCampaignData): Promise<Campaign> {
         try {
             const updateData: any = {}
 
@@ -221,6 +212,8 @@ export class CampaignRepository {
                 updateData.description = data.description
             if (data.coverImage !== undefined)
                 updateData.cover_image = data.coverImage
+            if (data.coverImageFileKey !== undefined)
+                updateData.cover_image_file_key = data.coverImageFileKey
             if (data.location !== undefined) updateData.location = data.location
             if (data.targetAmount !== undefined)
                 updateData.target_amount = BigInt(data.targetAmount)
@@ -231,36 +224,26 @@ export class CampaignRepository {
             if (data.approvedAt !== undefined)
                 updateData.approved_at = data.approvedAt
 
-            const campaign = await this.prisma.campaign.update({
-                where: { id },
-                data: updateData,
-                select: {
-                    id: true,
-                    title: true,
-                    description: true,
-                    cover_image: true,
-                    location: true,
-                    target_amount: true,
-                    donation_count: true,
-                    received_amount: true,
-                    status: true,
-                    start_date: true,
-                    end_date: true,
-                    is_active: true,
-                    created_by: true,
-                    approved_at: true,
-                    created_at: true,
-                    updated_at: true,
-                },
+            return await this.prisma.$transaction(async (tx) => {
+                const campaign = await tx.campaign.update({
+                    where: {
+                        id,
+                        is_active: true,
+                    },
+                    data: updateData,
+                    select: this.CAMPAIGN_SELECT_FIELDS,
+                })
+                return this.mapToGraphQLModel(campaign)
             })
-
-            return this.mapToGraphQLModel(campaign)
         } catch (error) {
             this.logger.error(`Failed to update campaign ${id}:`, error)
             this.sentryService.captureError(error as Error, {
                 operation: "updateCampaign",
                 campaignId: id,
-                data,
+                data: {
+                    hasFileKey: !!data.coverImageFileKey,
+                    updateFields: Object.keys(data),
+                },
             })
             throw error
         }
@@ -272,7 +255,7 @@ export class CampaignRepository {
     ): Promise<number> {
         try {
             const whereClause: any = {
-                AND: [],
+                AND: [{ is_active: true }],
             }
 
             if (filter?.status && filter.status.length > 0) {
@@ -305,7 +288,7 @@ export class CampaignRepository {
             }
 
             return await this.prisma.campaign.count({
-                where: whereClause.AND.length > 0 ? whereClause : undefined,
+                where: whereClause,
             })
         } catch (error) {
             this.logger.error("Failed to count campaigns:", error)
@@ -318,10 +301,60 @@ export class CampaignRepository {
         }
     }
 
+    async delete(id: string): Promise<boolean> {
+        try {
+            const result = await this.prisma.campaign.update({
+                where: {
+                    id,
+                    is_active: true,
+                },
+                data: {
+                    is_active: false,
+                    updated_at: new Date(),
+                },
+                select: { id: true },
+            })
+
+            return !!result
+        } catch (error) {
+            this.logger.error(`Failed to soft delete campaign ${id}:`, error)
+            this.sentryService.captureError(error as Error, {
+                operation: "softDeleteCampaign",
+                campaignId: id,
+            })
+            throw error
+        }
+    }
+
+    async reactivate(id: string): Promise<Campaign | null> {
+        try {
+            const campaign = await this.prisma.campaign.update({
+                where: {
+                    id,
+                    is_active: false,
+                },
+                data: {
+                    is_active: true,
+                    updated_at: new Date(),
+                },
+                select: this.CAMPAIGN_SELECT_FIELDS,
+            })
+
+            return this.mapToGraphQLModel(campaign)
+        } catch (error) {
+            this.logger.error(`Failed to reactivate campaign ${id}:`, error)
+            this.sentryService.captureError(error as Error, {
+                operation: "reactivateCampaign",
+                campaignId: id,
+            })
+            throw error
+        }
+    }
+
     private buildOrderByClause(sortBy: CampaignSortOrder): any {
         switch (sortBy) {
         case CampaignSortOrder.ACTIVE_FIRST:
-            return [{ status: "desc" }, { created_at: "desc" }]
+            return [{ status: "asc" }, { created_at: "desc" }]
         case CampaignSortOrder.NEWEST_FIRST:
             return { created_at: "desc" }
         case CampaignSortOrder.OLDEST_FIRST:
@@ -335,16 +368,32 @@ export class CampaignRepository {
         }
     }
 
+    private sanitizeSearchTerm(search: string): string {
+        if (!search || typeof search !== "string") {
+            return ""
+        }
+
+        return search
+            .trim()
+            .replace(/[%_\\]/g, "\\$&")
+            .replace(/['";]/g, "")
+            .slice(0, 100)
+    }
+
     private mapToGraphQLModel(dbCampaign: any): Campaign {
+        const bigIntFields = {
+            targetAmount: dbCampaign.target_amount?.toString() ?? "0",
+            receivedAmount: dbCampaign.received_amount?.toString() ?? "0",
+        }
         return {
             id: dbCampaign.id,
             title: dbCampaign.title,
             description: dbCampaign.description,
             coverImage: dbCampaign.cover_image,
+            coverImageFileKey: dbCampaign.cover_image_file_key || undefined,
             location: dbCampaign.location,
-            targetAmount: dbCampaign.target_amount.toString(),
             donationCount: dbCampaign.donation_count,
-            receivedAmount: dbCampaign.received_amount.toString(),
+            ...bigIntFields,
             status: dbCampaign.status as CampaignStatus,
             startDate: dbCampaign.start_date,
             endDate: dbCampaign.end_date,

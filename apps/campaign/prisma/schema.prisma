@@ -9,25 +9,30 @@ datasource db {
 }
 
 model Campaign {
-  id                 String               @id @default(uuid())
-  title              String               @db.Text()
-  description        String               @db.Text()
-  cover_image        String               @db.Text()
-  location           String               @db.Text()
-  target_amount      BigInt               @default(0)
-  donation_count     Int                  @default(0)
-  received_amount    BigInt               @default(0)
-  status             Campaign_Status      @default(PENDING)
-  start_date         DateTime             
-  end_date           DateTime
-  is_active          Boolean              @default(true)
-  created_by         String              
-  approved_at        DateTime?
-  created_at         DateTime             @default(now())
-  updated_at         DateTime             @updatedAt
+  id                     String               @id @default(uuid())
+  title                  String               @db.Text()
+  description            String               @db.Text()
+  cover_image            String               @db.Text()
+  cover_image_file_key   String?              @db.Text()
+  location               String               @db.Text()
+  target_amount          BigInt               @default(0)
+  donation_count         Int                  @default(0)
+  received_amount        BigInt               @default(0)
+  status                 Campaign_Status      @default(PENDING)
+  start_date             DateTime             
+  end_date               DateTime
+  is_active              Boolean              @default(true)
+  created_by             String              
+  approved_at            DateTime?
+  created_at             DateTime             @default(now())
+  updated_at             DateTime             @updatedAt
 
-  donations          Donation[]
+  donations              Donation[]
   
+  @@index([status])
+  @@index([created_by])
+  @@index([created_at])
+  @@index([start_date, end_date])
   @@map("campaigns")
 }
 
@@ -42,6 +47,8 @@ model Donation {
   is_anonymous      Boolean  @default(false)
   created_at        DateTime @default(now())
 
+  @@index([campaign_id])
+  @@index([donor_id])
   @@map("donations")
 }
 

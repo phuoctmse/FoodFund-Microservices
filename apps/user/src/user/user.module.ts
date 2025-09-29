@@ -55,6 +55,7 @@ import { AwsCognitoModule } from "@libs/aws-cognito"
         GraphQLSubgraphModule.forRoot({
             debug: true,
             playground: true,
+            federationVersion: 2,
         }),
         AwsCognitoModule.forRoot({
             isGlobal: false,

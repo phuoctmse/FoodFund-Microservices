@@ -6,6 +6,6 @@
     "build": "nest build user"
   },
   "dependencies": {
-    "@prisma/client": "^6.14.0"
+    "@prisma/client": "^6.16.2"
   }
 }

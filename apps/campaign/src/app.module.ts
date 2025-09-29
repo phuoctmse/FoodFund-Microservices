@@ -3,6 +3,7 @@ import { envConfig, EnvModule } from "libs/env"
 import { CampaignModule } from "./campaign/campaign.module"
 import { PrismaModule } from "@libs/databases"
 import { SentryModule } from "@libs/observability/sentry.module"
+import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 
 @Module({
     imports: [
@@ -16,14 +17,20 @@ import { SentryModule } from "@libs/observability/sentry.module"
         }),
         PrismaModule.forRoot({
             isGlobal: true,
-            enableLogging: true,
+            enableLogging: process.env.NODE_ENV === "development",
             logLevel:
                 process.env.NODE_ENV === "development"
-                    ? ["query", "info", "warn", "error"]
+                    ? ["info", "warn", "error"]
                     : ["error"],
             datasourceUrl: process.env.CAMPAIGN_DATABASE_URL,
         }),
         CampaignModule,
+        GraphQLSubgraphModule.forRoot({
+            debug: process.env.NODE_ENV === "development",
+            playground: process.env.NODE_ENV === "development",
+            federationVersion: 2,
+            path: "/graphql",
+        }),
     ],
     controllers: [],
     providers: [],

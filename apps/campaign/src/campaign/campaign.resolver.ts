@@ -8,7 +8,6 @@ import {
     Resolver,
     ResolveReference,
 } from "@nestjs/graphql"
-import { Campaign, Donation, User } from "./models/campaign.model"
 import {
     Logger,
     UseGuards,
@@ -21,11 +20,16 @@ import {
     CampaignFilterInput,
     CampaignSortOrder,
     CreateCampaignInput,
+    GenerateUploadUrlInput,
     UpdateCampaignInput,
-} from "./dtos/campaign.input"
+} from "./dtos/request/campaign.input"
 import { CurrentUser } from "libs/auth"
-import { CampaignStatus } from "./enums/campaign.enums"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
+import { SignedUrlResponse } from "./dtos/response/signed-url.response"
+import { UserProfileSchema } from "@libs/databases"
+import { Campaign } from "@libs/databases/prisma/schemas/models/campaign.model"
+import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
+import { Donation } from "@libs/databases/prisma/schemas/models/donation.model"
 
 @Resolver(() => Campaign)
 @UseInterceptors(SentryInterceptor)
@@ -33,6 +37,26 @@ export class CampaignResolver {
     private readonly logger = new Logger(CampaignResolver.name)
 
     constructor(private readonly campaignService: CampaignService) {}
+
+    @Mutation(() => SignedUrlResponse, {
+        description:
+            "Generate signed URL for campaign image upload (requires authentication)",
+    })
+    @UseGuards(CognitoGraphQLGuard)
+    async generateCampaignImageUploadUrl(
+        @Args(
+            "input",
+            { type: () => GenerateUploadUrlInput },
+            new ValidationPipe(),
+        )
+            input: GenerateUploadUrlInput,
+        @CurrentUser("sub") userId: string,
+    ): Promise<SignedUrlResponse> {
+        return this.campaignService.generateCampaignImageUploadUrl(
+            input,
+            userId,
+        )
+    }
 
     @Mutation(() => Campaign, {
         description: "Create a new campaign (requires authentication)",
@@ -126,7 +150,6 @@ export class CampaignResolver {
     async campaign(
         @Args("id", { type: () => String }) id: string,
     ): Promise<Campaign | null> {
-        this.logger.log(`Fetching campaign: ${id}`)
         try {
             return await this.campaignService.findCampaignById(id)
         } catch (error) {
@@ -181,9 +204,13 @@ export class CampaignResolver {
         return `${health.service} is ${health.status} at ${health.timestamp}`
     }
 
-    @ResolveField(() => User, { nullable: true })
-    creator(@Parent() campaign: Campaign): User {
-        return { id: campaign.createdBy }
+    @ResolveField(() => UserProfileSchema, { nullable: true })
+    creator(@Parent() campaign: any): Partial<UserProfileSchema> | null {
+        const userReference: Partial<UserProfileSchema> = {
+            __typename: "User",
+            id: campaign.createdBy,
+        }
+        return userReference
     }
 
     @ResolveField(() => [Donation])
@@ -196,6 +223,6 @@ export class CampaignResolver {
         __typename: string
         id: string
     }): Promise<Campaign> {
-        return this.campaignService.resolveReference(reference)
+        return await this.campaignService.resolveReference(reference)
     }
 }

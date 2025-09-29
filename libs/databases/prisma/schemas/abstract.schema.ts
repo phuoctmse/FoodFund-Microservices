@@ -1,4 +1,4 @@
-import { ObjectType, Field } from "@nestjs/graphql"
+import { ObjectType, Field, ID } from "@nestjs/graphql"
 import { Role } from "./enums/user.enums"
 
 @ObjectType({
@@ -6,7 +6,7 @@ import { Role } from "./enums/user.enums"
     description: "Abstract base schema with common fields including user information",
 })
 export abstract class AbstractSchema {
-    @Field(() => String, {
+    @Field(() => ID, {
         description: "Unique identifier",
     })
         id: string
@@ -14,7 +14,7 @@ export abstract class AbstractSchema {
     @Field(() => Date, {
         description: "Creation timestamp",
     })
-        created_at: Date
+        createdAt: Date
 
     @Field(() => Date, {
         description: "Last update timestamp",

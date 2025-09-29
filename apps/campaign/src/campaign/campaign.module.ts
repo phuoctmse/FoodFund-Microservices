@@ -5,18 +5,15 @@ import { CampaignResolver } from "./campaign.resolver"
 import { CampaignRepository } from "./campaign.repository"
 import { JwtModule } from "@libs/jwt"
 import { HealthController } from "./health.controller"
-import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 import { AwsCognitoModule } from "@libs/aws-cognito"
 import { PrismaClient } from "../generated/campaign-client"
+import { SpacesUploadService } from "libs/s3-storage/spaces-upload.service"
+import { CampaignSchedulerService } from "./workers/schedulers/campaign-scheduler.service"
+import { CampaignStatusJob } from "./workers/schedulers/campaign-status.job"
+import { ScheduleModule } from "@nestjs/schedule"
 
 @Module({
     imports: [
-        GraphQLSubgraphModule.forRoot({
-            debug: process.env.NODE_ENV === "development",
-            playground: process.env.NODE_ENV === "development",
-            federationVersion: 2,
-            path: "/graphql",
-        }),
         AwsCognitoModule.forRoot({
             isGlobal: false,
             mockMode: false,
@@ -26,9 +23,18 @@ import { PrismaClient } from "../generated/campaign-client"
             isGlobal: false,
             useGlobalImports: true,
         }),
+        ScheduleModule.forRoot(),
     ],
-    providers: [CampaignService, CampaignResolver, CampaignRepository, PrismaClient],
+    providers: [
+        SpacesUploadService,
+        CampaignService,
+        CampaignResolver,
+        CampaignRepository,
+        CampaignSchedulerService,
+        CampaignStatusJob,
+        PrismaClient
+    ],
     controllers: [HealthController],
-    exports: [CampaignService, CampaignRepository],
+    exports: [CampaignService, CampaignRepository, CampaignSchedulerService],
 })
 export class CampaignModule {}

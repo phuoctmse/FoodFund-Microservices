@@ -16,7 +16,12 @@ export class EnvModule {
             imports: [
                 ConfigModule.forRoot({
                     isGlobal: true,
-                    envFilePath: [".env", ".env.local", ".env.development"],
+                    envFilePath: [
+                        ".env",
+                        ".env.local",
+                        ".env.development",
+                        ".env.docker",
+                    ],
                     expandVariables: true,
                 }),
             ],

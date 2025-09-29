@@ -70,7 +70,6 @@ export class JwtService {
                 "Failed to get expiration time from token",
                 ex.message,
             )
-            // Return default expiration (30 days from now)
             const now = new Date()
             return new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
         }
