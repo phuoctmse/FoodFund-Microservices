@@ -8,7 +8,9 @@ COPY package*.json ./
 COPY apps/user/package*.json ./apps/user/
 RUN npm ci
 COPY . .
+# Generate Prisma client for build (needed for compilation)
 RUN cd apps/user && npx prisma generate
+# Build application 
 RUN npm run build:user
 
 # Production Stage
@@ -19,13 +21,16 @@ COPY --from=build /usr/src/app/package*.json ./
 COPY --from=build /usr/src/app/apps/user/package*.json ./apps/user/
 COPY --from=build /usr/src/app/node_modules ./node_modules
 COPY --from=build /usr/src/app/apps/user/prisma ./apps/user/prisma
-# Copy proto files for gRPC service registration
+# Copy generated client from build stage as starting point
+COPY --from=build /usr/src/app/apps/user/src/generated ./apps/user/src/generated
+# Copy proto files
 COPY --from=build /usr/src/app/libs/grpc/proto ./libs/grpc/proto
-# 🔥 Ensure working directory and generate Prisma client
+
+# Regenerate Prisma client for Linux runtime (overwrite Windows binaries)
 WORKDIR /usr/src/app/apps/user
 RUN npx prisma generate
 
-# 🔥 Return to main workdir
+# Set working directory back and add user
 WORKDIR /usr/src/app
 RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
 USER nestjs
