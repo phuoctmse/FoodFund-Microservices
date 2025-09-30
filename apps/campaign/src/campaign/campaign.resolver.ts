@@ -20,7 +20,6 @@ import {
     CampaignFilterInput,
     CampaignSortOrder,
     CreateCampaignInput,
-    GenerateUploadUrlInput,
     UpdateCampaignInput,
 } from "./dtos/request/campaign.input"
 import { CurrentUser } from "libs/auth"
@@ -30,6 +29,7 @@ import { UserProfileSchema } from "@libs/databases"
 import { Campaign } from "@libs/databases/prisma/schemas/models/campaign.model"
 import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
 import { Donation } from "@libs/databases/prisma/schemas/models/donation.model"
+import { GenerateUploadUrlInput } from "./dtos/request/generate-upload-url.input"
 
 @Resolver(() => Campaign)
 @UseInterceptors(SentryInterceptor)
@@ -150,14 +150,7 @@ export class CampaignResolver {
     async campaign(
         @Args("id", { type: () => String }) id: string,
     ): Promise<Campaign | null> {
-        try {
-            return await this.campaignService.findCampaignById(id)
-        } catch (error) {
-            if (error.message?.includes("not found")) {
-                return null
-            }
-            throw error
-        }
+        return await this.campaignService.findCampaignById(id)
     }
 
     @Query(() => [Campaign], {
@@ -194,6 +187,21 @@ export class CampaignResolver {
             safeLimit,
             safeOffset,
         )
+    }
+
+    @Mutation(() => Boolean, {
+        description: "Delete campaign (only PENDING status, creator only)",
+    })
+    @UseGuards(CognitoGraphQLGuard)
+    async deleteCampaign(
+        @Args("id", {
+            type: () => String,
+            description: "Campaign ID to delete",
+        })
+            id: string,
+        @CurrentUser("sub") userId: string,
+    ): Promise<boolean> {
+        return this.campaignService.deleteCampaign(id, userId)
     }
 
     @Query(() => String, {

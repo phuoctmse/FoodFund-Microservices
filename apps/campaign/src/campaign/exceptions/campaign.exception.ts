@@ -11,3 +11,11 @@ export class CampaignValidationException extends BadRequestException {
         super(`Campaign validation failed for ${field}: ${reason}`)
     }
 }
+
+export class CampaignCannotBeDeletedException extends BadRequestException {
+    constructor(status: string) {
+        super(
+            `Cannot delete campaign with status ${status}. Only campaigns with PENDING status can be deleted.`,
+        )
+    }
+}
