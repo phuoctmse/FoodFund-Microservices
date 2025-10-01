@@ -1,16 +1,14 @@
 import { Module } from "@nestjs/common"
-import { AuthLibModule } from "libs/auth/auth.module"
 import { CampaignService } from "./campaign.service"
-import { CampaignResolver } from "./campaign.resolver"
+import { CampaignResolver } from "./resolvers/campaign.resolver"
 import { CampaignRepository } from "./campaign.repository"
-import { JwtModule } from "@libs/jwt"
 import { HealthController } from "./health.controller"
 import { AwsCognitoModule } from "@libs/aws-cognito"
 import { SpacesUploadService } from "libs/s3-storage/spaces-upload.service"
 import { CampaignSchedulerService } from "./workers/schedulers/campaign-scheduler.service"
 import { CampaignStatusJob } from "./workers/campaign-status.job"
-import { ScheduleModule } from "@nestjs/schedule"
 import { CampaignCategoryModule } from "../campaign-category/campaign-category.module"
+import { UserRefResolver } from "./resolvers/user-ref.resolver"
 
 @Module({
     imports: [
@@ -18,12 +16,6 @@ import { CampaignCategoryModule } from "../campaign-category/campaign-category.m
             isGlobal: false,
             mockMode: false,
         }),
-        AuthLibModule,
-        JwtModule.register({
-            isGlobal: false,
-            useGlobalImports: true,
-        }),
-        ScheduleModule.forRoot(),
         CampaignCategoryModule,
     ],
     providers: [
@@ -33,6 +25,7 @@ import { CampaignCategoryModule } from "../campaign-category/campaign-category.m
         CampaignRepository,
         CampaignSchedulerService,
         CampaignStatusJob,
+        UserRefResolver,
     ],
     controllers: [HealthController],
     exports: [CampaignService, CampaignRepository, CampaignSchedulerService],

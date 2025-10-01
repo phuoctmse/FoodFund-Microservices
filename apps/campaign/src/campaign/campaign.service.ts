@@ -15,7 +15,6 @@ import {
 import { SentryService } from "@libs/observability/sentry.service"
 import { CampaignRepository } from "./campaign.repository"
 import { SpacesUploadService } from "libs/s3-storage/spaces-upload.service"
-import { Campaign } from "@libs/databases/prisma/schemas/models/campaign.model"
 import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
 import {
     CampaignCannotBeDeletedException,
@@ -23,6 +22,7 @@ import {
 } from "./exceptions/campaign.exception"
 import { GenerateUploadUrlInput } from "./dtos/request/generate-upload-url.input"
 import { CampaignCategoryRepository } from "../campaign-category/campaign-category.repository"
+import { Campaign } from "./models/campaign.model"
 
 @Injectable()
 export class CampaignService {

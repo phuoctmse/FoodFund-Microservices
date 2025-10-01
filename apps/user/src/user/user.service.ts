@@ -135,7 +135,6 @@ export class UserService {
         return this.userQueryService.getActiveUsers()
     }
 
-    // For GraphQL Federation - resolver reference
     async resolveReference(reference: { __typename: string; id: string }) {
         return this.userQueryService.resolveReference(reference)
     }

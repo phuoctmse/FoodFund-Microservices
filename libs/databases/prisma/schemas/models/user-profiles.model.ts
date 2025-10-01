@@ -1,4 +1,4 @@
-import { ObjectType, Field, ID } from "@nestjs/graphql"
+import { ObjectType, Field } from "@nestjs/graphql"
 import { Directive } from "@nestjs/graphql"
 import { AbstractSchema } from "../abstract.schema"
 import {
@@ -8,7 +8,6 @@ import {
 } from "../enums/user.enums"
 
 @ObjectType("User")
-@Directive("@shareable")
 @Directive("@key(fields: \"id\")")
 export class UserProfileSchema extends AbstractSchema {
     @Field(() => String, {

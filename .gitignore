@@ -113,3 +113,6 @@ kubeconfig*
 libs/grpc/generated/
 libs/grpc/**/*.js
 libs/grpc/**/*.d.ts
+
+.cursor
+apps/campaign/node_modules

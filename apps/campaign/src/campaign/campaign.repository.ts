@@ -8,6 +8,7 @@ import { PrismaClient } from "@prisma/client"
 import { Injectable, Logger } from "@nestjs/common"
 import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
 import { sanitizeSearchTerm } from "@libs/common/utils/sanitize-search-term.util"
+import { UserRef } from "../shared/reference/user.ref"
 
 export interface FindManyOptions {
     filter?: CampaignFilterInput
@@ -401,6 +402,13 @@ export class CampaignRepository {
             }
             : undefined
 
+        const creator: UserRef | undefined = dbCampaign.created_by
+            ? {
+                __typename: "User",
+                id: dbCampaign.created_by,
+            }
+            : undefined
+
         return {
             id: dbCampaign.id,
             title: dbCampaign.title,
@@ -420,7 +428,7 @@ export class CampaignRepository {
             createdAt: dbCampaign.created_at,
             updatedAt: dbCampaign.updated_at,
             category: category,
-            creator: undefined,
+            creator: creator,
             donations: undefined,
         }
     }

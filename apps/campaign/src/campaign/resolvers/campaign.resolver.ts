@@ -15,21 +15,20 @@ import {
     ValidationPipe,
 } from "@nestjs/common"
 import { SentryInterceptor } from "@libs/observability/sentry.interceptor"
-import { CampaignService } from "./campaign.service"
+import { CampaignService } from "../campaign.service"
 import {
     CampaignFilterInput,
     CampaignSortOrder,
     CreateCampaignInput,
     UpdateCampaignInput,
-} from "./dtos/request/campaign.input"
+} from "../dtos/request/campaign.input"
 import { CurrentUser } from "libs/auth"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
-import { SignedUrlResponse } from "./dtos/response/signed-url.response"
-import { UserProfileSchema } from "@libs/databases"
-import { Campaign } from "@libs/databases/prisma/schemas/models/campaign.model"
+import { SignedUrlResponse } from "../dtos/response/signed-url.response"
 import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
-import { Donation } from "@libs/databases/prisma/schemas/models/donation.model"
-import { GenerateUploadUrlInput } from "./dtos/request/generate-upload-url.input"
+import { Donation } from "apps/campaign/src/donation/models/donation.model"
+import { GenerateUploadUrlInput } from "../dtos/request/generate-upload-url.input"
+import { Campaign } from "../models/campaign.model"
 
 @Resolver(() => Campaign)
 @UseInterceptors(SentryInterceptor)
@@ -212,15 +211,6 @@ export class CampaignResolver {
         return `${health.service} is ${health.status} at ${health.timestamp}`
     }
 
-    @ResolveField(() => UserProfileSchema, { nullable: true })
-    creator(@Parent() campaign: any): Partial<UserProfileSchema> | null {
-        const userReference: Partial<UserProfileSchema> = {
-            __typename: "User",
-            id: campaign.createdBy,
-        }
-        return userReference
-    }
-
     @ResolveField(() => [Donation])
     donations(@Parent() campaign: Campaign): Donation[] {
         return []
@@ -231,6 +221,7 @@ export class CampaignResolver {
         __typename: string
         id: string
     }): Promise<Campaign> {
-        return await this.campaignService.resolveReference(reference)
+        const campaign = await this.campaignService.resolveReference(reference)
+        return campaign
     }
 }

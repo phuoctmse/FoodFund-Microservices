@@ -1,6 +1,6 @@
 import { Directive, Field, ObjectType } from "@nestjs/graphql"
-import { AbstractSchema } from "../abstract.schema"
-import { Campaign } from "./campaign.model"
+import { AbstractSchema } from "../../../../../libs/databases/prisma/schemas/abstract.schema"
+import { Campaign } from "../../campaign/models/campaign.model"
 
 @ObjectType("CampaignCategory")
 @Directive("@key(fields: \"id\")")

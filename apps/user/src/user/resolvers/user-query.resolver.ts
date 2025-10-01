@@ -25,8 +25,6 @@ export class UserQueryResolver {
     @UseGuards(CognitoGraphQLGuard)
     async getUserProfile(@Context() context: any) {
         const user = context.req.user
-        console.debug("Authenticated user:", user)
-        // Lấy thông tin user theo cognito_id và role Donor
         if (!user || !user.username) {
             throw new Error("Unauthorized: missing Cognito user info")
         }
@@ -36,7 +34,6 @@ export class UserQueryResolver {
         if (!userProfile) {
             throw new Error("User not found")
         }
-        console.debug("User profile found:", userProfile)
         return userProfile
     }
 

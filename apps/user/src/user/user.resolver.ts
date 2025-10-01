@@ -130,7 +130,6 @@ export class UserResolver {
         return this.userService.deleteDeliveryStaffProfile(id)
     }
 
-    // Federation
     async resolveReference(reference: { __typename: string; id: string }) {
         return this.userService.resolveReference(reference)
     }

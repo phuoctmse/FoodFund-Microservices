@@ -1,9 +1,9 @@
+import { AbstractSchema } from "@libs/databases"
+import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
+import { CampaignCategory } from "apps/campaign/src/campaign-category/models/campaign-category.model"
 import { Directive, Field, Int, ObjectType } from "@nestjs/graphql"
-import { AbstractSchema } from "../abstract.schema"
-import { UserProfileSchema } from "./user-profiles.model"
-import { Donation } from "./donation.model"
-import { CampaignStatus } from "../enums/campaign.enum"
-import { CampaignCategory } from "./campaign-category.model"
+import { Donation } from "../../donation/models/donation.model"
+import { UserRef } from "../../shared/reference/user.ref"
 
 @ObjectType("Campaign")
 @Directive("@key(fields: \"id\")")
@@ -54,9 +54,7 @@ export class Campaign extends AbstractSchema {
     @Field(() => Boolean, { description: "Whether campaign is active" })
         isActive: boolean
 
-    @Field(() => String, {
-        description: "ID of user who created this campaign",
-    })
+    @Field(() => String)
         createdBy: string
 
     @Field(() => String, {
@@ -71,12 +69,10 @@ export class Campaign extends AbstractSchema {
     })
         approvedAt?: Date
 
-    @Field(() => UserProfileSchema, {
+    @Field(() => UserRef, {
         nullable: true,
-        description:
-            "Campaign Creator - resolved by User service via federation",
     })
-        creator?: UserProfileSchema
+        creator?: UserRef
 
     @Field(() => CampaignCategory, {
         nullable: true,

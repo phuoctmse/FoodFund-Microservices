@@ -2,8 +2,8 @@ import { Injectable, Logger } from "@nestjs/common"
 import { CampaignRepository } from "../../campaign.repository"
 import { SentryService } from "@libs/observability/sentry.service"
 import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
-import { Campaign } from "@libs/databases/prisma/schemas/models/campaign.model"
 import { JobExecutionResult } from "@libs/common/base/base.job"
+import { Campaign } from "../../models/campaign.model"
 
 export interface StatusTransitionResult {
     campaignId: string

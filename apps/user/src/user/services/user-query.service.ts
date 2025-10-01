@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common"
 import { UserRepository } from "../user.repository"
 import { Role } from "libs/databases/prisma/schemas"
+import { mapPrismaUserToGraphQL } from "../user.mapper"
 
 @Injectable()
 export class UserQueryService {
@@ -52,8 +53,26 @@ export class UserQueryService {
         return this.userRepository.getActiveUsers()
     }
 
-    // For GraphQL Federation - resolver reference
     async resolveReference(reference: { __typename: string; id: string }) {
-        return this.findUserById(reference.id)
+        try {
+            const user = await this.userRepository.findUserByCognitoId(
+                reference.id,
+            )
+
+            if (!user) {
+                return null
+            }
+
+            return {
+                __typename: "User",
+                ...mapPrismaUserToGraphQL(user),
+            }
+        } catch (error) {
+            console.error(
+                `Error resolving user reference ${reference.id}:`,
+                error,
+            )
+            return null
+        }
     }
 }

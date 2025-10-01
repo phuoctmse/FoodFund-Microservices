@@ -59,12 +59,18 @@ jobs:
         include:
           - service: auth
             build-script: "build:auth"
+            prisma-generate: false
           - service: user
             build-script: "build:user"
+            prisma-generate: true
+            prisma-path: "apps/user"
           - service: campaign
             build-script: "build:campaign"
+            prisma-generate: true
+            prisma-path: "apps/campaign"
           - service: gateway
             build-script: "build:gateway"
+            prisma-generate: false
     
     steps:
       - uses: actions/checkout@v4
@@ -79,6 +85,15 @@ jobs:
       - name: Install dependencies
         if: needs.detect-changes.outputs[matrix.service] == 'true'
         run: npm ci
+
+      - name: Generate Prisma Client for ${{ matrix.service }}
+        if: needs.detect-changes.outputs[matrix.service] == 'true' && matrix.prisma-generate == true
+        run: |
+          cd ${{ matrix.prisma-path }}
+          npx prisma generate
+        env:
+          USERS_DATABASE_URL: ${{ secrets.USERS_DATABASE_URL }}
+          CAMPAIGN_DATABASE_URL: ${{ secrets.CAMPAIGN_DATABASE_URL }}
 
       - name: Lint ${{ matrix.service }}
         if: needs.detect-changes.outputs[matrix.service] == 'true'

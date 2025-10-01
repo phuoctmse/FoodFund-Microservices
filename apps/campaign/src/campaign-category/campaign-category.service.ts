@@ -13,7 +13,7 @@ import {
     CreateCampaignCategoryInput,
     UpdateCampaignCategoryInput,
 } from "./dtos/request/campaign-category.input"
-import { CampaignCategory } from "@libs/databases/prisma/schemas/models/campaign-category.model"
+import { CampaignCategory } from "apps/campaign/src/campaign-category/models/campaign-category.model"
 
 @Injectable()
 export class CampaignCategoryService {

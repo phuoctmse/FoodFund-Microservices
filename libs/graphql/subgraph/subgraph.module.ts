@@ -15,7 +15,6 @@ import {
 export class GraphQLSubgraphModule extends ConfigurableModuleClass {
     public static forRoot(options: typeof OPTIONS_TYPE = {}) {
         const dynamicModule = super.forRoot(options)
-        const isDevelopment = process.env.NODE_ENV === "development"
 
         return {
             ...dynamicModule,
@@ -25,6 +24,7 @@ export class GraphQLSubgraphModule extends ConfigurableModuleClass {
                     autoSchemaFile: {
                         federation: 2,
                     },
+                    buildSchemaOptions: options.buildSchemaOptions,
                     plugins: [
                         ApolloServerPluginLandingPageLocalDefault({
                             includeCookies: true,

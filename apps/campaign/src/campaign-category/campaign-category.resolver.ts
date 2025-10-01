@@ -1,4 +1,4 @@
-import { CampaignCategory } from "@libs/databases/prisma/schemas/models/campaign-category.model"
+import { CampaignCategory } from "apps/campaign/src/campaign-category/models/campaign-category.model"
 import { SentryInterceptor } from "@libs/observability/sentry.interceptor"
 import { UseGuards, UseInterceptors, ValidationPipe } from "@nestjs/common"
 import { Args, Mutation, Query, Resolver } from "@nestjs/graphql"

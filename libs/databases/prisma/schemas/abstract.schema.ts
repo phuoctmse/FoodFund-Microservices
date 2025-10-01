@@ -5,18 +5,12 @@ import { ObjectType, Field, ID } from "@nestjs/graphql"
     description: "Abstract base schema with common fields",
 })
 export abstract class AbstractSchema {
-    @Field(() => ID, {
-        description: "Unique identifier",
-    })
+    @Field(() => ID)
         id: string
 
-    @Field(() => Date, {
-        description: "Creation timestamp",
-    })
+    @Field(() => Date)
         createdAt: Date
 
-    @Field(() => Date, {
-        description: "Last update timestamp",
-    })
+    @Field(() => Date)
         updatedAt: Date
 }
