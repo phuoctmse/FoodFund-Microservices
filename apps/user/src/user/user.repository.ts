@@ -117,7 +117,10 @@ export class UserRepository {
 
     async findUserByCognitoId(cognito_id: string) {
         return this.prisma.user.findUnique({
-            where: { cognito_id },
+            where: {
+                cognito_id,
+                is_active: true,
+            },
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
