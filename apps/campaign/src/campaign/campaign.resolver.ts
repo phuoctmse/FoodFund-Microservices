@@ -15,20 +15,21 @@ import {
     ValidationPipe,
 } from "@nestjs/common"
 import { SentryInterceptor } from "@libs/observability/sentry.interceptor"
-import { CampaignService } from "../campaign.service"
+import { CurrentUser } from "libs/auth"
+import { CognitoGraphQLGuard } from "@libs/aws-cognito"
+import { CampaignStatus } from "apps/campaign/src/campaign/enum/campaign.enum"
+import { Donation } from "apps/campaign/src/donation/models/donation.model"
+import { Campaign } from "./models/campaign.model"
+import { CampaignService } from "./campaign.service"
+import { SignedUrlResponse } from "./dtos/response/signed-url.response"
+import { GenerateUploadUrlInput } from "./dtos/request/generate-upload-url.input"
+import { createUserContextFromToken } from "../shared"
 import {
     CampaignFilterInput,
     CampaignSortOrder,
     CreateCampaignInput,
     UpdateCampaignInput,
-} from "../dtos/request/campaign.input"
-import { CurrentUser } from "libs/auth"
-import { CognitoGraphQLGuard } from "@libs/aws-cognito"
-import { SignedUrlResponse } from "../dtos/response/signed-url.response"
-import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
-import { Donation } from "apps/campaign/src/donation/models/donation.model"
-import { GenerateUploadUrlInput } from "../dtos/request/generate-upload-url.input"
-import { Campaign } from "../models/campaign.model"
+} from "./dtos/request/campaign.input"
 
 @Resolver(() => Campaign)
 @UseInterceptors(SentryInterceptor)
@@ -49,11 +50,12 @@ export class CampaignResolver {
             new ValidationPipe(),
         )
             input: GenerateUploadUrlInput,
-        @CurrentUser("sub") userId: string,
+        @CurrentUser("decodedToken") decodedToken: any,
     ): Promise<SignedUrlResponse> {
+        const userContext = createUserContextFromToken(decodedToken)
         return this.campaignService.generateCampaignImageUploadUrl(
             input,
-            userId,
+            userContext,
         )
     }
 
@@ -68,9 +70,10 @@ export class CampaignResolver {
             new ValidationPipe(),
         )
             input: CreateCampaignInput,
-        @CurrentUser("sub") userId: string,
+        @CurrentUser("decodedToken") decodedToken: any,
     ): Promise<Campaign> {
-        return this.campaignService.createCampaign(input, userId)
+        const userContext = createUserContextFromToken(decodedToken)
+        return this.campaignService.createCampaign(input, userContext)
     }
 
     @Mutation(() => Campaign, {
@@ -85,9 +88,10 @@ export class CampaignResolver {
             new ValidationPipe(),
         )
             input: UpdateCampaignInput,
-        @CurrentUser("sub") userId: string,
+        @CurrentUser("decodedToken") decodedToken: any,
     ): Promise<Campaign> {
-        return this.campaignService.updateCampaign(id, input, userId)
+        const userContext = createUserContextFromToken(decodedToken)
+        return this.campaignService.updateCampaign(id, input, userContext)
     }
 
     @Mutation(() => Campaign, {
@@ -97,9 +101,10 @@ export class CampaignResolver {
     async changeCampaignStatus(
         @Args("id", { type: () => String }) id: string,
         @Args("status", { type: () => CampaignStatus }) status: CampaignStatus,
-        @CurrentUser("sub") userId: string,
+        @CurrentUser("decodedToken") decodedToken: any,
     ): Promise<Campaign> {
-        return this.campaignService.changeStatus(id, status, userId)
+        const userContext = createUserContextFromToken(decodedToken)
+        return this.campaignService.changeStatus(id, status, userContext)
     }
 
     @Query(() => [Campaign], {
@@ -157,7 +162,7 @@ export class CampaignResolver {
     })
     @UseGuards(CognitoGraphQLGuard)
     async myCampaigns(
-        @CurrentUser("sub") userId: string,
+        @CurrentUser() decodedToken: any,
         @Args("sortBy", {
             type: () => CampaignSortOrder,
             nullable: true,
@@ -177,10 +182,11 @@ export class CampaignResolver {
         })
             offset: number = 0,
     ): Promise<Campaign[]> {
+        const userContext = createUserContextFromToken(decodedToken)
         const safeLimit = Math.min(Math.max(limit, 1), 100)
         const safeOffset = Math.max(offset, 0)
         return this.campaignService.getCampaigns(
-            { creatorId: userId },
+            { creatorId: userContext.userId },
             undefined,
             sortBy,
             safeLimit,
@@ -198,9 +204,10 @@ export class CampaignResolver {
             description: "Campaign ID to delete",
         })
             id: string,
-        @CurrentUser("sub") userId: string,
+        @CurrentUser("decodedToken") decodedToken: any,
     ): Promise<boolean> {
-        return this.campaignService.deleteCampaign(id, userId)
+        const userContext = createUserContextFromToken(decodedToken)
+        return this.campaignService.deleteCampaign(id, userContext)
     }
 
     @Query(() => String, {

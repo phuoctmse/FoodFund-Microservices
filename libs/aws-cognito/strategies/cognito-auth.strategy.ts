@@ -16,7 +16,6 @@ export class CognitoAuthStrategy extends PassportStrategy(
 
     async validate(req: Request): Promise<CognitoUser> {
         try {
-            // Extract token from Authorization header
             const authHeader = req.headers?.authorization
             if (!authHeader || !authHeader.startsWith("Bearer ")) {
                 throw new UnauthorizedException(
@@ -25,14 +24,10 @@ export class CognitoAuthStrategy extends PassportStrategy(
             }
 
             const token = authHeader.substring(7)
-
-            // Verify token with Cognito
             const decodedToken = await this.cognitoService.validateToken(token)
-
-            // Get user details from Cognito
+            ;(req as any).decodedToken = decodedToken
             const cognitoUserResponse = await this.cognitoService.getUser(token)
 
-            // Map Cognito response to our user interface
             const user: CognitoUser = {
                 sub: decodedToken.sub,
                 email:
@@ -85,8 +80,8 @@ export class CognitoAuthStrategy extends PassportStrategy(
                 ),
                 cognitoUser: cognitoUserResponse,
                 provider: "cognito",
-                createdAt: undefined, // Not available from GetUserCommand
-                updatedAt: undefined, // Not available from GetUserCommand
+                createdAt: undefined,
+                updatedAt: undefined,
             }
 
             return user
