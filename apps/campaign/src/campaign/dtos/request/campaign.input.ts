@@ -8,7 +8,7 @@ import {
     IsUUID,
 } from "class-validator"
 import { Transform, Type } from "class-transformer"
-import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
+import { CampaignStatus } from "apps/campaign/src/campaign/enum/campaign.enum"
 
 @InputType()
 export class CreateCampaignInput {

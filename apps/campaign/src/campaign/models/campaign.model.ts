@@ -1,5 +1,5 @@
 import { AbstractSchema } from "@libs/databases"
-import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
+import { CampaignStatus } from "apps/campaign/src/campaign/enum/campaign.enum"
 import { CampaignCategory } from "apps/campaign/src/campaign-category/models/campaign-category.model"
 import { Directive, Field, Int, ObjectType } from "@nestjs/graphql"
 import { Donation } from "../../donation/models/donation.model"

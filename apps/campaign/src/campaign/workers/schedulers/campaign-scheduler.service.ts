@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common"
 import { CampaignRepository } from "../../campaign.repository"
 import { SentryService } from "@libs/observability/sentry.service"
-import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
+import { CampaignStatus } from "apps/campaign/src/campaign/enum/campaign.enum"
 import { JobExecutionResult } from "@libs/common/base/base.job"
 import { Campaign } from "../../models/campaign.model"
 

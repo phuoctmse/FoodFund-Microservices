@@ -6,7 +6,7 @@ import {
 } from "./dtos/request/campaign.input"
 import { PrismaClient } from "@prisma/client"
 import { Injectable, Logger } from "@nestjs/common"
-import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
+import { CampaignStatus } from "apps/campaign/src/campaign/enum/campaign.enum"
 import { sanitizeSearchTerm } from "@libs/common/utils/sanitize-search-term.util"
 import { UserRef } from "../shared/reference/user.ref"
 
