@@ -65,8 +65,33 @@ export class UserAdminResolver {
     // Organization management methods
     @Query(() => [OrganizationSchema])
     @RequireRole(Role.ADMIN)
-    async getPendingOrganizationRequests() {
-        const organizations = await this.organizationService.getPendingOrganizationRequests()
+    async getAllOrganizationRequests(
+        @Args("status", {
+            type: () => String,
+            nullable: true,
+            description: "Filter by status: PENDING, VERIFIED, REJECTED",
+        })
+            status?: string,
+        @Args("sortBy", {
+            type: () => String,
+            nullable: true,
+            defaultValue: "created_at",
+            description: "Sort by field: created_at, name, status",
+        })
+            sortBy: string = "created_at",
+        @Args("sortOrder", {
+            type: () => String,
+            nullable: true,
+            defaultValue: "desc",
+            description: "Sort order: asc, desc",
+        })
+            sortOrder: string = "desc",
+    ) {
+        const organizations = await this.organizationService.getAllOrganizationRequests({
+            status,
+            sortBy,
+            sortOrder,
+        })
         return organizations
     }
 

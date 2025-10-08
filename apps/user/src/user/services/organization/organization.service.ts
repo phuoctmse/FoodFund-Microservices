@@ -56,6 +56,14 @@ export class OrganizationService {
         return this.organizationRepository.findPendingOrganizations()
     }
 
+    async getAllOrganizationRequests(options?: {
+        status?: string
+        sortBy?: string
+        sortOrder?: string
+    }) {
+        return this.organizationRepository.findAllOrganizations(options)
+    }
+
     async approveOrganizationRequest(organizationId: string) {
         const organization =
             await this.organizationRepository.findOrganizationById(

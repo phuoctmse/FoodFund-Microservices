@@ -39,6 +39,37 @@ export class OrganizationRepository {
         })
     }
 
+    async findAllOrganizations(options?: {
+        status?: string
+        sortBy?: string
+        sortOrder?: string
+    }) {
+        const { status, sortBy = "created_at", sortOrder = "desc" } = options || {}
+        
+        // Build where clause
+        const where: any = {}
+        if (status && ["PENDING", "VERIFIED", "REJECTED"].includes(status)) {
+            where.status = status as Verification_Status
+        }
+
+        // Build orderBy clause
+        const validSortFields = ["created_at", "name", "status"]
+        const validSortOrders = ["asc", "desc"]
+        
+        const orderByField = validSortFields.includes(sortBy) ? sortBy : "created_at"
+        const orderByOrder = validSortOrders.includes(sortOrder) ? sortOrder : "desc"
+
+        return this.prisma.organization.findMany({
+            where,
+            include: {
+                user: true,
+            },
+            orderBy: {
+                [orderByField]: orderByOrder,
+            },
+        })
+    }
+
     async updateOrganizationStatus(id: string, status: Verification_Status) {
         return this.prisma.organization.update({
             where: { id },
