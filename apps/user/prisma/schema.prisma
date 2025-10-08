@@ -26,7 +26,7 @@ model User {
   Kitchen_Staff_Profile  Kitchen_Staff_Profile?
   Delivery_Staff_Profile Delivery_Staff_Profile?
   User_Badge             User_Badge?
-  Organization           Organization?
+  Organizations           Organization[]
   Organization_Member    Organization_Member[]
 
   @@map("users")
@@ -78,11 +78,11 @@ model Organization {
   address                        String                   @db.Text()
   website                        String                   @db.Text()
   description                    String                   @db.Text()
-  representative_id              String                   @unique
+  representative_id              String
   user                           User                     @relation(fields: [representative_id], references: [id], onDelete: Cascade)
   representative_name            String                   @db.Text()
   representative_identity_number String                   @db.Text()
-  email                          String                   @unique @db.VarChar(100)
+  email                          String                   @db.VarChar(100)
   phone_number                   String                   @db.VarChar(20)
   status                         Verification_Status      @default(PENDING)
   created_at                     DateTime                 @default(now())
@@ -147,7 +147,6 @@ enum Verification_Status {
   REJECTED
   INACTIVE
 }
-
 
 enum Availability_Status {
   AVAILABLE

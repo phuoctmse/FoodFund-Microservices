@@ -1,46 +1,54 @@
-import {
-    Injectable,
-    NotFoundException,
-    BadRequestException,
-} from "@nestjs/common"
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common"
 import { OrganizationRepository } from "../../repositories/organization/organization.repository"
 import { UserRepository } from "../../repositories/user.repository"
 import { CreateOrganizationInput, JoinOrganizationInput } from "../../dto/organization.input"
 import { Verification_Status } from "../../../generated/user-client"
 import { Role } from "libs/databases/prisma/schemas"
+import { AwsCognitoService } from "@libs/aws-cognito"
+import { DataLoaderService } from "../common"
+import { UserErrorHelper } from "../../exceptions"
 
 @Injectable()
 export class OrganizationService {
     constructor(
         private readonly organizationRepository: OrganizationRepository,
         private readonly userRepository: UserRepository,
+        private readonly awsCognitoService: AwsCognitoService,
+        private readonly organizationDataLoader: DataLoaderService,
     ) {}
 
     async requestCreateOrganization(
-        userId: string,
+        cognitoId: string,
         data: CreateOrganizationInput,
     ) {
-        const user = await this.userRepository.findUserById(userId)
+        // Validate user exists and has correct role
+        UserErrorHelper.validateRequiredString(cognitoId, "cognitoId")
+        
+        const user = await this.userRepository.findUserById(cognitoId)
         if (!user) {
-            throw new NotFoundException("User not found")
+            UserErrorHelper.throwUserNotFound(cognitoId)
         }
 
+        console.log("User found:", { id: user.id, cognito_id: user.cognito_id, role: user.role })
+
         if (user.role !== Role.DONOR) {
-            throw new BadRequestException(
-                "Only donors can request to create organizations",
-            )
+            UserErrorHelper.throwUnauthorizedRole(user.role, [Role.DONOR])
         }
 
         // Check if user already has an organization request
-        const existingOrg =
-            await this.userRepository.findUserOrganization(userId)
-        if (existingOrg) {
-            throw new BadRequestException(
-                "User already has an organization request or approved organization",
-            )
+        const existingOrg = await this.userRepository.findUserOrganization(user.id)
+        if (existingOrg?.status === Verification_Status.PENDING) {
+            UserErrorHelper.throwPendingOrganizationRequest(cognitoId)
         }
 
-        return this.organizationRepository.createOrganization(userId, data)
+        console.log("Creating organization with representative_id:", user.id)
+
+        try {
+            return await this.organizationRepository.createOrganization(user.id, data)
+        } catch (error) {
+            console.error("Error creating organization:", error)
+            UserErrorHelper.handlePrismaError(error, "createOrganization")
+        }
     }
 
     async getPendingOrganizationRequests() {
@@ -75,6 +83,24 @@ export class OrganizationService {
             Role.FUNDRAISER,
         )
 
+        // Add the organization creator to Organization_Member table as FUNDRAISER
+        // Create directly with VERIFIED status since they are the organization owner
+        await this.organizationRepository.createVerifiedMember(
+            organization.representative_id,
+            organizationId,
+            Role.FUNDRAISER,
+        )
+
+        // Update AWS Cognito custom:role attribute
+        if (organization.user.cognito_id) {
+            await this.awsCognitoService.updateUserAttributes(
+                organization.user.cognito_id,
+                {
+                    "custom:role": Role.FUNDRAISER,
+                }
+            )
+        }
+
         return updatedOrganization
     }
 
@@ -99,31 +125,26 @@ export class OrganizationService {
         )
     }
 
-    async getUserOrganization(userId: string) {
-        return this.userRepository.findUserOrganization(userId)
+    async getUserOrganization(cognitoId: string) {
+        const user = await this.userRepository.findUserById(cognitoId)
+        if (!user) {
+            return null
+        }
+        return this.userRepository.findUserOrganization(user.id)
     }
 
-    async requestJoinOrganization(userId: string, data: JoinOrganizationInput) {
-        // Validate requested role
-        if (
-            data.requested_role !== Role.KITCHEN_STAFF &&
-            data.requested_role !== Role.DELIVERY_STAFF
-        ) {
-            throw new BadRequestException(
-                "Can only request to join as KITCHEN_STAFF or DELIVERY_STAFF",
-            )
-        }
+    async requestJoinOrganization(cognitoId: string, data: JoinOrganizationInput) {
+        // Validate requested role - now supports 3 roles
+        UserErrorHelper.validateJoinOrganizationRole(data.requested_role)
 
         // Check if user exists and is a DONOR
-        const user = await this.userRepository.findUserById(userId)
+        const user = await this.userRepository.findUserById(cognitoId)
         if (!user) {
-            throw new NotFoundException("User not found")
+            UserErrorHelper.throwUserNotFound(cognitoId)
         }
 
         if (user.role !== Role.DONOR) {
-            throw new BadRequestException(
-                "Only donors can request to join organizations",
-            )
+            UserErrorHelper.throwUnauthorizedRole(user.role, [Role.DONOR])
         }
 
         // Check if organization exists and is verified
@@ -142,7 +163,7 @@ export class OrganizationService {
         // Check if user already has a join request or membership
         const existingRequest =
             await this.organizationRepository.checkExistingJoinRequest(
-                userId,
+                user.id,
                 data.organization_id,
             )
         if (existingRequest) {
@@ -152,7 +173,7 @@ export class OrganizationService {
         }
 
         return this.organizationRepository.createJoinRequest(
-            userId,
+            user.id,
             data.organization_id,
             data.requested_role,
         )
@@ -160,8 +181,14 @@ export class OrganizationService {
 
     async getOrganizationJoinRequests(
         organizationId: string,
-        fundraiserId: string,
+        fundraiserCognitoId: string,
     ) {
+        // Get the fundraiser user to get their database ID
+        const fundraiserUser = await this.userRepository.findUserById(fundraiserCognitoId)
+        if (!fundraiserUser) {
+            UserErrorHelper.throwUserNotFound(fundraiserCognitoId)
+        }
+
         // Verify that the fundraiser is the representative of this organization
         const organization =
             await this.organizationRepository.findOrganizationById(
@@ -171,7 +198,7 @@ export class OrganizationService {
             throw new NotFoundException("Organization not found")
         }
 
-        if (organization.representative_id !== fundraiserId) {
+        if (organization.representative_id !== fundraiserUser.id) {
             throw new BadRequestException(
                 "You are not authorized to view requests for this organization",
             )
@@ -182,7 +209,13 @@ export class OrganizationService {
         )
     }
 
-    async approveJoinRequest(requestId: string, fundraiserId: string) {
+    async approveJoinRequest(requestId: string, fundraiserCognitoId: string) {
+        // Get the fundraiser user to get their database ID
+        const fundraiserUser = await this.userRepository.findUserById(fundraiserCognitoId)
+        if (!fundraiserUser) {
+            UserErrorHelper.throwUserNotFound(fundraiserCognitoId)
+        }
+
         const joinRequest =
             await this.organizationRepository.findJoinRequestById(
                 requestId,
@@ -192,7 +225,7 @@ export class OrganizationService {
         }
 
         // Verify that the fundraiser is the representative of this organization
-        if (joinRequest.organization.representative_id !== fundraiserId) {
+        if (joinRequest.organization.representative_id !== fundraiserUser.id) {
             throw new BadRequestException(
                 "You are not authorized to approve this request",
             )
@@ -217,10 +250,26 @@ export class OrganizationService {
             joinRequest.member_role as Role,
         )
 
+        // Update AWS Cognito custom:role attribute
+        if (joinRequest.member.cognito_id) {
+            await this.awsCognitoService.updateUserAttributes(
+                joinRequest.member.cognito_id,
+                {
+                    "custom:role": joinRequest.member_role,
+                }
+            )
+        }
+
         return updatedRequest
     }
 
-    async rejectJoinRequest(requestId: string, fundraiserId: string) {
+    async rejectJoinRequest(requestId: string, fundraiserCognitoId: string) {
+        // Get the fundraiser user to get their database ID
+        const fundraiserUser = await this.userRepository.findUserById(fundraiserCognitoId)
+        if (!fundraiserUser) {
+            UserErrorHelper.throwUserNotFound(fundraiserCognitoId)
+        }
+
         const joinRequest =
             await this.organizationRepository.findJoinRequestById(
                 requestId,
@@ -230,7 +279,7 @@ export class OrganizationService {
         }
 
         // Verify that the fundraiser is the representative of this organization
-        if (joinRequest.organization.representative_id !== fundraiserId) {
+        if (joinRequest.organization.representative_id !== fundraiserUser.id) {
             throw new BadRequestException(
                 "You are not authorized to reject this request",
             )
@@ -248,10 +297,90 @@ export class OrganizationService {
         )
     }
 
-    async getMyJoinRequests(userId: string) {
+    async getMyJoinRequests(cognitoId: string) {
         // Get all join requests made by the user
+        const user = await this.userRepository.findUserById(cognitoId)
+        if (!user) {
+            return null
+        }
         return this.organizationRepository.findUserActiveOrganizationMembership(
-            userId,
+            user.id,
         )
+    }
+
+    async getProfile(cognito_id: string) {
+        const user = await this.userRepository.findUserByCognitoId(cognito_id)
+        if (!user) {
+            throw new NotFoundException("User not found")
+        }
+
+        // Use DataLoader to get user's organization with members
+        return this.organizationDataLoader.getUserOrganization(user.id)
+    }
+
+    // Optimized method for KITCHEN_STAFF profile with organization data
+    async getKitchenStaffProfile(cognito_id: string) {
+        const user = await this.userRepository.findUserByCognitoId(cognito_id)
+        if (!user) {
+            throw new NotFoundException("User not found")
+        }
+
+        if (!user.Kitchen_Staff_Profile) {
+            throw new NotFoundException("Kitchen staff profile not found")
+        }
+
+        // Get organization membership using DataLoader
+        const memberships = await this.organizationDataLoader.getOrganizationMembersByUserId(user.id)
+        const activeMembership = memberships.find(m => m.status === Verification_Status.VERIFIED)
+
+        return {
+            ...user.Kitchen_Staff_Profile,
+            user: user,
+            organization: activeMembership?.organization || null,
+            organizationMembership: activeMembership || null,
+        }
+    }
+
+    // Optimized method for DELIVERY_STAFF profile with organization data
+    async getDeliveryStaffProfile(cognito_id: string) {
+        const user = await this.userRepository.findUserByCognitoId(cognito_id)
+        if (!user) {
+            throw new NotFoundException("User not found")
+        }
+
+        if (!user.Delivery_Staff_Profile) {
+            throw new NotFoundException("Delivery staff profile not found")
+        }
+
+        // Get organization membership using DataLoader
+        const memberships = await this.organizationDataLoader.getOrganizationMembersByUserId(user.id)
+        const activeMembership = memberships.find(m => m.status === Verification_Status.VERIFIED)
+
+        return {
+            ...user.Delivery_Staff_Profile,
+            user: user,
+            organization: activeMembership?.organization || null,
+            organizationMembership: activeMembership || null,
+        }
+    }
+
+    // Optimized method for FUNDRAISER profile with organization data
+    async getFundraiserProfile(cognito_id: string) {
+        const user = await this.userRepository.findUserByCognitoId(cognito_id)
+        if (!user) {
+            throw new NotFoundException("User not found")
+        }
+
+        // Use DataLoader to get user's organization with all members
+        const organization = await this.organizationDataLoader.getUserOrganization(user.id)
+        if (!organization) {
+            throw new NotFoundException("Organization not found for fundraiser")
+        }
+
+        return {
+            organization: organization,
+            user: user,
+            role: Role.FUNDRAISER,
+        }
     }
 }

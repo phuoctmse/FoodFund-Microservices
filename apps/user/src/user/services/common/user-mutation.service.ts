@@ -19,11 +19,6 @@ export class UserMutationService {
         return this.userRepository.deleteUser(id) as any
     }
 
-    async softDeleteUser(id: string): Promise<UserProfileSchema> {
-        this.logger.log(`Soft deleting user: ${id}`)
-        return this.userRepository.softDeleteUser(id) as any
-    }
-
     // Additional general user operations
     async activateUser(id: string): Promise<UserProfileSchema> {
         this.logger.log(`Activating user: ${id}`)

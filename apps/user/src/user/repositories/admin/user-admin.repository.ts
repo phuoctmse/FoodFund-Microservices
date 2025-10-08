@@ -37,7 +37,7 @@ export class UserAdminRepository {
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
-                Organization: true,
+                Organizations: true,
                 Delivery_Staff_Profile: true,
             },
             orderBy: {
@@ -52,7 +52,7 @@ export class UserAdminRepository {
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
-                Organization: true,
+                Organizations: true,
                 Delivery_Staff_Profile: true,
             },
             orderBy: { created_at: "desc" },
@@ -65,7 +65,7 @@ export class UserAdminRepository {
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
-                Organization: true,
+                Organizations: true,
                 Delivery_Staff_Profile: true,
             },
             orderBy: { created_at: "desc" },
@@ -109,7 +109,7 @@ export class UserAdminRepository {
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
-                Organization: true,
+                Organizations: true,
                 Delivery_Staff_Profile: true,
             },
             orderBy: { created_at: "desc" },
@@ -123,7 +123,7 @@ export class UserAdminRepository {
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
-                Organization: true,
+                Organizations: true,
                 Organization_Member: true,
                 Delivery_Staff_Profile: true,
             },
@@ -136,7 +136,7 @@ export class UserAdminRepository {
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
-                Organization: true,
+                Organizations: true,
                 Organization_Member: true,
                 Delivery_Staff_Profile: true,
             },

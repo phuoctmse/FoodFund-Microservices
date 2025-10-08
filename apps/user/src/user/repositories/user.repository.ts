@@ -57,7 +57,7 @@ export class UserRepository {
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
-                Organization: true,
+                Organizations: true,
                 Delivery_Staff_Profile: true,
             },
             orderBy: {
@@ -68,11 +68,11 @@ export class UserRepository {
 
     async findUserById(id: string) {
         return this.prisma.user.findUnique({
-            where: { id },
+            where: { cognito_id: id },
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
-                Organization: true,
+                Organizations: true,
                 Delivery_Staff_Profile: true,
             },
         })
@@ -84,7 +84,7 @@ export class UserRepository {
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
-                Organization: true,
+                Organizations: true,
                 Delivery_Staff_Profile: true,
             },
         })
@@ -96,7 +96,7 @@ export class UserRepository {
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
-                Organization: true,
+                Organizations: true,
                 Delivery_Staff_Profile: true,
             },
         })
@@ -108,7 +108,7 @@ export class UserRepository {
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
-                Organization: true,
+                Organizations: true,
                 Delivery_Staff_Profile: true,
             },
         })
@@ -133,7 +133,7 @@ export class UserRepository {
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
-                Organization: true,
+                Organizations: true,
                 Delivery_Staff_Profile: true,
             },
         })
@@ -142,7 +142,15 @@ export class UserRepository {
     async findUserOrganization(userId: string) {
         return this.prisma.organization.findFirst({
             where: { representative_id: userId },
-            include: { user: true },
+            include: { 
+                user: {
+                    include: {
+                        Donor_Profile: true,
+                        Kitchen_Staff_Profile: true,
+                        Delivery_Staff_Profile: true
+                    }
+                }
+            },
         })
     }
 
@@ -153,7 +161,22 @@ export class UserRepository {
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
-                Organization: true,
+                Organizations: true,
+                Delivery_Staff_Profile: true,
+            },
+        })
+    }
+
+    // Batch methods for DataLoader
+    async findUsersByIds(userIds: string[]) {
+        return this.prisma.user.findMany({
+            where: {
+                id: { in: userIds },
+            },
+            include: {
+                Donor_Profile: true,
+                Kitchen_Staff_Profile: true,
+                Organizations: true,
                 Delivery_Staff_Profile: true,
             },
         })

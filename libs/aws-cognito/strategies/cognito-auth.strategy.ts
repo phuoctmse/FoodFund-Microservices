@@ -32,6 +32,8 @@ export class CognitoAuthStrategy extends PassportStrategy(
             // Get user details from Cognito
             const cognitoUserResponse = await this.cognitoService.getUser(token)
 
+            console.debug(cognitoUserResponse)
+
             // Map Cognito response to our user interface
             const user: CognitoUser = {
                 sub: decodedToken.sub,

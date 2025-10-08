@@ -31,8 +31,6 @@ export class UserGrpcService implements OnModuleInit {
 
             // User service methods
             CreateUser: this.createUser.bind(this),
-            CreateStaffUser: this.createStaffUser.bind(this),
-            CreateStaffAccount: this.createStaffAccount.bind(this),
             GetUser: this.getUser.bind(this),
             UpdateUser: this.updateUser.bind(this),
             UserExists: this.userExists.bind(this),
@@ -57,10 +55,6 @@ export class UserGrpcService implements OnModuleInit {
         return this.userCommonGrpcService.createUser(call, callback)
     }
 
-    // Create staff user from admin service
-    private async createStaffUser(call: any, callback: any) {
-        return this.userAdminGrpcService.createStaffUser(call, callback)
-    }
 
     // Get user by ID
     private async getUser(call: any, callback: any) {
@@ -82,8 +76,4 @@ export class UserGrpcService implements OnModuleInit {
         return this.userCommonGrpcService.getUserByEmail(call, callback)
     }
 
-    // Create Staff Account (Admin function with full Cognito integration)
-    private async createStaffAccount(call: any, callback: any) {
-        return this.userAdminGrpcService.createStaffAccount(call, callback)
-    }
 }

@@ -24,10 +24,12 @@ import { DonorService } from "../../services/donor/donor.service"
 import { FundraiserService } from "../../services/fundraiser/fundraiser.service"
 import { KitchenStaffService } from "../../services/kitchen-staff/kitchen-staff.service"
 import { DeliveryStaffService } from "../../services/delivery-staff/delivery-staff.service"
+import { DataLoaderService } from "../../services/common/dataloader.service"
 import { UseGuards } from "@nestjs/common"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
 import { CurrentUser, RequireRole } from "libs/auth"
 import { User } from "apps/user/src/generated/user-client"
+import { OrganizationService } from "../../services"
 
 // Create a generic profile response that works for all roles
 @ObjectType()
@@ -63,6 +65,8 @@ export class UserQueryResolver {
         private readonly fundraiserService: FundraiserService,
         private readonly kitchenStaffService: KitchenStaffService,
         private readonly deliveryStaffService: DeliveryStaffService,
+        private readonly organizationService: OrganizationService,
+        private readonly dataLoaderService: DataLoaderService,
     ) {}
 
     @Query(() => UserHealthResponse, { name: "userHealth" })
@@ -106,15 +110,20 @@ export class UserQueryResolver {
             break
         }
         case Role.FUNDRAISER: {
-            response.fundraiserProfile = (await this.fundraiserService.getProfile(cognito_id as string)) as any
+            // Sử dụng DataLoader cho optimization
+            response.fundraiserProfile = (await this.dataLoaderService.getFundraiserProfileWithOrganization(cognito_id as string)) as any
             break
         }
         case Role.KITCHEN_STAFF: {
-            response.kitchenStaffProfile = (await this.kitchenStaffService.getProfile(cognito_id as string)) as any
+            // Sử dụng DataLoader cho optimization
+            response.kitchenStaffProfile = (await this.dataLoaderService.getKitchenStaffProfileWithOrganization(cognito_id as string)) as any
             break
         }
         case Role.DELIVERY_STAFF: {
-            response.deliveryStaffProfile = (await this.deliveryStaffService.getProfile(cognito_id as string)) as any
+            // Sử dụng DataLoader cho optimization
+            response.deliveryStaffProfile = (await this.dataLoaderService.getDeliveryStaffProfileWithOrganization(cognito_id as string)) as any
+            break
+            response.deliveryStaffProfile = (await this.organizationService.getDeliveryStaffProfile(cognito_id as string)) as any
             break
         }
         case Role.ADMIN: {

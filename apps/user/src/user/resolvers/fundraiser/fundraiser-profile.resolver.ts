@@ -13,18 +13,18 @@ export class FundraiserProfileResolver {
         private readonly organizationService: OrganizationService,
     ) {}
 
-    @Mutation(() => FundraiserProfileSchema)
-    @RequireRole(Role.FUNDRAISER)
-    async updateFundraiserProfile(
-        @CurrentUser() user: { cognito_id: string },
-        @Args("updateFundraiserProfileInput", new ValidationPipe())
-            updateFundraiserProfileInput: UpdateFundraiserProfileInput,
-    ) {
-        return this.fundraiserService.updateProfile(
-            user.cognito_id,
-            updateFundraiserProfileInput,
-        )
-    }
+    // @Mutation(() => FundraiserProfileSchema)
+    // @RequireRole(Role.FUNDRAISER)
+    // async updateFundraiserProfile(
+    //     @CurrentUser() user: { cognito_id: string },
+    //     @Args("updateFundraiserProfileInput", new ValidationPipe())
+    //         updateFundraiserProfileInput: UpdateFundraiserProfileInput,
+    // ) {
+    //     return this.fundraiserService.updateProfile(
+    //         user.cognito_id,
+    //         updateFundraiserProfileInput,
+    //     )
+    // }
     @Query(() => [String])
     @RequireRole(Role.FUNDRAISER)
     async getOrganizationJoinRequests(

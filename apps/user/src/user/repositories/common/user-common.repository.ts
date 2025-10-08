@@ -27,7 +27,7 @@ export class UserCommonRepository {
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
-                Organization: true,
+                Organizations: true,
                 Delivery_Staff_Profile: true,
             },
         })
@@ -39,7 +39,7 @@ export class UserCommonRepository {
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
-                Organization: true,
+                Organizations: true,
                 Delivery_Staff_Profile: true,
             },
         })
@@ -51,7 +51,7 @@ export class UserCommonRepository {
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
-                Organization: true,
+                Organizations: true,
                 Delivery_Staff_Profile: true,
             },
         })
@@ -70,7 +70,7 @@ export class UserCommonRepository {
             include: {
                 Donor_Profile: true,
                 Kitchen_Staff_Profile: true,
-                Organization: true,
+                Organizations: true,
                 Delivery_Staff_Profile: true,
             },
         })

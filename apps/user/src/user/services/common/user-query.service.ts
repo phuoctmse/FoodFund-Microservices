@@ -33,21 +33,6 @@ export class UserQueryService {
         return this.userRepository.findUserByCognitoId(cognitoId) as any
     }
 
-    async searchUsers(searchTerm: string, role?: Role): Promise<UserProfileSchema[]> {
-        this.logger.log(`Searching users with term: ${searchTerm}, role: ${role}`)
-        return this.userRepository.searchUsers(searchTerm, role) as any
-    }
-
-    async getUsersByRole(role: Role): Promise<UserProfileSchema[]> {
-        this.logger.log(`Getting users by role: ${role}`)
-        return this.userRepository.getUsersByRole(role) as any
-    }
-
-    async getActiveUsers(): Promise<UserProfileSchema[]> {
-        this.logger.log("Getting active users")
-        return this.userRepository.getActiveUsers() as any
-    }
-
     async resolveReference(reference: { __typename: string; id: string }): Promise<UserProfileSchema | null> {
         this.logger.log(`Resolving GraphQL federation reference: ${reference.id}`)
         return this.userRepository.findUserById(reference.id) as any

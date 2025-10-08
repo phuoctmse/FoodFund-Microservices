@@ -6,5 +6,4 @@ import { CreateFundraiserProfileInput, UpdateFundraiserProfileInput } from "../.
 export class FundraiserRepository {
     constructor(private readonly prisma: PrismaClient) {}
 
-    
 }

@@ -42,6 +42,8 @@ import {
     UserMutationService as GeneralUserMutationService,
 } from "./services"
 import { OrganizationService } from "./services/organization/organization.service"
+import { DataLoaderFactory } from "./services/common/dataloader.factory"
+import { DataLoaderService } from "./services/common/dataloader.service"
 import { AwsCognitoModule } from "@libs/aws-cognito"
 
 @Module({
@@ -72,6 +74,9 @@ import { AwsCognitoModule } from "@libs/aws-cognito"
 
         UserAdminService,
         OrganizationService,
+        
+        DataLoaderFactory,
+        DataLoaderService,
 
         DonorService,
         FundraiserService,

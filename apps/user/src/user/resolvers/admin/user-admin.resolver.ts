@@ -8,15 +8,17 @@ import {
     Int,
 } from "@nestjs/graphql"
 import { CreateStaffAccountResponse } from "../../types/staff-response.model"
+import { OrganizationActionResponse } from "../../types/organization-response.model"
 import {
     CreateStaffAccountInput,
     UpdateUserAccountInput,
 } from "../../dto/user.input"
 import { RequireRole } from "libs/auth"
-import { Role, UserProfileSchema } from "libs/databases/prisma/schemas"
+import { Role, UserProfileSchema, OrganizationSchema } from "libs/databases/prisma/schemas"
 import { UserAdminService } from "../../services/admin/user-admin.service"
 import { OrganizationService } from "../../services/organization/organization.service"
-import { ValidationPipe } from "@nestjs/common"
+import { UseGuards, ValidationPipe } from "@nestjs/common"
+import { CognitoGraphQLGuard } from "@libs/aws-cognito"
 
 @Resolver()
 export class UserAdminResolver {
@@ -27,6 +29,7 @@ export class UserAdminResolver {
 
     // Admin Query: Get all users
     @Query(() => [UserProfileSchema], { name: "getAllUsers" })
+    @UseGuards(CognitoGraphQLGuard)
     @RequireRole(Role.ADMIN)
     async getAllUsers(
         @Args("offset", {
@@ -50,16 +53,6 @@ export class UserAdminResolver {
         return this.userAdminService.getAllUsers(safeOffset, safeLimit)
     }
 
-    @Mutation(() => CreateStaffAccountResponse)
-    @RequireRole(Role.ADMIN)
-    async createStaffAccount(
-        @Args("input") input: CreateStaffAccountInput,
-        @Context() context: any,
-    ): Promise<CreateStaffAccountResponse> {
-        const adminUser = context.req.user
-        return this.userAdminService.createStaffAccount(input, adminUser.id)
-    }
-
     @Mutation(() => UserProfileSchema)
     @RequireRole(Role.ADMIN)
     async updateUserAccount(
@@ -70,28 +63,36 @@ export class UserAdminResolver {
     }
 
     // Organization management methods
-    @Query(() => [String])
+    @Query(() => [OrganizationSchema])
     @RequireRole(Role.ADMIN)
     async getPendingOrganizationRequests() {
         const organizations = await this.organizationService.getPendingOrganizationRequests()
-        return organizations.map(org => org.id)
+        return organizations
     }
 
-    @Mutation(() => String)
+    @Mutation(() => OrganizationActionResponse)
     @RequireRole(Role.ADMIN)
     async approveOrganizationRequest(
         @Args("organizationId") organizationId: string,
     ) {
         const result = await this.organizationService.approveOrganizationRequest(organizationId)
-        return result.id
+        return {
+            organization: result,
+            message: `Organization "${result.name}" has been approved successfully. Representative role updated to FUNDRAISER.`,
+            success: true,
+        }
     }
 
-    @Mutation(() => String)
+    @Mutation(() => OrganizationActionResponse)
     @RequireRole(Role.ADMIN)
     async rejectOrganizationRequest(
         @Args("organizationId") organizationId: string,
     ) {
         const result = await this.organizationService.rejectOrganizationRequest(organizationId)
-        return result.id
+        return {
+            organization: result,
+            message: `Organization "${result.name}" has been rejected.`,
+            success: true,
+        }
     }
 }
