@@ -41,10 +41,9 @@ export class DonorProfileResolver {
         }
     }
 
-    @Query(() => OrganizationSchema, { nullable: true }) 
+    @Query(() => [OrganizationSchema], { nullable: true })
     @RequireRole(Role.DONOR, Role.FUNDRAISER)
     async myOrganizationRequest(@CurrentUser() user: any) {
-        // Get user's organization request (pending, approved, or rejected)
         const result = await this.organizationService.getUserOrganization(user.id)
         return result || null
     }

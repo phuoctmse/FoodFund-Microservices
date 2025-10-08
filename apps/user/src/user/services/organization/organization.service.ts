@@ -29,15 +29,16 @@ export class OrganizationService {
             UserErrorHelper.throwUserNotFound(cognitoId)
         }
 
-        console.log("User found:", { id: user.id, cognito_id: user.cognito_id, role: user.role })
-
         if (user.role !== Role.DONOR) {
             UserErrorHelper.throwUnauthorizedRole(user.role, [Role.DONOR])
         }
 
         // Check if user already has an organization request
         const existingOrg = await this.userRepository.findUserOrganization(user.id)
-        if (existingOrg?.status === Verification_Status.PENDING) {
+        const hasPendingOrg = Array.isArray(existingOrg)
+            ? existingOrg.some(org => (org as any)?.status === Verification_Status.PENDING)
+            : (existingOrg as any)?.status === Verification_Status.PENDING
+        if (hasPendingOrg) {
             UserErrorHelper.throwPendingOrganizationRequest(cognitoId)
         }
 

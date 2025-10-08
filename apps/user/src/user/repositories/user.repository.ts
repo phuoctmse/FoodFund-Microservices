@@ -140,7 +140,7 @@ export class UserRepository {
     }
 
     async findUserOrganization(userId: string) {
-        return this.prisma.organization.findFirst({
+        return this.prisma.organization.findMany({
             where: { representative_id: userId },
             include: { 
                 user: {
