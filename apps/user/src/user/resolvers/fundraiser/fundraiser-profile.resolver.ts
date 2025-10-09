@@ -3,8 +3,10 @@ import { ValidationPipe } from "@nestjs/common"
 import { FundraiserProfileSchema, Role } from "libs/databases/prisma/schemas"
 import { UpdateFundraiserProfileInput } from "../../dto/profile.input"
 import { FundraiserService } from "../../services/fundraiser/fundraiser.service"
-import { CurrentUser, RequireRole } from "libs/auth"
+import { CurrentUser, RequireRole, CurrentUserType } from "libs/auth"
 import { OrganizationService } from "../../services"
+import { OrganizationWithMembers } from "../../types/organization-with-members.model"
+import { JoinRequestManagementResponse, JoinRequestListResponse } from "../../types/join-request-management-response.model"
 
 @Resolver(() => FundraiserProfileSchema)
 export class FundraiserProfileResolver {
@@ -25,34 +27,58 @@ export class FundraiserProfileResolver {
     //         updateFundraiserProfileInput,
     //     )
     // }
-    @Query(() => [String])
+    @Query(() => OrganizationWithMembers, { 
+        description: "Get the organization that this fundraiser manages with all members",
+        nullable: true,
+    })
+    @RequireRole(Role.FUNDRAISER)
+    async myOrganization(@CurrentUser() user: CurrentUserType) {
+        console.debug("user:", user)
+        return this.organizationService.getFundraiserOrganization(user.cognito_id)
+    }
+
+    @Query(() => JoinRequestListResponse)
     @RequireRole(Role.FUNDRAISER)
     async getOrganizationJoinRequests(
-        @CurrentUser() user: any,
-        @Args("organizationId") organizationId: string,
+        @CurrentUser() user: CurrentUserType,
     ) {
-        const requests = await this.organizationService.getOrganizationJoinRequests(organizationId, user.id)
-        return requests.map(req => req.id)
+        const requests = await this.organizationService.getMyOrganizationJoinRequests(user.cognito_id)
+        return {
+            success: true,
+            message: `Found ${requests.length} join request(s) for your organization`,
+            joinRequests: requests,
+            total: requests.length,
+        }
     }
 
-    @Mutation(() => String)
+    @Mutation(() => JoinRequestManagementResponse)
     @RequireRole(Role.FUNDRAISER)
     async approveJoinRequest(
-        @CurrentUser() user: any,
+        @CurrentUser() user: CurrentUserType,
         @Args("requestId") requestId: string,
     ) {
-        const result = await this.organizationService.approveJoinRequest(requestId, user.id)
-        return result.id
+        const result = await this.organizationService.approveJoinRequest(requestId, user.cognito_id)
+        return {
+            success: true,
+            message: `Join request approved successfully. User "${result.member.full_name}" is now a member.`,
+            joinRequest: result,
+            requestId: result.id,
+        }
     }
 
-    @Mutation(() => String)
+    @Mutation(() => JoinRequestManagementResponse)
     @RequireRole(Role.FUNDRAISER)
     async rejectJoinRequest(
-        @CurrentUser() user: any,
+        @CurrentUser() user: CurrentUserType,
         @Args("requestId") requestId: string,
     ) {
-        const result = await this.organizationService.rejectJoinRequest(requestId, user.id)
-        return result.id
+        const result = await this.organizationService.rejectJoinRequest(requestId, user.cognito_id)
+        return {
+            success: true,
+            message: "Join request rejected successfully.",
+            joinRequest: result,
+            requestId: result.id,
+        }
     }
 
 }

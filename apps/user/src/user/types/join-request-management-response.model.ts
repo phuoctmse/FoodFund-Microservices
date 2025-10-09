@@ -1,0 +1,32 @@
+import { ObjectType, Field, ID } from "@nestjs/graphql"
+import { OrganizationMemberSchema } from "libs/databases/prisma/schemas"
+
+@ObjectType()
+export class JoinRequestManagementResponse {
+    @Field(() => Boolean)
+        success: boolean
+
+    @Field(() => String)
+        message: string
+
+    @Field(() => OrganizationMemberSchema, { nullable: true })
+        joinRequest?: OrganizationMemberSchema
+
+    @Field(() => ID, { nullable: true })
+        requestId?: string
+}
+
+@ObjectType()
+export class JoinRequestListResponse {
+    @Field(() => Boolean)
+        success: boolean
+
+    @Field(() => String)
+        message: string
+
+    @Field(() => [OrganizationMemberSchema])
+        joinRequests: OrganizationMemberSchema[]
+
+    @Field(() => Number)
+        total: number
+}

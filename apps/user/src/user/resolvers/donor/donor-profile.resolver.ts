@@ -3,10 +3,12 @@ import { UseGuards, ValidationPipe } from "@nestjs/common"
 import { DonorProfileSchema, Role, OrganizationSchema } from "libs/databases/prisma/schemas"
 import { UpdateDonorProfileInput } from "../../dto/profile.input"
 import { CreateOrganizationInput, JoinOrganizationInput } from "../../dto/organization.input"
+import { JoinOrganizationRole } from "../../dto/join-organization-role.enum"
 import { OrganizationActionResponse } from "../../types/organization-response.model"
 import { JoinRequestResponse } from "../../types/join-request-response.model"
+import { CancelJoinRequestResponse } from "../../types/cancel-join-request-response.model"
 import { DonorService } from "../../services/donor/donor.service"
-import { CurrentUser, RequireRole } from "libs/auth"
+import { CurrentUser, RequireRole, CurrentUserType } from "libs/auth"
 import { OrganizationService } from "../../services"
 import { AwsCognitoModule, CognitoGraphQLGuard } from "@libs/aws-cognito"
 
@@ -58,14 +60,11 @@ export class DonorProfileResolver {
         
         let roleMessage = ""
         switch (input.requested_role) {
-        case Role.KITCHEN_STAFF:
+        case JoinOrganizationRole.KITCHEN_STAFF:
             roleMessage = "Kitchen Staff (food preparation)"
             break
-        case Role.DELIVERY_STAFF:
+        case JoinOrganizationRole.DELIVERY_STAFF:
             roleMessage = "Delivery Staff (food distribution)"
-            break
-        case Role.FUNDRAISER:
-            roleMessage = "Fundraiser (campaign management)"
             break
         }
         
@@ -81,17 +80,26 @@ export class DonorProfileResolver {
 
     @Query(() => JoinRequestResponse, { nullable: true })
     @RequireRole(Role.DONOR)
-    async myJoinRequest(@CurrentUser() user: any) {
-        const result = await this.organizationService.getMyJoinRequests(user.id)
+    async myJoinRequest(@CurrentUser() user: CurrentUserType) {
+        const result = await this.organizationService.getMyJoinRequests(user.cognito_id)
         if (!result) return null
         
         return {
             id: result.id,
             organization: result.organization,
-            requested_role: "STAFF", // Default since we don't store this in DB yet
+            requested_role: result.member_role,
             status: result.status,
             message: `Your join request to "${result.organization.name}" is currently ${result.status.toLowerCase()}.`,
             success: true,
         }
+    }
+
+    @Mutation(() => CancelJoinRequestResponse)
+    @UseGuards(CognitoGraphQLGuard)
+    @RequireRole(Role.DONOR)
+    async cancelJoinRequestOrganization(
+        @CurrentUser() user: CurrentUserType
+    ) {
+        return this.organizationService.cancelJoinRequest(user.cognito_id)
     }
 }

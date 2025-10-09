@@ -89,6 +89,70 @@ export class OrganizationRepository {
         })
     }
 
+    async findOrganizationWithMembers(id: string) {
+        return this.prisma.organization.findUnique({
+            where: { id },
+            include: {
+                user: {
+                    include: {
+                        Donor_Profile: true,
+                        Kitchen_Staff_Profile: true,
+                        Delivery_Staff_Profile: true,
+                    },
+                },
+                Organization_Member: {
+                    include: {
+                        member: {
+                            include: {
+                                Donor_Profile: true,
+                                Kitchen_Staff_Profile: true,
+                                Delivery_Staff_Profile: true,
+                            },
+                        },
+                    },
+                    orderBy: {
+                        joined_at: "desc",
+                    },
+                },
+            },
+        })
+    }
+
+    async findOrganizationByRepresentativeId(representativeId: string) {
+        return this.prisma.organization.findFirst({
+            where: { 
+                representative_id: representativeId,
+                status: Verification_Status.VERIFIED, // Only get active organization
+            },
+            include: {
+                user: {
+                    include: {
+                        Donor_Profile: true,
+                        Kitchen_Staff_Profile: true,
+                        Delivery_Staff_Profile: true,
+                    },
+                },
+                Organization_Member: {
+                    where: {
+                        status: Verification_Status.VERIFIED, // Only get verified members
+                    },
+                    include: {
+                        member: {
+                            include: {
+                                Donor_Profile: true,
+                                Kitchen_Staff_Profile: true,
+                                Delivery_Staff_Profile: true,
+                            },
+                        },
+                    },
+                    orderBy: {
+                        joined_at: "desc",
+                    },
+                },
+            },
+        })
+    }
+
     async createJoinRequest(
         userId: string,
         organizationId: string,
@@ -136,9 +200,19 @@ export class OrganizationRepository {
             include: {
                 member: true,
                 organization: true,
+            }
+        })
+    }
+    
+    async findPendingJoinRequest(userId: string) {
+        return this.prisma.organization_Member.findFirst({
+            where: {
+                member_id: userId,
+                status: Verification_Status.PENDING,
             },
-            orderBy: {
-                joined_at: "desc",
+            include: {
+                member: true,
+                organization: true,
             },
         })
     }
@@ -167,6 +241,16 @@ export class OrganizationRepository {
         })
     }
 
+    async deleteJoinRequest(requestId: string) {
+        return this.prisma.organization_Member.delete({
+            where: { id: requestId },
+            include: {
+                member: true,
+                organization: true,
+            },
+        })
+    }
+
     async checkExistingJoinRequest(userId: string, organizationId: string) {
         return this.prisma.organization_Member.findFirst({
             where: {
@@ -176,7 +260,23 @@ export class OrganizationRepository {
         })
     }
 
-    async findUserActiveOrganizationMembership(userId: string) {
+    async checkExistingJoinRequestInAnyOrganization(userId: string) {
+        return this.prisma.organization_Member.findFirst({
+            where: {
+                member_id: userId,
+                // Check for both pending requests and active memberships
+                OR: [
+                    { status: Verification_Status.PENDING },
+                    { status: Verification_Status.VERIFIED },
+                ],
+            },
+            include: {
+                organization: true,
+            },
+        })
+    }
+
+    async findUserActiveOrganizationMember(userId: string) {
         return this.prisma.organization_Member.findFirst({
             where: {
                 member_id: userId,

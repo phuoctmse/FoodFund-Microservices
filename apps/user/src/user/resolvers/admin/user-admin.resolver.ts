@@ -13,7 +13,7 @@ import {
     CreateStaffAccountInput,
     UpdateUserAccountInput,
 } from "../../dto/user.input"
-import { RequireRole } from "libs/auth"
+import { RequireRole, CurrentUserType } from "libs/auth"
 import { Role, UserProfileSchema, OrganizationSchema } from "libs/databases/prisma/schemas"
 import { UserAdminService } from "../../services/admin/user-admin.service"
 import { OrganizationService } from "../../services/organization/organization.service"

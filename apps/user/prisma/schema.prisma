@@ -26,7 +26,7 @@ model User {
   Kitchen_Staff_Profile  Kitchen_Staff_Profile?
   Delivery_Staff_Profile Delivery_Staff_Profile?
   User_Badge             User_Badge?
-  Organizations           Organization[]
+  Organizations          Organization[]
   Organization_Member    Organization_Member[]
 
   @@map("users")

@@ -10,7 +10,7 @@ export * from "../dto/user.types"
 // Keep original UserRepository for backward compatibility
 import { Injectable } from "@nestjs/common"
 import { PrismaClient } from "../../generated/user-client"
-import { Role } from "libs/databases/prisma/schemas"
+import { Role, VerificationStatus } from "libs/databases/prisma/schemas"
 import { v7 as uuidv7 } from "uuid"
 import {
     CreateUserInput,
@@ -140,16 +140,19 @@ export class UserRepository {
     }
 
     async findUserOrganization(userId: string) {
-        return this.prisma.organization.findMany({
-            where: { representative_id: userId },
-            include: { 
+        return this.prisma.organization.findFirst({
+            where: {
+                representative_id: userId,
+                status: VerificationStatus.VERIFIED,
+            },
+            include: {
                 user: {
                     include: {
                         Donor_Profile: true,
                         Kitchen_Staff_Profile: true,
-                        Delivery_Staff_Profile: true
-                    }
-                }
+                        Delivery_Staff_Profile: true,
+                    },
+                },
             },
         })
     }
