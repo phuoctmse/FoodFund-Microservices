@@ -27,12 +27,8 @@ import { AuthorizationService } from "../shared"
         CampaignRepository,
         CampaignSchedulerService,
         CampaignStatusJob,
-<<<<<<< HEAD
-        PrismaClient
-=======
         UserRefResolver,
         AuthorizationService,
->>>>>>> c846b6fbcf395724cf6c9a0fac1c849eb2e87332
     ],
     controllers: [HealthController],
     exports: [CampaignService, CampaignRepository, CampaignSchedulerService],

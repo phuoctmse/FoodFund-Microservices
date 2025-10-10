@@ -5,15 +5,10 @@ import {
     UpdateCampaignInput,
 } from "./dtos/request/campaign.input"
 import { Injectable, Logger } from "@nestjs/common"
-<<<<<<< HEAD
-import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
-import { Campaign } from "@libs/databases/prisma/schemas/models/campaign.model"
-import { PrismaClient } from "../generated/campaign-client"
-=======
 import { CampaignStatus } from "apps/campaign/src/campaign/enum/campaign.enum"
 import { sanitizeSearchTerm } from "@libs/common/utils/sanitize-search-term.util"
 import { UserRef } from "../shared/reference/user.ref"
->>>>>>> c846b6fbcf395724cf6c9a0fac1c849eb2e87332
+import { PrismaClient } from "../generated/campaign-client"
 
 export interface FindManyOptions {
     filter?: CampaignFilterInput
@@ -428,11 +423,6 @@ export class CampaignRepository {
             endDate: dbCampaign.end_date,
             isActive: dbCampaign.is_active,
             createdBy: dbCampaign.created_by,
-<<<<<<< HEAD
-            approvedAt: dbCampaign.approved_at,
-            created_at: dbCampaign.created_at,
-            updated_at: dbCampaign.updated_at,
-=======
             categoryId: dbCampaign.category_id || undefined,
             approvedAt: dbCampaign.approved_at || undefined,
             createdAt: dbCampaign.created_at,
@@ -440,7 +430,6 @@ export class CampaignRepository {
             category: category,
             creator: creator,
             donations: undefined,
->>>>>>> c846b6fbcf395724cf6c9a0fac1c849eb2e87332
         }
     }
 
