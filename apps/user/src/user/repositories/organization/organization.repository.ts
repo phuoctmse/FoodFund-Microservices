@@ -203,6 +203,44 @@ export class OrganizationRepository {
             }
         })
     }
+
+    async findJoinRequestsByOrganizationWithPagination(
+        organizationId: string,
+        options: { offset: number; limit: number; status?: string }
+    ) {
+        const whereClause: any = {
+            organization_id: organizationId,
+        }
+
+        // Add status filter if provided
+        if (options.status) {
+            whereClause.status = options.status
+        }
+
+        // Get total count
+        const total = await this.prisma.organization_Member.count({
+            where: whereClause,
+        })
+
+        // Get paginated results
+        const joinRequests = await this.prisma.organization_Member.findMany({
+            where: whereClause,
+            include: {
+                member: true,
+                organization: true,
+            },
+            orderBy: {
+                joined_at: "desc", // Most recent first
+            },
+            skip: options.offset,
+            take: options.limit,
+        })
+
+        return {
+            joinRequests,
+            total,
+        }
+    }
     
     async findPendingJoinRequest(userId: string) {
         return this.prisma.organization_Member.findFirst({

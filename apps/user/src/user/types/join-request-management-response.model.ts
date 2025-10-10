@@ -29,4 +29,13 @@ export class JoinRequestListResponse {
 
     @Field(() => Number)
         total: number
+
+    @Field(() => Number, { nullable: true })
+        offset?: number
+
+    @Field(() => Number, { nullable: true })
+        limit?: number
+
+    @Field(() => Boolean, { nullable: true })
+        hasMore?: boolean
 }

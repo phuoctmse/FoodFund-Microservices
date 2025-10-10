@@ -7,7 +7,25 @@ import { Verification_Status } from "../../../generated/user-client"
 import { Role } from "libs/databases/prisma/schemas"
 import { AwsCognitoService } from "@libs/aws-cognito"
 import { DataLoaderService } from "../common"
-import { UserErrorHelper } from "../../exceptions"
+import { 
+    UserErrorHelper, 
+    DonorErrorHelper, 
+    AdminErrorHelper, 
+    FundraiserErrorHelper 
+} from "../../exceptions"
+
+// Interface for pagination options
+interface PaginationOptions {
+    offset?: number
+    limit?: number
+    status?: string
+}
+
+// Interface for paginated join requests response
+interface PaginatedJoinRequestsResponse {
+    joinRequests: any[]
+    total: number
+}
 
 @Injectable()
 export class OrganizationService {
@@ -45,7 +63,7 @@ export class OrganizationService {
         }
 
         if (user.role !== Role.DONOR) {
-            UserErrorHelper.throwUnauthorizedRole(user.role, [Role.DONOR])
+            DonorErrorHelper.throwCannotCreateOrganizationAsNonDonor(user.role)
         }
 
         // Check if user already has an organization request
@@ -121,12 +139,13 @@ export class OrganizationService {
                 organizationId,
             )
         if (!organization) {
-            throw new NotFoundException("Organization not found")
+            AdminErrorHelper.throwOrganizationRequestNotFound(organizationId)
         }
 
         if (organization.status !== Verification_Status.PENDING) {
-            throw new BadRequestException(
-                "Organization is not in pending status",
+            AdminErrorHelper.throwOrganizationRequestNotPending(
+                organizationId, 
+                organization.status
             )
         }
 
@@ -204,7 +223,7 @@ export class OrganizationService {
         }
 
         if (user.role !== Role.DONOR) {
-            UserErrorHelper.throwUnauthorizedRole(user.role, [Role.DONOR])
+            DonorErrorHelper.throwCannotJoinAsNonDonor(user.role)
         }
 
         // Check if organization exists and is verified
@@ -213,7 +232,7 @@ export class OrganizationService {
                 data.organization_id,
             )
         if (!organization) {
-            throw new NotFoundException("Organization not found")
+            UserErrorHelper.throwOrganizationNotFound(data.organization_id)
         }
 
         if (organization.status !== Verification_Status.VERIFIED) {
@@ -238,24 +257,37 @@ export class OrganizationService {
         )
     }
 
-    async getMyOrganizationJoinRequests(fundraiserCognitoId: string) {
+    async getMyOrganizationJoinRequests(
+        fundraiserCognitoId: string,
+        options?: PaginationOptions
+    ): Promise<PaginatedJoinRequestsResponse> {
         // Get the fundraiser user to get their database ID
         const fundraiserUser = await this.userRepository.findUserById(fundraiserCognitoId)
         if (!fundraiserUser) {
             UserErrorHelper.throwUserNotFound(fundraiserCognitoId)
         }
 
+        if (fundraiserUser.role !== Role.FUNDRAISER) {
+            FundraiserErrorHelper.throwFundraiserOnlyOperation("get organization join requests")
+        }
+
         // Find the organization where this user is the representative
         const organization = await this.userRepository.findUserOrganization(fundraiserUser.id)
         if (!organization) {
-            throw new NotFoundException("You don't have any organization to manage")
+            FundraiserErrorHelper.throwFundraiserHasNoOrganization(fundraiserUser.id)
         }
 
-        // Get pending join requests for this organization
-        const result = await this.organizationRepository.findPendingJoinRequestsByOrganization(
+        // Get join requests for this organization with pagination
+        const result = await this.organizationRepository.findJoinRequestsByOrganizationWithPagination(
             organization.id,
+            {
+                offset: options?.offset || 0,
+                limit: options?.limit || 10,
+                status: options?.status,
+            }
         )
-        console.debug("result:", organization)
+        
+        console.debug("paginated result:", result)
         return result
     }
 
@@ -396,17 +428,17 @@ export class OrganizationService {
         }
 
         if (user.role !== Role.DONOR) {
-            UserErrorHelper.throwUnauthorizedRole(user.role, [Role.DONOR])
+            DonorErrorHelper.throwCannotJoinAsNonDonor(user.role)
         }
 
         // Find user's pending join request
         const pendingRequest = await this.organizationRepository.findPendingJoinRequest(user.id)
         if (!pendingRequest) {
-            throw new NotFoundException("No pending join request found to cancel")
+            DonorErrorHelper.throwNoJoinRequestToCancel(user.id)
         }
 
         if (pendingRequest.status !== Verification_Status.PENDING) {
-            throw new BadRequestException("Can only cancel pending requests")
+            DonorErrorHelper.throwJoinRequestNotCancellable(pendingRequest.id, pendingRequest.status)
         }
 
         // Delete the join request

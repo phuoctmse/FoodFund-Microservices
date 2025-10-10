@@ -1,4 +1,4 @@
-import { Resolver, Mutation, Args, ID, Query } from "@nestjs/graphql"
+import { Resolver, Mutation, Args, ID, Query, Int } from "@nestjs/graphql"
 import { ValidationPipe } from "@nestjs/common"
 import { FundraiserProfileSchema, Role } from "libs/databases/prisma/schemas"
 import { UpdateFundraiserProfileInput } from "../../dto/profile.input"
@@ -41,13 +41,47 @@ export class FundraiserProfileResolver {
     @RequireRole(Role.FUNDRAISER)
     async getOrganizationJoinRequests(
         @CurrentUser() user: CurrentUserType,
+        @Args("offset", {
+            type: () => Int,
+            nullable: true,
+            defaultValue: 0,
+            description: "Number of join requests to skip",
+        })
+            offset: number = 0,
+        @Args("limit", {
+            type: () => Int,
+            nullable: true,
+            defaultValue: 10,
+            description: "Number of join requests to return (max 50)",
+        })
+            limit: number = 10,
+        @Args("status", {
+            type: () => String,
+            nullable: true,
+            description: "Filter by status: PENDING, VERIFIED, REJECTED",
+        })
+            status?: string,
     ) {
-        const requests = await this.organizationService.getMyOrganizationJoinRequests(user.cognito_id)
+        const safeLimit = Math.min(Math.max(limit, 1), 50) // Max 50 items per page
+        const safeOffset = Math.max(offset, 0)
+
+        const result = await this.organizationService.getMyOrganizationJoinRequests(
+            user.cognito_id,
+            {
+                offset: safeOffset,
+                limit: safeLimit,
+                status,
+            }
+        )
+        
         return {
             success: true,
-            message: `Found ${requests.length} join request(s) for your organization`,
-            joinRequests: requests,
-            total: requests.length,
+            message: `Found ${result.joinRequests.length} join request(s) for your organization (page ${Math.floor(safeOffset / safeLimit) + 1})`,
+            joinRequests: result.joinRequests,
+            total: result.total,
+            offset: safeOffset,
+            limit: safeLimit,
+            hasMore: safeOffset + safeLimit < result.total,
         }
     }
 
