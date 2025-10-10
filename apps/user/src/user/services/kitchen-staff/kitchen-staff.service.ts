@@ -7,21 +7,4 @@ export class KitchenStaffService {
 
     constructor(private readonly kitchenStaffRepository: KitchenStaffRepository) {}
 
-    // Kitchen Staff Business Logic: Get own profile only
-    async getProfile(cognito_id: string) {
-        this.logger.log(`Getting kitchen staff profile for user: ${cognito_id}`)
-        return this.kitchenStaffRepository.findKitchenStaffProfile(cognito_id)
-    }
-
-    // Kitchen Staff Business Logic: Get own stats
-    async getStats(userId: string) {
-        this.logger.log(`Getting kitchen staff stats for user: ${userId}`)
-        return this.kitchenStaffRepository.getKitchenStaffStats(userId)
-    }
-
-    // Public: Get top cooks (for leaderboard)
-    async getTopCooks(limit: number = 10) {
-        this.logger.log(`Getting top ${limit} kitchen staff`)
-        return this.kitchenStaffRepository.getTopCooks(limit)
-    }
 }

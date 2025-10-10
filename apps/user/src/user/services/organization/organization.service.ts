@@ -461,51 +461,49 @@ export class OrganizationService {
         return this.organizationDataLoader.getUserOrganization(user.id)
     }
 
-    // Optimized method for KITCHEN_STAFF profile with organization data
-    async getKitchenStaffProfile(cognito_id: string) {
-        const user = await this.userRepository.findUserByCognitoId(cognito_id)
-        if (!user) {
-            throw new NotFoundException("User not found")
-        }
+    // async getKitchenStaffProfile(cognito_id: string) {
+    //     const user = await this.userRepository.findUserByCognitoId(cognito_id)
+    //     if (!user) {
+    //         throw new NotFoundException("User not found")
+    //     }
 
-        if (!user.Kitchen_Staff_Profile) {
-            throw new NotFoundException("Kitchen staff profile not found")
-        }
+    //     if (!user.role || user.role !== Role.KITCHEN_STAFF) {
+    //         throw new NotFoundException("Kitchen staff profile not found")
+    //     }
 
-        // Get organization membership using DataLoader
-        const memberships = await this.organizationDataLoader.getOrganizationMembersByUserId(user.id)
-        const activeMembership = memberships.find(m => m.status === Verification_Status.VERIFIED)
+    //     // Get organization membership using DataLoader
+    //     const memberships = await this.organizationDataLoader.getOrganizationMembersByUserId(user.id)
+    //     const activeMembership = memberships.find(m => m.status === Verification_Status.VERIFIED)
 
-        return {
-            ...user.Kitchen_Staff_Profile,
-            user: user,
-            organization: activeMembership?.organization || null,
-            organizationMembership: activeMembership || null,
-        }
-    }
+    //     return {
+    //         ...user.,
+    //         user: user,
+    //         organization: activeMembership?.organization || null,
+    //         organizationMembership: activeMembership || null,
+    //     }
+    // }
 
-    // Optimized method for DELIVERY_STAFF profile with organization data
-    async getDeliveryStaffProfile(cognito_id: string) {
-        const user = await this.userRepository.findUserByCognitoId(cognito_id)
-        if (!user) {
-            throw new NotFoundException("User not found")
-        }
+    // async getDeliveryStaffProfile(cognito_id: string) {
+    //     const user = await this.userRepository.findUserByCognitoId(cognito_id)
+    //     if (!user) {
+    //         throw new NotFoundException("User not found")
+    //     }
 
-        if (!user.Delivery_Staff_Profile) {
-            throw new NotFoundException("Delivery staff profile not found")
-        }
+    //     if (!user.Delivery_Staff_Profile) {
+    //         throw new NotFoundException("Delivery staff profile not found")
+    //     }
 
-        // Get organization membership using DataLoader
-        const memberships = await this.organizationDataLoader.getOrganizationMembersByUserId(user.id)
-        const activeMembership = memberships.find(m => m.status === Verification_Status.VERIFIED)
+    //     // Get organization membership using DataLoader
+    //     const memberships = await this.organizationDataLoader.getOrganizationMembersByUserId(user.id)
+    //     const activeMembership = memberships.find(m => m.status === Verification_Status.VERIFIED)
 
-        return {
-            ...user.Delivery_Staff_Profile,
-            user: user,
-            organization: activeMembership?.organization || null,
-            organizationMembership: activeMembership || null,
-        }
-    }
+    //     return {
+    //         ...user.Delivery_Staff_Profile,
+    //         user: user,
+    //         organization: activeMembership?.organization || null,
+    //         organizationMembership: activeMembership || null,
+    //     }
+    // }
 
     // Optimized method for FUNDRAISER profile with organization data
     async getFundraiserProfile(cognito_id: string) {

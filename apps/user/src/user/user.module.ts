@@ -6,7 +6,6 @@ import {
     // Role-based repositories
     UserAdminRepository,
     UserCommonRepository,
-    DonorRepository,
     KitchenStaffRepository,
     FundraiserRepository,
     DeliveryStaffRepository,
@@ -67,7 +66,6 @@ import { AwsCognitoModule } from "@libs/aws-cognito"
 
         UserAdminRepository,
         UserCommonRepository,
-        DonorRepository,
         KitchenStaffRepository,
         FundraiserRepository,
         DeliveryStaffRepository,

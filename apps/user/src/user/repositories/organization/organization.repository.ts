@@ -93,22 +93,10 @@ export class OrganizationRepository {
         return this.prisma.organization.findUnique({
             where: { id },
             include: {
-                user: {
-                    include: {
-                        Donor_Profile: true,
-                        Kitchen_Staff_Profile: true,
-                        Delivery_Staff_Profile: true,
-                    },
-                },
+                user: true,
                 Organization_Member: {
                     include: {
-                        member: {
-                            include: {
-                                Donor_Profile: true,
-                                Kitchen_Staff_Profile: true,
-                                Delivery_Staff_Profile: true,
-                            },
-                        },
+                        member: true
                     },
                     orderBy: {
                         joined_at: "desc",
@@ -125,25 +113,13 @@ export class OrganizationRepository {
                 status: Verification_Status.VERIFIED, // Only get active organization
             },
             include: {
-                user: {
-                    include: {
-                        Donor_Profile: true,
-                        Kitchen_Staff_Profile: true,
-                        Delivery_Staff_Profile: true,
-                    },
-                },
+                user: true,
                 Organization_Member: {
                     where: {
                         status: Verification_Status.VERIFIED, // Only get verified members
                     },
                     include: {
-                        member: {
-                            include: {
-                                Donor_Profile: true,
-                                Kitchen_Staff_Profile: true,
-                                Delivery_Staff_Profile: true,
-                            },
-                        },
+                        member: true
                     },
                     orderBy: {
                         joined_at: "desc",

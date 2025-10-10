@@ -46,9 +46,10 @@ export class CreateUserInput {
 
 @InputType()
 export class UpdateUserInput {
-    @Field(() => String, { description: "User's full name" })
+    @Field(() => String, { nullable: true, description: "User's full name" })
+    @IsOptional()
     @IsString()
-        full_name: string
+        full_name?: string
 
     @Field(() => String, { nullable: true, description: "User's avatar URL" })
     @IsOptional()
@@ -59,6 +60,11 @@ export class UpdateUserInput {
     @IsOptional()
     @IsVietnamesePhone()
         phone_number?: string
+
+    @Field(() => String, { nullable: true, description: "User's address" })
+    @IsOptional()
+    @IsString()
+        address?: string
 
     @Field(() => String, {
         nullable: true,

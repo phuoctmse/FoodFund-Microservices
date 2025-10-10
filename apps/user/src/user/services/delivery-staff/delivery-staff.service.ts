@@ -7,27 +7,4 @@ export class DeliveryStaffService {
 
     constructor(private readonly deliveryStaffRepository: DeliveryStaffRepository) {}
 
-    // Delivery Staff Business Logic: Get own profile only
-    async getProfile(cognito_id: string) {
-        this.logger.log(`Getting delivery staff profile for user: ${cognito_id}`)
-        return this.deliveryStaffRepository.findDeliveryStaffProfile(cognito_id)
-    }
-
-    // Delivery Staff Business Logic: Get own stats
-    async getStats(userId: string) {
-        this.logger.log(`Getting delivery staff stats for user: ${userId}`)
-        return this.deliveryStaffRepository.getDeliveryStaffStats(userId)
-    }
-
-    // Public: Get top delivery staff (for leaderboard)
-    async getTopDeliveryStaff(limit: number = 10) {
-        this.logger.log(`Getting top ${limit} delivery staff`)
-        return this.deliveryStaffRepository.getTopDeliveryStaff(limit)
-    }
-
-    // Public: Get available delivery staff
-    async getAvailableStaff() {
-        this.logger.log("Getting available delivery staff")
-        return this.deliveryStaffRepository.getAvailableDeliveryStaff()
-    }
 }

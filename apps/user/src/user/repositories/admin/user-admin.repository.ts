@@ -35,10 +35,7 @@ export class UserAdminRepository {
             skip: validSkip,
             take: validTake,
             include: {
-                Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
                 Organizations: true,
-                Delivery_Staff_Profile: true,
             },
             orderBy: {
                 created_at: "desc",
@@ -50,10 +47,7 @@ export class UserAdminRepository {
         return this.prisma.user.findMany({
             where: { role },
             include: {
-                Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
                 Organizations: true,
-                Delivery_Staff_Profile: true,
             },
             orderBy: { created_at: "desc" },
         })
@@ -63,10 +57,7 @@ export class UserAdminRepository {
         return this.prisma.user.findMany({
             where: { is_active: true },
             include: {
-                Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
                 Organizations: true,
-                Delivery_Staff_Profile: true,
             },
             orderBy: { created_at: "desc" },
         })
@@ -107,10 +98,7 @@ export class UserAdminRepository {
         return this.prisma.user.findMany({
             where,
             include: {
-                Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
                 Organizations: true,
-                Delivery_Staff_Profile: true,
             },
             orderBy: { created_at: "desc" },
         })
@@ -121,11 +109,9 @@ export class UserAdminRepository {
             where: { id },
             data,
             include: {
-                Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
+
                 Organizations: true,
                 Organization_Member: true,
-                Delivery_Staff_Profile: true,
             },
         })
     }
@@ -134,11 +120,8 @@ export class UserAdminRepository {
         return this.prisma.user.delete({
             where: { id },
             include: {
-                Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
                 Organizations: true,
                 Organization_Member: true,
-                Delivery_Staff_Profile: true,
             },
         })
     }

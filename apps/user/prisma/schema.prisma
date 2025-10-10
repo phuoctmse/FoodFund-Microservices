@@ -18,57 +18,16 @@ model User {
   phone_number           String?                 @db.VarChar(20)
   role                   Role                    @default(DONOR)
   is_active              Boolean                 @default(true)
+  address                String?                 @db.Text()
   user_name              String                  @unique @db.VarChar(20)
   bio                    String?                 @db.Text()
   created_at             DateTime                @default(now())
   updated_at             DateTime                @updatedAt
-  Donor_Profile          Donor_Profile?
-  Kitchen_Staff_Profile  Kitchen_Staff_Profile?
-  Delivery_Staff_Profile Delivery_Staff_Profile?
   User_Badge             User_Badge?
   Organizations          Organization[]
   Organization_Member    Organization_Member[]
 
   @@map("users")
-}
-
-model Donor_Profile {
-  id             String   @id @default(uuid())
-  user_id        String   @unique
-  user           User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  donation_count Int      @default(0)
-  total_donated  BigInt   @default(0)
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
-
-  @@map("donor_profiles")
-}
-
-model Kitchen_Staff_Profile {
-  id                   String        @id @default(uuid())
-  user_id              String        @unique
-  user                 User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  organization_id      String? // Link to organization
-  organization         Organization? @relation("KitchenStaffOrganization", fields: [organization_id], references: [id], onDelete: SetNull)
-  total_batch_prepared Int           @default(0)
-  created_at           DateTime      @default(now())
-  updated_at           DateTime      @updatedAt
-
-  @@map("kitchen_staff_profiles")
-}
-
-model Delivery_Staff_Profile {
-  id                  String              @id @default(uuid())
-  user_id             String              @unique
-  user                User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  organization_id     String? // Link to organization
-  organization        Organization?       @relation("DeliveryStaffOrganization", fields: [organization_id], references: [id], onDelete: SetNull)
-  availability_status Availability_Status @default(AVAILABLE)
-  total_deliveries    Int                 @default(0)
-  created_at          DateTime            @default(now())
-  updated_at          DateTime            @updatedAt
-
-  @@map("delivery_staff_profiles")
 }
 
 model Organization {
@@ -88,8 +47,6 @@ model Organization {
   created_at                     DateTime                 @default(now())
   updated_at                     DateTime                 @updatedAt
   Organization_Member            Organization_Member[]
-  kitchen_staff                  Kitchen_Staff_Profile[]  @relation("KitchenStaffOrganization")
-  delivery_staff                 Delivery_Staff_Profile[] @relation("DeliveryStaffOrganization")
 
   @@map("organizations")
 }

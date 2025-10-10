@@ -1,7 +1,7 @@
 import { Resolver, Mutation, Args, ID, Query } from "@nestjs/graphql"
 import { UseGuards, ValidationPipe } from "@nestjs/common"
-import { DonorProfileSchema, Role, OrganizationSchema } from "libs/databases/prisma/schemas"
-import { UpdateDonorProfileInput } from "../../dto/profile.input"
+import { UserProfileSchema, Role, OrganizationSchema } from "libs/databases/prisma/schemas"
+import { UpdateUserInput } from "../../dto/user.input"
 import { CreateOrganizationInput, JoinOrganizationInput } from "../../dto/organization.input"
 import { JoinOrganizationRole } from "../../dto/join-organization-role.enum"
 import { OrganizationActionResponse } from "../../types/organization-response.model"
@@ -12,21 +12,21 @@ import { CurrentUser, RequireRole, CurrentUserType } from "libs/auth"
 import { OrganizationService } from "../../services"
 import { AwsCognitoModule, CognitoGraphQLGuard } from "@libs/aws-cognito"
 
-@Resolver(() => DonorProfileSchema)
+@Resolver(() => UserProfileSchema)
 export class DonorProfileResolver {
     constructor(
         private readonly donorService: DonorService,
         private readonly organizationService: OrganizationService,
     ) {}
 
-    @Mutation(() => DonorProfileSchema)
+    @Mutation(() => UserProfileSchema)
     @RequireRole(Role.DONOR)
     async updateDonorProfile(
-        @CurrentUser() user: { cognito_id: string },
-        @Args("updateDonorProfileInput", new ValidationPipe())
-            updateDonorProfileInput: UpdateDonorProfileInput,
+        @CurrentUser() user: CurrentUserType,
+        @Args("updateUserInput", new ValidationPipe())
+            updateUserInput: UpdateUserInput,
     ) {
-        return this.donorService.updateProfile(user.cognito_id, updateDonorProfileInput)
+        return this.donorService.updateProfile(user.cognito_id, updateUserInput)
     }
 
     @Mutation(() => OrganizationActionResponse)

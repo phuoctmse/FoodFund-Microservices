@@ -14,10 +14,7 @@ export class UserCommonRepository {
                 id: uuidv7(),
                 ...data,
                 is_active: true,
-            },
-            include: {
-                Donor_Profile: true
-            },
+            }
         })
     }
 
@@ -25,10 +22,7 @@ export class UserCommonRepository {
         return this.prisma.user.findUnique({
             where: { id },
             include: {
-                Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
                 Organizations: true,
-                Delivery_Staff_Profile: true,
             },
         })
     }
@@ -37,10 +31,7 @@ export class UserCommonRepository {
         return this.prisma.user.findUnique({
             where: { email },
             include: {
-                Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
                 Organizations: true,
-                Delivery_Staff_Profile: true,
             },
         })
     }
@@ -49,10 +40,7 @@ export class UserCommonRepository {
         return this.prisma.user.findUnique({
             where: { user_name },
             include: {
-                Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
                 Organizations: true,
-                Delivery_Staff_Profile: true,
             },
         })
     }
@@ -68,10 +56,7 @@ export class UserCommonRepository {
             where: { id },
             data,
             include: {
-                Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
                 Organizations: true,
-                Delivery_Staff_Profile: true,
             },
         })
     }

@@ -30,12 +30,6 @@ export class UserRepository {
                 ...data,
                 is_active: true,
             },
-            include: {
-                Donor_Profile: true,
-                // Kitchen_Staff_Profile: true,
-                // Fundraiser_Profile: true,
-                // Delivery_Staff_Profile: true
-            },
         })
     }
 
@@ -55,10 +49,11 @@ export class UserRepository {
             skip,
             take,
             include: {
-                Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
-                Organizations: true,
-                Delivery_Staff_Profile: true,
+                Organizations: {
+                    include: {
+                        Organization_Member: true,
+                    },
+                },
             },
             orderBy: {
                 created_at: "desc",
@@ -70,10 +65,11 @@ export class UserRepository {
         return this.prisma.user.findUnique({
             where: { cognito_id: id },
             include: {
-                Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
-                Organizations: true,
-                Delivery_Staff_Profile: true,
+                Organizations: {
+                    include: {
+                        Organization_Member: true,
+                    },
+                },
             },
         })
     }
@@ -82,10 +78,11 @@ export class UserRepository {
         return this.prisma.user.findUnique({
             where: { email },
             include: {
-                Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
-                Organizations: true,
-                Delivery_Staff_Profile: true,
+                Organizations: {
+                    include: {
+                        Organization_Member: true,
+                    },
+                },
             },
         })
     }
@@ -94,10 +91,11 @@ export class UserRepository {
         return this.prisma.user.findUnique({
             where: { user_name },
             include: {
-                Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
-                Organizations: true,
-                Delivery_Staff_Profile: true,
+                Organizations: {
+                    include: {
+                        Organization_Member: true,
+                    },
+                },
             },
         })
     }
@@ -106,10 +104,11 @@ export class UserRepository {
         return this.prisma.user.findUnique({
             where: { cognito_id },
             include: {
-                Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
-                Organizations: true,
-                Delivery_Staff_Profile: true,
+                Organizations: {
+                    include: {
+                        Organization_Member: true,
+                    },
+                },
             },
         })
     }
@@ -118,12 +117,6 @@ export class UserRepository {
         return this.prisma.user.update({
             where: { id },
             data,
-            include: {
-                Donor_Profile: true,
-                // Kitchen_Staff_Profile: true,
-                // Fundraiser_Profile: true,
-                // Delivery_Staff_Profile: true,
-            },
         })
     }
 
@@ -131,10 +124,11 @@ export class UserRepository {
         return this.prisma.user.delete({
             where: { id },
             include: {
-                Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
-                Organizations: true,
-                Delivery_Staff_Profile: true,
+                Organizations: {
+                    include: {
+                        Organization_Member: true,
+                    },
+                },
             },
         })
     }
@@ -146,11 +140,9 @@ export class UserRepository {
                 status: VerificationStatus.VERIFIED,
             },
             include: {
-                user: {
+                Organization_Member: {
                     include: {
-                        Donor_Profile: true,
-                        Kitchen_Staff_Profile: true,
-                        Delivery_Staff_Profile: true,
+                        member: true,
                     },
                 },
             },
@@ -162,10 +154,11 @@ export class UserRepository {
             where: { id: userId },
             data: { role },
             include: {
-                Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
-                Organizations: true,
-                Delivery_Staff_Profile: true,
+                Organizations: {
+                    include: {
+                        Organization_Member: true,
+                    },
+                },
             },
         })
     }
@@ -177,10 +170,11 @@ export class UserRepository {
                 id: { in: userIds },
             },
             include: {
-                Donor_Profile: true,
-                Kitchen_Staff_Profile: true,
-                Organizations: true,
-                Delivery_Staff_Profile: true,
+                Organizations: {
+                    include: {
+                        Organization_Member: true
+                    }
+                }
             },
         })
     }

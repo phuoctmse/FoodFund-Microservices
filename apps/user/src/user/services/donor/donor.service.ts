@@ -1,43 +1,58 @@
-import { Injectable, Logger } from "@nestjs/common"
-import { DonorRepository } from "../../repositories"
-import { UpdateDonorProfileInput } from "../../dto/profile.input"
+import { Injectable, Logger, NotFoundException } from "@nestjs/common"
+import { UserRepository } from "../../repositories/user.repository"
+import { UpdateUserInput } from "../../dto/user.input"
+import { Role } from "libs/databases/prisma/schemas"
+import { DonorErrorHelper } from "../../exceptions"
 
 @Injectable()
 export class DonorService {
     private readonly logger = new Logger(DonorService.name)
 
-    constructor(private readonly donorRepository: DonorRepository) {}
+    constructor(private readonly userRepository: UserRepository) {}
 
-    // Donor Business Logic: Update profile info
-    async updateProfile(profileId: string, updateData: UpdateDonorProfileInput) {
-        this.logger.log(`Donor updating profile: ${profileId}`)
+    async updateProfile(cognitoId: string, updateData: UpdateUserInput) {
+        this.logger.log(`Donor updating profile: ${cognitoId}`)
         
-        // Convert bigint to number if needed for total_donated
-        const convertedUpdateData = {
-            ...updateData,
-            total_donated: updateData.total_donated !== undefined 
-                ? Number(updateData.total_donated) 
-                : undefined
+        // Validate user exists and is a donor
+        const user = await this.userRepository.findUserById(cognitoId)
+        if (!user) {
+            DonorErrorHelper.throwDonorProfileIncomplete(["User not found"])
         }
+
+        if (user.role !== Role.DONOR) {
+            DonorErrorHelper.throwDonorOnlyOperation("update profile")
+        }
+
+        // Update user profile directly since we no longer have separate donor_profile table
+        const updatedUser = await this.userRepository.updateUser(user.id, updateData)
+
+        return updatedUser
+    }
+
+    async getProfile(cognitoId: string) {
+        this.logger.log(`Getting donor profile for user: ${cognitoId}`)
         
-        return this.donorRepository.updateDonorProfile(profileId, convertedUpdateData as any)
+        const user = await this.userRepository.findUserById(cognitoId)
+        if (!user) {
+            DonorErrorHelper.throwDonorProfileIncomplete(["User not found"])
+        }
+
+        if (user.role !== Role.DONOR) {
+            DonorErrorHelper.throwDonorOnlyOperation("get profile")
+        }
+
+        return user
     }
 
-    // Donor Business Logic: Get own profile  
-    async getProfile(cognito_id: string) {
-        this.logger.log(`Getting donor profile for user: ${cognito_id}`)
-        return this.donorRepository.findDonorProfile(cognito_id)
-    }
+    // // Donor Business Logic: Get donation stats
+    // async getDonationStats(userId: string) {
+    //     this.logger.log(`Getting donation stats for user: ${userId}`)
+    //     return this.donorRepository.getDonorStats(userId)
+    // }
 
-    // Donor Business Logic: Get donation stats
-    async getDonationStats(userId: string) {
-        this.logger.log(`Getting donation stats for user: ${userId}`)
-        return this.donorRepository.getDonorStats(userId)
-    }
-
-    // Public: Get top donors (for leaderboard)
-    async getTopDonors(limit: number = 10) {
-        this.logger.log(`Getting top ${limit} donors`)
-        return this.donorRepository.getTopDonors(limit)
-    }
+    // // Public: Get top donors (for leaderboard)
+    // async getTopDonors(limit: number = 10) {
+    //     this.logger.log(`Getting top ${limit} donors`)
+    //     return this.donorRepository.getTopDonors(limit)
+    // }
 }

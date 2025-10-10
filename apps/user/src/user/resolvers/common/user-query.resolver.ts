@@ -123,8 +123,6 @@ export class UserQueryResolver {
             // Sử dụng DataLoader cho optimization
             response.deliveryStaffProfile = (await this.dataLoaderService.getDeliveryStaffProfileWithOrganization(cognito_id as string)) as any
             break
-            response.deliveryStaffProfile = (await this.organizationService.getDeliveryStaffProfile(cognito_id as string)) as any
-            break
         }
         case Role.ADMIN: {
             const adminInfo = await this.adminService.getAdminProfile(cognito_id as string)
