@@ -15,7 +15,6 @@ import {
     ResendConfirmationCodeCommand,
     ForgotPasswordCommand,
     ConfirmForgotPasswordCommand,
-    AdminCreateUserCommand,
     AdminConfirmSignUpCommand,
     AuthFlowType,
     AdminDeleteUserCommand,

@@ -9,11 +9,7 @@ import {
     IsEnum,
 } from "class-validator"
 import { Transform } from "class-transformer"
-import {
-    AtLeastOneName,
-    IsStrongPassword,
-    IsVietnamesePhone,
-} from "libs/validation"
+import { IsStrongPassword, IsVietnamesePhone } from "libs/validation"
 import { Role } from "libs/databases/prisma/schemas/enums/user.enums"
 
 @InputType()

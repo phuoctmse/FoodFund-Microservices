@@ -19,7 +19,6 @@ import { RoleGuard } from "../guards/role.guard"
  * @RequireRole(Role.ADMIN, Role.KITCHEN_STAFF)
  */
 export const RequireRole = (...roles: Role[]) => {
-    // Flatten array in case user passes array as first argument
     const flatRoles = roles.flat()
     return applyDecorators(
         SetMetadata("roles", flatRoles),

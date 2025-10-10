@@ -6,12 +6,7 @@ import { GraphQLExceptionFilter } from "@libs/exceptions"
 
 async function bootstrap() {
     try {
-        const app = await NestFactory.create(AppModule, {
-            logger:
-                process.env.NODE_ENV === "development"
-                    ? ["error", "warn", "log", "debug", "verbose"]
-                    : ["error", "warn", "log"],
-        })
+        const app = await NestFactory.create(AppModule)
         const sentryService = app.get(SentryService)
 
         app.useGlobalPipes(

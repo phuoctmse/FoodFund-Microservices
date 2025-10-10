@@ -1,4 +1,4 @@
-import { ObjectType, Field, ID } from "@nestjs/graphql"
+import { ObjectType, Field } from "@nestjs/graphql"
 import { Directive } from "@nestjs/graphql"
 import { AbstractSchema } from "../abstract.schema"
 import {

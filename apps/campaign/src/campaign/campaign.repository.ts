@@ -5,9 +5,15 @@ import {
     UpdateCampaignInput,
 } from "./dtos/request/campaign.input"
 import { Injectable, Logger } from "@nestjs/common"
+<<<<<<< HEAD
 import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
 import { Campaign } from "@libs/databases/prisma/schemas/models/campaign.model"
 import { PrismaClient } from "../generated/campaign-client"
+=======
+import { CampaignStatus } from "apps/campaign/src/campaign/enum/campaign.enum"
+import { sanitizeSearchTerm } from "@libs/common/utils/sanitize-search-term.util"
+import { UserRef } from "../shared/reference/user.ref"
+>>>>>>> c846b6fbcf395724cf6c9a0fac1c849eb2e87332
 
 export interface FindManyOptions {
     filter?: CampaignFilterInput
@@ -28,6 +34,7 @@ interface CreateCampaignData {
     createdBy: string
     status: CampaignStatus
     coverImageFileKey?: string
+    categoryId?: string
 }
 
 interface UpdateCampaignData extends Partial<UpdateCampaignInput> {
@@ -35,29 +42,26 @@ interface UpdateCampaignData extends Partial<UpdateCampaignInput> {
     status?: CampaignStatus
     approvedAt?: Date
     coverImageFileKey?: string
+    categoryId?: string
 }
 
 @Injectable()
 export class CampaignRepository {
     private readonly logger = new Logger(CampaignRepository.name)
-    private readonly CAMPAIGN_SELECT_FIELDS = {
-        id: true,
-        title: true,
-        description: true,
-        cover_image: true,
-        cover_image_file_key: true,
-        location: true,
-        target_amount: true,
-        donation_count: true,
-        received_amount: true,
-        status: true,
-        start_date: true,
-        end_date: true,
-        is_active: true,
-        created_by: true,
-        approved_at: true,
-        created_at: true,
-        updated_at: true,
+    private readonly CAMPAIGN_JOIN_FIELDS = {
+        category: {
+            where: {
+                is_active: true,
+            },
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                is_active: true,
+                created_at: true,
+                updated_at: true,
+            },
+        },
     } as const
 
     constructor(
@@ -65,7 +69,7 @@ export class CampaignRepository {
         private readonly sentryService: SentryService,
     ) {}
 
-    async create(data: CreateCampaignData): Promise<Campaign> {
+    async create(data: CreateCampaignData) {
         try {
             const campaign = await this.prisma.campaign.create({
                 data: {
@@ -79,11 +83,12 @@ export class CampaignRepository {
                     end_date: data.endDate,
                     created_by: data.createdBy,
                     status: data.status,
+                    category_id: data.categoryId || null,
                     donation_count: 0,
                     received_amount: BigInt(0),
                     is_active: true,
                 },
-                select: this.CAMPAIGN_SELECT_FIELDS,
+                include: this.CAMPAIGN_JOIN_FIELDS,
             })
 
             return this.mapToGraphQLModel(campaign)
@@ -102,14 +107,14 @@ export class CampaignRepository {
         }
     }
 
-    async findById(id: string): Promise<Campaign | null> {
+    async findById(id: string) {
         try {
             const campaign = await this.prisma.campaign.findUnique({
                 where: {
                     id,
                     is_active: true,
                 },
-                select: this.CAMPAIGN_SELECT_FIELDS,
+                include: this.CAMPAIGN_JOIN_FIELDS,
             })
 
             return campaign ? this.mapToGraphQLModel(campaign) : null
@@ -123,7 +128,7 @@ export class CampaignRepository {
         }
     }
 
-    async findMany(options: FindManyOptions): Promise<Campaign[]> {
+    async findMany(options: FindManyOptions) {
         const {
             filter,
             search,
@@ -151,8 +156,14 @@ export class CampaignRepository {
                 })
             }
 
+            if (filter?.categoryId) {
+                whereClause.AND.push({
+                    category_id: filter.categoryId,
+                })
+            }
+
             if (search) {
-                const sanitizedSearch = this.sanitizeSearchTerm(search)
+                const sanitizedSearch = sanitizeSearchTerm(search)
                 if (sanitizedSearch) {
                     whereClause.AND.push({
                         OR: [
@@ -174,6 +185,14 @@ export class CampaignRepository {
                                     mode: "insensitive",
                                 },
                             },
+                            {
+                                category: {
+                                    title: {
+                                        contains: sanitizedSearch,
+                                        mode: "insensitive",
+                                    },
+                                },
+                            },
                         ],
                     })
                 }
@@ -181,7 +200,7 @@ export class CampaignRepository {
 
             const campaigns = await this.prisma.campaign.findMany({
                 where: whereClause,
-                select: this.CAMPAIGN_SELECT_FIELDS,
+                include: this.CAMPAIGN_JOIN_FIELDS,
                 orderBy: this.buildOrderByClause(sortBy),
                 take: Math.min(limit, 100),
                 skip: offset,
@@ -203,7 +222,7 @@ export class CampaignRepository {
         }
     }
 
-    async update(id: string, data: UpdateCampaignData): Promise<Campaign> {
+    async update(id: string, data: UpdateCampaignData) {
         try {
             const updateData: any = {}
 
@@ -223,6 +242,8 @@ export class CampaignRepository {
             if (data.status !== undefined) updateData.status = data.status
             if (data.approvedAt !== undefined)
                 updateData.approved_at = data.approvedAt
+            if (data.categoryId !== undefined)
+                updateData.category_id = data.categoryId
 
             return await this.prisma.$transaction(async (tx) => {
                 const campaign = await tx.campaign.update({
@@ -231,7 +252,7 @@ export class CampaignRepository {
                         is_active: true,
                     },
                     data: updateData,
-                    select: this.CAMPAIGN_SELECT_FIELDS,
+                    include: this.CAMPAIGN_JOIN_FIELDS,
                 })
                 return this.mapToGraphQLModel(campaign)
             })
@@ -301,7 +322,7 @@ export class CampaignRepository {
         }
     }
 
-    async delete(id: string): Promise<boolean> {
+    async delete(id: string) {
         try {
             const result = await this.prisma.campaign.update({
                 where: {
@@ -326,7 +347,7 @@ export class CampaignRepository {
         }
     }
 
-    async reactivate(id: string): Promise<Campaign | null> {
+    async reactivate(id: string) {
         try {
             const campaign = await this.prisma.campaign.update({
                 where: {
@@ -337,7 +358,7 @@ export class CampaignRepository {
                     is_active: true,
                     updated_at: new Date(),
                 },
-                select: this.CAMPAIGN_SELECT_FIELDS,
+                include: this.CAMPAIGN_JOIN_FIELDS,
             })
 
             return this.mapToGraphQLModel(campaign)
@@ -368,23 +389,31 @@ export class CampaignRepository {
         }
     }
 
-    private sanitizeSearchTerm(search: string): string {
-        if (!search || typeof search !== "string") {
-            return ""
-        }
-
-        return search
-            .trim()
-            .replace(/[%_\\]/g, "\\$&")
-            .replace(/['";]/g, "")
-            .slice(0, 100)
-    }
-
-    private mapToGraphQLModel(dbCampaign: any): Campaign {
+    private mapToGraphQLModel(dbCampaign: any) {
         const bigIntFields = {
             targetAmount: dbCampaign.target_amount?.toString() ?? "0",
             receivedAmount: dbCampaign.received_amount?.toString() ?? "0",
         }
+
+        const category = dbCampaign.category
+            ? {
+                id: dbCampaign.category.id,
+                title: dbCampaign.category.title,
+                description: dbCampaign.category.description,
+                isActive: dbCampaign.category.is_active,
+                createdAt: dbCampaign.category.created_at,
+                updatedAt: dbCampaign.category.updated_at,
+                campaigns: undefined,
+            }
+            : undefined
+
+        const creator: UserRef | undefined = dbCampaign.created_by
+            ? {
+                __typename: "User",
+                id: dbCampaign.created_by,
+            }
+            : undefined
+
         return {
             id: dbCampaign.id,
             title: dbCampaign.title,
@@ -399,9 +428,19 @@ export class CampaignRepository {
             endDate: dbCampaign.end_date,
             isActive: dbCampaign.is_active,
             createdBy: dbCampaign.created_by,
+<<<<<<< HEAD
             approvedAt: dbCampaign.approved_at,
             created_at: dbCampaign.created_at,
             updated_at: dbCampaign.updated_at,
+=======
+            categoryId: dbCampaign.category_id || undefined,
+            approvedAt: dbCampaign.approved_at || undefined,
+            createdAt: dbCampaign.created_at,
+            updatedAt: dbCampaign.updated_at,
+            category: category,
+            creator: creator,
+            donations: undefined,
+>>>>>>> c846b6fbcf395724cf6c9a0fac1c849eb2e87332
         }
     }
 

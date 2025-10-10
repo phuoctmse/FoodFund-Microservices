@@ -18,10 +18,6 @@ import {
     SignUpInput,
     SignInInput,
     ConfirmSignUpInput,
-    VerifyTokenInput,
-    ForgotPasswordInput,
-    ConfirmForgotPasswordInput,
-    ResendCodeInput,
     RefreshTokenInput,
 } from "./dto"
 import { AuthService } from "./auth.service"

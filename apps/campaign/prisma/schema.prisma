@@ -25,16 +25,34 @@ model Campaign {
   is_active              Boolean              @default(true)
   created_by             String              
   approved_at            DateTime?
+  category_id            String?
   created_at             DateTime             @default(now())
   updated_at             DateTime             @updatedAt
 
   donations              Donation[]
+  category               Campaign_Category?   @relation(fields: [category_id], references: [id], onDelete: SetNull)
   
   @@index([status])
   @@index([created_by])
   @@index([created_at])
   @@index([start_date, end_date])
+  @@index([category_id])
   @@map("campaigns")
+}
+
+model Campaign_Category {
+  id          String     @id @default(uuid())
+  title       String     @db.VarChar(100)
+  description String     @db.Text()
+  is_active   Boolean    @default(true)
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
+
+  campaigns   Campaign[]
+
+  @@index([is_active])
+  @@index([title])
+  @@map("campaign_categories")
 }
 
 model Donation {

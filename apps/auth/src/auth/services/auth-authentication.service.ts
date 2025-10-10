@@ -1,10 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common"
 import { AwsCognitoService } from "libs/aws-cognito"
 import { CognitoUser } from "libs/aws-cognito/aws-cognito.types"
-import {
-    GetUserCommandOutput,
-    AdminGetUserCommandOutput,
-} from "@aws-sdk/client-cognito-identity-provider"
+import { GetUserCommandOutput } from "@aws-sdk/client-cognito-identity-provider"
 import { SignInInput, RefreshTokenInput } from "../dto"
 import { AuthUser, SignInResponse, RefreshTokenResponse } from "../models"
 import { AuthErrorHelper } from "../helpers"

@@ -1,16 +1,16 @@
 import { Module } from "@nestjs/common"
-import { AuthLibModule } from "libs/auth/auth.module"
 import { CampaignService } from "./campaign.service"
-import { CampaignResolver } from "./campaign.resolver"
 import { CampaignRepository } from "./campaign.repository"
-import { JwtModule } from "@libs/jwt"
 import { HealthController } from "./health.controller"
 import { AwsCognitoModule } from "@libs/aws-cognito"
 import { PrismaClient } from "../generated/campaign-client"
 import { SpacesUploadService } from "libs/s3-storage/spaces-upload.service"
 import { CampaignSchedulerService } from "./workers/schedulers/campaign-scheduler.service"
-import { CampaignStatusJob } from "./workers/schedulers/campaign-status.job"
-import { ScheduleModule } from "@nestjs/schedule"
+import { CampaignStatusJob } from "./workers/campaign-status.job"
+import { CampaignCategoryModule } from "../campaign-category/campaign-category.module"
+import { UserRefResolver } from "../shared/resolver/user-ref.resolver"
+import { CampaignResolver } from "./campaign.resolver"
+import { AuthorizationService } from "../shared"
 
 @Module({
     imports: [
@@ -18,12 +18,7 @@ import { ScheduleModule } from "@nestjs/schedule"
             isGlobal: false,
             mockMode: false,
         }),
-        AuthLibModule,
-        JwtModule.register({
-            isGlobal: false,
-            useGlobalImports: true,
-        }),
-        ScheduleModule.forRoot(),
+        CampaignCategoryModule,
     ],
     providers: [
         SpacesUploadService,
@@ -32,7 +27,12 @@ import { ScheduleModule } from "@nestjs/schedule"
         CampaignRepository,
         CampaignSchedulerService,
         CampaignStatusJob,
+<<<<<<< HEAD
         PrismaClient
+=======
+        UserRefResolver,
+        AuthorizationService,
+>>>>>>> c846b6fbcf395724cf6c9a0fac1c849eb2e87332
     ],
     controllers: [HealthController],
     exports: [CampaignService, CampaignRepository, CampaignSchedulerService],

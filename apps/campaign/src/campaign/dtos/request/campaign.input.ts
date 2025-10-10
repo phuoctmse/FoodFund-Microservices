@@ -8,26 +8,7 @@ import {
     IsUUID,
 } from "class-validator"
 import { Transform, Type } from "class-transformer"
-import { CampaignStatus } from "@libs/databases/prisma/schemas/enums/campaign.enum"
-
-@InputType()
-export class GenerateUploadUrlInput {
-    @Field(() => String, {
-        nullable: true,
-        description: "Optional campaign ID if updating existing campaign",
-    })
-    @IsOptional()
-    @IsUUID(4, { message: "Campaign ID must be a valid UUID" })
-        campaignId?: string
-
-    @Field(() => String, {
-        nullable: true,
-        description: "File type hint (jpeg, png, webp)",
-    })
-    @IsOptional()
-    @IsString()
-        fileType?: string
-}
+import { CampaignStatus } from "apps/campaign/src/campaign/enum/campaign.enum"
 
 @InputType()
 export class CreateCampaignInput {
@@ -60,6 +41,14 @@ export class CreateCampaignInput {
     @IsString({ message: "Target amount must be a string" })
     @IsNotEmpty({ message: "Target amount is required" })
         targetAmount: string
+
+    @Field(() => String, {
+        nullable: true,
+        description: "Campaign category ID",
+    })
+    @IsOptional()
+    @IsUUID(4, { message: "Category ID must be a valid UUID" })
+        categoryId?: string
 
     @Field(() => Date, { description: "Campaign start date (ISO 8601)" })
     @Type(() => Date)
@@ -173,6 +162,14 @@ export class UpdateCampaignInput {
         return value
     })
         endDate?: Date
+
+    @Field(() => String, {
+        nullable: true,
+        description: "Campaign category ID",
+    })
+    @IsOptional()
+    @IsUUID(4, { message: "Category ID must be a valid UUID" })
+        categoryId?: string
 }
 
 @InputType()
@@ -195,6 +192,14 @@ export class CampaignFilterInput {
     @IsOptional()
     @IsUUID(4, { message: "Creator ID must be a valid UUID" })
         creatorId?: string
+
+    @Field(() => String, {
+        nullable: true,
+        description: "Filter by category ID",
+    })
+    @IsOptional()
+    @IsUUID(4, { message: "Category ID must be a valid UUID" })
+        categoryId?: string
 }
 
 export enum CampaignSortOrder {

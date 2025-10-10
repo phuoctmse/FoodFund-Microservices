@@ -6,9 +6,7 @@ import { Role } from "./enums/user.enums"
     description: "Abstract base schema with common fields including user information",
 })
 export abstract class AbstractSchema {
-    @Field(() => ID, {
-        description: "Unique identifier",
-    })
+    @Field(() => ID)
         id: string
 
     @Field(() => Date, {

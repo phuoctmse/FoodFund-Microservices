@@ -19,6 +19,7 @@ COPY --from=build /usr/src/app/package*.json ./
 COPY --from=build /usr/src/app/apps/campaign/package*.json ./apps/campaign/
 COPY --from=build /usr/src/app/node_modules ./node_modules
 COPY --from=build /usr/src/app/apps/campaign/prisma ./apps/campaign/prisma
+COPY --from=build /usr/src/app/libs/grpc/proto ./libs/grpc/proto
 
 # Generate Prisma client for Linux runtime in production stage
 WORKDIR /usr/src/app/apps/campaign

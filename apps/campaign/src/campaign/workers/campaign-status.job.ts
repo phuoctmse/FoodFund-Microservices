@@ -1,5 +1,5 @@
-import { Injectable, Logger } from "@nestjs/common"
-import { CampaignSchedulerService } from "./campaign-scheduler.service"
+import { Injectable } from "@nestjs/common"
+import { CampaignSchedulerService } from "./schedulers/campaign-scheduler.service"
 import { SentryService } from "@libs/observability/sentry.service"
 import { Cron, CronExpression } from "@nestjs/schedule"
 import { BaseJobHandler, JobExecutionResult } from "@libs/common/base/base.job"
