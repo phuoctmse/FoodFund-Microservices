@@ -3,11 +3,11 @@ import { CreateStaffAccountResponse } from "../models"
 import { CreateStaffAccountInput } from "../dto"
 import { RequireRole } from "libs/auth"
 import { Role } from "libs/databases/prisma/schemas/enums/user.enums"
-import { AdminService } from "../services"
+import { AuthAdminService } from "../services/auth-admin.service"
 
 @Resolver()
 export class AdminResolver {
-    constructor(private adminService: AdminService) {}
+    constructor(private adminService: AuthAdminService) {}
 
     @Mutation(() => CreateStaffAccountResponse)
     @RequireRole(Role.ADMIN)
