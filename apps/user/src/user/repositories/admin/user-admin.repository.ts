@@ -8,32 +8,10 @@ import { CreateStaffUserInput, UpdateUserInput } from "../../dto/user.types"
 export class UserAdminRepository {
     constructor(private readonly prisma: PrismaClient) {}
 
-    // // Admin-specific user management
-    // async createStaffUser(data: CreateStaffUserInput) {
-    //     const { organization_address, ...userData } = data
-
-    //     return this.prisma.user.create({
-    //         data: {
-    //             id: uuidv7(),
-    //             ...userData,
-    //             is_active: true,
-    //         },
-    //         include: {
-    //             Donor_Profile: true,
-    //             Kitchen_Staff_Profile: true,
-    //             Fundraiser_Profile: true,
-    //             Delivery_Staff_Profile: true,
-    //         },
-    //     })
-    // }
-
-    async findAllUsers(skip?: number, take?: number) {
-        const validSkip = skip ?? 0
-        const validTake = take ?? 10
-        
+    async findAllUsers(skip: number = 0, take: number = 10) {
         return this.prisma.user.findMany({
-            skip: validSkip,
-            take: validTake,
+            skip,
+            take,
             include: {
                 Organizations: true,
             },

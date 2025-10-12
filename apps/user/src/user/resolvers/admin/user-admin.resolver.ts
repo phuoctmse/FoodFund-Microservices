@@ -23,8 +23,8 @@ import { CognitoGraphQLGuard } from "@libs/aws-cognito"
 @Resolver()
 export class UserAdminResolver {
     constructor(
-        private userAdminService: UserAdminService,
-        private organizationService: OrganizationService,
+        private readonly userAdminService: UserAdminService,
+        private readonly organizationService: OrganizationService,
     ) {}
 
     // Admin Query: Get all users

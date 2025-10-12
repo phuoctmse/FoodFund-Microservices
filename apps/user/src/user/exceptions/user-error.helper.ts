@@ -144,7 +144,7 @@ export class UserErrorHelper {
         }
 
         const allowedToRoles = validTransitions[fromRole as keyof typeof validTransitions]
-        if (!allowedToRoles || !allowedToRoles.includes(toRole)) {
+        if (!allowedToRoles?.includes(toRole)) {
             this.throwInvalidRoleTransition(fromRole, toRole)
         }
     }

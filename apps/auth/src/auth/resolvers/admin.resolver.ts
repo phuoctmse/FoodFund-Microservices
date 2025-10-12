@@ -7,7 +7,7 @@ import { AuthAdminService } from "../services/auth-admin.service"
 
 @Resolver()
 export class AdminResolver {
-    constructor(private adminService: AuthAdminService) {}
+    constructor(private readonly adminService: AuthAdminService) {}
 
     @Mutation(() => CreateStaffAccountResponse)
     @RequireRole(Role.ADMIN)

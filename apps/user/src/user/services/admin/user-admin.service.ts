@@ -41,11 +41,9 @@ export class UserAdminService {
         return this.userAdminRepository.updateUser(staffId, updateData)
     }
 
-    async getAllAccounts(skip?: number, take?: number) {
-        const validSkip = skip ?? 0
-        const validTake = take ?? 10
-        this.logger.log(`Getting all accounts with skip: ${validSkip}, take: ${validTake}`)
-        return this.userAdminRepository.findAllUsers(validSkip, validTake)
+    async getAllAccounts(skip: number = 0, take: number = 10) {
+        this.logger.log(`Getting all accounts with skip: ${skip}, take: ${take}`)
+        return this.userAdminRepository.findAllUsers(skip, take)
     }
 
     async updateAccountStatus(userId: string, isActive: boolean, adminUserId: string) {
@@ -129,10 +127,8 @@ export class UserAdminService {
         }
     }
 
-    async getAllUsers(offset?: number, limit?: number) {
-        const validOffset = offset ?? 0
-        const validLimit = limit ?? 10
-        this.logger.log(`Admin getting all users with offset: ${validOffset}, limit: ${validLimit}`)
-        return this.userAdminRepository.findAllUsers(validOffset, validLimit)
+    async getAllUsers(offset: number = 0, limit: number = 10) {
+        this.logger.log(`Admin getting all users with offset: ${offset}, limit: ${limit}`)
+        return this.userAdminRepository.findAllUsers(offset, limit)
     }
 }

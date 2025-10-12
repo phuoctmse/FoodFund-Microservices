@@ -7,7 +7,7 @@ import {
 } from "@aws-sdk/client-cognito-identity-provider"
 import { AuthUser, AuthResponse, CheckPasswordResponse, GoogleAuthResponse } from "../models"
 import { AuthErrorHelper } from "../helpers"
-import { randomBytes } from "crypto"
+import { randomBytes } from "node:crypto"
 
 import { UpdateUserInput, ChangePasswordInput, CheckCurrentPasswordInput, GoogleAuthInput } from "../dto/auth.input"
 import { GrpcClientService } from "libs/grpc"
@@ -109,8 +109,7 @@ export class AuthUserService {
         try {
             this.logger.log(`Checking current password for user: ${userId}`)
 
-            // Use signIn to verify password
-            const result = await this.awsCognitoService.signIn(userId, input.currentPassword)
+            await this.awsCognitoService.signIn(userId, input.currentPassword)
             
             return {
                 isValid: true,
@@ -162,7 +161,7 @@ export class AuthUserService {
                 const secureRandomSuffix = randomBytes(16).toString("hex")
                 const securePassword = `GoogleUser!${Date.now()}.${secureRandomSuffix}`
                 
-                const signUpResult = await this.awsCognitoService.signUp(
+                await this.awsCognitoService.signUp(
                     googleUserInfo.email,
                     securePassword,
                     {
@@ -173,7 +172,6 @@ export class AuthUserService {
                     }
                 )
 
-                // Auto-confirm the user since Google email is verified
                 await this.awsCognitoService.adminConfirmSignUp(googleUserInfo.email)
 
                 const createdUserOutput = await this.awsCognitoService.getUserByUsername(googleUserInfo.email)

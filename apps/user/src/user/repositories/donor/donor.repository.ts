@@ -5,10 +5,4 @@ import { CreateDonorProfileInput, UpdateDonorProfileInput } from "../../dto/user
 @Injectable()
 export class DonorRepository {
     constructor(private readonly prisma: PrismaClient) {}
-
-    async findDonorProfile(){
-
-    }
-
-    async updateDonorProfile(){}
 }
