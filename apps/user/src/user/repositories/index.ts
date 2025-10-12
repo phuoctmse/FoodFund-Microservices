@@ -7,6 +7,3 @@ export * from "./common"
 export * from "./kitchen-staff"
 export * from "./fundraiser"
 export * from "./delivery-staff"
-
-// Types
-export * from "../dto/user.types"

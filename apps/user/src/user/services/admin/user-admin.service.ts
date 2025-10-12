@@ -1,10 +1,8 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common"
-import { CreateStaffAccountInput, UpdateUserInput, UpdateUserAccountInput } from "../../dto/user.input"
-import { CreateStaffAccountResponse } from "../../types/staff-response.model"
+import { UpdateUserInput, UpdateUserAccountInput } from "../../dto/user.input"
 import { AwsCognitoService } from "libs/aws-cognito"
 import { UserAdminRepository, UserCommonRepository } from "../../repositories"
 import { Role } from "libs/databases/prisma/schemas"
-import { generateUniqueUsername } from "libs/common"
 
 @Injectable()
 export class UserAdminService {

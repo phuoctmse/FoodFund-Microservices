@@ -1,8 +1,16 @@
 import { Injectable, Logger } from "@nestjs/common"
 import { UserAdminRepository } from "../../repositories/admin"
 import { UserAdminService } from "../../services/admin"
-import { AwsCognitoService } from "libs/aws-cognito"
-import { envConfig } from "libs/env"
+import { Role } from "libs/databases/prisma/schemas"
+
+// Constants to avoid duplication
+const ROLE_TO_GRPC_MAP = {
+    [Role.DONOR]: 0,
+    [Role.FUNDRAISER]: 1,
+    [Role.KITCHEN_STAFF]: 2,
+    [Role.DELIVERY_STAFF]: 3,
+    [Role.ADMIN]: 4,
+} as const
 
 @Injectable()
 export class UserAdminGrpcService {
@@ -13,17 +21,56 @@ export class UserAdminGrpcService {
         private readonly userAdminService: UserAdminService,
     ) {}
 
+    /**
+     * Transform database user to gRPC user format
+     * Reduces code duplication across methods
+     */
+    private transformUserToGrpcFormat(user: any) {
+        return {
+            id: user.id,
+            cognito_id: user.cognito_id,
+            email: user.email,
+            username: user.user_name,
+            full_name: user.full_name,
+            phone_number: user.phone_number,
+            avatar_url: user.avatar_url || "",
+            bio: user.bio || "",
+            role: ROLE_TO_GRPC_MAP[user.role as Role] ?? 0,
+            is_active: user.is_active,
+            created_at: user.created_at.toISOString(),
+            updated_at: user.updated_at.toISOString(),
+        }
+    }
+
+    /**
+     * Standard success response helper
+     */
+    private createSuccessResponse(user: any) {
+        return {
+            success: true,
+            user: this.transformUserToGrpcFormat(user),
+            error: null,
+        }
+    }
+
+    /**
+     * Standard error response helper
+     */
+    private createErrorResponse(errorMessage: string) {
+        return {
+            success: false,
+            user: null,
+            error: errorMessage,
+        }
+    }
+
     // Update user profile
     async updateUser(call: any, callback: any) {
         try {
             const { id, full_name, phone_number, avatar_url, bio } = call.request
 
             if (!id) {
-                callback(null, {
-                    success: false,
-                    user: null,
-                    error: "User ID is required",
-                })
+                callback(null, this.createErrorResponse("User ID is required"))
                 return
             }
 
@@ -34,40 +81,11 @@ export class UserAdminGrpcService {
             if (bio) updateData.bio = bio
 
             const user = await this.userAdminRepository.updateUser(id, updateData)
+            callback(null, this.createSuccessResponse(user))
 
-            const roleMap = {
-                DONOR: 0,
-                FUNDRAISER: 1,
-                KITCHEN_STAFF: 2,
-                DELIVERY_STAFF: 3,
-                ADMIN: 4,
-            }
-
-            callback(null, {
-                success: true,
-                user: {
-                    id: user.id,
-                    cognito_id: user.cognito_id,
-                    email: user.email,
-                    username: user.user_name,
-                    full_name: user.full_name,
-                    phone_number: user.phone_number,
-                    avatar_url: user.avatar_url || "",
-                    bio: user.bio || "",
-                    role: roleMap[user.role] || 0,
-                    is_active: user.is_active,
-                    created_at: user.created_at.toISOString(),
-                    updated_at: user.updated_at.toISOString(),
-                },
-                error: null,
-            })
         } catch (error) {
             this.logger.error("Update user failed:", error)
-            callback(null, {
-                success: false,
-                user: null,
-                error: error.message,
-            })
+            callback(null, this.createErrorResponse(error.message))
         }
     }
 

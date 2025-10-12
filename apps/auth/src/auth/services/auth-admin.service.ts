@@ -1,7 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common"
 import { AuthUser, CreateStaffAccountResponse } from "../models"
 import { AwsCognitoService } from "libs/aws-cognito"
-import { CreateStaffAccountInput } from "../dto"
 import { Role } from "libs/databases/prisma/schemas/enums/user.enums"
 import { AuthErrorHelper } from "../helpers"
 import { GrpcClientService } from "libs/grpc"
@@ -14,103 +13,6 @@ export class AuthAdminService {
         private readonly awsCognitoService: AwsCognitoService,
         private readonly grpcClient: GrpcClientService,
     ) {}
-
-    async createStaffAccount(
-        input: CreateStaffAccountInput,
-        adminUser: AuthUser,
-    ): Promise<CreateStaffAccountResponse> {
-        try {
-            this.logger.log(
-                `Admin ${adminUser.id} creating staff account for: ${input.email}`,
-            )
-
-            // Validate role is a staff role
-            if (
-                input.role !== Role.KITCHEN_STAFF &&
-                input.role !== Role.DELIVERY_STAFF &&
-                input.role !== Role.FUNDRAISER
-            ) {
-                throw new Error(
-                    "Only Kitchen Staff, Delivery Staff, and Fundraiser can be created through this endpoint",
-                )
-            }
-
-            // Create user in Cognito with provided password
-            const cognitoResult = await this.awsCognitoService.signUp(
-                input.email,
-                input.password,
-                {
-                    name: input.full_name,
-                    phone_number: input.phone_number,
-                    "custom:role": input.role,
-                },
-            )
-
-            this.logger.log(`Cognito user created: ${cognitoResult.userSub}`)
-
-            // Auto-confirm all staff roles (bypass email confirmation for development)
-            await this.awsCognitoService.adminConfirmSignUp(input.email)
-            this.logger.log(`Auto-confirmed ${input.role} user: ${input.email}`)
-
-            // Create user in database via gRPC
-            const userResult = await this.grpcClient.callUserService(
-                "CreateStaffUser",
-                {
-                    cognito_id: cognitoResult.userSub || "",
-                    email: input.email,
-                    full_name: input.full_name,
-                    phone_number: input.phone_number,
-                    avatar_url: input.avatar_url || "",
-                    role: this.mapRoleToProtoEnum(input.role),
-                    bio: input.bio || "",
-                    organization_address: input.organization_address || "",
-                },
-            )
-
-            if (!userResult.success) {
-                this.logger.error(
-                    `Failed to create user in database, rolling back Cognito user for: ${input.email}`,
-                )
-                try {
-                    await this.awsCognitoService.adminDeleteUser(input.email)
-                    this.logger.log(
-                        `Rolled back Cognito user for: ${input.email}`,
-                    )
-                } catch (deleteError) {
-                    this.logger.error(
-                        `Failed to rollback Cognito user for ${input.email}:`,
-                        deleteError,
-                    )
-                }
-                throw new Error(
-                    `Failed to create user in database: ${userResult.error}`,
-                )
-            }
-
-            this.logger.log(
-                `Staff account created successfully: ${userResult.user.id}`,
-            )
-
-            return {
-                success: true,
-                message: `${input.role} account created successfully and auto-confirmed. Ready to login immediately.`,
-                userId: userResult.user.id,
-                cognitoId: cognitoResult.userSub || "",
-                hasLoginAccess: true,
-                temporaryPasswordSent: false,
-            }
-        } catch (error) {
-            this.logger.error(
-                `Staff account creation failed for ${input.email}:`,
-                error,
-            )
-            throw AuthErrorHelper.mapCognitoError(
-                error,
-                "createStaffAccount",
-                input.email,
-            )
-        }
-    }
 
     private mapRoleToProtoEnum(role: Role): number {
         switch (role) {

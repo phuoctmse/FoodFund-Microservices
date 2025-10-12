@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common"
 import { PrismaClient } from "../../../generated/user-client"
 import { v7 as uuidv7 } from "uuid"
-import { CreateUserInput } from "../../dto/user.types"
+import { CreateUserInput } from "../../types/user.types"
 
 @Injectable()
 export class UserCommonRepository {

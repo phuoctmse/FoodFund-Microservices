@@ -10,7 +10,6 @@ import {
 import { CreateStaffAccountResponse } from "../../types/staff-response.model"
 import { OrganizationActionResponse } from "../../types/organization-response.model"
 import {
-    CreateStaffAccountInput,
     UpdateUserAccountInput,
 } from "../../dto/user.input"
 import { RequireRole, CurrentUserType } from "libs/auth"

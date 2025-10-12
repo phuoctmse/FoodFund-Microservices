@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common"
 import { PrismaClient } from "../../../generated/user-client"
 import { Role } from "libs/databases/prisma/schemas"
 import { v7 as uuidv7 } from "uuid"
-import { CreateStaffUserInput, UpdateUserInput } from "../../dto/user.types"
+import { UpdateUserInput } from "../../types/user.types"
 
 @Injectable()
 export class UserAdminRepository {
