@@ -27,15 +27,6 @@ import { ScheduleModule } from "@nestjs/schedule"
             release: envConfig().sentry.release,
             enableTracing: true,
         }),
-        PrismaModule.forRoot({
-            isGlobal: true,
-            enableLogging: process.env.NODE_ENV === "development",
-            logLevel:
-                process.env.NODE_ENV === "development"
-                    ? ["info", "warn", "error"]
-                    : ["error"],
-            datasourceUrl: process.env.CAMPAIGN_DATABASE_URL,
-        }),
         ScheduleModule.forRoot(),
         CampaignModule,
         CampaignCategoryModule,

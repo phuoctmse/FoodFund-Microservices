@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common"
 import { GraphQLSubgraphModule } from "libs/graphql/subgraph"
 import { PrismaClient } from "../generated/user-client"
+import { PrismaUserService } from "./prisma-user.service"
 import { 
     UserRepository,
     // Role-based repositories
@@ -59,7 +60,12 @@ import { AwsCognitoModule } from "@libs/aws-cognito"
         }),
     ],
     providers: [
-        PrismaClient,
+        PrismaUserService,
+        {
+            provide: PrismaClient,
+            useFactory: (service: PrismaUserService) => service["client"],
+            inject: [PrismaUserService],
+        },
         
         UserRepository,
         OrganizationRepository,

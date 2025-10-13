@@ -4,6 +4,7 @@ import { CampaignRepository } from "./campaign.repository"
 import { HealthController } from "./health.controller"
 import { AwsCognitoModule } from "@libs/aws-cognito"
 import { PrismaClient } from "../generated/campaign-client"
+import { PrismaCampaignService } from "./prisma-campaign.service"
 import { SpacesUploadService } from "libs/s3-storage/spaces-upload.service"
 import { CampaignSchedulerService } from "./workers/schedulers/campaign-scheduler.service"
 import { CampaignStatusJob } from "./workers/campaign-status.job"
@@ -21,7 +22,12 @@ import { AuthorizationService } from "../shared"
         CampaignCategoryModule,
     ],
     providers: [
-        PrismaClient,
+        PrismaCampaignService,
+        {
+            provide: PrismaClient,
+            useFactory: (service: PrismaCampaignService) => service["client"],
+            inject: [PrismaCampaignService],
+        },
         SpacesUploadService,
         CampaignService,
         CampaignResolver,
@@ -32,6 +38,6 @@ import { AuthorizationService } from "../shared"
         AuthorizationService,
     ],
     controllers: [HealthController],
-    exports: [CampaignService, CampaignRepository, CampaignSchedulerService],
+    exports: [CampaignService, CampaignRepository, CampaignSchedulerService, PrismaCampaignService],
 })
 export class CampaignModule {}

@@ -41,10 +41,10 @@ async function bootstrap() {
     }
 
     console.log(
-        `🚀 User Service HTTP running on: http://localhost:${process.env.PORT ?? 8003}`,
+        `🚀 User Service HTTP running on: http://${process.env.USERS_SUBGRAPH_HOST}:${process.env.USERS_SUBGRAPH_PORT}`,
     )
     console.log(
-        `🔗 User Service gRPC running on: localhost:${process.env.USERS_GRPC_PORT ?? 50002}`,
+        `🔗 User Service gRPC running on: ${process.env.USERS_SUBGRAPH_HOST}:${process.env.USERS_GRPC_PORT}`,
     )
 }
 bootstrap()
