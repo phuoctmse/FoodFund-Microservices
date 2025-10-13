@@ -33,7 +33,6 @@ export class FundraiserProfileResolver {
     })
     @RequireRole(Role.FUNDRAISER)
     async myOrganization(@CurrentUser() user: CurrentUserType) {
-        console.debug("user:", user)
         return this.organizationService.getFundraiserOrganization(user.cognito_id)
     }
 

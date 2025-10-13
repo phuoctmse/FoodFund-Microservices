@@ -293,7 +293,6 @@ export class OrganizationService {
             }
         )
         
-        console.debug("paginated result:", result)
         return result
     }
 

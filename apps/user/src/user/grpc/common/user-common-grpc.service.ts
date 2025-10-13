@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common"
 import { UserCommonRepository } from "../../repositories/common"
 import { generateUniqueUsername } from "libs/common"
+import { Role } from "@libs/databases"
 
 @Injectable()
 export class UserCommonGrpcService {
@@ -14,9 +15,7 @@ export class UserCommonGrpcService {
             const {
                 cognito_id,
                 email,
-                username,
                 full_name,
-                role,
                 cognito_attributes,
             } = call.request
 
@@ -29,25 +28,17 @@ export class UserCommonGrpcService {
                 return
             }
 
-            // Map role enum to string
-            const roleMap = {
-                0: "DONOR",
-                1: "FUNDRAISER",
-                2: "KITCHEN_STAFF",
-                3: "DELIVERY_STAFF",
-                4: "ADMIN",
-            }
 
-            const finalUsername = username || generateUniqueUsername(email)
+            const finalUsername = generateUniqueUsername(email)
 
             const user = await this.userCommonRepository.createUser({
-                cognito_id: cognito_id,
+                cognito_id,
                 email,
                 user_name: finalUsername,
                 full_name: full_name || "",
                 avatar_url: cognito_attributes?.avatar_url || "",
                 bio: cognito_attributes?.bio || "",
-                role: roleMap[role] || "DONOR",
+                role: Role.DONOR,
             } as any)
 
             if (!user) {
@@ -70,7 +61,7 @@ export class UserCommonGrpcService {
                     phone_number: user.phone_number,
                     avatar_url: user.avatar_url || "",
                     bio: user.bio || "",
-                    role: Object.keys(roleMap).find(key => roleMap[key] === user.role) || 0,
+                    role: Role.DONOR,
                     is_active: user.is_active,
                     created_at: user.created_at.toISOString(),
                     updated_at: user.updated_at.toISOString(),

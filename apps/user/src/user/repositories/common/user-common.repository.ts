@@ -13,7 +13,7 @@ export class UserCommonRepository {
             data: {
                 id: uuidv7(),
                 ...data,
-                is_active: true,
+                is_active: true,   
             }
         })
     }

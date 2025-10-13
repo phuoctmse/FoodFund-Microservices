@@ -19,7 +19,7 @@ model User {
   role                   Role                    @default(DONOR)
   is_active              Boolean                 @default(true)
   address                String?                 @db.Text()
-  user_name              String                  @unique @db.VarChar(20)
+  user_name              String                  @unique @db.VarChar(50)
   bio                    String?                 @db.Text()
   created_at             DateTime                @default(now())
   updated_at             DateTime                @updatedAt
