@@ -179,9 +179,4 @@ export class GoogleAuthInput {
     @IsNotEmpty({ message: "Google ID token is required" })
     @IsString({ message: "Google ID token must be a string" })
         idToken: string
-
-    @Field({ nullable: true })
-    @IsOptional()
-    @IsString({ message: "Access token must be a string" })
-        accessToken?: string
 }

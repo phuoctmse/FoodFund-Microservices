@@ -23,7 +23,7 @@ import {
     AdminUpdateUserAttributesCommand,
 } from "@aws-sdk/client-cognito-identity-provider"
 import { CognitoJwtVerifier } from "aws-jwt-verify"
-import { createHmac } from "crypto"
+import { createHmac, randomBytes } from "node:crypto"
 import { envConfig } from "../env"
 import { MODULE_OPTIONS_TOKEN } from "./aws-cognito.module-definition"
 import {
@@ -533,8 +533,15 @@ export class AwsCognitoService {
                 Username: email,
             })
 
-            await this.cognitoClient.send(command)
-            this.logger.log(`Admin confirmed user: ${email}`)
+            // Run confirmation and email verification in parallel
+            await Promise.all([
+                this.cognitoClient.send(command),
+                this.updateUserAttributes(email, {
+                    "email_verified": "true"
+                })
+            ])
+            
+            this.logger.log(`Admin confirmed user and verified email: ${email}`)
 
             return { confirmed: true } as ConfirmationResponse
         } catch (error) {
@@ -619,5 +626,104 @@ export class AwsCognitoService {
                 `Change password failed: ${errorMessage}`,
             )
         }
+    }
+
+    /**
+     * Generate authentication tokens for a user (for OAuth flows)
+     * This uses AdminInitiateAuth with ADMIN_NO_SRP_AUTH to generate JWT tokens
+     */
+    async generateTokensForOAuthUser(username: string, password?: string): Promise<AuthenticationResult> {
+        try {
+            this.logger.log(`Generating tokens for OAuth user: ${username}`)
+
+            // Use ADMIN_NO_SRP_AUTH flow to generate tokens
+            const secretHash = this.calculateSecretHash(username)
+            
+            const authParameters: Record<string, string> = {
+                USERNAME: username,
+            }
+            
+            // Add password if provided, otherwise try without password first
+            if (password) {
+                authParameters.PASSWORD = password
+            }
+            
+            if (secretHash) {
+                authParameters.SECRET_HASH = secretHash
+            }
+
+            const command = new AdminInitiateAuthCommand({
+                UserPoolId: this.userPoolId,
+                ClientId: this.clientId,
+                AuthFlow: AuthFlowType.ADMIN_NO_SRP_AUTH,
+                AuthParameters: authParameters,
+            })
+
+            const response = await this.cognitoClient.send(command)
+
+            if (!response.AuthenticationResult) {
+                throw new Error("No authentication result returned from Cognito")
+            }
+
+            this.logger.log(`Tokens generated successfully for OAuth user: ${username}`)
+            
+            return this.formatAuthResponse(response.AuthenticationResult)
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error)
+            this.logger.error(`Generate tokens for OAuth user failed: ${errorMessage}`)
+            
+            // If ADMIN_NO_SRP_AUTH fails, try alternative approach with temporary password
+            try {
+                return await this.generateTokensWithTemporaryPassword(username)
+            } catch (fallbackError) {
+                this.logger.error(`Fallback token generation also failed: ${fallbackError}`)
+                throw new UnauthorizedException(`Token generation failed: ${errorMessage}`)
+            }
+        }
+    }
+
+    /**
+     * Fallback method to generate tokens using temporary password
+     */
+    private async generateTokensWithTemporaryPassword(username: string): Promise<AuthenticationResult> {
+        this.logger.log(`Using fallback method with temporary password for user: ${username}`)
+
+        // Set a temporary password
+        const tempPassword = `TempPass!${Date.now()}`
+        await this.changePassword(username, tempPassword)
+
+        // Authenticate with the temporary password
+        const secretHash = this.calculateSecretHash(username)
+        
+        const authParameters: Record<string, string> = {
+            USERNAME: username,
+            PASSWORD: tempPassword,
+        }
+        
+        if (secretHash) {
+            authParameters.SECRET_HASH = secretHash
+        }
+
+        const command = new AdminInitiateAuthCommand({
+            UserPoolId: this.userPoolId,
+            ClientId: this.clientId,
+            AuthFlow: AuthFlowType.ADMIN_NO_SRP_AUTH,
+            AuthParameters: authParameters,
+        })
+
+        const response = await this.cognitoClient.send(command)
+
+        if (!response.AuthenticationResult) {
+            throw new Error("No authentication result returned from Cognito")
+        }
+
+        // Immediately change password to a new secure one to invalidate the temporary password
+        const secureRandomSuffix = randomBytes(16).toString("hex")
+        const newSecurePassword = `GoogleOAuth!${Date.now()}.${secureRandomSuffix}`
+        await this.changePassword(username, newSecurePassword)
+
+        this.logger.log(`Tokens generated successfully using fallback method for user: ${username}`)
+        
+        return this.formatAuthResponse(response.AuthenticationResult)
     }
 }

@@ -12,12 +12,16 @@ import { randomBytes } from "node:crypto"
 import { UpdateUserInput, ChangePasswordInput, CheckCurrentPasswordInput, GoogleAuthInput } from "../dto/auth.input"
 import { GrpcClientService } from "libs/grpc"
 import { envConfig } from "@libs/env"
+import { Role } from "@libs/databases"
 
 @Injectable()
 export class AuthUserService {
     private readonly logger = new Logger(AuthUserService.name)
 
-    constructor(private readonly awsCognitoService: AwsCognitoService) {}
+    constructor(
+        private readonly awsCognitoService: AwsCognitoService,
+        private readonly grpcClientService: GrpcClientService,
+    ) {}
 
     async getUserById(id: string): Promise<AuthUser | null> {
         try {
@@ -128,7 +132,6 @@ export class AuthUserService {
         try {
             this.logger.log("Processing Google authentication with AWS Cognito")
 
-            // Step 1: Verify Google ID token and extract user info
             const googleUserInfo = await this.verifyGoogleIdToken(input.idToken)
             
             if (!googleUserInfo) {
@@ -137,84 +140,11 @@ export class AuthUserService {
 
             this.logger.log(`Google user verified: ${googleUserInfo.email}`)
 
-            // Step 2: Check if user exists in Cognito User Pool
-            let cognitoUser: CognitoUser | null = null
-            let isNewUser = false
+            const { cognitoUser, isNewUser, userPassword } = await this.findOrCreateCognitoUser(googleUserInfo)
+            
+            const authResult = await this.generateAuthTokens(cognitoUser, isNewUser, userPassword)
 
-            try {
-                // Try to find existing user by username (email)
-                const existingUserOutput = await this.awsCognitoService.getUserByUsername(googleUserInfo.email)
-                if (existingUserOutput) {
-                    cognitoUser = this.convertAdminGetUserOutputToCognitoUser(existingUserOutput)
-                    this.logger.log(`Existing user found: ${cognitoUser.email}`)
-                }
-            } catch (error) {
-                // User doesn't exist, we'll create a new one
-                this.logger.log(`User not found, will create new user: ${googleUserInfo.email}`)
-                isNewUser = true
-            }
-
-            // Step 3: Create new user if doesn't exist
-            if (!cognitoUser) {
-                // For Google OAuth users, create with a cryptographically secure password
-                // User won't use this password since they authenticate via Google
-                const secureRandomSuffix = randomBytes(16).toString("hex")
-                const securePassword = `GoogleUser!${Date.now()}.${secureRandomSuffix}`
-                
-                await this.awsCognitoService.signUp(
-                    googleUserInfo.email,
-                    securePassword,
-                    {
-                        name: googleUserInfo.name || googleUserInfo.email,
-                        email: googleUserInfo.email,
-                        "custom:provider": "Google",
-                        "custom:google_id": googleUserInfo.sub,
-                    }
-                )
-
-                await this.awsCognitoService.adminConfirmSignUp(googleUserInfo.email)
-
-                const createdUserOutput = await this.awsCognitoService.getUserByUsername(googleUserInfo.email)
-                cognitoUser = this.convertAdminGetUserOutputToCognitoUser(createdUserOutput!)
-                isNewUser = true
-                this.logger.log(`New Google user created: ${cognitoUser.email}`)
-            }
-
-            // Step 4: Generate authentication tokens using sign in
-            let authResult
-            try {
-                // Try to sign in with the user to get tokens
-                const tokenResult = await this.generateTokensForUser(cognitoUser.username)
-                authResult = {
-                    AccessToken: tokenResult.accessToken,
-                    RefreshToken: tokenResult.refreshToken,
-                    IdToken: tokenResult.idToken,
-                }
-            } catch (error) {
-                this.logger.warn("Failed to generate tokens, using fallback method")
-                authResult = {
-                    AccessToken: `google-auth-${Date.now()}`,
-                    RefreshToken: `google-refresh-${Date.now()}`,
-                    IdToken: `google-id-${Date.now()}`,
-                }
-            }
-
-            // Step 5: Map to response format
-            const authUser = this.mapCognitoUserToAuthUser(cognitoUser)
-
-            const response: GoogleAuthResponse = {
-                user: authUser,
-                accessToken: authResult.AccessToken || `fallback-access-${Date.now()}`,
-                refreshToken: authResult.RefreshToken || `fallback-refresh-${Date.now()}`,
-                idToken: authResult.IdToken || `fallback-id-${Date.now()}`,
-                isNewUser,
-                message: isNewUser 
-                    ? "User created and authenticated successfully with Google" 
-                    : "User authenticated successfully with Google",
-            }
-
-            this.logger.log(`Google authentication successful for user: ${authUser.email}`)
-            return response
+            return this.buildGoogleAuthResponse(cognitoUser, authResult, isNewUser)
 
         } catch (error) {
             this.logger.error("Error in Google authentication:", error)
@@ -222,24 +152,145 @@ export class AuthUserService {
         }
     }
 
-    // Helper method: Generate tokens for user (simplified approach)
-    private async generateTokensForUser(username: string): Promise<{
-        accessToken: string
-        refreshToken: string  
-        idToken: string
+
+
+    // Helper method: Find or create Cognito user
+    private async findOrCreateCognitoUser(googleUserInfo: any): Promise<{
+        cognitoUser: CognitoUser
+        isNewUser: boolean
+        userPassword?: string
     }> {
-        // This is a simplified token generation
-        // In production, you might want to use AWS Cognito Identity Pool
-        // or implement a custom token generation strategy
-        
-        const timestamp = Date.now()
-        const randomId = randomBytes(8).toString("hex")
-        
-        return {
-            accessToken: `google-access-${username}-${timestamp}-${randomId}`,
-            refreshToken: `google-refresh-${username}-${timestamp}-${randomId}`,
-            idToken: `google-id-${username}-${timestamp}-${randomId}`,
+        let cognitoUser: CognitoUser | null = null
+        let isNewUser = false
+        let userPassword: string | undefined
+
+        try {
+            const existingUserOutput = await this.awsCognitoService.getUserByUsername(googleUserInfo.email)
+            if (existingUserOutput) {
+                cognitoUser = this.convertAdminGetUserOutputToCognitoUser(existingUserOutput)
+                this.logger.log(`Existing user found: ${cognitoUser.email}`)
+            }
+        } catch (error) {
+            this.logger.log(`User not found, will create new user: ${googleUserInfo.email}`)
+            isNewUser = true
         }
+
+        if (!cognitoUser) {
+            const result = await this.createNewGoogleUser(googleUserInfo)
+            cognitoUser = result.cognitoUser
+            userPassword = result.userPassword
+            isNewUser = true
+        }
+
+        return { cognitoUser, isNewUser, userPassword }
+    }
+
+    // Helper method: Create new Google user
+    private async createNewGoogleUser(googleUserInfo: any): Promise<{
+        cognitoUser: CognitoUser
+        userPassword: string
+    }> {
+        const secureRandomSuffix = randomBytes(16).toString("hex")
+        const securePassword = `GoogleUser!${Date.now()}.${secureRandomSuffix}`
+        
+        await this.awsCognitoService.signUp(
+            googleUserInfo.email,
+            securePassword,
+            {
+                name: googleUserInfo.name || googleUserInfo.email,
+                email: googleUserInfo.email,
+                "custom:role": Role.DONOR,
+            }
+        )
+
+        await this.awsCognitoService.adminConfirmSignUp(googleUserInfo.email)
+
+        const createdUserOutput = await this.awsCognitoService.getUserByUsername(googleUserInfo.email)
+        const cognitoUser = this.convertAdminGetUserOutputToCognitoUser(createdUserOutput)
+        
+        this.logger.log(`New Google user created in Cognito: ${cognitoUser.email}`)
+
+        await this.createUserInDatabase(cognitoUser, googleUserInfo)
+
+        return { cognitoUser, userPassword: securePassword }
+    }
+
+    // Helper method: Create user in database
+    private async createUserInDatabase(cognitoUser: CognitoUser, googleUserInfo: any): Promise<void> {
+        try {
+            const createUserResult = await this.grpcClientService.callUserService("CreateUser", {
+                cognito_id: cognitoUser.sub,
+                email: cognitoUser.email,
+                full_name: cognitoUser.name,
+                cognito_attributes: {
+                    avatar_url: googleUserInfo.picture || "",
+                    bio: "",
+                }
+            })
+
+            if (!createUserResult.success) {
+                throw new Error(`Failed to create user in database: ${createUserResult.error}`)
+            }
+
+            this.logger.log(`User created in database successfully: ${cognitoUser.email}`)
+        } catch (error) {
+            this.logger.error("Error creating user in database:", error)
+            await this.cleanupCognitoUser(cognitoUser.email)
+            throw new Error(`Failed to create user in database: ${error.message}`)
+        }
+    }
+
+    // Helper method: Cleanup Cognito user on failure
+    private async cleanupCognitoUser(email: string): Promise<void> {
+        try {
+            await this.awsCognitoService.adminDeleteUser(email)
+        } catch (cleanupError) {
+            this.logger.error("Failed to cleanup Cognito user:", cleanupError)
+        }
+    }
+
+    // Helper method: Generate authentication tokens
+    private async generateAuthTokens(cognitoUser: CognitoUser, isNewUser: boolean, userPassword?: string): Promise<{
+        AccessToken: string
+        RefreshToken: string
+        IdToken: string
+    }> {
+        try {
+            const tokenResult = (isNewUser && userPassword)
+                ? await this.awsCognitoService.generateTokensForOAuthUser(cognitoUser.username, userPassword)
+                : await this.awsCognitoService.generateTokensForOAuthUser(cognitoUser.username)
+            
+            this.logger.log(`JWT tokens generated successfully for user: ${cognitoUser.email}`)
+            
+            return {
+                AccessToken: tokenResult.AccessToken!,
+                RefreshToken: tokenResult.RefreshToken!,
+                IdToken: tokenResult.IdToken!,
+            }
+        } catch (error) {
+            this.logger.error("Failed to generate JWT tokens from Cognito:", error)
+            throw new Error(`Failed to generate authentication tokens: ${error.message}`)
+        }
+    }
+
+    // Helper method: Build Google auth response
+    private buildGoogleAuthResponse(cognitoUser: CognitoUser, authResult: any, isNewUser: boolean): GoogleAuthResponse {
+        const authUser = this.mapCognitoUserToAuthUser(cognitoUser)
+        authUser.provider = "Google"
+
+        const response: GoogleAuthResponse = {
+            user: authUser,
+            accessToken: authResult.AccessToken,
+            refreshToken: authResult.RefreshToken,
+            idToken: authResult.IdToken,
+            isNewUser,
+            message: isNewUser 
+                ? "User created and authenticated successfully with Google" 
+                : "User authenticated successfully with Google",
+        }
+
+        this.logger.log(`Google authentication successful for user: ${authUser.email}`)
+        return response
     }
 
     // Helper method: Verify Google ID token
