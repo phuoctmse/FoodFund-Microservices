@@ -10,45 +10,54 @@ datasource db {
 }
 
 model Campaign {
-  id                     String               @id @default(uuid())
-  title                  String               @db.Text()
-  description            String               @db.Text()
-  cover_image            String               @db.Text()
-  cover_image_file_key   String?              @db.Text()
-  location               String               @db.Text()
-  target_amount          BigInt               @default(0)
-  donation_count         Int                  @default(0)
-  received_amount        BigInt               @default(0)
-  status                 Campaign_Status      @default(PENDING)
-  start_date             DateTime             
-  end_date               DateTime
-  is_active              Boolean              @default(true)
-  created_by             String              
-  approved_at            DateTime?
-  category_id            String?
-  created_at             DateTime             @default(now())
-  updated_at             DateTime             @updatedAt
+  id                           String          @id @default(uuid())
+  title                        String          @db.Text()
+  description                  String          @db.Text()
+  cover_image                  String          @db.Text()
+  cover_image_file_key         String?         @db.Text()
+  location                     String          @db.Text()
+  target_amount                BigInt          @default(0)
+  donation_count               Int             @default(0)
+  received_amount              BigInt          @default(0)
+  ingredient_budget_percentage Decimal         @db.Decimal(5, 2)
+  cooking_budget_percentage    Decimal         @db.Decimal(5, 2)
+  delivery_budget_percentage   Decimal         @db.Decimal(5, 2)
+  status                       Campaign_Status @default(PENDING)
+  fundraising_start_date       DateTime
+  fundraising_end_date         DateTime
+  ingredient_purchase_date     DateTime
+  cooking_date                 DateTime
+  delivery_date                DateTime
+  is_active                    Boolean         @default(true)
+  created_by                   String
+  approved_at                  DateTime?
+  completed_at                 DateTime?
+  category_id                  String?
+  created_at                   DateTime        @default(now())
+  updated_at                   DateTime        @updatedAt
 
-  donations              Donation[]
-  category               Campaign_Category?   @relation(fields: [category_id], references: [id], onDelete: SetNull)
-  
+  donations Donation[]
+  category  Campaign_Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  posts     Post[]
+
   @@index([status])
   @@index([created_by])
   @@index([created_at])
-  @@index([start_date, end_date])
+  @@index([fundraising_start_date, fundraising_end_date])
   @@index([category_id])
+  @@index([status, fundraising_end_date])
   @@map("campaigns")
 }
 
 model Campaign_Category {
-  id          String     @id @default(uuid())
-  title       String     @db.VarChar(100)
-  description String     @db.Text()
-  is_active   Boolean    @default(true)
-  created_at  DateTime   @default(now())
-  updated_at  DateTime   @updatedAt
+  id          String   @id @default(uuid())
+  title       String   @db.VarChar(100)
+  description String   @db.Text()
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 
-  campaigns   Campaign[]
+  campaigns Campaign[]
 
   @@index([is_active])
   @@index([title])
@@ -57,18 +66,117 @@ model Campaign_Category {
 
 model Donation {
   id                String   @id @default(uuid())
-  donor_id          String  
+  donor_id          String
   campaign_id       String
-  campaign          Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
   amount            BigInt   @default(0)
   message           String?  @db.Text()
   payment_reference String?  @db.Text()
   is_anonymous      Boolean  @default(false)
   created_at        DateTime @default(now())
 
+  campaign             Campaign              @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  payment_transactions Payment_Transaction[]
+
   @@index([campaign_id])
   @@index([donor_id])
+  @@index([created_at])
+  @@index([campaign_id, created_at])
   @@map("donations")
+}
+
+model Payment_Transaction {
+  id              String         @id @default(uuid())
+  donation_id     String
+  order_code      BigInt 
+  bin             String?        @db.VarChar(20)
+  account_number  String?        @db.VarChar(50)
+  account_name    String?        @db.VarChar(255)
+  amount          BigInt
+  currency        String         @default("VND") @db.VarChar(10)
+  description     String?        @db.Text()
+  payment_link_id String?        @db.Text()
+  checkout_url    String?        @db.Text()
+  qr_code         String?        @db.Text()
+  status          Payment_Status
+  created_at      DateTime       @default(now())
+  updated_at      DateTime       @updatedAt
+  refunded_at     DateTime?
+
+  donation Donation @relation(fields: [donation_id], references: [id], onDelete: Cascade)
+
+  @@unique([order_code])
+  @@index([donation_id])
+  @@index([status])
+  @@index([created_at])
+  @@index([status, created_at])
+  @@map("payment_transactions")
+}
+
+model Post {
+  id            String   @id @default(uuid())
+  campaign_id   String
+  created_by    String
+  title         String   @db.VarChar(255)
+  content       String   @db.Text()
+  media         Json?
+  like_count    Int      @default(0)
+  comment_count Int      @default(0)
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  campaign Campaign       @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  likes    Post_Like[]
+  comments Post_Comment[]
+
+  @@index([campaign_id])
+  @@index([created_by])
+  @@index([is_active])
+  @@index([created_at])
+  @@index([campaign_id, is_active, created_at])
+  @@index([like_count])
+  @@map("posts")
+}
+
+model Post_Like {
+  id         String   @id @default(uuid())
+  post_id    String
+  user_id    String
+  created_at DateTime @default(now())
+
+  post Post @relation(fields: [post_id], references: [id], onDelete: Cascade)
+
+  @@unique([post_id, user_id])
+  @@index([post_id])
+  @@index([user_id])
+  @@index([created_at])
+  @@index([post_id, created_at])
+  @@map("post_likes")
+}
+
+model Post_Comment {
+  id                String   @id @default(uuid())
+  post_id           String
+  user_id           String
+  content           String   @db.Text()
+  parent_comment_id String?
+  comment_path      String?  @db.Text()
+  depth             Int      @default(0)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  post           Post           @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  parent_comment Post_Comment?  @relation("CommentReplies", fields: [parent_comment_id], references: [id], onDelete: Cascade)
+  replies        Post_Comment[] @relation("CommentReplies")
+
+  @@index([post_id])
+  @@index([user_id])
+  @@index([parent_comment_id])
+  @@index([created_at])
+  @@index([post_id, parent_comment_id, created_at])
+  @@index([comment_path])
+  @@index([depth])
+  @@map("post_comments")
 }
 
 enum Campaign_Status {
@@ -76,6 +184,17 @@ enum Campaign_Status {
   APPROVED
   REJECTED
   ACTIVE
+  AWAITING_DISBURSEMENT
+  FUNDS_DISBURSED
+  INGREDIENT_PURCHASE
+  COOKING
+  DELIVERY
   COMPLETED
   CANCELLED
+}
+
+enum Payment_Status {
+  SUCCESS
+  FAILED
+  REFUNDED
 }
