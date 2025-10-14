@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common"
 import { UserRepository } from "../../repositories/user.repository"
 import { UpdateUserInput } from "../../dto/user.input"
-import { UserProfileSchema } from "libs/databases/prisma/schemas"
+import { UserProfileSchema } from "../../models/user.model"
 
 @Injectable()
 export class UserMutationService {
@@ -9,7 +9,10 @@ export class UserMutationService {
 
     constructor(private readonly userRepository: UserRepository) {}
 
-    async updateUser(id: string, input: UpdateUserInput): Promise<UserProfileSchema> {
+    async updateUser(
+        id: string,
+        input: UpdateUserInput,
+    ): Promise<UserProfileSchema> {
         this.logger.log(`Updating user: ${id}`)
         return this.userRepository.updateUser(id, input) as any
     }

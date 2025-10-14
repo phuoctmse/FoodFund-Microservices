@@ -7,5 +7,4 @@ export class FundraiserService {
     private readonly logger = new Logger(FundraiserService.name)
 
     constructor(private readonly fundraiserRepository: FundraiserRepository) {}
-
 }

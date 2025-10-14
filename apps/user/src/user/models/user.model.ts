@@ -1,25 +1,17 @@
-import { ObjectType, Field } from "@nestjs/graphql"
-import { Directive } from "@nestjs/graphql"
-import { AbstractSchema } from "../abstract.schema"
-import {
-    VerificationStatus,
-    AvailabilityStatus,
-    Role,
-} from "../enums/user.enums"
+import { ObjectType, Field, Directive } from "@nestjs/graphql"
+import { Role } from "../enums/user.enum"
+import { AbstractSchema } from "../shared/base.schema"
 
-// Main User GraphQL Schema - now inherits all common fields from AbstractSchema
-@ObjectType()
-@Directive("@shareable")
+@ObjectType("User")
 @Directive("@key(fields: \"id\")")
 export class UserProfileSchema extends AbstractSchema {
-    
     @Field(() => String, {
         description: "User's full name",
     })
         full_name: string
 
     @Field(() => String, {
-        description: "User email address", 
+        description: "User email address",
     })
         email: string
 
@@ -34,7 +26,6 @@ export class UserProfileSchema extends AbstractSchema {
         nullable: true,
     })
         address?: string
-
 
     @Field(() => String, {
         description: "Unique username",

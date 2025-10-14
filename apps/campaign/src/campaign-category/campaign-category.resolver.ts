@@ -1,15 +1,15 @@
 import { CampaignCategory } from "apps/campaign/src/campaign-category/models/campaign-category.model"
 import { SentryInterceptor } from "@libs/observability/sentry.interceptor"
-import { UseGuards, UseInterceptors, ValidationPipe } from "@nestjs/common"
+import { UseGuards, UseInterceptors } from "@nestjs/common"
 import { Args, Mutation, Query, Resolver } from "@nestjs/graphql"
 import { CampaignCategoryService } from "./campaign-category.service"
-import { CurrentUser } from "libs/auth"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
 import {
     CreateCampaignCategoryInput,
     UpdateCampaignCategoryInput,
 } from "./dtos/request/campaign-category.input"
 import { CampaignCategoryStats } from "./dtos/response/campaign-category-stats.response"
+import { CurrentUser } from "../shared"
 
 @Resolver(() => CampaignCategory)
 @UseInterceptors(SentryInterceptor)

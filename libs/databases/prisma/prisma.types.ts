@@ -1,4 +1,3 @@
-// Simple types for Prisma module
 export interface PrismaModuleOptions {
     datasourceUrl?: string
     isGlobal?: boolean

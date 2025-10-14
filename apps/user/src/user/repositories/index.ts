@@ -1,9 +1,8 @@
-// Main repository (for backward compatibility)
+export * from "./admin/user-admin.repository"
+export * from "./common/user-common.repository"
+export * from "./delivery-staff/delivery-staff.repository"
+export * from "./donor/donor.repository"
+export * from "./fundraiser/fundraiser.repository"
+export * from "./kitchen-staff/kitchen-staff.repository"
+export * from "./organization/organization.repository"
 export * from "./user.repository"
-
-// Role-based repositories
-export * from "./admin"
-export * from "./common"  
-export * from "./kitchen-staff"
-export * from "./fundraiser"
-export * from "./delivery-staff"

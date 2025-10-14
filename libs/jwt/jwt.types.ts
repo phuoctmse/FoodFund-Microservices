@@ -1,4 +1,4 @@
-import { UserProfileSchema } from "libs/databases"
+import { UserProfileSchema } from "@app/user/src/user/models/user.model"
 
 export interface BaseOptions {
     isGlobal?: boolean

@@ -7,10 +7,7 @@ import {
     IsInt,
     Min,
 } from "class-validator"
-import {
-    VerificationStatus,
-    AvailabilityStatus,
-} from "libs/databases/prisma/schemas"
+import { AvailabilityStatus, VerificationStatus } from "../enums/user.enum"
 
 @InputType()
 export class UpdateDonorProfileInput {

@@ -19,8 +19,14 @@ export class AdminErrorHelper {
         throw new AdminOnlyOperationException(operation)
     }
 
-    static throwInsufficientPrivilege(requiredPrivilege: string, operation: string): never {
-        throw new InsufficientAdminPrivilegeException(requiredPrivilege, operation)
+    static throwInsufficientPrivilege(
+        requiredPrivilege: string,
+        operation: string,
+    ): never {
+        throw new InsufficientAdminPrivilegeException(
+            requiredPrivilege,
+            operation,
+        )
     }
 
     // Organization request management helpers
@@ -28,16 +34,26 @@ export class AdminErrorHelper {
         throw new OrganizationRequestNotFoundException(requestId)
     }
 
-    static throwOrganizationRequestNotPending(requestId: string, currentStatus: string): never {
-        throw new OrganizationRequestNotPendingException(requestId, currentStatus)
+    static throwOrganizationRequestNotPending(
+        requestId: string,
+        currentStatus: string,
+    ): never {
+        throw new OrganizationRequestNotPendingException(
+            requestId,
+            currentStatus,
+        )
     }
 
     static throwOrganizationRequestAlreadyProcessed(
         requestId: string,
         processedStatus: string,
-        processedBy: string
+        processedBy: string,
     ): never {
-        throw new OrganizationRequestAlreadyProcessedException(requestId, processedStatus, processedBy)
+        throw new OrganizationRequestAlreadyProcessedException(
+            requestId,
+            processedStatus,
+            processedBy,
+        )
     }
 
     // User management helpers
@@ -53,13 +69,21 @@ export class AdminErrorHelper {
         operation: string,
         successCount: number,
         failureCount: number,
-        errors: string[]
+        errors: string[],
     ): never {
-        throw new BulkOperationFailedException(operation, successCount, failureCount, errors)
+        throw new BulkOperationFailedException(
+            operation,
+            successCount,
+            failureCount,
+            errors,
+        )
     }
 
     // System management helpers
-    static throwSystemConfigurationError(configKey: string, reason: string): never {
+    static throwSystemConfigurationError(
+        configKey: string,
+        reason: string,
+    ): never {
         throw new SystemConfigurationException(configKey, reason)
     }
 
@@ -72,7 +96,13 @@ export class AdminErrorHelper {
         throw new AuditLogNotFoundException(logId)
     }
 
-    static throwDataRetentionPolicyViolation(operation: string, retentionPeriod: string): never {
-        throw new DataRetentionPolicyViolationException(operation, retentionPeriod)
+    static throwDataRetentionPolicyViolation(
+        operation: string,
+        retentionPeriod: string,
+    ): never {
+        throw new DataRetentionPolicyViolationException(
+            operation,
+            retentionPeriod,
+        )
     }
 }

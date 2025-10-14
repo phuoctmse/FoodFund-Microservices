@@ -1,9 +1,9 @@
-import { AbstractSchema } from "@libs/databases"
-import { Directive, Field, ID, ObjectType } from "@nestjs/graphql"
+import { Directive, Field, ObjectType } from "@nestjs/graphql"
+import { BaseSchema } from "../../shared/base/base.schema"
 
 @ObjectType()
 @Directive("@key(fields: \"id\")")
-export class Donation extends AbstractSchema {
+export class Donation extends BaseSchema {
     @Field(() => String, { description: "ID of user who made the donation" })
         donorId: string
 

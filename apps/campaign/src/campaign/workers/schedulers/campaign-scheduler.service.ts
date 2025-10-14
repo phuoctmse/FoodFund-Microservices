@@ -36,7 +36,7 @@ export class CampaignSchedulerService {
     ) {}
 
     /**
-     * Activate approved campaigns that have reached their start date
+     * Activate approved campaigns that have reached their fundraising start date
      */
     async activateApprovedCampaigns(): Promise<JobExecutionResult> {
         return this.executeJobWithProfiling(
@@ -53,7 +53,7 @@ export class CampaignSchedulerService {
     }
 
     /**
-     * Complete active campaigns that have reached their end date or target amount
+     * Move active campaigns to AWAITING_DISBURSEMENT when they reach end date or target
      */
     async completeActiveCampaigns(): Promise<JobExecutionResult> {
         return this.executeJobWithProfiling(
@@ -240,14 +240,14 @@ export class CampaignSchedulerService {
         })
 
         return campaigns.filter((campaign) => {
-            const startDate = new Date(campaign.startDate)
+            const startDate = new Date(campaign.fundraisingStartDate)
             startDate.setHours(0, 0, 0, 0)
             return startDate <= today
         })
     }
 
     /**
-     * Find campaigns ready for completion
+     * Find campaigns ready for completion (move to AWAITING_DISBURSEMENT)
      */
     private async findActiveCampaignsToComplete(): Promise<Campaign[]> {
         const today = new Date()
@@ -259,7 +259,7 @@ export class CampaignSchedulerService {
         })
 
         return campaigns.filter((campaign) => {
-            const endDate = new Date(campaign.endDate)
+            const endDate = new Date(campaign.fundraisingEndDate)
             endDate.setHours(23, 59, 59, 999)
 
             const targetReached =
@@ -285,7 +285,7 @@ export class CampaignSchedulerService {
         })
 
         return campaigns.filter((campaign) => {
-            const endDate = new Date(campaign.endDate)
+            const endDate = new Date(campaign.fundraisingEndDate)
             endDate.setHours(23, 59, 59, 999)
             return endDate <= today
         })
@@ -306,7 +306,7 @@ export class CampaignSchedulerService {
                 campaignId: campaign.id,
                 oldStatus: campaign.status,
                 newStatus: CampaignStatus.ACTIVE,
-                reason: "START_DATE_REACHED",
+                reason: "FUNDRAISING_START_DATE_REACHED",
                 success: true,
             }
         } catch (error) {
@@ -335,16 +335,16 @@ export class CampaignSchedulerService {
                 BigInt(campaign.receivedAmount) >= BigInt(campaign.targetAmount)
             const reason = targetReached
                 ? "TARGET_AMOUNT_REACHED"
-                : "END_DATE_REACHED"
+                : "FUNDRAISING_END_DATE_REACHED"
 
             await this.campaignRepository.update(campaign.id, {
-                status: CampaignStatus.COMPLETED,
+                status: CampaignStatus.AWAITING_DISBURSEMENT,
             })
 
             return {
                 campaignId: campaign.id,
                 oldStatus: campaign.status,
-                newStatus: CampaignStatus.COMPLETED,
+                newStatus: CampaignStatus.AWAITING_DISBURSEMENT,
                 reason,
                 success: true,
             }

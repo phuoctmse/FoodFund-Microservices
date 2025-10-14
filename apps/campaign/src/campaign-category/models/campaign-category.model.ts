@@ -1,10 +1,10 @@
 import { Directive, Field, ObjectType } from "@nestjs/graphql"
-import { AbstractSchema } from "../../../../../libs/databases/prisma/schemas/abstract.schema"
 import { Campaign } from "../../campaign/models/campaign.model"
+import { BaseSchema } from "../../shared/base/base.schema"
 
-@ObjectType("CampaignCategory")
+@ObjectType()
 @Directive("@key(fields: \"id\")")
-export class CampaignCategory extends AbstractSchema {
+export class CampaignCategory extends BaseSchema {
     @Field(() => String, { description: "Category title" })
         title: string
 

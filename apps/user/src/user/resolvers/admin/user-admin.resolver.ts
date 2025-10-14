@@ -1,23 +1,14 @@
-import {
-    Args,
-    Mutation,
-    Resolver,
-    Context,
-    ID,
-    Query,
-    Int,
-} from "@nestjs/graphql"
-import { CreateStaffAccountResponse } from "../../types/staff-response.model"
+import { Args, Mutation, Resolver, ID, Query, Int } from "@nestjs/graphql"
 import { OrganizationActionResponse } from "../../types/organization-response.model"
-import {
-    UpdateUserAccountInput,
-} from "../../dto/user.input"
-import { RequireRole, CurrentUserType } from "libs/auth"
-import { Role, UserProfileSchema, OrganizationSchema } from "libs/databases/prisma/schemas"
+import { UpdateUserAccountInput } from "../../dto/user.input"
+import { RequireRole } from "libs/auth"
 import { UserAdminService } from "../../services/admin/user-admin.service"
 import { OrganizationService } from "../../services/organization/organization.service"
 import { UseGuards, ValidationPipe } from "@nestjs/common"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
+import { UserProfileSchema } from "../../models/user.model"
+import { Role } from "../../enums/user.enum"
+import { OrganizationSchema } from "../../models/organization.model"
 
 @Resolver()
 export class UserAdminResolver {
@@ -86,11 +77,12 @@ export class UserAdminResolver {
         })
             sortOrder: string = "desc",
     ) {
-        const organizations = await this.organizationService.getAllOrganizationRequests({
-            status,
-            sortBy,
-            sortOrder,
-        })
+        const organizations =
+            await this.organizationService.getAllOrganizationRequests({
+                status,
+                sortBy,
+                sortOrder,
+            })
         return organizations
     }
 
@@ -99,7 +91,10 @@ export class UserAdminResolver {
     async approveOrganizationRequest(
         @Args("organizationId") organizationId: string,
     ) {
-        const result = await this.organizationService.approveOrganizationRequest(organizationId)
+        const result =
+            await this.organizationService.approveOrganizationRequest(
+                organizationId,
+            )
         return {
             organization: result,
             message: `Organization "${result.name}" has been approved successfully. Representative role updated to FUNDRAISER.`,
@@ -112,7 +107,10 @@ export class UserAdminResolver {
     async rejectOrganizationRequest(
         @Args("organizationId") organizationId: string,
     ) {
-        const result = await this.organizationService.rejectOrganizationRequest(organizationId)
+        const result =
+            await this.organizationService.rejectOrganizationRequest(
+                organizationId,
+            )
         return {
             organization: result,
             message: `Organization "${result.name}" has been rejected.`,

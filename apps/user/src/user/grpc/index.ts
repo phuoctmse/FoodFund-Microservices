@@ -1,6 +1,3 @@
-// Export role-based gRPC services
-export * from "./admin"
-export * from "./common"
-
-// Export main gRPC service for backward compatibility  
+export * from "./admin/user-admin-grpc.service"
+export * from "./common/user-common-grpc.service"
 export * from "./user-grpc.service"

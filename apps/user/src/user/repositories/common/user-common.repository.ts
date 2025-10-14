@@ -13,8 +13,8 @@ export class UserCommonRepository {
             data: {
                 id: uuidv7(),
                 ...data,
-                is_active: true,   
-            }
+                is_active: true,
+            },
         })
     }
 
@@ -47,11 +47,14 @@ export class UserCommonRepository {
 
     async findUserByCognitoId(cognito_id: string) {
         return this.prisma.user.findUnique({
-            where: { cognito_id }
+            where: { cognito_id },
         })
     }
 
-    async updateUser(id: string, data: Partial<CreateUserInput & { is_active?: boolean }>) {
+    async updateUser(
+        id: string,
+        data: Partial<CreateUserInput & { is_active?: boolean }>,
+    ) {
         return this.prisma.user.update({
             where: { id },
             data,

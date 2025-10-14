@@ -1,9 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common"
 import { AuthUser, CreateStaffAccountResponse } from "../models"
 import { AwsCognitoService } from "libs/aws-cognito"
-import { Role } from "libs/databases/prisma/schemas/enums/user.enums"
 import { AuthErrorHelper } from "../helpers"
 import { GrpcClientService } from "libs/grpc"
+import { Role } from "../enum/role.enum"
 
 @Injectable()
 export class AuthAdminService {

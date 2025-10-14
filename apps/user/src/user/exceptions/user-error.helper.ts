@@ -23,7 +23,10 @@ import {
 
 export class UserErrorHelper {
     // User validation helpers
-    static throwUserNotFound(identifier: string, searchBy: string = "id"): never {
+    static throwUserNotFound(
+        identifier: string,
+        searchBy: string = "id",
+    ): never {
         throw new UserNotFoundException(identifier, searchBy)
     }
 
@@ -31,7 +34,10 @@ export class UserErrorHelper {
         throw new UserAlreadyExistsException(field, value)
     }
 
-    static throwUnauthorizedRole(userRole: string, requiredRoles: string[]): never {
+    static throwUnauthorizedRole(
+        userRole: string,
+        requiredRoles: string[],
+    ): never {
         throw new UnauthorizedRoleException(userRole, requiredRoles)
     }
 
@@ -56,20 +62,32 @@ export class UserErrorHelper {
         throw new PendingOrganizationRequestException(userId)
     }
 
-    static throwOrganizationNotPending(organizationId: string, currentStatus: string): never {
+    static throwOrganizationNotPending(
+        organizationId: string,
+        currentStatus: string,
+    ): never {
         throw new OrganizationNotPendingException(organizationId, currentStatus)
     }
 
-    static throwUserAlreadyHasOrganization(userId: string, organizationName: string): never {
+    static throwUserAlreadyHasOrganization(
+        userId: string,
+        organizationName: string,
+    ): never {
         throw new UserAlreadyHasOrganizationException(userId, organizationName)
     }
 
     // Organization membership helpers
-    static throwDuplicateJoinRequest(userId: string, organizationId: string): never {
+    static throwDuplicateJoinRequest(
+        userId: string,
+        organizationId: string,
+    ): never {
         throw new DuplicateJoinRequestException(userId, organizationId)
     }
 
-    static throwUserAlreadyMember(userId: string, organizationName: string): never {
+    static throwUserAlreadyMember(
+        userId: string,
+        organizationName: string,
+    ): never {
         throw new UserAlreadyMemberException(userId, organizationName)
     }
 
@@ -87,11 +105,18 @@ export class UserErrorHelper {
     }
 
     // External service helpers
-    static throwCognitoSyncFailed(userId: string, operation: string, details?: string): never {
+    static throwCognitoSyncFailed(
+        userId: string,
+        operation: string,
+        details?: string,
+    ): never {
         throw new CognitoSyncFailedException(userId, operation, details)
     }
 
-    static throwDatabaseOperationFailed(operation: string, details?: string): never {
+    static throwDatabaseOperationFailed(
+        operation: string,
+        details?: string,
+    ): never {
         throw new DatabaseOperationException(operation, details)
     }
 
@@ -110,8 +135,9 @@ export class UserErrorHelper {
         if (!email || email.trim().length === 0) {
             this.throwMissingField("email")
         }
-        
-        const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
+
+        const emailRegex =
+            /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
         if (!emailRegex.test(email)) {
             this.throwInvalidUserData("email", "Invalid email format")
         }
@@ -126,7 +152,10 @@ export class UserErrorHelper {
     static validateJoinOrganizationRole(role: string): void {
         const validJoinRoles = ["KITCHEN_STAFF", "DELIVERY_STAFF", "FUNDRAISER"]
         if (!validJoinRoles.includes(role)) {
-            this.throwInvalidUserData("requested_role", `Invalid role for organization membership: ${role}. Valid roles are: ${validJoinRoles.join(", ")}`)
+            this.throwInvalidUserData(
+                "requested_role",
+                `Invalid role for organization membership: ${role}. Valid roles are: ${validJoinRoles.join(", ")}`,
+            )
         }
     }
 
@@ -143,7 +172,8 @@ export class UserErrorHelper {
             // Add more valid transitions as needed
         }
 
-        const allowedToRoles = validTransitions[fromRole as keyof typeof validTransitions]
+        const allowedToRoles =
+            validTransitions[fromRole as keyof typeof validTransitions]
         if (!allowedToRoles?.includes(toRole)) {
             this.throwInvalidRoleTransition(fromRole, toRole)
         }
@@ -156,7 +186,7 @@ export class UserErrorHelper {
             const field = error.meta?.target?.[0] || "field"
             this.throwUserAlreadyExists(field, "value")
         }
-        
+
         if (error.code === "P2025") {
             // Record not found
             this.throwUserNotFound("unknown", "query")

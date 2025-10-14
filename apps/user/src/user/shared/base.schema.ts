@@ -1,9 +1,9 @@
 import { ObjectType, Field, ID } from "@nestjs/graphql"
-import { Role } from "./enums/user.enums"
 
 @ObjectType({
     isAbstract: true,
-    description: "Abstract base schema with common fields including user information",
+    description:
+        "Abstract base schema with common fields including user information",
 })
 export abstract class AbstractSchema {
     @Field(() => ID)

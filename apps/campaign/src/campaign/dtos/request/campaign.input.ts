@@ -3,6 +3,7 @@ import {
     IsDate,
     IsEnum,
     IsNotEmpty,
+    IsNumberString,
     IsOptional,
     IsString,
     IsUUID,
@@ -50,35 +51,112 @@ export class CreateCampaignInput {
     @IsUUID(4, { message: "Category ID must be a valid UUID" })
         categoryId?: string
 
-    @Field(() => Date, { description: "Campaign start date (ISO 8601)" })
-    @Type(() => Date)
-    @IsDate({ message: "Start date must be a valid date" })
-    @Transform(({ value }) => {
-        if (typeof value === "string") {
-            const date = new Date(value)
-            if (isNaN(date.getTime())) {
-                throw new Error("Invalid date format for startDate")
-            }
-            return date
-        }
-        return value
+    @Field(() => String, {
+        description: "Ingredient budget percentage (0-100, e.g., '60.00')",
+        defaultValue: "60.00",
     })
-        startDate: Date
+    @IsNumberString(
+        {},
+        { message: "Ingredient budget percentage must be a number string" },
+    )
+        ingredientBudgetPercentage: string = "60.00"
 
-    @Field(() => Date, { description: "Campaign end date (ISO 8601)" })
+    @Field(() => String, {
+        description: "Cooking budget percentage (0-100, e.g., '25.00')",
+        defaultValue: "25.00",
+    })
+    @IsNumberString(
+        {},
+        { message: "Cooking budget percentage must be a number string" },
+    )
+        cookingBudgetPercentage: string = "25.00"
+
+    @Field(() => String, {
+        description: "Delivery budget percentage (0-100, e.g., '15.00')",
+        defaultValue: "15.00",
+    })
+    @IsNumberString(
+        {},
+        { message: "Delivery budget percentage must be a number string" },
+    )
+        deliveryBudgetPercentage: string = "15.00"
+
+    @Field(() => Date, { description: "Fundraising start date (ISO 8601)" })
     @Type(() => Date)
-    @IsDate({ message: "End date must be a valid date" })
+    @IsDate({ message: "Fundraising start date must be a valid date" })
     @Transform(({ value }) => {
         if (typeof value === "string") {
             const date = new Date(value)
             if (isNaN(date.getTime())) {
-                throw new Error("Invalid date format for endDate")
+                throw new Error("Invalid date format for fundraisingStartDate")
             }
             return date
         }
         return value
     })
-        endDate: Date
+        fundraisingStartDate: Date
+
+    @Field(() => Date, { description: "Fundraising end date" })
+    @Type(() => Date)
+    @IsDate({ message: "Fundraising end date must be a valid date" })
+    @Transform(({ value }) => {
+        if (typeof value === "string") {
+            const date = new Date(value)
+            if (isNaN(date.getTime())) {
+                throw new Error("Invalid date format for fundraisingEndDate")
+            }
+            return date
+        }
+        return value
+    })
+        fundraisingEndDate: Date
+
+    @Field(() => Date, { description: "Ingredient purchase date" })
+    @Type(() => Date)
+    @IsDate({ message: "Ingredient purchase date must be a valid date" })
+    @Transform(({ value }) => {
+        if (typeof value === "string") {
+            const date = new Date(value)
+            if (isNaN(date.getTime())) {
+                throw new Error(
+                    "Invalid date format for ingredientPurchaseDate",
+                )
+            }
+            return date
+        }
+        return value
+    })
+        ingredientPurchaseDate: Date
+
+    @Field(() => Date, { description: "Cooking date" })
+    @Type(() => Date)
+    @IsDate({ message: "Cooking date must be a valid date" })
+    @Transform(({ value }) => {
+        if (typeof value === "string") {
+            const date = new Date(value)
+            if (isNaN(date.getTime())) {
+                throw new Error("Invalid date format for cookingDate")
+            }
+            return date
+        }
+        return value
+    })
+        cookingDate: Date
+
+    @Field(() => Date, { description: "Delivery date (ISO 8601)" })
+    @Type(() => Date)
+    @IsDate({ message: "Delivery date must be a valid date" })
+    @Transform(({ value }) => {
+        if (typeof value === "string") {
+            const date = new Date(value)
+            if (isNaN(date.getTime())) {
+                throw new Error("Invalid date format for deliveryDate")
+            }
+            return date
+        }
+        return value
+    })
+        deliveryDate: Date
 }
 
 @InputType()
@@ -123,45 +201,140 @@ export class UpdateCampaignInput {
     @IsNotEmpty({ message: "Target amount cannot be empty if provided" })
         targetAmount?: string
 
-    @Field(() => Date, {
+    @Field(() => String, {
         nullable: true,
-        description: "Campaign start date (ISO 8601)",
+        description: "Ingredient budget percentage (0-100)",
     })
     @IsOptional()
-    @Type(() => Date)
-    @IsDate({ message: "Start date must be a valid date" })
-    @Transform(({ value }) => {
-        if (!value) return value
-        if (typeof value === "string") {
-            const date = new Date(value)
-            if (isNaN(date.getTime())) {
-                throw new Error("Invalid date format for startDate")
-            }
-            return date
-        }
-        return value
+    @IsNumberString(
+        {},
+        { message: "Ingredient budget percentage must be a number string" },
+    )
+        ingredientBudgetPercentage?: string
+
+    @Field(() => String, {
+        nullable: true,
+        description: "Cooking budget percentage (0-100)",
     })
-        startDate?: Date
+    @IsOptional()
+    @IsNumberString(
+        {},
+        { message: "Cooking budget percentage must be a number string" },
+    )
+        cookingBudgetPercentage?: string
+
+    @Field(() => String, {
+        nullable: true,
+        description: "Delivery budget percentage (0-100)",
+    })
+    @IsOptional()
+    @IsNumberString(
+        {},
+        { message: "Delivery budget percentage must be a number string" },
+    )
+        deliveryBudgetPercentage?: string
 
     @Field(() => Date, {
         nullable: true,
-        description: "Campaign end date (ISO 8601)",
+        description: "Fundraising start date",
     })
     @IsOptional()
     @Type(() => Date)
-    @IsDate({ message: "End date must be a valid date" })
+    @IsDate({ message: "Fundraising start date must be a valid date" })
     @Transform(({ value }) => {
         if (!value) return value
         if (typeof value === "string") {
             const date = new Date(value)
             if (isNaN(date.getTime())) {
-                throw new Error("Invalid date format for endDate")
+                throw new Error("Invalid date format for fundraisingStartDate")
             }
             return date
         }
         return value
     })
-        endDate?: Date
+        fundraisingStartDate?: Date
+
+    @Field(() => Date, {
+        nullable: true,
+        description: "Fundraising end date (ISO 8601)",
+    })
+    @IsOptional()
+    @Type(() => Date)
+    @IsDate({ message: "Fundraising end date must be a valid date" })
+    @Transform(({ value }) => {
+        if (!value) return value
+        if (typeof value === "string") {
+            const date = new Date(value)
+            if (isNaN(date.getTime())) {
+                throw new Error("Invalid date format for fundraisingEndDate")
+            }
+            return date
+        }
+        return value
+    })
+        fundraisingEndDate?: Date
+
+    @Field(() => Date, {
+        nullable: true,
+        description: "Ingredient purchase date (ISO 8601)",
+    })
+    @IsOptional()
+    @Type(() => Date)
+    @IsDate({ message: "Ingredient purchase date must be a valid date" })
+    @Transform(({ value }) => {
+        if (!value) return value
+        if (typeof value === "string") {
+            const date = new Date(value)
+            if (isNaN(date.getTime())) {
+                throw new Error(
+                    "Invalid date format for ingredientPurchaseDate",
+                )
+            }
+            return date
+        }
+        return value
+    })
+        ingredientPurchaseDate?: Date
+
+    @Field(() => Date, {
+        nullable: true,
+        description: "Cooking date",
+    })
+    @IsOptional()
+    @Type(() => Date)
+    @IsDate({ message: "Cooking date must be a valid date" })
+    @Transform(({ value }) => {
+        if (!value) return value
+        if (typeof value === "string") {
+            const date = new Date(value)
+            if (isNaN(date.getTime())) {
+                throw new Error("Invalid date format for cookingDate")
+            }
+            return date
+        }
+        return value
+    })
+        cookingDate?: Date
+
+    @Field(() => Date, {
+        nullable: true,
+        description: "Delivery date (ISO 8601)",
+    })
+    @IsOptional()
+    @Type(() => Date)
+    @IsDate({ message: "Delivery date must be a valid date" })
+    @Transform(({ value }) => {
+        if (!value) return value
+        if (typeof value === "string") {
+            const date = new Date(value)
+            if (isNaN(date.getTime())) {
+                throw new Error("Invalid date format for deliveryDate")
+            }
+            return date
+        }
+        return value
+    })
+        deliveryDate?: Date
 
     @Field(() => String, {
         nullable: true,

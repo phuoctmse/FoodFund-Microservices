@@ -1,11 +1,10 @@
-import { ObjectType, Field, ID } from "@nestjs/graphql"
+import { ObjectType, Field } from "@nestjs/graphql"
 import { Directive } from "@nestjs/graphql"
-import { AbstractSchema } from "../abstract.schema"
-import { VerificationStatus } from "../enums/user.enums"
-import { UserProfileSchema } from "./user-profiles.model"
+import { AbstractSchema } from "../shared/base.schema"
+import { VerificationStatus } from "../enums/user.enum"
+import { UserProfileSchema } from "./user.model"
 
-@ObjectType()
-@Directive("@shareable")
+@ObjectType("Organization")
 @Directive("@key(fields: \"id\")")
 export class OrganizationSchema extends AbstractSchema {
     @Field(() => String, {

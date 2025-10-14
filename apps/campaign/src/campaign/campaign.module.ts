@@ -9,9 +9,10 @@ import { SpacesUploadService } from "libs/s3-storage/spaces-upload.service"
 import { CampaignSchedulerService } from "./workers/schedulers/campaign-scheduler.service"
 import { CampaignStatusJob } from "./workers/campaign-status.job"
 import { CampaignCategoryModule } from "../campaign-category/campaign-category.module"
-import { UserRefResolver } from "../shared/resolver/user-ref.resolver"
-import { CampaignResolver } from "./campaign.resolver"
-import { AuthorizationService } from "../shared"
+import { CampaignQueryResolver } from "./resolver/queries/campaign-query.resolver"
+import { CampaignMutationResolver } from "./resolver/mutations/campaign-mutation.resolver"
+import { AuthorizationService } from "../shared/services/authorization.service"
+import { UserResolver } from "../shared/resolver/users.resolver"
 
 @Module({
     imports: [
@@ -30,14 +31,20 @@ import { AuthorizationService } from "../shared"
         },
         SpacesUploadService,
         CampaignService,
-        CampaignResolver,
+        CampaignQueryResolver,
+        CampaignMutationResolver,
         CampaignRepository,
         CampaignSchedulerService,
         CampaignStatusJob,
-        UserRefResolver,
+        UserResolver,
         AuthorizationService,
     ],
     controllers: [HealthController],
-    exports: [CampaignService, CampaignRepository, CampaignSchedulerService, PrismaCampaignService],
+    exports: [
+        CampaignService,
+        CampaignRepository,
+        CampaignSchedulerService,
+        PrismaCampaignService,
+    ],
 })
 export class CampaignModule {}

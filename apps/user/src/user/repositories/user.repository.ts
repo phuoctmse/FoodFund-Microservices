@@ -1,17 +1,12 @@
-export * from "./admin"
-export * from "./common"
-export * from "./donor"
-export * from "./kitchen-staff"
-export * from "./fundraiser"
-export * from "./delivery-staff"
-
-// Keep original UserRepository for backward compatibility
 import { Injectable } from "@nestjs/common"
 import { PrismaClient } from "../../generated/user-client"
-import { Role, VerificationStatus } from "libs/databases/prisma/schemas"
 import { v7 as uuidv7 } from "uuid"
-import { CreateStaffUserInput, CreateUserInput, UpdateUserInput } from "../types/user.types"
-
+import {
+    CreateStaffUserInput,
+    CreateUserInput,
+    UpdateUserInput,
+} from "../types/user.types"
+import { Role, VerificationStatus } from "../enums/user.enum"
 
 @Injectable()
 export class UserRepository {
@@ -58,7 +53,7 @@ export class UserRepository {
 
     async findUserById(id: string) {
         return this.prisma.user.findUnique({
-            where: { cognito_id: id }
+            where: { cognito_id: id },
         })
     }
 
@@ -160,9 +155,9 @@ export class UserRepository {
             include: {
                 Organizations: {
                     include: {
-                        Organization_Member: true
-                    }
-                }
+                        Organization_Member: true,
+                    },
+                },
             },
         })
     }

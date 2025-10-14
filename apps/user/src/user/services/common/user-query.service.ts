@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common"
 import { UserRepository } from "../../repositories/user.repository"
-import { UserProfileSchema, Role } from "libs/databases/prisma/schemas"
+import { UserProfileSchema } from "../../models/user.model"
 
 @Injectable()
 export class UserQueryService {
@@ -8,7 +8,10 @@ export class UserQueryService {
 
     constructor(private readonly userRepository: UserRepository) {}
 
-    async findAllUsers(skip?: number, take?: number): Promise<UserProfileSchema[]> {
+    async findAllUsers(
+        skip?: number,
+        take?: number,
+    ): Promise<UserProfileSchema[]> {
         this.logger.log(`Finding all users with skip: ${skip}, take: ${take}`)
         return this.userRepository.findAllUsers(skip, take) as any
     }
@@ -23,18 +26,27 @@ export class UserQueryService {
         return this.userRepository.findUserByEmail(email) as any
     }
 
-    async findUserByUsername(username: string): Promise<UserProfileSchema | null> {
+    async findUserByUsername(
+        username: string,
+    ): Promise<UserProfileSchema | null> {
         this.logger.log(`Finding user by username: ${username}`)
         return this.userRepository.findUserByUsername(username) as any
     }
 
-    async findUserByCognitoId(cognitoId: string): Promise<UserProfileSchema | null> {
+    async findUserByCognitoId(
+        cognitoId: string,
+    ): Promise<UserProfileSchema | null> {
         this.logger.log(`Finding user by Cognito ID: ${cognitoId}`)
         return this.userRepository.findUserByCognitoId(cognitoId) as any
     }
 
-    async resolveReference(reference: { __typename: string; id: string }): Promise<UserProfileSchema | null> {
-        this.logger.log(`Resolving GraphQL federation reference: ${reference.id}`)
+    async resolveReference(reference: {
+        __typename: string
+        id: string
+    }): Promise<UserProfileSchema | null> {
+        this.logger.log(
+            `Resolving GraphQL federation reference: ${reference.id}`,
+        )
         return this.userRepository.findUserById(reference.id) as any
     }
 }

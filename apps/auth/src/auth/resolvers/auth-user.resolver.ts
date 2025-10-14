@@ -1,7 +1,11 @@
 import { Args, ID, Query, Resolver, ResolveReference } from "@nestjs/graphql"
 import { AuthUser, CheckPasswordResponse, GoogleAuthResponse } from "../models"
 import { AuthResolver } from "../auth.resolver"
-import { UpdateUserInput, ChangePasswordInput, CheckCurrentPasswordInput, GoogleAuthInput } from "../dto/auth.input"
+import {
+    ChangePasswordInput,
+    CheckCurrentPasswordInput,
+    GoogleAuthInput,
+} from "../dto/auth.input"
 import { Mutation } from "@nestjs/graphql"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
 import { UseGuards } from "@nestjs/common"
@@ -26,7 +30,7 @@ export class AuthUserResolver {
     }): Promise<AuthUser | null> {
         return this.authResolver.getUserById(reference.id)
     }
-    
+
     @Mutation(() => Boolean)
     @UseGuards(CognitoGraphQLGuard)
     async changePassword(

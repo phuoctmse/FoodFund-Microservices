@@ -7,7 +7,7 @@ COPY package*.json ./
 COPY apps/campaign/package*.json ./apps/campaign/
 RUN npm ci
 COPY . .
-# Generate Prisma client for build (Windows/native)  
+# Generate Prisma client for build (Windows/native)
 RUN cd apps/campaign && npx prisma generate
 # Build application
 RUN npm run build:campaign

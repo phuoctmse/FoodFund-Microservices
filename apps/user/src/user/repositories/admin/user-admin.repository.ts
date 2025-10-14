@@ -1,8 +1,7 @@
 import { Injectable } from "@nestjs/common"
 import { PrismaClient } from "../../../generated/user-client"
-import { Role } from "libs/databases/prisma/schemas"
-import { v7 as uuidv7 } from "uuid"
 import { UpdateUserInput } from "../../types/user.types"
+import { Role } from "../../enums/user.enum"
 
 @Injectable()
 export class UserAdminRepository {
@@ -87,7 +86,6 @@ export class UserAdminRepository {
             where: { id },
             data,
             include: {
-
                 Organizations: true,
                 Organization_Member: true,
             },

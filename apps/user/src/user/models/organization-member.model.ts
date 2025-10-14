@@ -1,16 +1,14 @@
 import { ObjectType, Field, ID } from "@nestjs/graphql"
-import { AbstractSchema } from "../abstract.schema"
-import { VerificationStatus } from "../enums/user.enums"
-import { Role } from "../enums/user.enums"
-import { UserProfileSchema } from "./user-profiles.model"
 import { OrganizationSchema } from "./organization.model"
+import { Role, VerificationStatus } from "../enums/user.enum"
+import { UserProfileSchema } from "./user.model"
 
 @ObjectType()
 export class OrganizationMemberSchema {
-     @Field(() => ID, {
-         description: "Unique identifier",
-     })
-         id: string
+    @Field(() => ID, {
+        description: "Unique identifier",
+    })
+        id: string
 
     @Field(() => String, {
         description: "Organization ID",

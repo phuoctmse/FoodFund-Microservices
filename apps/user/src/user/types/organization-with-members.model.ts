@@ -1,5 +1,6 @@
 import { ObjectType, Field, ID } from "@nestjs/graphql"
-import { OrganizationSchema, UserProfileSchema } from "libs/databases/prisma/schemas"
+import { UserProfileSchema } from "../models/user.model"
+import { OrganizationSchema } from "../models/organization.model"
 
 @ObjectType()
 export class OrganizationMemberInfo {

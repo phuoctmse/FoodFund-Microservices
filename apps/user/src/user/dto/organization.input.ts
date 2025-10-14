@@ -1,7 +1,13 @@
 import { IsVietnamesePhone } from "@libs/validation"
 import { Field, InputType } from "@nestjs/graphql"
-import { IsEmail, IsNotEmpty, IsString, IsUrl, IsOptional, IsEnum } from "class-validator"
-import { Role } from "libs/databases/prisma/schemas"
+import {
+    IsEmail,
+    IsNotEmpty,
+    IsString,
+    IsUrl,
+    IsOptional,
+    IsEnum,
+} from "class-validator"
 import { JoinOrganizationRole } from "./join-organization-role.enum"
 
 @InputType()
@@ -59,10 +65,10 @@ export class JoinOrganizationInput {
         organization_id: string
 
     @Field(() => JoinOrganizationRole, {
-        description: "Role to request: KITCHEN_STAFF or DELIVERY_STAFF only"
+        description: "Role to request: KITCHEN_STAFF or DELIVERY_STAFF only",
     })
     @IsEnum(JoinOrganizationRole, {
-        message: "Role must be one of: KITCHEN_STAFF, DELIVERY_STAFF"
+        message: "Role must be one of: KITCHEN_STAFF, DELIVERY_STAFF",
     })
         requested_role: JoinOrganizationRole
 }

@@ -13,65 +13,14 @@
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,
-    "forceConsistentCasingInFileNames": true,
+    "forceConsistentCasingInFileNames": false,
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "paths": {
-      "@libs/aws-cognito": [
-        "libs/aws-cognito/index.ts"
-      ],
-      "@libs/aws-cognito/*": [
-        "libs/aws-cognito/*"
-      ],
-      "@libs/common": [
-        "libs/common/index.ts"
-      ],
-      "@libs/common/*": [
-        "libs/common/*"
-      ],
-      "@libs/databases": [
-        "libs/databases/index.ts"
-      ],
-      "@libs/databases/*": [
-        "libs/databases/*"
-      ],
-      "@libs/env": [
-        "libs/env/index.ts"
-      ],
-      "@libs/env/*": [
-        "libs/env/*"
-      ],
-      "@libs/graphql": [
-        "libs/graphql/index.ts"
-      ],
-      "@libs/graphql/*": [
-        "libs/graphql/*"
-      ],
-      "@libs/jwt": [
-        "libs/jwt/index.ts"
-      ],
-      "@libs/jwt/*": [
-        "libs/jwt/*"
-      ],
-      "@libs/validation": [
-        "libs/validation/index.ts"
-      ],
-      "@libs/validation/*": [
-        "libs/validation/*"
-      ],
-      "@libs/exceptions": [
-        "libs/exceptions/index.ts"
-      ],
-      "@libs/exceptions/*": [
-        "libs/exceptions/*"
-      ],
-      "@libs/observability": [
-        "libs/observability/index.ts"
-      ],
-      "@libs/observability/*": [
-        "libs/observability/*"
-      ]
+      "@libs/*": ["libs/*"],
+      "libs/*": ["libs/*"],
+      "@app/*": ["apps/*"],
     }
   }
 }

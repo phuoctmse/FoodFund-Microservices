@@ -13,7 +13,7 @@ export class DonorOnlyOperationException extends BaseException {
         super(
             `Operation '${operation}' can only be performed by donors`,
             HttpStatus.FORBIDDEN,
-            { operation }
+            { operation },
         )
     }
 }
@@ -27,7 +27,7 @@ export class DonorProfileIncompleteException extends BaseException {
         super(
             `Donor profile incomplete. Missing fields: ${missingFields.join(", ")}`,
             HttpStatus.BAD_REQUEST,
-            { missingFields }
+            { missingFields },
         )
     }
 }
@@ -42,7 +42,7 @@ export class DonorAlreadyHasOrganizationRequestException extends BaseException {
         super(
             `Donor already has an organization request with status: ${requestStatus}`,
             HttpStatus.CONFLICT,
-            { donorId, requestStatus }
+            { donorId, requestStatus },
         )
     }
 }
@@ -56,7 +56,7 @@ export class CannotCreateOrganizationAsNonDonorException extends BaseException {
         super(
             `Cannot create organization request. Current role: ${currentRole}. Only donors can create organization requests`,
             HttpStatus.FORBIDDEN,
-            { currentRole }
+            { currentRole },
         )
     }
 }
@@ -70,7 +70,7 @@ export class OrganizationRequestPendingException extends BaseException {
         super(
             "Cannot perform this action while organization request is pending approval",
             HttpStatus.CONFLICT,
-            { donorId }
+            { donorId },
         )
     }
 }
@@ -81,11 +81,15 @@ export class DonorAlreadyHasJoinRequestException extends BaseException {
     readonly errorType = "BUSINESS" as const
     readonly service = "user-service"
 
-    constructor(donorId: string, organizationName: string, requestStatus: string) {
+    constructor(
+        donorId: string,
+        organizationName: string,
+        requestStatus: string,
+    ) {
         super(
             `Donor already has a join request for '${organizationName}' with status: ${requestStatus}`,
             HttpStatus.CONFLICT,
-            { donorId, organizationName, requestStatus }
+            { donorId, organizationName, requestStatus },
         )
     }
 }
@@ -99,7 +103,7 @@ export class CannotJoinOwnOrganizationException extends BaseException {
         super(
             `Cannot join organization '${organizationName}' as you are its representative`,
             HttpStatus.FORBIDDEN,
-            { donorId, organizationName }
+            { donorId, organizationName },
         )
     }
 }
@@ -113,7 +117,7 @@ export class CannotJoinAsNonDonorException extends BaseException {
         super(
             `Cannot join organization. Current role: ${currentRole}. Only donors can join organizations as staff`,
             HttpStatus.FORBIDDEN,
-            { currentRole }
+            { currentRole },
         )
     }
 }
@@ -127,7 +131,7 @@ export class JoinRequestLimitExceededException extends BaseException {
         super(
             `Maximum join request limit (${maxAllowed}) exceeded`,
             HttpStatus.BAD_REQUEST,
-            { donorId, maxAllowed }
+            { donorId, maxAllowed },
         )
     }
 }
@@ -138,11 +142,9 @@ export class NoJoinRequestToCancel extends BaseException {
     readonly service = "user-service"
 
     constructor(donorId: string) {
-        super(
-            "No pending join request found to cancel",
-            HttpStatus.NOT_FOUND,
-            { donorId }
-        )
+        super("No pending join request found to cancel", HttpStatus.NOT_FOUND, {
+            donorId,
+        })
     }
 }
 
@@ -155,7 +157,7 @@ export class JoinRequestNotCancellableException extends BaseException {
         super(
             `Join request ${requestId} cannot be cancelled. Current status: ${currentStatus}`,
             HttpStatus.BAD_REQUEST,
-            { requestId, currentStatus }
+            { requestId, currentStatus },
         )
     }
 }
@@ -170,7 +172,7 @@ export class InsufficientDonationAmountException extends BaseException {
         super(
             `Donation amount ${amount} is below minimum required: ${minimumRequired}`,
             HttpStatus.BAD_REQUEST,
-            { amount, minimumRequired }
+            { amount, minimumRequired },
         )
     }
 }
@@ -184,7 +186,7 @@ export class DonationLimitExceededException extends BaseException {
         super(
             `Donation amount ${amount} would exceed daily limit. Daily limit: ${dailyLimit}, Current total: ${currentDailyTotal}`,
             HttpStatus.BAD_REQUEST,
-            { amount, dailyLimit, currentDailyTotal }
+            { amount, dailyLimit, currentDailyTotal },
         )
     }
 }
@@ -198,7 +200,7 @@ export class CampaignNotAcceptingDonationsException extends BaseException {
         super(
             `Campaign ${campaignId} is not accepting donations: ${reason}`,
             HttpStatus.BAD_REQUEST,
-            { campaignId, reason }
+            { campaignId, reason },
         )
     }
 }
@@ -210,11 +212,10 @@ export class ProfileUpdateRestrictedException extends BaseException {
     readonly service = "user-service"
 
     constructor(field: string, reason: string) {
-        super(
-            `Cannot update ${field}: ${reason}`,
-            HttpStatus.FORBIDDEN,
-            { field, reason }
-        )
+        super(`Cannot update ${field}: ${reason}`, HttpStatus.FORBIDDEN, {
+            field,
+            reason,
+        })
     }
 }
 
@@ -224,11 +225,10 @@ export class AccountDeactivatedException extends BaseException {
     readonly service = "user-service"
 
     constructor(donorId: string, reason: string) {
-        super(
-            `Account is deactivated: ${reason}`,
-            HttpStatus.FORBIDDEN,
-            { donorId, reason }
-        )
+        super(`Account is deactivated: ${reason}`, HttpStatus.FORBIDDEN, {
+            donorId,
+            reason,
+        })
     }
 }
 
@@ -241,7 +241,7 @@ export class VerificationRequiredException extends BaseException {
         super(
             `${verificationType} verification required to perform operation: ${operation}`,
             HttpStatus.FORBIDDEN,
-            { verificationType, operation }
+            { verificationType, operation },
         )
     }
 }
@@ -256,7 +256,7 @@ export class DonationHistoryNotFoundException extends BaseException {
         super(
             `No donation history found for time range: ${timeRange}`,
             HttpStatus.NOT_FOUND,
-            { donorId, timeRange }
+            { donorId, timeRange },
         )
     }
 }
@@ -270,7 +270,7 @@ export class InvalidDateRangeException extends BaseException {
         super(
             `Invalid date range: start date (${startDate}) must be before end date (${endDate})`,
             HttpStatus.BAD_REQUEST,
-            { startDate, endDate }
+            { startDate, endDate },
         )
     }
 }

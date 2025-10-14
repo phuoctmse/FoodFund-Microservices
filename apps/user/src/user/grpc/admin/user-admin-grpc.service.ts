@@ -1,9 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common"
 import { UserAdminRepository } from "../../repositories/admin"
 import { UserAdminService } from "../../services/admin"
-import { Role } from "libs/databases/prisma/schemas"
+import { Role } from "../../enums/user.enum"
 
-// Constants to avoid duplication
 const ROLE_TO_GRPC_MAP = {
     [Role.DONOR]: 0,
     [Role.FUNDRAISER]: 1,
@@ -67,7 +66,8 @@ export class UserAdminGrpcService {
     // Update user profile
     async updateUser(call: any, callback: any) {
         try {
-            const { id, full_name, phone_number, avatar_url, bio } = call.request
+            const { id, full_name, phone_number, avatar_url, bio } =
+                call.request
 
             if (!id) {
                 callback(null, this.createErrorResponse("User ID is required"))
@@ -80,14 +80,14 @@ export class UserAdminGrpcService {
             if (avatar_url) updateData.avatar_url = avatar_url
             if (bio) updateData.bio = bio
 
-            const user = await this.userAdminRepository.updateUser(id, updateData)
+            const user = await this.userAdminRepository.updateUser(
+                id,
+                updateData,
+            )
             callback(null, this.createSuccessResponse(user))
-
         } catch (error) {
             this.logger.error("Update user failed:", error)
             callback(null, this.createErrorResponse(error.message))
         }
     }
-
-
 }

@@ -1,10 +1,9 @@
 import {
+    AvailabilityStatus,
     Role,
     VerificationStatus,
-    AvailabilityStatus,
-} from "libs/databases/prisma/schemas"
+} from "../enums/user.enum"
 
-// User Domain Types
 export interface CreateUserInput {
     cognito_id?: string
     full_name: string

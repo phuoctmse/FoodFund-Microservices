@@ -10,7 +10,7 @@ RUN npm ci
 COPY . .
 # Generate Prisma client for build (needed for compilation)
 RUN cd apps/user && npx prisma generate
-# Build application 
+# Build application
 RUN npm run build:user
 
 # Production Stage

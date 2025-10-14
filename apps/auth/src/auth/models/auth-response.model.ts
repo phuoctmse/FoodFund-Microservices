@@ -1,4 +1,3 @@
-// apps/auth/src/auth/models/auth-response.model.ts - Mở rộng
 import { Field, ObjectType } from "@nestjs/graphql"
 import { AuthUser } from "./auth-user.model"
 

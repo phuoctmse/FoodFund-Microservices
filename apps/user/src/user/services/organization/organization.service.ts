@@ -1,18 +1,25 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common"
+import {
+    BadRequestException,
+    Injectable,
+    NotFoundException,
+} from "@nestjs/common"
 import { OrganizationRepository } from "../../repositories/organization/organization.repository"
 import { UserRepository } from "../../repositories/user.repository"
-import { CreateOrganizationInput, JoinOrganizationInput } from "../../dto/organization.input"
+import {
+    CreateOrganizationInput,
+    JoinOrganizationInput,
+} from "../../dto/organization.input"
 import { JoinOrganizationRole } from "../../dto/join-organization-role.enum"
 import { Verification_Status } from "../../../generated/user-client"
-import { Role } from "libs/databases/prisma/schemas"
 import { AwsCognitoService } from "@libs/aws-cognito"
 import { DataLoaderService } from "../common"
-import { 
-    UserErrorHelper, 
-    DonorErrorHelper, 
-    AdminErrorHelper, 
-    FundraiserErrorHelper 
+import {
+    UserErrorHelper,
+    DonorErrorHelper,
+    AdminErrorHelper,
+    FundraiserErrorHelper,
 } from "../../exceptions"
+import { Role } from "../../enums/user.enum"
 
 // Interface for pagination options
 interface PaginationOptions {
@@ -62,7 +69,7 @@ export class OrganizationService {
     ) {
         // Validate user exists and has correct role
         UserErrorHelper.validateRequiredString(cognitoId, "cognitoId")
-        
+
         const user = await this.userRepository.findUserById(cognitoId)
         if (!user) {
             UserErrorHelper.throwUserNotFound(cognitoId)
@@ -73,9 +80,13 @@ export class OrganizationService {
         }
 
         // Check if user already has an organization request
-        const existingOrg = await this.userRepository.findUserOrganization(user.id)
+        const existingOrg = await this.userRepository.findUserOrganization(
+            user.id,
+        )
         const hasPendingOrg = Array.isArray(existingOrg)
-            ? existingOrg.some(org => (org as any)?.status === Verification_Status.PENDING)
+            ? existingOrg.some(
+                (org) => (org as any)?.status === Verification_Status.PENDING,
+            )
             : (existingOrg as any)?.status === Verification_Status.PENDING
         if (hasPendingOrg) {
             UserErrorHelper.throwPendingOrganizationRequest(cognitoId)
@@ -84,7 +95,10 @@ export class OrganizationService {
         console.log("Creating organization with representative_id:", user.id)
 
         try {
-            return await this.organizationRepository.createOrganization(user.id, data)
+            return await this.organizationRepository.createOrganization(
+                user.id,
+                data,
+            )
         } catch (error) {
             console.error("Error creating organization:", error)
             UserErrorHelper.handlePrismaError(error, "createOrganization")
@@ -115,15 +129,20 @@ export class OrganizationService {
         }
 
         // Get organization where user is the representative
-        const organization = await this.organizationRepository.findOrganizationByRepresentativeId(user.id)
+        const organization =
+            await this.organizationRepository.findOrganizationByRepresentativeId(
+                user.id,
+            )
         if (!organization) {
-            throw new NotFoundException("No active organization found for this fundraiser")
+            throw new NotFoundException(
+                "No active organization found for this fundraiser",
+            )
         }
 
         // Transform data for GraphQL response
         const transformedOrganization = {
             ...organization,
-            members: organization.Organization_Member.map(member => ({
+            members: organization.Organization_Member.map((member) => ({
                 id: member.id,
                 member: member.member,
                 member_role: member.member_role,
@@ -132,7 +151,7 @@ export class OrganizationService {
             })),
             total_members: organization.Organization_Member.length,
             active_members: organization.Organization_Member.filter(
-                member => member.status === Verification_Status.VERIFIED
+                (member) => member.status === Verification_Status.VERIFIED,
             ).length,
         }
 
@@ -150,8 +169,8 @@ export class OrganizationService {
 
         if (organization.status !== Verification_Status.PENDING) {
             AdminErrorHelper.throwOrganizationRequestNotPending(
-                organizationId, 
-                organization.status
+                organizationId,
+                organization.status,
             )
         }
 
@@ -182,7 +201,7 @@ export class OrganizationService {
                 organization.user.cognito_id,
                 {
                     "custom:role": Role.FUNDRAISER,
-                }
+                },
             )
         }
 
@@ -218,7 +237,10 @@ export class OrganizationService {
         return this.userRepository.findUserOrganization(user.id)
     }
 
-    async requestJoinOrganization(cognitoId: string, data: JoinOrganizationInput) {
+    async requestJoinOrganization(
+        cognitoId: string,
+        data: JoinOrganizationInput,
+    ) {
         // Convert JoinOrganizationRole to Role for validation and storage
         const roleForDatabase = this.convertJoinRoleToRole(data.requested_role)
 
@@ -265,34 +287,42 @@ export class OrganizationService {
 
     async getMyOrganizationJoinRequests(
         fundraiserCognitoId: string,
-        options?: PaginationOptions
+        options?: PaginationOptions,
     ): Promise<PaginatedJoinRequestsResponse> {
         // Get the fundraiser user to get their database ID
-        const fundraiserUser = await this.userRepository.findUserById(fundraiserCognitoId)
+        const fundraiserUser =
+            await this.userRepository.findUserById(fundraiserCognitoId)
         if (!fundraiserUser) {
             UserErrorHelper.throwUserNotFound(fundraiserCognitoId)
         }
 
         if (fundraiserUser.role !== Role.FUNDRAISER) {
-            FundraiserErrorHelper.throwFundraiserOnlyOperation("get organization join requests")
+            FundraiserErrorHelper.throwFundraiserOnlyOperation(
+                "get organization join requests",
+            )
         }
 
         // Find the organization where this user is the representative
-        const organization = await this.userRepository.findUserOrganization(fundraiserUser.id)
+        const organization = await this.userRepository.findUserOrganization(
+            fundraiserUser.id,
+        )
         if (!organization) {
-            FundraiserErrorHelper.throwFundraiserHasNoOrganization(fundraiserUser.id)
+            FundraiserErrorHelper.throwFundraiserHasNoOrganization(
+                fundraiserUser.id,
+            )
         }
 
         // Get join requests for this organization with pagination
-        const result = await this.organizationRepository.findJoinRequestsByOrganizationWithPagination(
-            organization.id,
-            {
-                offset: options?.offset || 0,
-                limit: options?.limit || 10,
-                status: options?.status,
-            }
-        )
-        
+        const result =
+            await this.organizationRepository.findJoinRequestsByOrganizationWithPagination(
+                organization.id,
+                {
+                    offset: options?.offset || 0,
+                    limit: options?.limit || 10,
+                    status: options?.status,
+                },
+            )
+
         return result
     }
 
@@ -301,7 +331,8 @@ export class OrganizationService {
         fundraiserCognitoId: string,
     ) {
         // Get the fundraiser user to get their database ID
-        const fundraiserUser = await this.userRepository.findUserById(fundraiserCognitoId)
+        const fundraiserUser =
+            await this.userRepository.findUserById(fundraiserCognitoId)
         if (!fundraiserUser) {
             UserErrorHelper.throwUserNotFound(fundraiserCognitoId)
         }
@@ -328,15 +359,14 @@ export class OrganizationService {
 
     async approveJoinRequest(requestId: string, fundraiserCognitoId: string) {
         // Get the fundraiser user to get their database ID
-        const fundraiserUser = await this.userRepository.findUserById(fundraiserCognitoId)
+        const fundraiserUser =
+            await this.userRepository.findUserById(fundraiserCognitoId)
         if (!fundraiserUser) {
             UserErrorHelper.throwUserNotFound(fundraiserCognitoId)
         }
 
         const joinRequest =
-            await this.organizationRepository.findJoinRequestById(
-                requestId,
-            )
+            await this.organizationRepository.findJoinRequestById(requestId)
         if (!joinRequest) {
             throw new NotFoundException("Join request not found")
         }
@@ -373,7 +403,7 @@ export class OrganizationService {
                 joinRequest.member.cognito_id,
                 {
                     "custom:role": joinRequest.member_role,
-                }
+                },
             )
         }
 
@@ -382,15 +412,14 @@ export class OrganizationService {
 
     async rejectJoinRequest(requestId: string, fundraiserCognitoId: string) {
         // Get the fundraiser user to get their database ID
-        const fundraiserUser = await this.userRepository.findUserById(fundraiserCognitoId)
+        const fundraiserUser =
+            await this.userRepository.findUserById(fundraiserCognitoId)
         if (!fundraiserUser) {
             UserErrorHelper.throwUserNotFound(fundraiserCognitoId)
         }
 
         const joinRequest =
-            await this.organizationRepository.findJoinRequestById(
-                requestId,
-            )
+            await this.organizationRepository.findJoinRequestById(requestId)
         if (!joinRequest) {
             throw new NotFoundException("Join request not found")
         }
@@ -420,9 +449,7 @@ export class OrganizationService {
         if (!user) {
             return null
         }
-        return this.organizationRepository.findPendingJoinRequest(
-            user.id,
-        )
+        return this.organizationRepository.findPendingJoinRequest(user.id)
     }
 
     async cancelJoinRequest(cognitoId: string) {
@@ -437,13 +464,17 @@ export class OrganizationService {
         }
 
         // Find user's pending join request
-        const pendingRequest = await this.organizationRepository.findPendingJoinRequest(user.id)
+        const pendingRequest =
+            await this.organizationRepository.findPendingJoinRequest(user.id)
         if (!pendingRequest) {
             DonorErrorHelper.throwNoJoinRequestToCancel(user.id)
         }
 
         if (pendingRequest.status !== Verification_Status.PENDING) {
-            DonorErrorHelper.throwJoinRequestNotCancellable(pendingRequest.id, pendingRequest.status)
+            DonorErrorHelper.throwJoinRequestNotCancellable(
+                pendingRequest.id,
+                pendingRequest.status,
+            )
         }
 
         // Delete the join request
@@ -474,7 +505,8 @@ export class OrganizationService {
         }
 
         // Use DataLoader to get user's organization with all members
-        const organization = await this.organizationDataLoader.getUserOrganization(user.id)
+        const organization =
+            await this.organizationDataLoader.getUserOrganization(user.id)
         if (!organization) {
             throw new NotFoundException("Organization not found for fundraiser")
         }
@@ -486,13 +518,17 @@ export class OrganizationService {
         }
     }
 
-    async getActiveOrganizationsWithMembers(
-        options: { offset: number; limit: number }
-    ): Promise<PaginatedOrganizationsResponse> {
-        const result = await this.organizationRepository.findActiveOrganizationsWithMembersPaginated({
-            offset: options.offset,
-            limit: options.limit,
-        })
+    async getActiveOrganizationsWithMembers(options: {
+        offset: number
+        limit: number
+    }): Promise<PaginatedOrganizationsResponse> {
+        const result =
+            await this.organizationRepository.findActiveOrganizationsWithMembersPaginated(
+                {
+                    offset: options.offset,
+                    limit: options.limit,
+                },
+            )
 
         return result
     }

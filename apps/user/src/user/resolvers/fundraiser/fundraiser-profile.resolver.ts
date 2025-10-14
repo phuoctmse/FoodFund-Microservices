@@ -1,12 +1,13 @@
-import { Resolver, Mutation, Args, ID, Query, Int } from "@nestjs/graphql"
-import { ValidationPipe } from "@nestjs/common"
-import { Role, UserProfileSchema } from "libs/databases/prisma/schemas"
-import { UpdateFundraiserProfileInput } from "../../dto/profile.input"
+import { Resolver, Mutation, Args, Query, Int } from "@nestjs/graphql"
 import { FundraiserService } from "../../services/fundraiser/fundraiser.service"
 import { CurrentUser, RequireRole, CurrentUserType } from "libs/auth"
 import { OrganizationService } from "../../services"
 import { OrganizationWithMembers } from "../../types/organization-with-members.model"
-import { JoinRequestManagementResponse, JoinRequestListResponse } from "../../types/join-request-management-response.model"
+import {
+    JoinRequestManagementResponse,
+    JoinRequestListResponse,
+} from "../../types/join-request-management-response.model"
+import { Role } from "../../enums/user.enum"
 
 @Resolver()
 export class FundraiserProfileResolver {
@@ -27,13 +28,16 @@ export class FundraiserProfileResolver {
     //         updateFundraiserProfileInput,
     //     )
     // }
-    @Query(() => OrganizationWithMembers, { 
-        description: "Get the organization that this fundraiser manages with all members",
+    @Query(() => OrganizationWithMembers, {
+        description:
+            "Get the organization that this fundraiser manages with all members",
         nullable: true,
     })
     @RequireRole(Role.FUNDRAISER)
     async myOrganization(@CurrentUser() user: CurrentUserType) {
-        return this.organizationService.getFundraiserOrganization(user.cognito_id)
+        return this.organizationService.getFundraiserOrganization(
+            user.cognito_id,
+        )
     }
 
     @Query(() => JoinRequestListResponse)
@@ -64,15 +68,16 @@ export class FundraiserProfileResolver {
         const safeLimit = Math.min(Math.max(limit, 1), 50) // Max 50 items per page
         const safeOffset = Math.max(offset, 0)
 
-        const result = await this.organizationService.getMyOrganizationJoinRequests(
-            user.cognito_id,
-            {
-                offset: safeOffset,
-                limit: safeLimit,
-                status,
-            }
-        )
-        
+        const result =
+            await this.organizationService.getMyOrganizationJoinRequests(
+                user.cognito_id,
+                {
+                    offset: safeOffset,
+                    limit: safeLimit,
+                    status,
+                },
+            )
+
         return {
             success: true,
             message: `Found ${result.joinRequests.length} join request(s) for your organization (page ${Math.floor(safeOffset / safeLimit) + 1})`,
@@ -90,7 +95,10 @@ export class FundraiserProfileResolver {
         @CurrentUser() user: CurrentUserType,
         @Args("requestId") requestId: string,
     ) {
-        const result = await this.organizationService.approveJoinRequest(requestId, user.cognito_id)
+        const result = await this.organizationService.approveJoinRequest(
+            requestId,
+            user.cognito_id,
+        )
         return {
             success: true,
             message: `Join request approved successfully. User "${result.member.full_name}" is now a member.`,
@@ -105,7 +113,10 @@ export class FundraiserProfileResolver {
         @CurrentUser() user: CurrentUserType,
         @Args("requestId") requestId: string,
     ) {
-        const result = await this.organizationService.rejectJoinRequest(requestId, user.cognito_id)
+        const result = await this.organizationService.rejectJoinRequest(
+            requestId,
+            user.cognito_id,
+        )
         return {
             success: true,
             message: "Join request rejected successfully.",
@@ -113,5 +124,4 @@ export class FundraiserProfileResolver {
             requestId: result.id,
         }
     }
-
 }

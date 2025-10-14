@@ -1,8 +1,7 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common"
+import { Injectable, Logger } from "@nestjs/common"
 import { UserRepository } from "../../repositories/user.repository"
-import { UpdateUserInput } from "../../dto/user.input"
-import { Role } from "libs/databases/prisma/schemas"
 import { DonorErrorHelper } from "../../exceptions"
+import { Role } from "../../enums/user.enum"
 
 @Injectable()
 export class DonorService {
@@ -10,10 +9,9 @@ export class DonorService {
 
     constructor(private readonly userRepository: UserRepository) {}
 
-
     async getProfile(cognitoId: string) {
         this.logger.log(`Getting donor profile for user: ${cognitoId}`)
-        
+
         const user = await this.userRepository.findUserById(cognitoId)
         if (!user) {
             DonorErrorHelper.throwDonorProfileIncomplete(["User not found"])

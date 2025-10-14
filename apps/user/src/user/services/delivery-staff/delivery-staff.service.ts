@@ -5,6 +5,7 @@ import { DeliveryStaffRepository } from "../../repositories"
 export class DeliveryStaffService {
     private readonly logger = new Logger(DeliveryStaffService.name)
 
-    constructor(private readonly deliveryStaffRepository: DeliveryStaffRepository) {}
-
+    constructor(
+        private readonly deliveryStaffRepository: DeliveryStaffRepository,
+    ) {}
 }

@@ -1,57 +1,82 @@
-import { AbstractSchema } from "@libs/databases"
-import { CampaignStatus } from "apps/campaign/src/campaign/enum/campaign.enum"
-import { CampaignCategory } from "apps/campaign/src/campaign-category/models/campaign-category.model"
 import { Directive, Field, Int, ObjectType } from "@nestjs/graphql"
 import { Donation } from "../../donation/models/donation.model"
-import { UserRef } from "../../shared/reference/user.ref"
+import { CampaignStatus } from "../enum/campaign.enum"
+import { CampaignCategory } from "../../campaign-category/models/campaign-category.model"
+import { BaseSchema } from "../../shared"
+import { User } from "../../shared/model/user.model"
 
 @ObjectType("Campaign")
 @Directive("@key(fields: \"id\")")
-export class Campaign extends AbstractSchema {
-    @Field(() => String, { description: "Campaign title" })
+export class Campaign extends BaseSchema {
+    @Field(() => String)
         title: string
 
-    @Field(() => String, { description: "Campaign description" })
+    @Field(() => String)
         description: string
 
-    @Field(() => String, {
-        description: "Campaign cover image URL (CDN or external)",
-    })
+    @Field(() => String)
         coverImage: string
 
     @Field(() => String, {
         nullable: true,
-        description:
-            "File key in Digital Ocean Spaces (for internal management)",
     })
         coverImageFileKey?: string
 
-    @Field(() => String, { description: "Campaign location" })
+    @Field(() => String)
         location: string
 
-    @Field(() => String, {
-        description: "Target amount as string (BigInt compatible)",
-    })
+    @Field(() => String)
         targetAmount: string
 
-    @Field(() => Int, { description: "Number of donations received" })
+    @Field(() => Int)
         donationCount: number
 
-    @Field(() => String, {
-        description: "Received amount as string (BigInt compatible)",
-    })
+    @Field(() => String)
         receivedAmount: string
 
-    @Field(() => CampaignStatus, { description: "Campaign status" })
+    @Field(() => String)
+        ingredientBudgetPercentage: string
+
+    @Field(() => String)
+        cookingBudgetPercentage: string
+
+    @Field(() => String)
+        deliveryBudgetPercentage: string
+
+    @Field(() => CampaignStatus)
         status: CampaignStatus
 
-    @Field(() => Date, { description: "Campaign start date" })
-        startDate: Date
+    @Field(() => Date)
+        fundraisingStartDate: Date
 
-    @Field(() => Date, { description: "Campaign end date" })
-        endDate: Date
+    @Field(() => Date)
+        fundraisingEndDate: Date
 
-    @Field(() => Boolean, { description: "Whether campaign is active" })
+    @Field(() => Date)
+        ingredientPurchaseDate: Date
+
+    @Field(() => Date)
+        cookingDate: Date
+
+    @Field(() => Date)
+        deliveryDate: Date
+
+    @Field(() => String, {
+        nullable: true,
+    })
+        ingredientFundsAmount?: string
+
+    @Field(() => String, {
+        nullable: true,
+    })
+        cookingFundsAmount?: string
+
+    @Field(() => String, {
+        nullable: true,
+    })
+        deliveryFundsAmount?: string
+
+    @Field(() => Boolean)
         isActive: boolean
 
     @Field(() => String)
@@ -59,29 +84,31 @@ export class Campaign extends AbstractSchema {
 
     @Field(() => String, {
         nullable: true,
-        description: "Campaign category ID",
     })
         categoryId?: string
 
     @Field(() => Date, {
         nullable: true,
-        description: "When campaign was approved",
     })
         approvedAt?: Date
 
-    @Field(() => UserRef, {
+    @Field(() => Date, {
         nullable: true,
     })
-        creator?: UserRef
+        completedAt?: Date
+
+    @Field(() => User, {
+        nullable: true,
+        description: "Campaign creator",
+    })
+        creator?: User
 
     @Field(() => CampaignCategory, {
         nullable: true,
-        description: "Campaign category",
     })
         category?: CampaignCategory
 
     @Field(() => [Donation], {
-        description: "Campaign donations - resolved by federation",
         defaultValue: [],
     })
         donations?: Donation[]

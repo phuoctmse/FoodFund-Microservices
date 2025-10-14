@@ -1,6 +1,6 @@
 import { SetMetadata, UseGuards, applyDecorators } from "@nestjs/common"
-import { Role } from "libs/databases/prisma/schemas/enums/user.enums"
 import { RoleGuard } from "../guards/role.guard"
+import { Role } from "@libs/databases"
 
 /**
  * Decorator that requires specific role(s) authentication for GraphQL resolvers

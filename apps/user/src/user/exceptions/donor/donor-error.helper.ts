@@ -31,8 +31,14 @@ export class DonorErrorHelper {
     }
 
     // Organization request helpers
-    static throwDonorAlreadyHasOrganizationRequest(donorId: string, requestStatus: string): never {
-        throw new DonorAlreadyHasOrganizationRequestException(donorId, requestStatus)
+    static throwDonorAlreadyHasOrganizationRequest(
+        donorId: string,
+        requestStatus: string,
+    ): never {
+        throw new DonorAlreadyHasOrganizationRequestException(
+            donorId,
+            requestStatus,
+        )
     }
 
     static throwCannotCreateOrganizationAsNonDonor(currentRole: string): never {
@@ -47,12 +53,19 @@ export class DonorErrorHelper {
     static throwDonorAlreadyHasJoinRequest(
         donorId: string,
         organizationName: string,
-        requestStatus: string
+        requestStatus: string,
     ): never {
-        throw new DonorAlreadyHasJoinRequestException(donorId, organizationName, requestStatus)
+        throw new DonorAlreadyHasJoinRequestException(
+            donorId,
+            organizationName,
+            requestStatus,
+        )
     }
 
-    static throwCannotJoinOwnOrganization(donorId: string, organizationName: string): never {
+    static throwCannotJoinOwnOrganization(
+        donorId: string,
+        organizationName: string,
+    ): never {
         throw new CannotJoinOwnOrganizationException(donorId, organizationName)
     }
 
@@ -60,7 +73,10 @@ export class DonorErrorHelper {
         throw new CannotJoinAsNonDonorException(currentRole)
     }
 
-    static throwJoinRequestLimitExceeded(donorId: string, maxAllowed: number): never {
+    static throwJoinRequestLimitExceeded(
+        donorId: string,
+        maxAllowed: number,
+    ): never {
         throw new JoinRequestLimitExceededException(donorId, maxAllowed)
     }
 
@@ -68,24 +84,37 @@ export class DonorErrorHelper {
         throw new NoJoinRequestToCancel(donorId)
     }
 
-    static throwJoinRequestNotCancellable(requestId: string, currentStatus: string): never {
+    static throwJoinRequestNotCancellable(
+        requestId: string,
+        currentStatus: string,
+    ): never {
         throw new JoinRequestNotCancellableException(requestId, currentStatus)
     }
 
     // Donation helpers
-    static throwInsufficientDonationAmount(amount: number, minimumRequired: number): never {
+    static throwInsufficientDonationAmount(
+        amount: number,
+        minimumRequired: number,
+    ): never {
         throw new InsufficientDonationAmountException(amount, minimumRequired)
     }
 
     static throwDonationLimitExceeded(
         amount: number,
         dailyLimit: number,
-        currentDailyTotal: number
+        currentDailyTotal: number,
     ): never {
-        throw new DonationLimitExceededException(amount, dailyLimit, currentDailyTotal)
+        throw new DonationLimitExceededException(
+            amount,
+            dailyLimit,
+            currentDailyTotal,
+        )
     }
 
-    static throwCampaignNotAcceptingDonations(campaignId: string, reason: string): never {
+    static throwCampaignNotAcceptingDonations(
+        campaignId: string,
+        reason: string,
+    ): never {
         throw new CampaignNotAcceptingDonationsException(campaignId, reason)
     }
 
@@ -98,12 +127,18 @@ export class DonorErrorHelper {
         throw new AccountDeactivatedException(donorId, reason)
     }
 
-    static throwVerificationRequired(verificationType: string, operation: string): never {
+    static throwVerificationRequired(
+        verificationType: string,
+        operation: string,
+    ): never {
         throw new VerificationRequiredException(verificationType, operation)
     }
 
     // History and tracking helpers
-    static throwDonationHistoryNotFound(donorId: string, timeRange: string): never {
+    static throwDonationHistoryNotFound(
+        donorId: string,
+        timeRange: string,
+    ): never {
         throw new DonationHistoryNotFoundException(donorId, timeRange)
     }
 

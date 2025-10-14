@@ -23,8 +23,11 @@ import {
     AuthAuthenticationService,
     AuthUserService,
 } from "./services"
-
-import { UpdateUserInput, ChangePasswordInput, CheckCurrentPasswordInput, GoogleAuthInput } from "./dto/auth.input"
+import {
+    ChangePasswordInput,
+    CheckCurrentPasswordInput,
+    GoogleAuthInput,
+} from "./dto/auth.input"
 
 @Injectable()
 export class AuthService {
@@ -106,7 +109,7 @@ export class AuthService {
     async validateUser(user: AuthUser): Promise<AuthResponse> {
         return this.authUserService.validateUser(user)
     }
-    
+
     async changePassword(
         id: string,
         input: ChangePasswordInput,
@@ -121,7 +124,9 @@ export class AuthService {
         return this.authUserService.checkCurrentPassword(id, input)
     }
 
-    async googleAuthentication(input: GoogleAuthInput): Promise<GoogleAuthResponse> {
+    async googleAuthentication(
+        input: GoogleAuthInput,
+    ): Promise<GoogleAuthResponse> {
         return this.authUserService.googleAuthentication(input)
     }
 }

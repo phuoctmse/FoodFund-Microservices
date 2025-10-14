@@ -1,17 +1,14 @@
-import { IsVietnamesePhone, IsStrongPassword } from "@libs/validation"
+import { IsVietnamesePhone } from "@libs/validation"
 import { InputType, Field } from "@nestjs/graphql"
 import {
     IsString,
     IsEmail,
-    IsPhoneNumber,
     IsOptional,
     IsEnum,
     IsBoolean,
-    IsNotEmpty,
-    MinLength,
 } from "class-validator"
 import { Transform } from "class-transformer"
-import { Role } from "libs/databases/prisma/schemas"
+import { Role } from "../enums/user.enum"
 
 @InputType()
 export class CreateUserInput {

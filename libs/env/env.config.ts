@@ -125,7 +125,7 @@ export const envConfig = (): EnvironmentConfig => ({
 
     google: {
         clientId: process.env.GOOGLE_CLIENT_ID as string,
-    }
+    },
 })
 
 // Utility functions

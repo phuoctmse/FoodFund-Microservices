@@ -15,7 +15,7 @@ export class DeliveryStaffProfileResolver {
     //     return this.deliveryStaffService.getProfile(user.cognito_id)
     // }
 
-    // Update/Delete functionality removed - Delivery staff can only view their profile  
+    // Update/Delete functionality removed - Delivery staff can only view their profile
     // @Mutation(() => DeliveryStaffProfileSchema)
     // async updateDeliveryStaffProfile(
     //     @Args("id", { type: () => ID }) id: string,

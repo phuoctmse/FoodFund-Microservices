@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common"
 import { UserCommonRepository } from "../../repositories/common"
 import { generateUniqueUsername } from "libs/common"
-import { Role } from "@libs/databases"
+import { Role } from "../../enums/user.enum"
 
 @Injectable()
 export class UserCommonGrpcService {
@@ -12,12 +12,8 @@ export class UserCommonGrpcService {
     // Create user from auth service
     async createUser(call: any, callback: any) {
         try {
-            const {
-                cognito_id,
-                email,
-                full_name,
-                cognito_attributes,
-            } = call.request
+            const { cognito_id, email, full_name, cognito_attributes } =
+                call.request
 
             if (!cognito_id || !email) {
                 callback(null, {
@@ -27,7 +23,6 @@ export class UserCommonGrpcService {
                 })
                 return
             }
-
 
             const finalUsername = generateUniqueUsername(email)
 
@@ -205,7 +200,8 @@ export class UserCommonGrpcService {
                 return
             }
 
-            const user = await this.userCommonRepository.findUserByCognitoId(cognito_id)
+            const user =
+                await this.userCommonRepository.findUserByCognitoId(cognito_id)
 
             callback(null, {
                 exists: !!user,

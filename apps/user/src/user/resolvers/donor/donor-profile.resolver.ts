@@ -1,8 +1,9 @@
-import { Resolver, Mutation, Args, ID, Query } from "@nestjs/graphql"
-import { UseGuards, ValidationPipe } from "@nestjs/common"
-import { UserProfileSchema, Role, OrganizationSchema } from "libs/databases/prisma/schemas"
-import { UpdateUserInput } from "../../dto/user.input"
-import { CreateOrganizationInput, JoinOrganizationInput } from "../../dto/organization.input"
+import { Resolver, Mutation, Args, Query } from "@nestjs/graphql"
+import { UseGuards } from "@nestjs/common"
+import {
+    CreateOrganizationInput,
+    JoinOrganizationInput,
+} from "../../dto/organization.input"
 import { JoinOrganizationRole } from "../../dto/join-organization-role.enum"
 import { OrganizationActionResponse } from "../../types/organization-response.model"
 import { JoinRequestResponse } from "../../types/join-request-response.model"
@@ -10,7 +11,10 @@ import { CancelJoinRequestResponse } from "../../types/cancel-join-request-respo
 import { DonorService } from "../../services/donor/donor.service"
 import { CurrentUser, RequireRole, CurrentUserType } from "libs/auth"
 import { OrganizationService } from "../../services"
-import { AwsCognitoModule, CognitoGraphQLGuard } from "@libs/aws-cognito"
+import { CognitoGraphQLGuard } from "@libs/aws-cognito"
+import { UserProfileSchema } from "../../models/user.model"
+import { Role } from "../../enums/user.enum"
+import { OrganizationSchema } from "../../models/organization.model"
 
 @Resolver(() => UserProfileSchema)
 export class DonorProfileResolver {
@@ -19,15 +23,16 @@ export class DonorProfileResolver {
         private readonly organizationService: OrganizationService,
     ) {}
 
-
-
     @Mutation(() => OrganizationActionResponse)
     @RequireRole(Role.DONOR)
     async requestCreateOrganization(
         @CurrentUser() user: any,
         @Args("input") input: CreateOrganizationInput,
     ) {
-        const result = await this.organizationService.requestCreateOrganization(user.id, input)
+        const result = await this.organizationService.requestCreateOrganization(
+            user.id,
+            input,
+        )
         return {
             organization: result,
             message: `Organization request "${result.name}" has been submitted successfully. Waiting for admin approval.`,
@@ -38,7 +43,9 @@ export class DonorProfileResolver {
     @Query(() => [OrganizationSchema], { nullable: true })
     @RequireRole(Role.DONOR, Role.FUNDRAISER)
     async myOrganizationRequest(@CurrentUser() user: any) {
-        const result = await this.organizationService.getUserOrganization(user.id)
+        const result = await this.organizationService.getUserOrganization(
+            user.id,
+        )
         return result || null
     }
 
@@ -48,8 +55,11 @@ export class DonorProfileResolver {
         @CurrentUser() user: any,
         @Args("input") input: JoinOrganizationInput,
     ) {
-        const result = await this.organizationService.requestJoinOrganization(user.id, input)
-        
+        const result = await this.organizationService.requestJoinOrganization(
+            user.id,
+            input,
+        )
+
         let roleMessage = ""
         switch (input.requested_role) {
         case JoinOrganizationRole.KITCHEN_STAFF:
@@ -59,7 +69,7 @@ export class DonorProfileResolver {
             roleMessage = "Delivery Staff (food distribution)"
             break
         }
-        
+
         return {
             id: result.id,
             organization: result.organization,
@@ -73,9 +83,11 @@ export class DonorProfileResolver {
     @Query(() => JoinRequestResponse, { nullable: true })
     @RequireRole(Role.DONOR)
     async myJoinRequest(@CurrentUser() user: CurrentUserType) {
-        const result = await this.organizationService.getMyJoinRequests(user.cognito_id)
+        const result = await this.organizationService.getMyJoinRequests(
+            user.cognito_id,
+        )
         if (!result) return null
-        
+
         return {
             id: result.id,
             organization: result.organization,
@@ -89,9 +101,7 @@ export class DonorProfileResolver {
     @Mutation(() => CancelJoinRequestResponse)
     @UseGuards(CognitoGraphQLGuard)
     @RequireRole(Role.DONOR)
-    async cancelJoinRequestOrganization(
-        @CurrentUser() user: CurrentUserType
-    ) {
+    async cancelJoinRequestOrganization(@CurrentUser() user: CurrentUserType) {
         return this.organizationService.cancelJoinRequest(user.cognito_id)
     }
 }

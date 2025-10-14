@@ -5,6 +5,7 @@ import { KitchenStaffRepository } from "../../repositories"
 export class KitchenStaffService {
     private readonly logger = new Logger(KitchenStaffService.name)
 
-    constructor(private readonly kitchenStaffRepository: KitchenStaffRepository) {}
-
+    constructor(
+        private readonly kitchenStaffRepository: KitchenStaffRepository,
+    ) {}
 }

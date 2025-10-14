@@ -21,7 +21,9 @@ import {
 import { GenerateUploadUrlInput } from "./dtos/request/generate-upload-url.input"
 import { CampaignCategoryRepository } from "../campaign-category/campaign-category.repository"
 import { Campaign } from "./models/campaign.model"
-import { AuthorizationService, UserContext } from "../shared"
+import { Decimal } from "@prisma/client/runtime/library"
+import { AuthorizationService } from "../shared/services/authorization.service"
+import { UserContext } from "../shared/types/user-context.type"
 
 @Injectable()
 export class CampaignService {
@@ -115,8 +117,16 @@ export class CampaignService {
                 )
             }
 
-            this.validateCampaignDates(input.startDate, input.endDate)
+            this.validateCampaignDates(
+                input.fundraisingStartDate,
+                input.fundraisingEndDate,
+            )
             this.validateTargetAmount(input.targetAmount)
+            this.validateBudgetPercentages(
+                input.ingredientBudgetPercentage,
+                input.cookingBudgetPercentage,
+                input.deliveryBudgetPercentage,
+            )
 
             const fileKey = this.spacesUploadService.extractFileKeyFromUrl(
                 this.resource,
@@ -136,8 +146,20 @@ export class CampaignService {
                 coverImage: cdnUrl,
                 location: input.location,
                 targetAmount: input.targetAmount,
-                startDate: input.startDate,
-                endDate: input.endDate,
+                ingredientBudgetPercentage: new Decimal(
+                    input.ingredientBudgetPercentage,
+                ),
+                cookingBudgetPercentage: new Decimal(
+                    input.cookingBudgetPercentage,
+                ),
+                deliveryBudgetPercentage: new Decimal(
+                    input.deliveryBudgetPercentage,
+                ),
+                fundraisingStartDate: input.fundraisingStartDate,
+                fundraisingEndDate: input.fundraisingEndDate,
+                ingredientPurchaseDate: input.ingredientPurchaseDate,
+                cookingDate: input.cookingDate,
+                deliveryDate: input.deliveryDate,
                 createdBy: userContext.userId,
                 status: CampaignStatus.PENDING,
                 coverImageFileKey: fileKey,
@@ -145,7 +167,7 @@ export class CampaignService {
             })
 
             this.sentryService.addBreadcrumb(
-                "Campaign created with upload",
+                "Campaign created with extended flow",
                 "campaign",
                 {
                     campaignId: campaign.id,
@@ -217,9 +239,11 @@ export class CampaignService {
                 await this.validateCategoryExists(input.categoryId)
             }
 
-            if (input.startDate || input.endDate) {
-                const startDate = input.startDate || campaign.startDate
-                const endDate = input.endDate || campaign.endDate
+            if (input.fundraisingStartDate || input.fundraisingEndDate) {
+                const startDate =
+                    input.fundraisingStartDate || campaign.fundraisingStartDate
+                const endDate =
+                    input.fundraisingEndDate || campaign.fundraisingEndDate
                 this.validateCampaignDates(startDate, endDate)
             }
 
@@ -227,8 +251,40 @@ export class CampaignService {
                 this.validateTargetAmount(input.targetAmount)
             }
 
+            if (
+                input.ingredientBudgetPercentage ||
+                input.cookingBudgetPercentage ||
+                input.deliveryBudgetPercentage
+            ) {
+                this.validateBudgetPercentages(
+                    input.ingredientBudgetPercentage ||
+                        campaign.ingredientBudgetPercentage,
+                    input.cookingBudgetPercentage ||
+                        campaign.cookingBudgetPercentage,
+                    input.deliveryBudgetPercentage ||
+                        campaign.deliveryBudgetPercentage,
+                )
+            }
+
             const updateData: any = { ...input }
             let oldFileKeyToDelete: string | null = null
+
+            // Convert budget percentages to Decimal
+            if (input.ingredientBudgetPercentage) {
+                updateData.ingredientBudgetPercentage = new Decimal(
+                    input.ingredientBudgetPercentage,
+                )
+            }
+            if (input.cookingBudgetPercentage) {
+                updateData.cookingBudgetPercentage = new Decimal(
+                    input.cookingBudgetPercentage,
+                )
+            }
+            if (input.deliveryBudgetPercentage) {
+                updateData.deliveryBudgetPercentage = new Decimal(
+                    input.deliveryBudgetPercentage,
+                )
+            }
 
             if (input.coverImageFileKey) {
                 const newFileKey =
@@ -330,7 +386,7 @@ export class CampaignService {
                 newStatus === CampaignStatus.APPROVED
             ) {
                 const today = new Date()
-                const startDate = new Date(campaign.startDate)
+                const startDate = new Date(campaign.fundraisingStartDate)
 
                 const todayNormalized = new Date(
                     today.getFullYear(),
@@ -363,7 +419,8 @@ export class CampaignService {
                             originalStatus: campaign.status,
                             requestedStatus: newStatus,
                             finalStatus: finalStatus,
-                            startDate: campaign.startDate.toISOString(),
+                            startDate:
+                                campaign.fundraisingStartDate.toISOString(),
                             reason: "start_date_is_today",
                         },
                     )
@@ -372,6 +429,8 @@ export class CampaignService {
                 }
             } else if (newStatus === CampaignStatus.APPROVED) {
                 updateData.approvedAt = new Date()
+            } else if (newStatus === CampaignStatus.COMPLETED) {
+                updateData.completedAt = new Date()
             }
 
             const updatedCampaign = await this.campaignRepository.update(
@@ -521,22 +580,31 @@ export class CampaignService {
         return this.findCampaignById(reference.id)
     }
 
-    private validateCampaignDates(startDate: Date, endDate: Date): void {
-        if (!(startDate instanceof Date) || !(endDate instanceof Date)) {
+    private validateCampaignDates(
+        fundraisingStartDate: Date,
+        fundraisingEndDate: Date,
+    ): void {
+        if (
+            !(fundraisingStartDate instanceof Date) ||
+            !(fundraisingEndDate instanceof Date)
+        ) {
             throw new BadRequestException(
                 "Start date and end date must be valid Date objects",
             )
         }
 
-        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        if (
+            isNaN(fundraisingStartDate.getTime()) ||
+            isNaN(fundraisingEndDate.getTime())
+        ) {
             throw new BadRequestException(
                 "Start date and end date must be valid dates",
             )
         }
 
         const now = new Date()
-        const start = new Date(startDate)
-        const end = new Date(endDate)
+        const start = new Date(fundraisingStartDate)
+        const end = new Date(fundraisingEndDate)
 
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
         const startDay = new Date(
@@ -612,6 +680,55 @@ export class CampaignService {
         }
     }
 
+    private validateBudgetPercentages(
+        ingredient: string,
+        cooking: string,
+        delivery: string,
+    ): void {
+        try {
+            const ingredientPct = parseFloat(ingredient)
+            const cookingPct = parseFloat(cooking)
+            const deliveryPct = parseFloat(delivery)
+
+            if (
+                isNaN(ingredientPct) ||
+                isNaN(cookingPct) ||
+                isNaN(deliveryPct)
+            ) {
+                throw new BadRequestException(
+                    "Budget percentages must be valid numbers",
+                )
+            }
+
+            if (
+                ingredientPct < 0 ||
+                cookingPct < 0 ||
+                deliveryPct < 0 ||
+                ingredientPct > 100 ||
+                cookingPct > 100 ||
+                deliveryPct > 100
+            ) {
+                throw new BadRequestException(
+                    "Budget percentages must be between 0 and 100",
+                )
+            }
+
+            const total = ingredientPct + cookingPct + deliveryPct
+            if (Math.abs(total - 100) > 0.01) {
+                throw new BadRequestException(
+                    `Budget percentages must sum to 100%. Current total: ${total.toFixed(2)}%`,
+                )
+            }
+        } catch (error) {
+            if (error instanceof BadRequestException) {
+                throw error
+            }
+            throw new BadRequestException(
+                "Invalid budget percentage format. Please provide valid numeric strings.",
+            )
+        }
+    }
+
     private validateStatusTransition(
         currentStatus: CampaignStatus,
         newStatus: CampaignStatus,
@@ -626,9 +743,18 @@ export class CampaignService {
                 CampaignStatus.CANCELLED,
             ],
             [CampaignStatus.ACTIVE]: [
-                CampaignStatus.COMPLETED,
+                CampaignStatus.AWAITING_DISBURSEMENT,
                 CampaignStatus.CANCELLED,
             ],
+            [CampaignStatus.AWAITING_DISBURSEMENT]: [
+                CampaignStatus.FUNDS_DISBURSED,
+            ],
+            [CampaignStatus.FUNDS_DISBURSED]: [
+                CampaignStatus.INGREDIENT_PURCHASE,
+            ],
+            [CampaignStatus.INGREDIENT_PURCHASE]: [CampaignStatus.COOKING],
+            [CampaignStatus.COOKING]: [CampaignStatus.DELIVERY],
+            [CampaignStatus.DELIVERY]: [CampaignStatus.COMPLETED],
             [CampaignStatus.REJECTED]: [],
             [CampaignStatus.COMPLETED]: [],
             [CampaignStatus.CANCELLED]: [],
@@ -646,6 +772,12 @@ export class CampaignService {
     private validateCampaignForUpdate(campaign: Campaign): void {
         const nonEditableStatuses = [
             CampaignStatus.APPROVED,
+            CampaignStatus.ACTIVE,
+            CampaignStatus.AWAITING_DISBURSEMENT,
+            CampaignStatus.FUNDS_DISBURSED,
+            CampaignStatus.INGREDIENT_PURCHASE,
+            CampaignStatus.COOKING,
+            CampaignStatus.DELIVERY,
             CampaignStatus.REJECTED,
             CampaignStatus.COMPLETED,
             CampaignStatus.CANCELLED,

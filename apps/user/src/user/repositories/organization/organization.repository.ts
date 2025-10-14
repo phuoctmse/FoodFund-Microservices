@@ -44,8 +44,12 @@ export class OrganizationRepository {
         sortBy?: string
         sortOrder?: string
     }) {
-        const { status, sortBy = "created_at", sortOrder = "desc" } = options || {}
-        
+        const {
+            status,
+            sortBy = "created_at",
+            sortOrder = "desc",
+        } = options || {}
+
         // Build where clause
         const where: any = {}
         if (status && ["PENDING", "VERIFIED", "REJECTED"].includes(status)) {
@@ -55,9 +59,13 @@ export class OrganizationRepository {
         // Build orderBy clause
         const validSortFields = ["created_at", "name", "status"]
         const validSortOrders = ["asc", "desc"]
-        
-        const orderByField = validSortFields.includes(sortBy) ? sortBy : "created_at"
-        const orderByOrder = validSortOrders.includes(sortOrder) ? sortOrder : "desc"
+
+        const orderByField = validSortFields.includes(sortBy)
+            ? sortBy
+            : "created_at"
+        const orderByOrder = validSortOrders.includes(sortOrder)
+            ? sortOrder
+            : "desc"
 
         return this.prisma.organization.findMany({
             where,
@@ -96,7 +104,7 @@ export class OrganizationRepository {
                 user: true,
                 Organization_Member: {
                     include: {
-                        member: true
+                        member: true,
                     },
                     orderBy: {
                         joined_at: "desc",
@@ -108,7 +116,7 @@ export class OrganizationRepository {
 
     async findOrganizationByRepresentativeId(representativeId: string) {
         return this.prisma.organization.findFirst({
-            where: { 
+            where: {
                 representative_id: representativeId,
                 status: Verification_Status.VERIFIED, // Only get active organization
             },
@@ -119,7 +127,7 @@ export class OrganizationRepository {
                         status: Verification_Status.VERIFIED, // Only get verified members
                     },
                     include: {
-                        member: true
+                        member: true,
                     },
                     orderBy: {
                         joined_at: "desc",
@@ -176,13 +184,13 @@ export class OrganizationRepository {
             include: {
                 member: true,
                 organization: true,
-            }
+            },
         })
     }
 
     async findJoinRequestsByOrganizationWithPagination(
         organizationId: string,
-        options: { offset: number; limit: number; status?: string }
+        options: { offset: number; limit: number; status?: string },
     ) {
         const whereClause: any = {
             organization_id: organizationId,
@@ -217,7 +225,7 @@ export class OrganizationRepository {
             total,
         }
     }
-    
+
     async findPendingJoinRequest(userId: string) {
         return this.prisma.organization_Member.findFirst({
             where: {
@@ -317,9 +325,11 @@ export class OrganizationRepository {
                 },
             },
         })
-        
+
         // Ensure ordering matches input ids
-        return organizationIds.map(id => organizations.find(org => org.id === id)).filter(Boolean)
+        return organizationIds
+            .map((id) => organizations.find((org) => org.id === id))
+            .filter(Boolean)
     }
 
     async findOrganizationMembersByUserIds(userIds: string[]) {
@@ -333,17 +343,17 @@ export class OrganizationRepository {
                 member: true,
             },
         })
-        
+
         // Group by user_id to maintain order (each user can have multiple memberships)
         const memberMap = new Map<string, any[]>()
-        members.forEach(member => {
+        members.forEach((member) => {
             const existing = memberMap.get(member.member_id) || []
             existing.push(member)
             memberMap.set(member.member_id, existing)
         })
-        
+
         // Return flattened array in order
-        return userIds.flatMap(id => memberMap.get(id) || [])
+        return userIds.flatMap((id) => memberMap.get(id) || [])
     }
 
     async findOrganizationsByRepresentativeIds(userIds: string[]) {
@@ -364,19 +374,20 @@ export class OrganizationRepository {
                 },
             },
         })
-        
+
         // Group by representative_id to maintain order
         const orgMap = new Map<string, any>()
-        organizations.forEach(org => {
+        organizations.forEach((org) => {
             orgMap.set(org.representative_id, org)
         })
-        
-        return userIds.map(id => orgMap.get(id)).filter(Boolean)
+
+        return userIds.map((id) => orgMap.get(id)).filter(Boolean)
     }
 
-    async findActiveOrganizationsWithMembersPaginated(
-        options: { offset: number; limit: number }
-    ) {
+    async findActiveOrganizationsWithMembersPaginated(options: {
+        offset: number
+        limit: number
+    }) {
         const total = await this.prisma.organization.count({
             where: {
                 status: Verification_Status.VERIFIED,
@@ -388,13 +399,13 @@ export class OrganizationRepository {
                 status: Verification_Status.VERIFIED,
             },
             include: {
-                user: true, 
+                user: true,
                 Organization_Member: {
                     where: {
-                        status: Verification_Status.VERIFIED, 
+                        status: Verification_Status.VERIFIED,
                     },
                     include: {
-                        member: true, 
+                        member: true,
                     },
                     orderBy: {
                         joined_at: "desc",

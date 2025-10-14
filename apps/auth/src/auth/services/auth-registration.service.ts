@@ -9,8 +9,8 @@ import {
 } from "../models"
 import { AuthErrorHelper } from "../helpers"
 import { GrpcClientService } from "libs/grpc"
-import { Role } from "@libs/databases"
 import { generateUniqueUsername } from "libs/common"
+import { Role } from "../enum/role.enum"
 
 @Injectable()
 export class AuthRegistrationService {
@@ -23,10 +23,6 @@ export class AuthRegistrationService {
 
     async signUp(input: SignUpInput): Promise<SignUpResponse> {
         try {
-            this.logger.log(
-                `Attempting to sign up user with email: ${input.email}`,
-            )
-
             const result = await this.awsCognitoService.signUp(
                 input.email,
                 input.password,
@@ -36,7 +32,6 @@ export class AuthRegistrationService {
                 },
             )
 
-            // Generate unique username - we'll handle duplicates in the User service
             const username = generateUniqueUsername(input.email)
 
             const userResult = await this.grpcClient.callUserService(

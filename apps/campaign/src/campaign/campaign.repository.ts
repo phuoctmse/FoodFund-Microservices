@@ -2,13 +2,13 @@ import { SentryService } from "@libs/observability/sentry.service"
 import {
     CampaignFilterInput,
     CampaignSortOrder,
-    UpdateCampaignInput,
 } from "./dtos/request/campaign.input"
 import { Injectable, Logger } from "@nestjs/common"
-import { CampaignStatus } from "apps/campaign/src/campaign/enum/campaign.enum"
 import { sanitizeSearchTerm } from "@libs/common/utils/sanitize-search-term.util"
-import { UserRef } from "../shared/reference/user.ref"
 import { PrismaClient } from "../generated/campaign-client"
+import { Decimal } from "@prisma/client/runtime/library"
+import { CampaignStatus } from "./enum/campaign.enum"
+import { User } from "../shared/model/user.model"
 
 export interface FindManyOptions {
     filter?: CampaignFilterInput
@@ -24,19 +24,42 @@ interface CreateCampaignData {
     coverImage: string
     location: string
     targetAmount: string
-    startDate: Date
-    endDate: Date
+    ingredientBudgetPercentage: Decimal
+    cookingBudgetPercentage: Decimal
+    deliveryBudgetPercentage: Decimal
+    fundraisingStartDate: Date
+    fundraisingEndDate: Date
+    ingredientPurchaseDate: Date
+    cookingDate: Date
+    deliveryDate: Date
     createdBy: string
     status: CampaignStatus
     coverImageFileKey?: string
     categoryId?: string
 }
 
-interface UpdateCampaignData extends Partial<UpdateCampaignInput> {
+interface UpdateCampaignData {
+    title?: string
+    description?: string
     coverImage?: string
+    coverImageFileKey?: string
+    location?: string
+    targetAmount?: string
+    ingredientBudgetPercentage?: Decimal
+    cookingBudgetPercentage?: Decimal
+    deliveryBudgetPercentage?: Decimal
+    fundraisingStartDate?: Date
+    fundraisingEndDate?: Date
+    ingredientPurchaseDate?: Date
+    cookingDate?: Date
+    deliveryDate?: Date
     status?: CampaignStatus
     approvedAt?: Date
-    coverImageFileKey?: string
+    completedAt?: Date
+    fundsDisbursedAt?: Date
+    ingredientFundsAmount?: bigint
+    cookingFundsAmount?: bigint
+    deliveryFundsAmount?: bigint
     categoryId?: string
 }
 
@@ -74,8 +97,15 @@ export class CampaignRepository {
                     cover_image_file_key: data.coverImageFileKey || null,
                     location: data.location,
                     target_amount: BigInt(data.targetAmount),
-                    start_date: data.startDate,
-                    end_date: data.endDate,
+                    ingredient_budget_percentage:
+                        data.ingredientBudgetPercentage,
+                    cooking_budget_percentage: data.cookingBudgetPercentage,
+                    delivery_budget_percentage: data.deliveryBudgetPercentage,
+                    fundraising_start_date: data.fundraisingStartDate,
+                    fundraising_end_date: data.fundraisingEndDate,
+                    ingredient_purchase_date: data.ingredientPurchaseDate,
+                    cooking_date: data.cookingDate,
+                    delivery_date: data.deliveryDate,
                     created_by: data.createdBy,
                     status: data.status,
                     category_id: data.categoryId || null,
@@ -211,7 +241,6 @@ export class CampaignRepository {
                 sortOrder: sortBy,
                 limitValue: limit,
                 offsetValue: offset,
-                originalOptions: options,
             })
             throw error
         }
@@ -220,7 +249,6 @@ export class CampaignRepository {
     async update(id: string, data: UpdateCampaignData) {
         try {
             const updateData: any = {}
-
             if (data.title !== undefined) updateData.title = data.title
             if (data.description !== undefined)
                 updateData.description = data.description
@@ -231,12 +259,39 @@ export class CampaignRepository {
             if (data.location !== undefined) updateData.location = data.location
             if (data.targetAmount !== undefined)
                 updateData.target_amount = BigInt(data.targetAmount)
-            if (data.startDate !== undefined)
-                updateData.start_date = data.startDate
-            if (data.endDate !== undefined) updateData.end_date = data.endDate
+            if (data.ingredientBudgetPercentage !== undefined)
+                updateData.ingredient_budget_percentage =
+                    data.ingredientBudgetPercentage
+            if (data.cookingBudgetPercentage !== undefined)
+                updateData.cooking_budget_percentage =
+                    data.cookingBudgetPercentage
+            if (data.deliveryBudgetPercentage !== undefined)
+                updateData.delivery_budget_percentage =
+                    data.deliveryBudgetPercentage
+            if (data.fundraisingStartDate !== undefined)
+                updateData.fundraising_start_date = data.fundraisingStartDate
+            if (data.fundraisingEndDate !== undefined)
+                updateData.fundraising_end_date = data.fundraisingEndDate
+            if (data.ingredientPurchaseDate !== undefined)
+                updateData.ingredient_purchase_date =
+                    data.ingredientPurchaseDate
+            if (data.cookingDate !== undefined)
+                updateData.cooking_date = data.cookingDate
+            if (data.deliveryDate !== undefined)
+                updateData.delivery_date = data.deliveryDate
             if (data.status !== undefined) updateData.status = data.status
             if (data.approvedAt !== undefined)
                 updateData.approved_at = data.approvedAt
+            if (data.completedAt !== undefined)
+                updateData.completed_at = data.completedAt
+            if (data.fundsDisbursedAt !== undefined)
+                updateData.funds_disbursed_at = data.fundsDisbursedAt
+            if (data.ingredientFundsAmount !== undefined)
+                updateData.ingredient_funds_amount = data.ingredientFundsAmount
+            if (data.cookingFundsAmount !== undefined)
+                updateData.cooking_funds_amount = data.cookingFundsAmount
+            if (data.deliveryFundsAmount !== undefined)
+                updateData.delivery_funds_amount = data.deliveryFundsAmount
             if (data.categoryId !== undefined)
                 updateData.category_id = data.categoryId
 
@@ -358,7 +413,6 @@ export class CampaignRepository {
 
             return this.mapToGraphQLModel(campaign)
         } catch (error) {
-            this.logger.error(`Failed to reactivate campaign ${id}:`, error)
             this.sentryService.captureError(error as Error, {
                 operation: "reactivateCampaign",
                 campaignId: id,
@@ -390,6 +444,25 @@ export class CampaignRepository {
             receivedAmount: dbCampaign.received_amount?.toString() ?? "0",
         }
 
+        const budgetPercentages = {
+            ingredientBudgetPercentage:
+                dbCampaign.ingredient_budget_percentage?.toString() ?? "0",
+            cookingBudgetPercentage:
+                dbCampaign.cooking_budget_percentage?.toString() ?? "0",
+            deliveryBudgetPercentage:
+                dbCampaign.delivery_budget_percentage?.toString() ?? "0",
+        }
+
+        const disbursementFields = {
+            ingredientFundsAmount:
+                dbCampaign.ingredient_funds_amount?.toString() ?? undefined,
+            cookingFundsAmount:
+                dbCampaign.cooking_funds_amount?.toString() ?? undefined,
+            deliveryFundsAmount:
+                dbCampaign.delivery_funds_amount?.toString() ?? undefined,
+            fundsDisbursedAt: dbCampaign.funds_disbursed_at || undefined,
+        }
+
         const category = dbCampaign.category
             ? {
                 id: dbCampaign.category.id,
@@ -402,7 +475,7 @@ export class CampaignRepository {
             }
             : undefined
 
-        const creator: UserRef | undefined = dbCampaign.created_by
+        const creator: User | undefined = dbCampaign.created_by
             ? {
                 __typename: "User",
                 id: dbCampaign.created_by,
@@ -418,13 +491,19 @@ export class CampaignRepository {
             location: dbCampaign.location,
             donationCount: dbCampaign.donation_count,
             ...bigIntFields,
+            ...budgetPercentages,
             status: dbCampaign.status as CampaignStatus,
-            startDate: dbCampaign.start_date,
-            endDate: dbCampaign.end_date,
+            fundraisingStartDate: dbCampaign.fundraising_start_date,
+            fundraisingEndDate: dbCampaign.fundraising_end_date,
+            ingredientPurchaseDate: dbCampaign.ingredient_purchase_date,
+            cookingDate: dbCampaign.cooking_date,
+            deliveryDate: dbCampaign.delivery_date,
+            ...disbursementFields,
             isActive: dbCampaign.is_active,
             createdBy: dbCampaign.created_by,
             categoryId: dbCampaign.category_id || undefined,
             approvedAt: dbCampaign.approved_at || undefined,
+            completedAt: dbCampaign.completed_at || undefined,
             created_at: dbCampaign.created_at,
             updated_at: dbCampaign.updated_at,
             category: category,

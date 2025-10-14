@@ -537,10 +537,10 @@ export class AwsCognitoService {
             await Promise.all([
                 this.cognitoClient.send(command),
                 this.updateUserAttributes(email, {
-                    "email_verified": "true"
-                })
+                    email_verified: "true",
+                }),
             ])
-            
+
             this.logger.log(`Admin confirmed user and verified email: ${email}`)
 
             return { confirmed: true } as ConfirmationResponse
@@ -632,22 +632,25 @@ export class AwsCognitoService {
      * Generate authentication tokens for a user (for OAuth flows)
      * This uses AdminInitiateAuth with ADMIN_NO_SRP_AUTH to generate JWT tokens
      */
-    async generateTokensForOAuthUser(username: string, password?: string): Promise<AuthenticationResult> {
+    async generateTokensForOAuthUser(
+        username: string,
+        password?: string,
+    ): Promise<AuthenticationResult> {
         try {
             this.logger.log(`Generating tokens for OAuth user: ${username}`)
 
             // Use ADMIN_NO_SRP_AUTH flow to generate tokens
             const secretHash = this.calculateSecretHash(username)
-            
+
             const authParameters: Record<string, string> = {
                 USERNAME: username,
             }
-            
+
             // Add password if provided, otherwise try without password first
             if (password) {
                 authParameters.PASSWORD = password
             }
-            
+
             if (secretHash) {
                 authParameters.SECRET_HASH = secretHash
             }
@@ -662,22 +665,33 @@ export class AwsCognitoService {
             const response = await this.cognitoClient.send(command)
 
             if (!response.AuthenticationResult) {
-                throw new Error("No authentication result returned from Cognito")
+                throw new Error(
+                    "No authentication result returned from Cognito",
+                )
             }
 
-            this.logger.log(`Tokens generated successfully for OAuth user: ${username}`)
-            
+            this.logger.log(
+                `Tokens generated successfully for OAuth user: ${username}`,
+            )
+
             return this.formatAuthResponse(response.AuthenticationResult)
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error)
-            this.logger.error(`Generate tokens for OAuth user failed: ${errorMessage}`)
-            
+            const errorMessage =
+                error instanceof Error ? error.message : String(error)
+            this.logger.error(
+                `Generate tokens for OAuth user failed: ${errorMessage}`,
+            )
+
             // If ADMIN_NO_SRP_AUTH fails, try alternative approach with temporary password
             try {
                 return await this.generateTokensWithTemporaryPassword(username)
             } catch (fallbackError) {
-                this.logger.error(`Fallback token generation also failed: ${fallbackError}`)
-                throw new UnauthorizedException(`Token generation failed: ${errorMessage}`)
+                this.logger.error(
+                    `Fallback token generation also failed: ${fallbackError}`,
+                )
+                throw new UnauthorizedException(
+                    `Token generation failed: ${errorMessage}`,
+                )
             }
         }
     }
@@ -685,8 +699,12 @@ export class AwsCognitoService {
     /**
      * Fallback method to generate tokens using temporary password
      */
-    private async generateTokensWithTemporaryPassword(username: string): Promise<AuthenticationResult> {
-        this.logger.log(`Using fallback method with temporary password for user: ${username}`)
+    private async generateTokensWithTemporaryPassword(
+        username: string,
+    ): Promise<AuthenticationResult> {
+        this.logger.log(
+            `Using fallback method with temporary password for user: ${username}`,
+        )
 
         // Set a temporary password
         const tempPassword = `TempPass!${Date.now()}`
@@ -694,12 +712,12 @@ export class AwsCognitoService {
 
         // Authenticate with the temporary password
         const secretHash = this.calculateSecretHash(username)
-        
+
         const authParameters: Record<string, string> = {
             USERNAME: username,
             PASSWORD: tempPassword,
         }
-        
+
         if (secretHash) {
             authParameters.SECRET_HASH = secretHash
         }
@@ -722,8 +740,10 @@ export class AwsCognitoService {
         const newSecurePassword = `GoogleOAuth!${Date.now()}.${secureRandomSuffix}`
         await this.changePassword(username, newSecurePassword)
 
-        this.logger.log(`Tokens generated successfully using fallback method for user: ${username}`)
-        
+        this.logger.log(
+            `Tokens generated successfully using fallback method for user: ${username}`,
+        )
+
         return this.formatAuthResponse(response.AuthenticationResult)
     }
 }
