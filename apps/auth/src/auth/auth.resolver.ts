@@ -21,10 +21,12 @@ import {
     RefreshTokenInput,
 } from "./dto"
 import { AuthService } from "./auth.service"
+import {
+    ChangePasswordInput,
+    CheckCurrentPasswordInput,
+    GoogleAuthInput,
+} from "./dto/auth.input"
 
-import { UpdateUserInput, ChangePasswordInput, CheckCurrentPasswordInput, GoogleAuthInput } from "./dto/auth.input"
-
-//Apply Facade Pattern
 @Injectable()
 export class AuthResolver {
     constructor(private authService: AuthService) {}
@@ -97,7 +99,7 @@ export class AuthResolver {
     async getUserById(id: string): Promise<AuthUser | null> {
         return this.authService.getUserById(id)
     }
-    
+
     async changePassword(
         id: string,
         input: ChangePasswordInput,
@@ -112,7 +114,9 @@ export class AuthResolver {
         return this.authService.checkCurrentPassword(id, input)
     }
 
-    async googleAuthentication(input: GoogleAuthInput): Promise<GoogleAuthResponse> {
+    async googleAuthentication(
+        input: GoogleAuthInput,
+    ): Promise<GoogleAuthResponse> {
         return this.authService.googleAuthentication(input)
     }
 }

@@ -13,7 +13,7 @@ export class AdminOnlyOperationException extends BaseException {
         super(
             `Operation '${operation}' can only be performed by administrators`,
             HttpStatus.FORBIDDEN,
-            { operation }
+            { operation },
         )
     }
 }
@@ -27,7 +27,7 @@ export class InsufficientAdminPrivilegeException extends BaseException {
         super(
             `Operation '${operation}' requires '${requiredPrivilege}' privilege`,
             HttpStatus.FORBIDDEN,
-            { requiredPrivilege, operation }
+            { requiredPrivilege, operation },
         )
     }
 }
@@ -42,7 +42,7 @@ export class OrganizationRequestNotFoundException extends BaseException {
         super(
             `Organization request not found with ID: ${requestId}`,
             HttpStatus.NOT_FOUND,
-            { requestId }
+            { requestId },
         )
     }
 }
@@ -56,7 +56,7 @@ export class OrganizationRequestNotPendingException extends BaseException {
         super(
             `Organization request ${requestId} is not pending. Current status: ${currentStatus}`,
             HttpStatus.BAD_REQUEST,
-            { requestId, currentStatus }
+            { requestId, currentStatus },
         )
     }
 }
@@ -66,11 +66,15 @@ export class OrganizationRequestAlreadyProcessedException extends BaseException 
     readonly errorType = "BUSINESS" as const
     readonly service = "user-service"
 
-    constructor(requestId: string, processedStatus: string, processedBy: string) {
+    constructor(
+        requestId: string,
+        processedStatus: string,
+        processedBy: string,
+    ) {
         super(
             `Organization request ${requestId} was already ${processedStatus} by ${processedBy}`,
             HttpStatus.CONFLICT,
-            { requestId, processedStatus, processedBy }
+            { requestId, processedStatus, processedBy },
         )
     }
 }
@@ -85,7 +89,7 @@ export class CannotModifySuperAdminException extends BaseException {
         super(
             `Cannot ${operation} super administrator account`,
             HttpStatus.FORBIDDEN,
-            { operation }
+            { operation },
         )
     }
 }
@@ -99,7 +103,7 @@ export class CannotModifyOwnAccountException extends BaseException {
         super(
             `Administrators cannot ${operation} their own account`,
             HttpStatus.FORBIDDEN,
-            { operation }
+            { operation },
         )
     }
 }
@@ -109,11 +113,16 @@ export class BulkOperationFailedException extends BaseException {
     readonly errorType = "BUSINESS" as const
     readonly service = "user-service"
 
-    constructor(operation: string, successCount: number, failureCount: number, errors: string[]) {
+    constructor(
+        operation: string,
+        successCount: number,
+        failureCount: number,
+        errors: string[],
+    ) {
         super(
             `Bulk ${operation} completed with ${successCount} successes and ${failureCount} failures`,
             HttpStatus.PARTIAL_CONTENT,
-            { operation, successCount, failureCount, errors }
+            { operation, successCount, failureCount, errors },
         )
     }
 }
@@ -128,7 +137,7 @@ export class SystemConfigurationException extends BaseException {
         super(
             `System configuration error for '${configKey}': ${reason}`,
             HttpStatus.BAD_REQUEST,
-            { configKey, reason }
+            { configKey, reason },
         )
     }
 }
@@ -142,7 +151,7 @@ export class MaintenanceModeException extends BaseException {
         super(
             `Operation '${operation}' is not available during maintenance mode`,
             HttpStatus.SERVICE_UNAVAILABLE,
-            { operation }
+            { operation },
         )
     }
 }
@@ -154,11 +163,9 @@ export class AuditLogNotFoundException extends BaseException {
     readonly service = "user-service"
 
     constructor(logId: string) {
-        super(
-            `Audit log not found with ID: ${logId}`,
-            HttpStatus.NOT_FOUND,
-            { logId }
-        )
+        super(`Audit log not found with ID: ${logId}`, HttpStatus.NOT_FOUND, {
+            logId,
+        })
     }
 }
 
@@ -171,7 +178,7 @@ export class DataRetentionPolicyViolationException extends BaseException {
         super(
             `Operation '${operation}' violates data retention policy (${retentionPeriod})`,
             HttpStatus.FORBIDDEN,
-            { operation, retentionPeriod }
+            { operation, retentionPeriod },
         )
     }
 }

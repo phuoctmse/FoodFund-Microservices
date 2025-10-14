@@ -14,14 +14,6 @@ export class AuthorizationService {
         userContext: UserContext | null,
         operation: string,
     ): void {
-        this.logger.debug(`Auth check for ${operation}`, {
-            hasContext: !!userContext,
-            userId: userContext?.userId,
-            username: userContext?.username,
-            role: userContext?.role,
-            tokenExpiry: userContext?.tokenMetadata?.exp,
-        })
-
         if (!userContext?.userId) {
             throw new UnauthorizedException(
                 `User authentication required to ${operation}`,

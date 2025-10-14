@@ -2,9 +2,8 @@ import { Module } from "@nestjs/common"
 import { GraphQLSubgraphModule } from "libs/graphql/subgraph"
 import { PrismaClient } from "../generated/user-client"
 import { PrismaUserService } from "./prisma-user.service"
-import { 
+import {
     UserRepository,
-    // Role-based repositories
     UserAdminRepository,
     UserCommonRepository,
     KitchenStaffRepository,
@@ -14,12 +13,10 @@ import {
 import { OrganizationRepository } from "./repositories/organization"
 import {
     UserAdminResolver,
-
     DonorProfileResolver,
     FundraiserProfileResolver,
     KitchenStaffProfileResolver,
     DeliveryStaffProfileResolver,
-
     UserQueryResolver,
     UserMutationResolver,
 } from "./resolvers"
@@ -32,12 +29,10 @@ import { HealthController } from "./health.controller"
 import { GrpcModule } from "libs/grpc"
 import {
     UserAdminService,
-
     DonorService,
     FundraiserService,
     KitchenStaffService,
     DeliveryStaffService,
-
     UserQueryService as GeneralUserQueryService,
     UserMutationService as GeneralUserMutationService,
 } from "./services"
@@ -66,7 +61,7 @@ import { AwsCognitoModule } from "@libs/aws-cognito"
             useFactory: (service: PrismaUserService) => service["client"],
             inject: [PrismaUserService],
         },
-        
+
         UserRepository,
         OrganizationRepository,
 
@@ -78,7 +73,7 @@ import { AwsCognitoModule } from "@libs/aws-cognito"
 
         UserAdminService,
         OrganizationService,
-        
+
         DataLoaderFactory,
         DataLoaderService,
 

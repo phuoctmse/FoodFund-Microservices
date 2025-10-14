@@ -4,5 +4,4 @@ import { AuthAdminService } from "../services/auth-admin.service"
 @Resolver()
 export class AdminResolver {
     constructor(private readonly adminService: AuthAdminService) {}
-
 }

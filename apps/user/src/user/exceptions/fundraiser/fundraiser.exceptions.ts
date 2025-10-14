@@ -13,7 +13,7 @@ export class FundraiserOnlyOperationException extends BaseException {
         super(
             `Operation '${operation}' can only be performed by fundraisers`,
             HttpStatus.FORBIDDEN,
-            { operation }
+            { operation },
         )
     }
 }
@@ -27,7 +27,7 @@ export class NotOrganizationRepresentativeException extends BaseException {
         super(
             `User is not the representative of organization: ${organizationName}`,
             HttpStatus.FORBIDDEN,
-            { fundraiserId, organizationName }
+            { fundraiserId, organizationName },
         )
     }
 }
@@ -42,7 +42,7 @@ export class FundraiserHasNoOrganizationException extends BaseException {
         super(
             "Fundraiser does not have an associated organization",
             HttpStatus.BAD_REQUEST,
-            { fundraiserId }
+            { fundraiserId },
         )
     }
 }
@@ -56,7 +56,7 @@ export class OrganizationNotActiveException extends BaseException {
         super(
             `Organization is not active. Current status: ${currentStatus}`,
             HttpStatus.BAD_REQUEST,
-            { organizationId, currentStatus }
+            { organizationId, currentStatus },
         )
     }
 }
@@ -70,7 +70,7 @@ export class OrganizationSuspendedException extends BaseException {
         super(
             `Organization '${organizationName}' is suspended: ${reason}`,
             HttpStatus.FORBIDDEN,
-            { organizationName, reason }
+            { organizationName, reason },
         )
     }
 }
@@ -85,7 +85,7 @@ export class JoinRequestNotFoundException extends BaseException {
         super(
             `Join request not found with ID: ${requestId}`,
             HttpStatus.NOT_FOUND,
-            { requestId }
+            { requestId },
         )
     }
 }
@@ -99,7 +99,7 @@ export class JoinRequestNotPendingException extends BaseException {
         super(
             `Join request ${requestId} is not pending. Current status: ${currentStatus}`,
             HttpStatus.BAD_REQUEST,
-            { requestId, currentStatus }
+            { requestId, currentStatus },
         )
     }
 }
@@ -109,11 +109,15 @@ export class JoinRequestNotForYourOrganizationException extends BaseException {
     readonly errorType = "BUSINESS" as const
     readonly service = "user-service"
 
-    constructor(requestId: string, requestOrgName: string, userOrgName: string) {
+    constructor(
+        requestId: string,
+        requestOrgName: string,
+        userOrgName: string,
+    ) {
         super(
             `Join request ${requestId} is for '${requestOrgName}', but you manage '${userOrgName}'`,
             HttpStatus.FORBIDDEN,
-            { requestId, requestOrgName, userOrgName }
+            { requestId, requestOrgName, userOrgName },
         )
     }
 }
@@ -127,7 +131,7 @@ export class MaximumStaffLimitReachedException extends BaseException {
         super(
             `Maximum ${role} limit (${maxLimit}) reached for organization: ${organizationName}`,
             HttpStatus.BAD_REQUEST,
-            { organizationName, role, maxLimit }
+            { organizationName, role, maxLimit },
         )
     }
 }
@@ -141,7 +145,7 @@ export class CannotRemoveActiveStaffException extends BaseException {
         super(
             `Cannot remove staff member ${staffId}: ${reason}`,
             HttpStatus.BAD_REQUEST,
-            { staffId, reason }
+            { staffId, reason },
         )
     }
 }
@@ -152,11 +156,15 @@ export class CampaignQuotaExceededException extends BaseException {
     readonly errorType = "BUSINESS" as const
     readonly service = "user-service"
 
-    constructor(organizationName: string, currentCount: number, maxAllowed: number) {
+    constructor(
+        organizationName: string,
+        currentCount: number,
+        maxAllowed: number,
+    ) {
         super(
             `Campaign quota exceeded for '${organizationName}'. Current: ${currentCount}, Max: ${maxAllowed}`,
             HttpStatus.BAD_REQUEST,
-            { organizationName, currentCount, maxAllowed }
+            { organizationName, currentCount, maxAllowed },
         )
     }
 }
@@ -166,11 +174,15 @@ export class InsufficientFundsException extends BaseException {
     readonly errorType = "BUSINESS" as const
     readonly service = "user-service"
 
-    constructor(organizationName: string, requiredAmount: number, availableAmount: number) {
+    constructor(
+        organizationName: string,
+        requiredAmount: number,
+        availableAmount: number,
+    ) {
         super(
             `Insufficient funds for operation. Required: ${requiredAmount}, Available: ${availableAmount}`,
             HttpStatus.BAD_REQUEST,
-            { organizationName, requiredAmount, availableAmount }
+            { organizationName, requiredAmount, availableAmount },
         )
     }
 }
@@ -185,7 +197,7 @@ export class ReportGenerationFailedException extends BaseException {
         super(
             `Failed to generate ${reportType} report: ${reason}`,
             HttpStatus.INTERNAL_SERVER_ERROR,
-            { reportType, reason }
+            { reportType, reason },
         )
     }
 }
@@ -199,7 +211,7 @@ export class MissingRequiredDocumentationException extends BaseException {
         super(
             `Missing required ${documentType} documentation for operation: ${operation}`,
             HttpStatus.BAD_REQUEST,
-            { documentType, operation }
+            { documentType, operation },
         )
     }
 }
@@ -213,7 +225,7 @@ export class ComplianceViolationException extends BaseException {
         super(
             `Compliance violation (${violationType}): ${description}`,
             HttpStatus.FORBIDDEN,
-            { violationType, description }
+            { violationType, description },
         )
     }
 }

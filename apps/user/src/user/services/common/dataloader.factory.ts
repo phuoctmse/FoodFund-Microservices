@@ -3,7 +3,7 @@ import { Injectable, Scope } from "@nestjs/common"
 import { OrganizationRepository } from "../../repositories/organization/organization.repository"
 import { UserRepository } from "../../repositories/user.repository"
 
-@Injectable({ scope: Scope.REQUEST }) // Per-request instance
+@Injectable({ scope: Scope.REQUEST })
 export class DataLoaderFactory {
     private organizationLoader?: DataLoader<string, any>
     private organizationMemberLoader?: DataLoader<string, any[]>
@@ -20,20 +20,22 @@ export class DataLoaderFactory {
         if (!this.organizationLoader) {
             this.organizationLoader = new DataLoader(
                 async (organizationIds: readonly string[]) => {
-                    const organizations = await this.organizationRepository.findOrganizationsByIds(
-                        organizationIds as string[],
-                    )
-                    
-                    return organizationIds.map(id => 
-                        organizations.find(org => org?.id === id) || null
+                    const organizations =
+                        await this.organizationRepository.findOrganizationsByIds(
+                            organizationIds as string[],
+                        )
+
+                    return organizationIds.map(
+                        (id) =>
+                            organizations.find((org) => org?.id === id) || null,
                     )
                 },
                 {
                     // Options
                     cache: true,
                     maxBatchSize: 100,
-                    batchScheduleFn: callback => setTimeout(callback, 1), // Batch delay 1ms
-                }
+                    batchScheduleFn: (callback) => setTimeout(callback, 1), // Batch delay 1ms
+                },
             )
         }
         return this.organizationLoader
@@ -44,14 +46,15 @@ export class DataLoaderFactory {
         if (!this.organizationMemberLoader) {
             this.organizationMemberLoader = new DataLoader(
                 async (userIds: readonly string[]) => {
-                    const members = await this.organizationRepository.findOrganizationMembersByUserIds(
-                        userIds as string[],
+                    const members =
+                        await this.organizationRepository.findOrganizationMembersByUserIds(
+                            userIds as string[],
+                        )
+
+                    return userIds.map((userId) =>
+                        members.filter((member) => member.member_id === userId),
                     )
-                    
-                    return userIds.map(userId => 
-                        members.filter(member => member.member_id === userId)
-                    )
-                }
+                },
             )
         }
         return this.organizationMemberLoader
@@ -62,14 +65,18 @@ export class DataLoaderFactory {
         if (!this.userOrganizationLoader) {
             this.userOrganizationLoader = new DataLoader(
                 async (userIds: readonly string[]) => {
-                    const organizations = await this.organizationRepository.findOrganizationsByRepresentativeIds(
-                        userIds as string[],
+                    const organizations =
+                        await this.organizationRepository.findOrganizationsByRepresentativeIds(
+                            userIds as string[],
+                        )
+
+                    return userIds.map(
+                        (userId) =>
+                            organizations.find(
+                                (org) => org.representative_id === userId,
+                            ) || null,
                     )
-                    
-                    return userIds.map(userId => 
-                        organizations.find(org => org.representative_id === userId) || null
-                    )
-                }
+                },
             )
         }
         return this.userOrganizationLoader
@@ -83,11 +90,12 @@ export class DataLoaderFactory {
                     const users = await this.userRepository.findUsersByIds(
                         userIds as string[],
                     )
-                    
-                    return userIds.map(userId => 
-                        users.find(user => user.id === userId) || null
+
+                    return userIds.map(
+                        (userId) =>
+                            users.find((user) => user.id === userId) || null,
                     )
-                }
+                },
             )
         }
         return this.userLoader

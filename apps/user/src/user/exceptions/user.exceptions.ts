@@ -10,10 +10,14 @@ export class UserNotFoundException extends BaseException {
     readonly service = "user-service"
 
     constructor(identifier: string, searchBy: string = "id") {
-        super(`User not found with ${searchBy}: ${identifier}`, HttpStatus.NOT_FOUND, {
-            identifier,
-            searchBy,
-        })
+        super(
+            `User not found with ${searchBy}: ${identifier}`,
+            HttpStatus.NOT_FOUND,
+            {
+                identifier,
+                searchBy,
+            },
+        )
     }
 }
 
@@ -23,10 +27,14 @@ export class UserAlreadyExistsException extends BaseException {
     readonly service = "user-service"
 
     constructor(field: string, value: string) {
-        super(`User with ${field} '${value}' already exists`, HttpStatus.CONFLICT, {
-            field,
-            value,
-        })
+        super(
+            `User with ${field} '${value}' already exists`,
+            HttpStatus.CONFLICT,
+            {
+                field,
+                value,
+            },
+        )
     }
 }
 
@@ -51,9 +59,13 @@ export class OrganizationNotFoundException extends BaseException {
     readonly service = "user-service"
 
     constructor(organizationId: string) {
-        super(`Organization not found with ID: ${organizationId}`, HttpStatus.NOT_FOUND, {
-            organizationId,
-        })
+        super(
+            `Organization not found with ID: ${organizationId}`,
+            HttpStatus.NOT_FOUND,
+            {
+                organizationId,
+            },
+        )
     }
 }
 
@@ -63,9 +75,13 @@ export class OrganizationAlreadyExistsException extends BaseException {
     readonly service = "user-service"
 
     constructor(name: string) {
-        super(`Organization with name '${name}' already exists`, HttpStatus.CONFLICT, {
-            name,
-        })
+        super(
+            `Organization with name '${name}' already exists`,
+            HttpStatus.CONFLICT,
+            {
+                name,
+            },
+        )
     }
 }
 

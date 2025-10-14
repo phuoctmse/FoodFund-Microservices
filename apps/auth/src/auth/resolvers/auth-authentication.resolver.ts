@@ -9,7 +9,7 @@ import {
     SignOutResponse,
 } from "../models"
 import { AuthResolver } from "../auth.resolver"
-import { SignInInput, VerifyTokenInput, RefreshTokenInput } from "../dto"
+import { SignInInput, RefreshTokenInput } from "../dto"
 import { CognitoGraphQLGuard } from "libs/aws-cognito/guards"
 
 @Resolver()
@@ -42,9 +42,7 @@ export class AuthAuthenticationResolver {
 
     @Mutation(() => AuthResponse)
     @UseGuards(CognitoGraphQLGuard)
-    async verifyToken(
-        @Context() context: any
-    ): Promise<AuthResponse> {
+    async verifyToken(@Context() context: any): Promise<AuthResponse> {
         const token = context.req.headers.authorization?.split(" ")[1]
         const user = await this.authResolver.verifyToken(token)
         return this.authResolver.validateUser(user)

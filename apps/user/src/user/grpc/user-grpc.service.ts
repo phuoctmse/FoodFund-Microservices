@@ -1,10 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common"
 import { GrpcServerService } from "libs/grpc"
-import { envConfig } from "libs/env"
 import { UserCommonGrpcService } from "./common"
 import { UserAdminGrpcService } from "./admin"
-import { generateUniqueUsername } from "libs/common"
-import { v7 as uuidv7 } from "uuid"
 
 @Injectable()
 export class UserGrpcService implements OnModuleInit {
@@ -55,7 +52,6 @@ export class UserGrpcService implements OnModuleInit {
         return this.userCommonGrpcService.createUser(call, callback)
     }
 
-
     // Get user by ID
     private async getUser(call: any, callback: any) {
         return this.userCommonGrpcService.getUser(call, callback)
@@ -75,5 +71,4 @@ export class UserGrpcService implements OnModuleInit {
     private async getUserByEmail(call: any, callback: any) {
         return this.userCommonGrpcService.getUserByEmail(call, callback)
     }
-
 }

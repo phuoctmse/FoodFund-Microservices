@@ -10,7 +10,6 @@ import {
 } from "class-validator"
 import { Transform } from "class-transformer"
 import { IsStrongPassword, IsVietnamesePhone } from "libs/validation"
-import { Role } from "libs/databases/prisma/schemas/enums/user.enums"
 
 @InputType()
 export class SignUpInput {
@@ -137,7 +136,6 @@ export class RefreshTokenInput {
     // @Transform(({ value }) => value?.toLowerCase().trim())
         userName: string
 }
-
 
 @InputType()
 export class UpdateUserInput {

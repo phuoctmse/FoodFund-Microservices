@@ -71,7 +71,9 @@ export class DataLoaderService {
 
         // Get organization details for the member
         const organizationId = organizationMembers[0]?.organization_id
-        const organization = organizationId ? await this.getOrganizationById(organizationId) : null
+        const organization = organizationId
+            ? await this.getOrganizationById(organizationId)
+            : null
 
         return {
             user,
@@ -89,7 +91,9 @@ export class DataLoaderService {
 
         // Get organization details for the member
         const organizationId = organizationMembers[0]?.organization_id
-        const organization = organizationId ? await this.getOrganizationById(organizationId) : null
+        const organization = organizationId
+            ? await this.getOrganizationById(organizationId)
+            : null
 
         return {
             user,

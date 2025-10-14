@@ -27,7 +27,10 @@ export class UpdateMyProfileInput {
     @MaxLength(500, { message: "Address cannot exceed 500 characters" })
         address?: string
 
-    @Field(() => String, { nullable: true, description: "User's bio/description" })
+    @Field(() => String, {
+        nullable: true,
+        description: "User's bio/description",
+    })
     @IsOptional()
     @IsString()
     @MaxLength(1000, { message: "Bio cannot exceed 1000 characters" })
