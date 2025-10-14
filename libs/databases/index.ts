@@ -1,1 +1,5 @@
-export * from "./prisma"
+export * from "./prisma/prisma.module"
+export * from "./prisma/prisma.service"
+export * from "./prisma/prisma.types"
+export * from "./prisma/schemas/enums/user.enums"
+export * from "./prisma/schemas/types/user.types"

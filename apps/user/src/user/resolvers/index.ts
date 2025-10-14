@@ -1,9 +1,7 @@
-// Role-based resolvers
-export * from "./admin"
-export * from "./donor"
-export * from "./fundraiser"
-export * from "./kitchen-staff"
-export * from "./delivery-staff"
-
-// General resolvers (used by multiple roles)
-export * from "./common"
+export * from "./admin/user-admin.resolver"
+export * from "./common/user-mutation.resolver"
+export * from "./common/user-query.resolver"
+export * from "./delivery-staff/delivery-staff-profile.resolver"
+export * from "./donor/donor-profile.resolver"
+export * from "./fundraiser/fundraiser-profile.resolver"
+export * from "./kitchen-staff/kitchen-staff-profile.resolver"
