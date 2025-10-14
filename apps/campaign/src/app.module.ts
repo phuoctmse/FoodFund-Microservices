@@ -1,12 +1,12 @@
 import { Module } from "@nestjs/common"
-import { envConfig, EnvModule } from "libs/env"
+import { envConfig } from "libs/env"
 import { CampaignModule } from "./campaign/campaign.module"
-import { PrismaModule } from "@libs/databases"
 import { SentryModule } from "@libs/observability/sentry.module"
 import { CampaignCategoryModule } from "./campaign-category/campaign-category.module"
-import { UserRef } from "./shared/reference/user.ref"
 import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 import { ScheduleModule } from "@nestjs/schedule"
+import { User } from "./shared/model/user.model"
+import { EnvModule } from "@libs/env/env.module"
 
 @Module({
     imports: [
@@ -16,7 +16,7 @@ import { ScheduleModule } from "@nestjs/schedule"
             federationVersion: 2,
             path: "/graphql",
             buildSchemaOptions: {
-                orphanedTypes: [UserRef],
+                orphanedTypes: [User],
             },
         }),
         EnvModule.forRoot(),
