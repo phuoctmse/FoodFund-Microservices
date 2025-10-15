@@ -7,7 +7,7 @@ import {
     ResendCodeResponse,
     AuthHealthResponse,
 } from "../models"
-import { AuthResolver } from "../auth.resolver"
+import { AuthRegistrationService } from "../services"
 import {
     SignUpInput,
     ConfirmSignUpInput,
@@ -18,44 +18,48 @@ import {
 
 @Resolver()
 export class AuthRegistrationResolver {
-    constructor(private authResolver: AuthResolver) {}
+    constructor(private readonly authRegistrationService: AuthRegistrationService) {}
 
     @Query(() => AuthHealthResponse)
     async authHealth(): Promise<AuthHealthResponse> {
-        return this.authResolver.getHealth()
+        return {
+            status: "healthy",
+            service: "auth",
+            timestamp: new Date().toISOString(),
+        }
     }
 
     @Mutation(() => SignUpResponse)
     async signUp(@Args("input") input: SignUpInput): Promise<SignUpResponse> {
-        return this.authResolver.signUp(input)
+        return this.authRegistrationService.signUp(input)
     }
 
     @Mutation(() => ConfirmSignUpResponse)
     async confirmSignUp(
         @Args("input") input: ConfirmSignUpInput,
     ): Promise<ConfirmSignUpResponse> {
-        return this.authResolver.confirmSignUp(input)
+        return this.authRegistrationService.confirmSignUp(input)
     }
 
     @Mutation(() => ResendCodeResponse)
     async resendConfirmationCode(
         @Args("input") input: ResendCodeInput,
     ): Promise<ResendCodeResponse> {
-        return this.authResolver.resendConfirmationCode(input.email)
+        return this.authRegistrationService.resendConfirmationCode(input.email)
     }
 
     @Mutation(() => ForgotPasswordResponse)
     async forgotPassword(
         @Args("input") input: ForgotPasswordInput,
     ): Promise<ForgotPasswordResponse> {
-        return this.authResolver.forgotPassword(input.email)
+        return this.authRegistrationService.forgotPassword(input.email)
     }
 
     @Mutation(() => ResetPasswordResponse)
     async confirmForgotPassword(
         @Args("input") input: ConfirmForgotPasswordInput,
     ): Promise<ResetPasswordResponse> {
-        return this.authResolver.confirmForgotPassword(
+        return this.authRegistrationService.confirmForgotPassword(
             input.email,
             input.confirmationCode,
             input.newPassword,

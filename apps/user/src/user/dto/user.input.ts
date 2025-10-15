@@ -105,7 +105,7 @@ export class UpdateUserAccountInput {
     @IsString({ message: "Bio must be a string" })
         bio?: string
 
-    @Field({ nullable: true })
+    @Field({ defaultValue: false })
     @IsOptional()
     @IsBoolean({ message: "Active status must be boolean" })
         is_active?: boolean
