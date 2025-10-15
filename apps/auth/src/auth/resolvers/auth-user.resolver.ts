@@ -1,25 +1,24 @@
-import { Args, ID, Query, Resolver, ResolveReference } from "@nestjs/graphql"
-import { AuthUser, CheckPasswordResponse, GoogleAuthResponse } from "../models"
-import { AuthResolver } from "../auth.resolver"
+import { Args, ID, Query, Resolver, ResolveReference, Mutation } from "@nestjs/graphql"
+import { AuthUser, CheckPasswordResponse, GoogleAuthResponse, ChangePasswordResponse } from "../models"
 import {
     ChangePasswordInput,
     CheckCurrentPasswordInput,
     GoogleAuthInput,
 } from "../dto/auth.input"
-import { Mutation } from "@nestjs/graphql"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
 import { UseGuards } from "@nestjs/common"
 import { CurrentUser } from "libs/auth"
+import { AuthUserService } from "../services"
 
 @Resolver(() => AuthUser)
 export class AuthUserResolver {
-    constructor(private authResolver: AuthResolver) {}
+    constructor(private readonly authUserService: AuthUserService) {}
 
     @Query(() => AuthUser, { nullable: true })
     async getUserByCognitoId(
         @Args({ name: "id", type: () => ID }) id: string,
     ): Promise<AuthUser | null> {
-        return this.authResolver.getUserById(id)
+        return this.authUserService.getUserById(id)
     }
 
     // **FEDERATION**
@@ -28,16 +27,23 @@ export class AuthUserResolver {
         __typename: string
         id: string
     }): Promise<AuthUser | null> {
-        return this.authResolver.getUserById(reference.id)
+        return this.authUserService.getUserById(reference.id)
     }
 
-    @Mutation(() => Boolean)
+    @Mutation(() => ChangePasswordResponse)
     @UseGuards(CognitoGraphQLGuard)
     async changePassword(
         @CurrentUser() { id }: { id: string },
         @Args("input") input: ChangePasswordInput,
-    ): Promise<boolean> {
-        return this.authResolver.changePassword(id, input)
+    ): Promise<ChangePasswordResponse> {
+        const success = await this.authUserService.changePassword(id, input)
+        return {
+            success,
+            message: success 
+                ? "Password changed successfully" 
+                : "Failed to change password",
+            timestamp: new Date().toISOString(),
+        }
     }
 
     @Mutation(() => CheckPasswordResponse)
@@ -46,13 +52,13 @@ export class AuthUserResolver {
         @CurrentUser() { id }: { id: string },
         @Args("input") input: CheckCurrentPasswordInput,
     ): Promise<CheckPasswordResponse> {
-        return this.authResolver.checkCurrentPassword(id, input)
+        return this.authUserService.checkCurrentPassword(id, input)
     }
 
     @Mutation(() => GoogleAuthResponse)
     async googleAuthentication(
         @Args("input") input: GoogleAuthInput,
     ): Promise<GoogleAuthResponse> {
-        return this.authResolver.googleAuthentication(input)
+        return this.authUserService.googleAuthentication(input)
     }
 }

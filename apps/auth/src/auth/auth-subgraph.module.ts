@@ -10,8 +10,6 @@ import {
     AuthAuthenticationResolver,
     AuthUserResolver,
 } from "./resolvers"
-import { AuthService } from "./auth.service"
-import { AuthResolver } from "./auth.resolver"
 import {
     AuthRegistrationService,
     AuthAuthenticationService,
@@ -25,16 +23,11 @@ import {
         AuthAuthenticationResolver,
         AuthUserResolver,
 
-        // Main resolver (facade)
-        AuthResolver,
-
-        // Main services
-        AuthService,
-
-        // Sub-services
+        // Services
         AuthRegistrationService,
         AuthAuthenticationService,
         AuthUserService,
+        
         // gRPC
         AuthGrpcService,
     ],

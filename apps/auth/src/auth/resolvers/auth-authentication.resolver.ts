@@ -8,13 +8,16 @@ import {
     RefreshTokenResponse,
     SignOutResponse,
 } from "../models"
-import { AuthResolver } from "../auth.resolver"
 import { SignInInput, RefreshTokenInput } from "../dto"
 import { CognitoGraphQLGuard } from "libs/aws-cognito/guards"
+import { AuthAuthenticationService, AuthUserService } from "../services"
 
 @Resolver()
 export class AuthAuthenticationResolver {
-    constructor(private authResolver: AuthResolver) {}
+    constructor(
+        private readonly authAuthenticationService: AuthAuthenticationService,
+        private readonly authUserService: AuthUserService,
+    ) {}
 
     @Mutation(() => SignOutResponse)
     @UseGuards(CognitoGraphQLGuard)
@@ -25,27 +28,31 @@ export class AuthAuthenticationResolver {
                 "Access token not found in request headers",
             )
         }
-        return this.authResolver.signOut(token)
+        const result = await this.authAuthenticationService.signOut(token)
+        return {
+            ...result,
+            timestamp: new Date().toISOString(),
+        }
     }
 
     @Mutation(() => SignInResponse)
     async signIn(@Args("input") input: SignInInput): Promise<SignInResponse> {
-        return this.authResolver.signIn(input)
+        return this.authAuthenticationService.signIn(input)
     }
 
     @Query(() => AuthUser)
     @UseGuards(CognitoGraphQLGuard)
     async getCurrentUser(@Context() context: any): Promise<AuthUser> {
         const token = context.req.headers.authorization?.split(" ")[1]
-        return this.authResolver.verifyToken(token)
+        return this.authAuthenticationService.verifyToken(token)
     }
 
     @Mutation(() => AuthResponse)
     @UseGuards(CognitoGraphQLGuard)
     async verifyToken(@Context() context: any): Promise<AuthResponse> {
         const token = context.req.headers.authorization?.split(" ")[1]
-        const user = await this.authResolver.verifyToken(token)
-        return this.authResolver.validateUser(user)
+        const user = await this.authAuthenticationService.verifyToken(token)
+        return this.authUserService.validateUser(user)
     }
 
     @Mutation(() => RefreshTokenResponse)
@@ -53,6 +60,6 @@ export class AuthAuthenticationResolver {
     async refreshToken(
         @Args("input") input: RefreshTokenInput,
     ): Promise<RefreshTokenResponse> {
-        return this.authResolver.refreshToken(input)
+        return this.authAuthenticationService.refreshToken(input)
     }
 }
