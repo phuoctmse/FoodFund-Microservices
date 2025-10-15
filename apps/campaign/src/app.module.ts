@@ -7,6 +7,7 @@ import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 import { ScheduleModule } from "@nestjs/schedule"
 import { User } from "./shared/model/user.model"
 import { EnvModule } from "@libs/env/env.module"
+import { PostModule } from "./post/post.module"
 
 @Module({
     imports: [
@@ -30,6 +31,7 @@ import { EnvModule } from "@libs/env/env.module"
         ScheduleModule.forRoot(),
         CampaignModule,
         CampaignCategoryModule,
+        PostModule,
     ],
     controllers: [],
     providers: [],

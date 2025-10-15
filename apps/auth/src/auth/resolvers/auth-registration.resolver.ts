@@ -18,7 +18,9 @@ import {
 
 @Resolver()
 export class AuthRegistrationResolver {
-    constructor(private readonly authRegistrationService: AuthRegistrationService) {}
+    constructor(
+        private readonly authRegistrationService: AuthRegistrationService,
+    ) {}
 
     @Query(() => AuthHealthResponse)
     async authHealth(): Promise<AuthHealthResponse> {

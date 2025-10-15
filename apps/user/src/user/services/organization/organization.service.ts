@@ -533,15 +533,19 @@ export class OrganizationService {
         // Map organizations to include required fields for GraphQL
         const mappedOrganizations = result.organizations.map((org) => ({
             ...org,
-            members: org.Organization_Member?.map(member => ({
-                id: member.id,
-                member: member.member,
-                member_role: member.member_role,
-                status: member.status,
-                joined_at: member.joined_at,
-            })) || [],
+            members:
+                org.Organization_Member?.map((member) => ({
+                    id: member.id,
+                    member: member.member,
+                    member_role: member.member_role,
+                    status: member.status,
+                    joined_at: member.joined_at,
+                })) || [],
             total_members: org.Organization_Member?.length || 0,
-            active_members: org.Organization_Member?.filter(member => member.status === "VERIFIED").length || 0,
+            active_members:
+                org.Organization_Member?.filter(
+                    (member) => member.status === "VERIFIED",
+                ).length || 0,
             representative: org.user, // Map user to representative
         }))
 

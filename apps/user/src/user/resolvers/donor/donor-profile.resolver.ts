@@ -33,13 +33,13 @@ export class DonorProfileResolver {
             user.id,
             input,
         )
-        
+
         // Map user field to representative field for GraphQL response
         const mappedResult = {
             ...result,
-            representative: result.user
+            representative: result.user,
         }
-        
+
         return {
             organization: mappedResult,
             message: `Organization request "${result.name}" has been submitted successfully. Waiting for admin approval.`,
@@ -53,7 +53,7 @@ export class DonorProfileResolver {
         const result = await this.organizationService.getUserOrganization(
             user.id,
         )
-        
+
         return result || null
     }
 

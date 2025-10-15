@@ -115,7 +115,8 @@ export class AuthGrpcService implements OnModuleInit {
         try {
             const { access_token } = call.request
 
-            const authUser = await this.authAuthenticationService.verifyToken(access_token)
+            const authUser =
+                await this.authAuthenticationService.verifyToken(access_token)
 
             callback(null, {
                 success: true,

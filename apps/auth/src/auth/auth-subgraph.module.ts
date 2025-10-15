@@ -27,7 +27,7 @@ import {
         AuthRegistrationService,
         AuthAuthenticationService,
         AuthUserService,
-        
+
         // gRPC
         AuthGrpcService,
     ],
