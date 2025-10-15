@@ -83,12 +83,7 @@ export class OrganizationService {
         const existingOrg = await this.userRepository.findUserOrganization(
             user.id,
         )
-        const hasPendingOrg = Array.isArray(existingOrg)
-            ? existingOrg.some(
-                (org) => (org as any)?.status === Verification_Status.PENDING,
-            )
-            : (existingOrg as any)?.status === Verification_Status.PENDING
-        if (hasPendingOrg) {
+        if (existingOrg && existingOrg.status === Verification_Status.PENDING) {
             UserErrorHelper.throwPendingOrganizationRequest(cognitoId)
         }
 
@@ -449,7 +444,7 @@ export class OrganizationService {
         if (!user) {
             return null
         }
-        return this.organizationRepository.findPendingJoinRequest(user.id)
+        return this.organizationRepository.findMyJoinRequests(user.id)
     }
 
     async cancelJoinRequest(cognitoId: string) {
