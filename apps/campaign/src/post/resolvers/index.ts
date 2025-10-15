@@ -1,0 +1,6 @@
+export * from "./mutations/post-comment-mutation.resolver"
+export * from "./mutations/post-like-mutation.resolver"
+export * from "./mutations/post-mutation.resolver"
+export * from "./queries/post-comment-query.resolver"
+export * from "./queries/post-like-query.resolver"
+export * from "./queries/post-query.resolver"
