@@ -64,6 +64,7 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.6",
     "@nestjs/schedule": "^6.0.1",
+    "@payos/node": "^2.0.3",
     "@prisma/client": "^6.17.1",
     "@sentry/nestjs": "^10.19.0",
     "@sentry/node": "^10.15.0",
