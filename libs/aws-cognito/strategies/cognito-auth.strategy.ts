@@ -83,7 +83,7 @@ export class CognitoAuthStrategy extends PassportStrategy(
                 createdAt: undefined,
                 updatedAt: undefined,
             }
-
+            ;(req as any).user = user
             return user
         } catch (error) {
             throw new UnauthorizedException(
