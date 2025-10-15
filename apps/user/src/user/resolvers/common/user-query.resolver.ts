@@ -13,7 +13,7 @@ import { UserQueryService } from "../../services/common/user-query.service"
 import { OrganizationService } from "../../services"
 import { UseGuards } from "@nestjs/common"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
-import { CurrentUser } from "libs/auth"
+import { CurrentUser, CurrentUserType } from "libs/auth"
 import { UserProfileSchema } from "../../models/user.model"
 
 @ObjectType()
@@ -42,16 +42,12 @@ export class UserQueryResolver {
     }
     @Query(() => RoleProfileResponse, { name: "getMyProfile" })
     @UseGuards(CognitoGraphQLGuard)
-    async getMyProfile(@CurrentUser() user: any): Promise<RoleProfileResponse> {
+    async getMyProfile(@CurrentUser() user: CurrentUserType): Promise<RoleProfileResponse> {
         if (!user) {
             throw new Error("User not authenticated")
         }
 
-        const cognito_id = user.username as string
-
-        if (!cognito_id) {
-            throw new Error("User cognito_id not found")
-        }
+        const cognito_id = user.cognito_id as string
 
         // Get user info to determine role
         const userInfo =

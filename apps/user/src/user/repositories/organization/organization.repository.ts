@@ -424,4 +424,19 @@ export class OrganizationRepository {
             total,
         }
     }
+
+    async findMyJoinRequests(userId: string) {
+        return this.prisma.organization_Member.findMany({
+            where: {
+                member_id: userId,
+            },
+            include: {
+                member: true,
+                organization: true,
+            },
+            orderBy: {
+                joined_at: "desc",
+            },
+        })
+    }
 }

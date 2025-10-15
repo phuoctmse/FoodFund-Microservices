@@ -27,7 +27,7 @@ export class CreateOrganizationInput {
     @IsString()
         address: string
 
-    @Field()
+    @Field({nullable: true})
     @IsOptional()
     @IsUrl()
         website?: string
