@@ -242,6 +242,9 @@ jobs:
               --set image.repository=${DOCKERHUB_USERNAME}/foodfund-auth \
               --timeout 5m \
               --wait
+            # Force rolling update to pull latest image with same tag
+            kubectl rollout restart deployment/auth-service -n foodfund-k8s
+            kubectl rollout status deployment/auth-service -n foodfund-k8s --timeout=300s
           fi
           
           if [ "${{ needs.detect-changes.outputs.user }}" = "true" ]; then
@@ -252,6 +255,9 @@ jobs:
               --set image.repository=${DOCKERHUB_USERNAME}/foodfund-user \
               --timeout 5m \
               --wait
+            # Force rolling update to pull latest image with same tag
+            kubectl rollout restart deployment/user-service -n foodfund-k8s
+            kubectl rollout status deployment/user-service -n foodfund-k8s --timeout=300s
           fi
           
           if [ "${{ needs.detect-changes.outputs.campaign }}" = "true" ]; then
@@ -262,6 +268,9 @@ jobs:
               --set image.repository=${DOCKERHUB_USERNAME}/foodfund-campaign \
               --timeout 5m \
               --wait
+            # Force rolling update to pull latest image with same tag
+            kubectl rollout restart deployment/campaign-service -n foodfund-k8s
+            kubectl rollout status deployment/campaign-service -n foodfund-k8s --timeout=300s
           fi
           
           if [ "${{ needs.detect-changes.outputs.gateway }}" = "true" ]; then
@@ -272,6 +281,9 @@ jobs:
               --set image.repository=${DOCKERHUB_USERNAME}/foodfund-graphql-gateway \
               --timeout 5m \
               --wait
+            # Force rolling update to pull latest image with same tag
+            kubectl rollout restart deployment/graphql-gateway -n foodfund-k8s
+            kubectl rollout status deployment/graphql-gateway -n foodfund-k8s --timeout=300s
           fi
 
       - name: Final status
