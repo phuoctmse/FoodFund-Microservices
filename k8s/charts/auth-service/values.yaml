@@ -84,6 +84,15 @@ resources:
     memory: 150Mi  # Min 150MB per service
 
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+startupProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 5
+  failureThreshold: 18  # Allow up to 90s for startup (18 * 5s)
+  successThreshold: 1
 livenessProbe:
   httpGet:
     path: /health
@@ -97,10 +106,10 @@ readinessProbe:
   httpGet:
     path: /health
     port: http
-  initialDelaySeconds: 5
+  initialDelaySeconds: 20  # Increased from 5 to ensure env vars are loaded
   periodSeconds: 5
   timeoutSeconds: 3
-  failureThreshold: 3
+  failureThreshold: 5  # Increased tolerance for temporary issues
   successThreshold: 1
 
 # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
