@@ -62,8 +62,11 @@ docker-volumes
 
 # Helm artifacts  
 Chart.lock
-charts/
 *.tgz
+
+# Allow our k8s charts specifically
+!k8s/charts/
+!k8s/charts/**
 
 # Production credentials - DO NOT COMMIT
 k8s/config/app-config.production.yaml
