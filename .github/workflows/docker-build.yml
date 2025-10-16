@@ -238,7 +238,7 @@ jobs:
           
           echo "Deploying/updating services with tag: $TAG (unique: $UNIQUE_TAG)"
           
-          # Deploy or update only changed services using Helm (without wait for faster deployment)
+          # Deploy or update only changed services using Helm
           if [ "${{ needs.detect-changes.outputs.auth }}" = "true" ]; then
             echo "Deploying/updating auth-service..."
             helm upgrade --install auth-service k8s/charts/auth-service \
@@ -273,27 +273,6 @@ jobs:
               --set image.tag=$UNIQUE_TAG \
               --set image.repository=${DOCKERHUB_USERNAME}/foodfund-graphql-gateway \
               --timeout 3m
-          fi
-          
-          # Wait for deployments to be ready (with shorter timeout)
-          echo "Waiting for deployments to be ready..."
-          sleep 30
-          
-          # Check deployment status (non-blocking)
-          if [ "${{ needs.detect-changes.outputs.auth }}" = "true" ]; then
-            kubectl rollout status deployment/auth-service -n foodfund-k8s --timeout=120s || echo "⚠️ Auth service deployment still in progress"
-          fi
-          
-          if [ "${{ needs.detect-changes.outputs.user }}" = "true" ]; then
-            kubectl rollout status deployment/user-service -n foodfund-k8s --timeout=120s || echo "⚠️ User service deployment still in progress"
-          fi
-          
-          if [ "${{ needs.detect-changes.outputs.campaign }}" = "true" ]; then
-            kubectl rollout status deployment/campaign-service -n foodfund-k8s --timeout=120s || echo "⚠️ Campaign service deployment still in progress"
-          fi
-          
-          if [ "${{ needs.detect-changes.outputs.gateway }}" = "true" ]; then
-            kubectl rollout status deployment/graphql-gateway -n foodfund-k8s --timeout=120s || echo "⚠️ Gateway deployment still in progress"
           fi
 
       - name: Final status
