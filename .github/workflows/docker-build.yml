@@ -151,8 +151,10 @@ jobs:
         run: |
           if [ "${GITHUB_REF##*/}" = "main" ]; then
             echo "TAG=latest" >> $GITHUB_ENV
+            echo "UNIQUE_TAG=latest" >> $GITHUB_ENV
           else
             echo "TAG=develop" >> $GITHUB_ENV
+            echo "UNIQUE_TAG=develop-${GITHUB_SHA::8}" >> $GITHUB_ENV
           fi
 
       - name: Build & Push ${{ matrix.service }} Service
@@ -164,6 +166,7 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image }}:${{ env.TAG }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image }}:${{ env.UNIQUE_TAG }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
           platforms: linux/amd64
@@ -227,63 +230,53 @@ jobs:
           # Set image tag based on branch
           if [ "${GITHUB_REF##*/}" = "main" ]; then
             TAG="latest"
+            UNIQUE_TAG="latest"
           else
             TAG="develop"
+            UNIQUE_TAG="develop-${GITHUB_SHA::8}"
           fi
           
-          echo "Deploying/updating services with tag: $TAG"
+          echo "Deploying/updating services with tag: $TAG (unique: $UNIQUE_TAG)"
           
           # Deploy or update only changed services using Helm
           if [ "${{ needs.detect-changes.outputs.auth }}" = "true" ]; then
             echo "Deploying/updating auth-service..."
             helm upgrade --install auth-service k8s/charts/auth-service \
               --namespace foodfund-k8s \
-              --set image.tag=$TAG \
+              --set image.tag=$UNIQUE_TAG \
               --set image.repository=${DOCKERHUB_USERNAME}/foodfund-auth \
               --timeout 5m \
               --wait
-            # Force rolling update to pull latest image with same tag
-            kubectl rollout restart deployment/auth-service -n foodfund-k8s
-            kubectl rollout status deployment/auth-service -n foodfund-k8s --timeout=300s
           fi
           
           if [ "${{ needs.detect-changes.outputs.user }}" = "true" ]; then
             echo "Deploying/updating user-service..."
             helm upgrade --install user-service k8s/charts/user-service \
               --namespace foodfund-k8s \
-              --set image.tag=$TAG \
+              --set image.tag=$UNIQUE_TAG \
               --set image.repository=${DOCKERHUB_USERNAME}/foodfund-user \
               --timeout 5m \
               --wait
-            # Force rolling update to pull latest image with same tag
-            kubectl rollout restart deployment/user-service -n foodfund-k8s
-            kubectl rollout status deployment/user-service -n foodfund-k8s --timeout=300s
           fi
           
           if [ "${{ needs.detect-changes.outputs.campaign }}" = "true" ]; then
             echo "Deploying/updating campaign-service..."
             helm upgrade --install campaign-service k8s/charts/campaign-service \
               --namespace foodfund-k8s \
-              --set image.tag=$TAG \
+              --set image.tag=$UNIQUE_TAG \
               --set image.repository=${DOCKERHUB_USERNAME}/foodfund-campaign \
               --timeout 5m \
               --wait
-            # Force rolling update to pull latest image with same tag
-            kubectl rollout restart deployment/campaign-service -n foodfund-k8s
-            kubectl rollout status deployment/campaign-service -n foodfund-k8s --timeout=300s
           fi
           
           if [ "${{ needs.detect-changes.outputs.gateway }}" = "true" ]; then
             echo "Deploying/updating graphql-gateway..."
             helm upgrade --install graphql-gateway k8s/charts/graphql-gateway \
               --namespace foodfund-k8s \
-              --set image.tag=$TAG \
+              --set image.tag=$UNIQUE_TAG \
               --set image.repository=${DOCKERHUB_USERNAME}/foodfund-graphql-gateway \
               --timeout 5m \
               --wait
-            # Force rolling update to pull latest image with same tag
-            kubectl rollout restart deployment/graphql-gateway -n foodfund-k8s
-            kubectl rollout status deployment/graphql-gateway -n foodfund-k8s --timeout=300s
           fi
 
       - name: Final status
