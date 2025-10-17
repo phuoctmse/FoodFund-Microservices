@@ -8,6 +8,7 @@ import { ScheduleModule } from "@nestjs/schedule"
 import { User } from "./shared/model/user.model"
 import { EnvModule } from "@libs/env/env.module"
 import { PostModule } from "./post/post.module"
+import { DonationModule } from "./donation/donation.module"
 
 @Module({
     imports: [
@@ -32,6 +33,7 @@ import { PostModule } from "./post/post.module"
         CampaignModule,
         CampaignCategoryModule,
         PostModule,
+        DonationModule
     ],
     controllers: [],
     providers: [],

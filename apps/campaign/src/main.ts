@@ -35,21 +35,21 @@ async function bootstrap() {
             next()
         })
 
-        app.enableCors({
-            origin:
-                process.env.NODE_ENV === "production"
-                    ? ["http://localhost:8000"].filter(Boolean)
-                    : true,
-            credentials: true,
-            methods: ["GET", "POST", "OPTIONS"],
-            allowedHeaders: [
-                "Content-Type",
-                "Authorization",
-                "Accept",
-                "X-Requested-With",
-                "Apollo-Require-Preflight",
-            ],
-        })
+        // app.enableCors({
+        //     origin:
+        //         process.env.NODE_ENV === "production"
+        //             ? ["http://localhost:8000"].filter(Boolean)
+        //             : true,
+        //     credentials: true,
+        //     methods: ["GET", "POST", "OPTIONS"],
+        //     allowedHeaders: [
+        //         "Content-Type",
+        //         "Authorization",
+        //         "Accept",
+        //         "X-Requested-With",
+        //         "Apollo-Require-Preflight",
+        //     ],
+        // })
 
         const port = process.env.PORT ?? 8004
         await app.listen(port)

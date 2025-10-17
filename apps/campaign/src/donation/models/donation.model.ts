@@ -1,5 +1,6 @@
 import { Directive, Field, ObjectType } from "@nestjs/graphql"
 import { BaseSchema } from "../../shared/base/base.schema"
+import { Campaign } from "../../campaign/models/campaign.model"
 
 @ObjectType()
 @Directive("@key(fields: \"id\")")
@@ -29,4 +30,10 @@ export class Donation extends BaseSchema {
 
     @Field(() => Boolean, { description: "Whether donation is anonymous" })
         isAnonymous: boolean
+
+    @Field(() => Campaign, {
+        nullable: true,
+        description: "Campaign that received this donation",
+    })
+        campaign?: Campaign
 }
