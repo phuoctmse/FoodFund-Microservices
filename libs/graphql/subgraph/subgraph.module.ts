@@ -24,6 +24,9 @@ export class GraphQLSubgraphModule extends ConfigurableModuleClass {
                     autoSchemaFile: {
                         federation: 2,
                     },
+                    context: ({ req }) => ({
+                        req,
+                    }),
                     buildSchemaOptions: options.buildSchemaOptions,
                     plugins: [
                         ApolloServerPluginLandingPageLocalDefault({

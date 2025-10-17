@@ -26,20 +26,20 @@ export class DonorProfileResolver {
     @Mutation(() => OrganizationActionResponse)
     @RequireRole(Role.DONOR)
     async requestCreateOrganization(
-        @CurrentUser() user: any,
+        @CurrentUser() user: CurrentUserType,
         @Args("input") input: CreateOrganizationInput,
     ) {
         const result = await this.organizationService.requestCreateOrganization(
             user.id,
             input,
         )
-        
+
         // Map user field to representative field for GraphQL response
         const mappedResult = {
             ...result,
-            representative: result.user
+            representative: result.user,
         }
-        
+
         return {
             organization: mappedResult,
             message: `Organization request "${result.name}" has been submitted successfully. Waiting for admin approval.`,
@@ -49,22 +49,22 @@ export class DonorProfileResolver {
 
     @Query(() => [OrganizationSchema], { nullable: true })
     @RequireRole(Role.DONOR, Role.FUNDRAISER)
-    async myOrganizationRequest(@CurrentUser() user: any) {
+    async myOrganizationRequest(@CurrentUser() user: CurrentUserType) {
         const result = await this.organizationService.getUserOrganization(
-            user.id,
+            user.cognito_id,
         )
-        
+
         return result || null
     }
 
     @Mutation(() => JoinRequestResponse)
     @RequireRole(Role.DONOR)
     async requestJoinOrganization(
-        @CurrentUser() user: any,
+        @CurrentUser() user: CurrentUserType,
         @Args("input") input: JoinOrganizationInput,
     ) {
         const result = await this.organizationService.requestJoinOrganization(
-            user.id,
+            user.cognito_id,
             input,
         )
 
@@ -88,22 +88,22 @@ export class DonorProfileResolver {
         }
     }
 
-    @Query(() => JoinRequestResponse, { nullable: true })
-    @RequireRole(Role.DONOR)
+    @Query(() => [JoinRequestResponse], { nullable: true })
+    @RequireRole(Role.DONOR, Role.DELIVERY_STAFF, Role.KITCHEN_STAFF)
     async myJoinRequest(@CurrentUser() user: CurrentUserType) {
-        const result = await this.organizationService.getMyJoinRequests(
+        const results = await this.organizationService.getMyJoinRequests(
             user.cognito_id,
         )
-        if (!result) return null
+        if (!results || results.length === 0) return []
 
-        return {
+        return results.map(result => ({
             id: result.id,
             organization: result.organization,
             requested_role: result.member_role,
             status: result.status,
             message: `Your join request to "${result.organization.name}" is currently ${result.status.toLowerCase()}.`,
             success: true,
-        }
+        }))
     }
 
     @Mutation(() => CancelJoinRequestResponse)

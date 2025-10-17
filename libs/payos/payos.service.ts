@@ -198,12 +198,12 @@ export class PayOSService {
         return error instanceof Error ? error : new Error(String(error))
     }
 
-    /**
-     * Utility: Tạo order code unique
-     */
-    generateOrderCode(): number {
-        return Math.floor(Math.random() * 9007199254740991) // Max safe integer
-    }
+    // /**
+    //  * Utility: Tạo order code unique
+    //  */
+    // generateOrderCode(): number {
+    //     return Math.floor(Math.random() * 9007199254740991) // Max safe integer
+    // }
 
     /**
      * Utility: Format amount cho PayOS (VND, không có số thập phân)

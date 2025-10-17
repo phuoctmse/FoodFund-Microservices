@@ -1,5 +1,17 @@
-import { Args, ID, Query, Resolver, ResolveReference, Mutation } from "@nestjs/graphql"
-import { AuthUser, CheckPasswordResponse, GoogleAuthResponse, ChangePasswordResponse } from "../models"
+import {
+    Args,
+    ID,
+    Query,
+    Resolver,
+    ResolveReference,
+    Mutation,
+} from "@nestjs/graphql"
+import {
+    AuthUser,
+    CheckPasswordResponse,
+    GoogleAuthResponse,
+    ChangePasswordResponse,
+} from "../models"
 import {
     ChangePasswordInput,
     CheckCurrentPasswordInput,
@@ -39,8 +51,8 @@ export class AuthUserResolver {
         const success = await this.authUserService.changePassword(id, input)
         return {
             success,
-            message: success 
-                ? "Password changed successfully" 
+            message: success
+                ? "Password changed successfully"
                 : "Failed to change password",
             timestamp: new Date().toISOString(),
         }

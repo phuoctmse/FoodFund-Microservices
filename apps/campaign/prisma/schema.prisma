@@ -143,6 +143,7 @@ model Post_Like {
   post_id    String
   user_id    String
   created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   post Post @relation(fields: [post_id], references: [id], onDelete: Cascade)
 
@@ -162,6 +163,7 @@ model Post_Comment {
   parent_comment_id String?
   comment_path      String?  @db.Text()
   depth             Int      @default(0)
+  is_active Boolean @default(true)
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
 
@@ -176,6 +178,8 @@ model Post_Comment {
   @@index([post_id, parent_comment_id, created_at])
   @@index([comment_path])
   @@index([depth])
+  @@index([is_active])
+  @@index([post_id, is_active, created_at])
   @@map("post_comments")
 }
 

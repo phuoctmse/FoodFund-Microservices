@@ -123,11 +123,7 @@ export class UserRepository {
                 status: VerificationStatus.VERIFIED,
             },
             include: {
-                Organization_Member: {
-                    include: {
-                        member: true,
-                    },
-                },
+                Organization_Member: true,
             },
         })
     }

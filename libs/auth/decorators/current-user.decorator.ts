@@ -7,10 +7,8 @@ export const CurrentUser = createParamDecorator(
             // Try GraphQL context first
             const gqlContext = GqlExecutionContext.create(context)
             const ctx = gqlContext.getContext()
-                    
             // Check different possible locations for user
             let user = ctx.req?.user || ctx.user || null
-            
             // If no user in GraphQL context, try regular HTTP context
             if (!user) {
                 const request = context.switchToHttp().getRequest()
