@@ -14,19 +14,19 @@ import {
 import { envConfig } from "@libs/env"
 
 export interface SendMessageOptions {
-  messageBody: any;
-  delaySeconds?: number;
-  messageAttributes?: Record<string, any>;
-  messageGroupId?: string;
-  messageDeduplicationId?: string;
+    messageBody: any
+    delaySeconds?: number
+    messageAttributes?: Record<string, any>
+    messageGroupId?: string
+    messageDeduplicationId?: string
 }
 
 export interface ReceiveMessageOptions {
-  maxNumberOfMessages?: number;
-  waitTimeSeconds?: number;
-  visibilityTimeout?: number;
-  attributeNames?: string[];
-  messageAttributeNames?: string[];
+    maxNumberOfMessages?: number
+    waitTimeSeconds?: number
+    visibilityTimeout?: number
+    attributeNames?: string[]
+    messageAttributeNames?: string[]
 }
 
 @Injectable()
@@ -43,7 +43,9 @@ export class SqsService implements OnModuleInit {
         const queueUrl = env.aws.awsSqsQueueUrl
 
         if (!queueUrl) {
-            this.logger.warn("AWS_SQS_QUEUE_URL not configured. SQS will not be available.")
+            this.logger.warn(
+                "AWS_SQS_QUEUE_URL not configured. SQS will not be available.",
+            )
             return
         }
 
@@ -55,7 +57,7 @@ export class SqsService implements OnModuleInit {
         this.client = new SQSClient({
             region,
             ...(accessKeyId &&
-        secretAccessKey && {
+                secretAccessKey && {
                 credentials: {
                     accessKeyId,
                     secretAccessKey,
@@ -70,7 +72,9 @@ export class SqsService implements OnModuleInit {
                 AttributeNames: ["QueueArn"],
             })
             const response = await this.client.send(command)
-            this.logger.log(`Connected to SQS queue: ${response.Attributes?.QueueArn}`)
+            this.logger.log(
+                `Connected to SQS queue: ${response.Attributes?.QueueArn}`,
+            )
         } catch (error) {
             this.logger.error("Failed to connect to SQS", error)
             throw error
@@ -85,16 +89,30 @@ export class SqsService implements OnModuleInit {
     }
 
     async sendMessage(options: SendMessageOptions): Promise<string> {
-        const { messageBody, delaySeconds, messageAttributes, messageGroupId, messageDeduplicationId } = options
+        const {
+            messageBody,
+            delaySeconds,
+            messageAttributes,
+            messageGroupId,
+            messageDeduplicationId,
+        } = options
 
         try {
             const command = new SendMessageCommand({
                 QueueUrl: this.queueUrl,
-                MessageBody: typeof messageBody === "string" ? messageBody : JSON.stringify(messageBody),
+                MessageBody:
+                    typeof messageBody === "string"
+                        ? messageBody
+                        : JSON.stringify(messageBody),
                 ...(delaySeconds && { DelaySeconds: delaySeconds }),
-                ...(messageAttributes && { MessageAttributes: this.formatMessageAttributes(messageAttributes) }),
+                ...(messageAttributes && {
+                    MessageAttributes:
+                        this.formatMessageAttributes(messageAttributes),
+                }),
                 ...(messageGroupId && { MessageGroupId: messageGroupId }),
-                ...(messageDeduplicationId && { MessageDeduplicationId: messageDeduplicationId }),
+                ...(messageDeduplicationId && {
+                    MessageDeduplicationId: messageDeduplicationId,
+                }),
             })
 
             const response = await this.client.send(command)
@@ -111,39 +129,78 @@ export class SqsService implements OnModuleInit {
             return { successful: [], failed: [] }
         }
 
-        if (messages.length > 10) {
-            throw new Error("Cannot send more than 10 messages in a batch")
-        }
+        const allSuccessful: any[] = []
+        const allFailed: any[] = []
+        const batchSize = 10
 
-        try {
-            const entries: SendMessageBatchRequestEntry[] = messages.map((msg, index) => ({
-                Id: `msg-${index}`,
-                MessageBody: typeof msg.messageBody === "string" ? msg.messageBody : JSON.stringify(msg.messageBody),
-                ...(msg.delaySeconds && { DelaySeconds: msg.delaySeconds }),
-                ...(msg.messageAttributes && { MessageAttributes: this.formatMessageAttributes(msg.messageAttributes) }),
-                ...(msg.messageGroupId && { MessageGroupId: msg.messageGroupId }),
-                ...(msg.messageDeduplicationId && { MessageDeduplicationId: msg.messageDeduplicationId }),
-            }))
+        for (let i = 0; i < messages.length; i += batchSize) {
+            const batch = messages.slice(i, i + batchSize)
 
-            const command = new SendMessageBatchCommand({
-                QueueUrl: this.queueUrl,
-                Entries: entries,
-            })
+            try {
+                const entries: SendMessageBatchRequestEntry[] = batch.map(
+                    (msg, index) => ({
+                        Id: `msg-${i + index}`,
+                        MessageBody:
+                            typeof msg.messageBody === "string"
+                                ? msg.messageBody
+                                : JSON.stringify(msg.messageBody),
+                        ...(msg.delaySeconds && {
+                            DelaySeconds: msg.delaySeconds,
+                        }),
+                        ...(msg.messageAttributes && {
+                            MessageAttributes: this.formatMessageAttributes(
+                                msg.messageAttributes,
+                            ),
+                        }),
+                        ...(msg.messageGroupId && {
+                            MessageGroupId: msg.messageGroupId,
+                        }),
+                        ...(msg.messageDeduplicationId && {
+                            MessageDeduplicationId: msg.messageDeduplicationId,
+                        }),
+                    }),
+                )
 
-            const response = await this.client.send(command)
-            this.logger.debug(`Batch sent: ${response.Successful?.length} successful, ${response.Failed?.length} failed`)
+                const command = new SendMessageBatchCommand({
+                    QueueUrl: this.queueUrl,
+                    Entries: entries,
+                })
 
-            return {
-                successful: response.Successful || [],
-                failed: response.Failed || [],
+                const response = await this.client.send(command)
+                this.logger.debug(
+                    `Batch sent: ${response.Successful?.length} successful, ${response.Failed?.length} failed`,
+                )
+
+                if (response.Successful) {
+                    allSuccessful.push(...response.Successful)
+                }
+                if (response.Failed) {
+                    allFailed.push(...response.Failed)
+                }
+            } catch (error) {
+                this.logger.error(
+                    "Failed to send a batch of messages to SQS",
+                    error,
+                )
+                // If the whole batch request fails, mark all messages in it as failed.
+                const failedEntries = batch.map((msg, index) => ({
+                    Id: `msg-${i + index}`,
+                    SenderFault: true,
+                    Code: "BatchRequestError",
+                    Message: error.message,
+                }))
+                allFailed.push(...failedEntries)
             }
-        } catch (error) {
-            this.logger.error("Failed to send batch messages to SQS", error)
-            throw error
+            return {
+                successful: allSuccessful,
+                failed: allFailed,
+            }
         }
     }
 
-    async receiveMessages(options: ReceiveMessageOptions = {}): Promise<Message[]> {
+    async receiveMessages(
+        options: ReceiveMessageOptions = {},
+    ): Promise<Message[]> {
         const {
             maxNumberOfMessages = 1,
             waitTimeSeconds = 0,
@@ -157,7 +214,9 @@ export class SqsService implements OnModuleInit {
                 QueueUrl: this.queueUrl,
                 MaxNumberOfMessages: maxNumberOfMessages,
                 WaitTimeSeconds: waitTimeSeconds,
-                ...(visibilityTimeout && { VisibilityTimeout: visibilityTimeout }),
+                ...(visibilityTimeout && {
+                    VisibilityTimeout: visibilityTimeout,
+                }),
                 AttributeNames: attributeNames as any,
                 MessageAttributeNames: messageAttributeNames as any,
             })
@@ -206,7 +265,9 @@ export class SqsService implements OnModuleInit {
             })
 
             const response = await this.client.send(command)
-            this.logger.debug(`Batch deleted: ${response.Successful?.length} successful, ${response.Failed?.length} failed`)
+            this.logger.debug(
+                `Batch deleted: ${response.Successful?.length} successful, ${response.Failed?.length} failed`,
+            )
 
             return {
                 successful: response.Successful || [],
@@ -218,7 +279,9 @@ export class SqsService implements OnModuleInit {
         }
     }
 
-    async getQueueAttributes(attributeNames: string[] = ["All"]): Promise<Record<string, string>> {
+    async getQueueAttributes(
+        attributeNames: string[] = ["All"],
+    ): Promise<Record<string, string>> {
         try {
             const command = new GetQueueAttributesCommand({
                 QueueUrl: this.queueUrl,
@@ -233,16 +296,24 @@ export class SqsService implements OnModuleInit {
         }
     }
 
-    private formatMessageAttributes(attributes: Record<string, any>): Record<string, any> {
+    private formatMessageAttributes(
+        attributes: Record<string, any>,
+    ): Record<string, any> {
         const formatted: Record<string, any> = {}
 
         for (const [key, value] of Object.entries(attributes)) {
             if (typeof value === "string") {
                 formatted[key] = { DataType: "String", StringValue: value }
             } else if (typeof value === "number") {
-                formatted[key] = { DataType: "Number", StringValue: value.toString() }
+                formatted[key] = {
+                    DataType: "Number",
+                    StringValue: value.toString(),
+                }
             } else {
-                formatted[key] = { DataType: "String", StringValue: JSON.stringify(value) }
+                formatted[key] = {
+                    DataType: "String",
+                    StringValue: JSON.stringify(value),
+                }
             }
         }
 
