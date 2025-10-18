@@ -191,10 +191,11 @@ export class SqsService implements OnModuleInit {
                 }))
                 allFailed.push(...failedEntries)
             }
-            return {
-                successful: allSuccessful,
-                failed: allFailed,
-            }
+        }
+        
+        return {
+            successful: allSuccessful,
+            failed: allFailed,
         }
     }
 
