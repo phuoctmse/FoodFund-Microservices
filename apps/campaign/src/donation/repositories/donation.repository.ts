@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common"
-import { Donation, Prisma, PrismaClient } from "../generated/campaign-client"
-import { CreateDonationRepositoryInput } from "./dtos/create-donation-repository.input"
+import { Donation, Prisma, PrismaClient } from "../../generated/campaign-client"
+import { CreateDonationRepositoryInput } from "../dtos/create-donation-repository.input"
 
 @Injectable()
 export class DonationRepository {
@@ -9,6 +9,25 @@ export class DonationRepository {
     async create(data: CreateDonationRepositoryInput): Promise<Donation> {
         return this.prisma.donation.create({
             data: {
+                donor_id: data.donor_id,
+                campaign: {
+                    connect: { id: data.campaign_id }
+                },
+                amount: data.amount,
+                message: data.message,
+                is_anonymous: data.is_anonymous,
+            },
+            include: {
+                campaign: true,
+                payment_transactions: true,
+            },
+        })
+    }
+
+    async createWithId(id: string, data: CreateDonationRepositoryInput): Promise<Donation> {
+        return this.prisma.donation.create({
+            data: {
+                id,
                 donor_id: data.donor_id,
                 campaign: {
                     connect: { id: data.campaign_id }

@@ -1,23 +1,26 @@
 import { Injectable, BadRequestException, NotFoundException } from "@nestjs/common"
-import { DonationRepository } from "./donation.repository"
-import { CreateDonationInput } from "./dtos/create-donation.input"
-import { CreateDonationRepositoryInput } from "./dtos/create-donation-repository.input"
-import { CampaignRepository } from "../campaign/campaign.repository"
-import { CampaignStatus } from "../campaign/enum/campaign.enum"
-import { Donation } from "./models/donation.model"
+import { DonationRepository } from "../repositories/donation.repository"
+import { CreateDonationInput } from "../dtos/create-donation.input"
+import { CreateDonationRepositoryInput } from "../dtos/create-donation-repository.input"
+import { CampaignRepository } from "../../campaign/campaign.repository"
+import { CampaignStatus } from "../../campaign/enum/campaign.enum"
+import { Donation } from "../models/donation.model"
+import { SqsService } from "@libs/aws-sqs"
+import { v7 as uuidv7 } from "uuid"
 
 @Injectable()
 export class DonationService {
     constructor(
         private readonly donationRepository: DonationRepository,
         private readonly campaignRepository: CampaignRepository,
+        private readonly sqsService: SqsService,
     ) {}
 
     async createDonation(
         input: CreateDonationInput,
         cognitoId: string,
     ): Promise<Donation> {
-        // Validate campaign exists and is active
+        // Basic validation first
         const campaign = await this.campaignRepository.findById(input.campaignId)
         
         if (!campaign) {
@@ -51,19 +54,49 @@ export class DonationService {
             throw new BadRequestException("Donation amount must be greater than 0")
         }
 
-        // Create donation
-        const donationData: CreateDonationRepositoryInput = {
-            donor_id: cognitoId,
-            campaign_id: input.campaignId,
-            amount: donationAmount,
-            message: input.message,
-            is_anonymous: input.isAnonymous ?? false,
+        // Generate UUIDv7 for the donation
+        const donationId = uuidv7()
+
+        // Send donation request to SQS queue for background processing
+        try {
+            await this.sqsService.sendMessage({
+                messageBody: {
+                    eventType: "DONATION_REQUEST",
+                    donationId,
+                    donorId: cognitoId,
+                    campaignId: input.campaignId,
+                    amount: donationAmount.toString(),
+                    message: input.message,
+                    isAnonymous: input.isAnonymous ?? false,
+                    requestedAt: new Date().toISOString(),
+                },
+                messageAttributes: {
+                    eventType: {
+                        DataType: "String",
+                        StringValue: "DONATION_REQUEST"
+                    },
+                    campaignId: {
+                        DataType: "String",
+                        StringValue: input.campaignId
+                    }
+                }
+            })
+        } catch (error) {
+            throw new BadRequestException("Failed to queue donation request. Please try again.")
         }
 
-        const createdDonation = await this.donationRepository.create(donationData)
-
-        // Convert to GraphQL model
-        return this.mapDonationToGraphQLModel(createdDonation)
+        // Return a temporary donation object for immediate response
+        return {
+            id: donationId,
+            donorId: cognitoId,
+            campaignId: input.campaignId,
+            amount: donationAmount.toString(),
+            message: input.message,
+            paymentReference: undefined,
+            isAnonymous: input.isAnonymous ?? false,
+            created_at: now,
+            updated_at: now,
+        }
     }
 
     async getDonationById(id: string): Promise<Donation | null> {

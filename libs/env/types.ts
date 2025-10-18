@@ -68,6 +68,8 @@ export interface RedisConfig {
 export interface EnvironmentConfig {
     nodeEnv: NodeEnv
 
+    cors_origin: string
+
     // Container configurations
     containers: {
         [key in Container]?: ContainerConfig

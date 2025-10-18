@@ -1,24 +1,30 @@
 import { Args, Mutation, Resolver } from "@nestjs/graphql"
 import { UseGuards } from "@nestjs/common"
 import { CurrentUser } from "@app/campaign/src/shared"
-import { DonationService } from "../../donation.service"
+import { DonationService } from "../../services/donation.service"
 import { CreateDonationInput } from "../../dtos/create-donation.input"
-import { Donation } from "../../models/donation.model"
+import { DonationResponse } from "../../dtos/donation-response.dto"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
-import { CurrentUserType } from "@libs/auth"
+import { CurrentUserType, RequireRole } from "@libs/auth"
+import { Role } from "@libs/databases"
 
-@Resolver(() => Donation)
+@Resolver(() => DonationResponse)
 export class DonationMutationResolver {
     constructor(private readonly donationService: DonationService) {}
 
-    @Mutation(() => Donation, {
+    @Mutation(() => DonationResponse, {
         description: "Create a new donation for a campaign"
     })
     @UseGuards(CognitoGraphQLGuard)
+    @RequireRole(Role.DONOR)
     async createDonation(
         @Args("input") input: CreateDonationInput,
         @CurrentUser() user: CurrentUserType,
-    ): Promise<Donation> {
-        return this.donationService.createDonation(input, user.cognito_id)
+    ): Promise<DonationResponse> {
+        const donation = await this.donationService.createDonation(input, user.username)
+        return {
+            message: "Donation request has been queued for processing",
+            donationId: donation.id
+        }
     }
 }

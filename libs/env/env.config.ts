@@ -9,6 +9,8 @@ import {
 export const envConfig = (): EnvironmentConfig => ({
     nodeEnv: (process.env.NODE_ENV ?? NodeEnv.Development) as NodeEnv,
 
+    cors_origin: process.env.CORS_ORIGIN ?? "",
+
     // Container configurations
     containers: {
         [Container.Auth]: {

@@ -12,6 +12,8 @@ import { DonationModule } from "./donation/donation.module"
 import { OpenSearchModule } from "@libs/aws-opensearch"
 import { SqsModule } from "@libs/aws-sqs"
 import { RedisModule } from "@libs/redis"
+import { GrpcModule } from "@libs/grpc"
+import { QueueWorkerService } from "./workers/queue-worker.service"
 
 @Module({
     imports: [
@@ -33,6 +35,7 @@ import { RedisModule } from "@libs/redis"
             enableTracing: true,
         }),
         ScheduleModule.forRoot(),
+        GrpcModule,
         CampaignModule,
         CampaignCategoryModule,
         PostModule,
@@ -42,6 +45,6 @@ import { RedisModule } from "@libs/redis"
         RedisModule.registerAsync()
     ],
     controllers: [],
-    providers: [],
+    providers: [QueueWorkerService],
 })
 export class AppModule {}

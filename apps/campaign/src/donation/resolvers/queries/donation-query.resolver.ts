@@ -1,7 +1,7 @@
 import { Args, Query, Resolver } from "@nestjs/graphql"
 import { UseGuards } from "@nestjs/common"
 import { CurrentUser } from "@app/campaign/src/shared"
-import { DonationService } from "../../donation.service"
+import { DonationService } from "../../services/donation.service"
 import { Donation } from "../../models/donation.model"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
 
