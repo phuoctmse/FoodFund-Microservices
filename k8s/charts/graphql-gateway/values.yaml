@@ -77,11 +77,11 @@ resources:
   # Optimized for small cluster (1-2 nodes, 1vCPU/2GB each)
   # Gateway handles all external traffic, needs balanced allocation
   limits:
-    cpu: 250m      # Max 25% of 1 vCPU (highest allocation)
-    memory: 350Mi  # Max 350MB for gateway operations
+    cpu: 250m      
+    memory: 350Mi 
   requests:
-    cpu: 100m      # Min 10% of 1 vCPU  
-    memory: 175Mi  # Min 175MB for gateway operations
+    cpu: 100m 
+    memory: 175Mi  
 
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 startupProbe:

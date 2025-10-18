@@ -74,14 +74,13 @@ ingress:
   #      - chart-example.local
 
 resources: 
-  # Optimized for small cluster (1-2 nodes, 1vCPU/2GB each)
-  # User service needs slightly more for database operations
+  # Ultra-optimized for small cluster - minimal resources
   limits:
-    cpu: 200m      # Max 20% of 1 vCPU
-    memory: 400Mi  # Max 400MB for DB operations
+    cpu: 100m      # Max 10% of 1 vCPU (reduced from 200m)
+    memory: 200Mi  # Max 200MB (reduced from 400Mi)
   requests:
-    cpu: 75m       # Min 7.5% of 1 vCPU  
-    memory: 200Mi  # Min 200MB for DB operations
+    cpu: 25m       # Min 2.5% of 1 vCPU (reduced from 75m)
+    memory: 100Mi  # Min 100MB (reduced from 200Mi)
 
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 startupProbe:

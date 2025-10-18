@@ -114,6 +114,8 @@ export const envConfig = (): EnvironmentConfig => ({
         },
         accessKeyId: process.env.AWS_ACCESS_KEY_ID as string,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY as string,
+        awsOpenSearchEndpoint: process.env.AWS_OPENSEARCH_ENDPOINT as string,
+        awsSqsQueueUrl: process.env.AWS_SQS_QUEUE_URL as string,
     },
 
     // Sentry Configuration
@@ -126,6 +128,13 @@ export const envConfig = (): EnvironmentConfig => ({
     google: {
         clientId: process.env.GOOGLE_CLIENT_ID as string,
     },
+
+    redis: {
+        host: process.env.REDIS_HOST as string,
+        port: Number.parseInt(process.env.REDIS_PORT as string),
+        password: process.env.REDIS_PASSWORD as string,
+        username: process.env.REDIS_USERNAME as string,
+    }
 })
 
 // Utility functions

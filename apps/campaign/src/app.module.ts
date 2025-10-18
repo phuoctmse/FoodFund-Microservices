@@ -9,6 +9,9 @@ import { User } from "./shared/model/user.model"
 import { EnvModule } from "@libs/env/env.module"
 import { PostModule } from "./post/post.module"
 import { DonationModule } from "./donation/donation.module"
+import { OpenSearchModule } from "@libs/aws-opensearch"
+import { SqsModule } from "@libs/aws-sqs"
+import { RedisModule } from "@libs/redis"
 
 @Module({
     imports: [
@@ -33,7 +36,10 @@ import { DonationModule } from "./donation/donation.module"
         CampaignModule,
         CampaignCategoryModule,
         PostModule,
-        DonationModule
+        DonationModule,
+        SqsModule,
+        OpenSearchModule,
+        RedisModule.registerAsync()
     ],
     controllers: [],
     providers: [],
