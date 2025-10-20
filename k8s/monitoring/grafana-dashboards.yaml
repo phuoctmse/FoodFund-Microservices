@@ -1,0 +1,194 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: foodfund-microservices-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  microservices-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "FoodFund Microservices Dashboard",
+        "tags": ["foodfund", "microservices"],
+        "style": "dark",
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Service Request Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total{job=~\"auth-service|campaign-service|user-service|graphql-gateway\"}[5m])",
+                "legendFormat": "{{job}} - {{method}} {{status}}"
+              }
+            ],
+            "yAxes": [
+              {
+                "label": "Requests/sec"
+              }
+            ],
+            "xAxis": {
+              "show": true
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "id": 2,
+            "title": "Service Response Time",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=~\"auth-service|campaign-service|user-service|graphql-gateway\"}[5m]))",
+                "legendFormat": "{{job}} - 95th percentile"
+              }
+            ],
+            "yAxes": [
+              {
+                "label": "Response Time (s)"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 0
+            }
+          },
+          {
+            "id": 3,
+            "title": "Service Error Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total{job=~\"auth-service|campaign-service|user-service|graphql-gateway\",status=~\"5..\"}[5m])",
+                "legendFormat": "{{job}} - Errors"
+              }
+            ],
+            "yAxes": [
+              {
+                "label": "Errors/sec"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 24,
+              "x": 0,
+              "y": 8
+            }
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "30s"
+      }
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: foodfund-aws-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  aws-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "FoodFund AWS Services Dashboard",
+        "tags": ["foodfund", "aws", "sqs", "opensearch"],
+        "style": "dark",
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "SQS Message Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "aws_sqs_number_of_messages_sent_sum",
+                "legendFormat": "{{queue_name}} - Sent"
+              },
+              {
+                "expr": "aws_sqs_number_of_messages_received_sum",
+                "legendFormat": "{{queue_name}} - Received"
+              }
+            ],
+            "yAxes": [
+              {
+                "label": "Messages"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "id": 2,
+            "title": "SQS Queue Depth",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "aws_sqs_approximate_number_of_visible_messages_average",
+                "legendFormat": "{{queue_name}} - Queue Depth"
+              }
+            ],
+            "yAxes": [
+              {
+                "label": "Messages"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 12,
+              "y": 0
+            }
+          },
+          {
+            "id": 3,
+            "title": "OpenSearch Performance",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "aws_es_search_rate_average",
+                "legendFormat": "{{domain_name}} - Search Rate"
+              },
+              {
+                "expr": "aws_es_indexing_rate_average",
+                "legendFormat": "{{domain_name}} - Index Rate"
+              }
+            ],
+            "yAxes": [
+              {
+                "label": "Operations/sec"
+              }
+            ],
+            "gridPos": {
+              "h": 8,
+              "w": 24,
+              "x": 0,
+              "y": 8
+            }
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "1m"
+      }
+    }

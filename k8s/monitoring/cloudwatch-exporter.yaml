@@ -1,0 +1,149 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudwatch-exporter
+  namespace: monitoring
+  labels:
+    app: cloudwatch-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudwatch-exporter
+  template:
+    metadata:
+      labels:
+        app: cloudwatch-exporter
+    spec:
+      containers:
+      - name: cloudwatch-exporter
+        image: prom/cloudwatch-exporter:v0.15.5
+        ports:
+        - containerPort: 9106
+          name: metrics
+        env:
+        - name: AWS_REGION
+          value: "ap-southeast-1"  # Change to your AWS region
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-credentials
+              key: secret-access-key
+        volumeMounts:
+        - name: config
+          mountPath: /config/config.yml
+          subPath: config.yml
+        args:
+        - "-config.file=/config/config.yml"
+        resources:
+          requests:
+            cpu: 50m
+            memory: 100Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+      volumes:
+      - name: config
+        configMap:
+          name: cloudwatch-exporter-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudwatch-exporter
+  namespace: monitoring
+  labels:
+    app: cloudwatch-exporter
+spec:
+  ports:
+  - port: 9106
+    name: metrics
+    targetPort: 9106
+  selector:
+    app: cloudwatch-exporter
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudwatch-exporter-config
+  namespace: monitoring
+data:
+  config.yml: |
+    region: ap-southeast-1
+    period_seconds: 300
+    delay_seconds: 300
+    
+    metrics:
+    # SQS Metrics
+    - aws_namespace: AWS/SQS
+      aws_metric_name: NumberOfMessagesSent
+      aws_dimensions: [QueueName]
+      aws_dimension_select:
+        QueueName: ["foodfund-*"]  # Your SQS queues
+      aws_statistics: [Sum]
+      
+    - aws_namespace: AWS/SQS
+      aws_metric_name: NumberOfMessagesReceived
+      aws_dimensions: [QueueName]
+      aws_dimension_select:
+        QueueName: ["foodfund-*"]
+      aws_statistics: [Sum]
+      
+    - aws_namespace: AWS/SQS
+      aws_metric_name: ApproximateNumberOfVisibleMessages
+      aws_dimensions: [QueueName]
+      aws_dimension_select:
+        QueueName: ["foodfund-*"]
+      aws_statistics: [Average]
+      
+    # OpenSearch/Elasticsearch Metrics
+    - aws_namespace: AWS/ES
+      aws_metric_name: SearchRate
+      aws_dimensions: [DomainName, ClientId]
+      aws_dimension_select:
+        DomainName: ["foodfund-*"]  # Your OpenSearch domain
+      aws_statistics: [Average]
+      
+    - aws_namespace: AWS/ES
+      aws_metric_name: IndexingRate
+      aws_dimensions: [DomainName, ClientId]
+      aws_dimension_select:
+        DomainName: ["foodfund-*"]
+      aws_statistics: [Average]
+      
+    - aws_namespace: AWS/ES
+      aws_metric_name: CPUUtilization
+      aws_dimensions: [DomainName, ClientId]
+      aws_dimension_select:
+        DomainName: ["foodfund-*"]
+      aws_statistics: [Average]
+      
+    - aws_namespace: AWS/ES
+      aws_metric_name: JVMMemoryPressure
+      aws_dimensions: [DomainName, ClientId]
+      aws_dimension_select:
+        DomainName: ["foodfund-*"]
+      aws_statistics: [Average]
+---
+# ServiceMonitor for CloudWatch Exporter
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cloudwatch-exporter
+  namespace: monitoring
+  labels:
+    app: cloudwatch-exporter
+    prometheus: kube-prometheus
+spec:
+  selector:
+    matchLabels:
+      app: cloudwatch-exporter
+  endpoints:
+  - port: metrics
+    interval: 60s
+    path: /metrics

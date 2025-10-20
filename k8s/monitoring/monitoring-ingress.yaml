@@ -1,0 +1,52 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: monitoring-ingress
+  namespace: monitoring
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # nginx.ingress.kubernetes.io/auth-type: basic
+    # nginx.ingress.kubernetes.io/auth-secret: monitoring-auth
+    # nginx.ingress.kubernetes.io/auth-realm: 'Authentication Required - FoodFund Monitoring'
+spec:
+  tls:
+  - hosts:
+    - grafana.api.minhphuoc.io.vn
+    - prometheus.api.minhphuoc.io.vn
+    secretName: monitoring-tls
+  rules:
+  - host: grafana.api.minhphuoc.io.vn
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus-grafana
+            port:
+              number: 80
+  - host: prometheus.api.minhphuoc.io.vn
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus-kube-prometheus-prometheus
+            port:
+              number: 9090
+---
+# Basic Auth Secret for additional security
+apiVersion: v1
+kind: Secret
+metadata:
+  name: monitoring-auth
+  namespace: monitoring
+type: Opaque
+data:
+  # Username: admin, Password: foodfund
+  # Generated with: echo -n "admin:foodfund" | base64
+  auth: YWRtaW46Zm9vZGZ1bmQ=

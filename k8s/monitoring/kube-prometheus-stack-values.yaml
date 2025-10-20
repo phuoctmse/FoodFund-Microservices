@@ -1,0 +1,279 @@
+# Prometheus Stack Configuration
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: ""
+
+# Full name override
+fullnameOverride: ""
+nameOverride: ""
+
+# Prometheus Configuration
+prometheus:
+  enabled: true
+  
+  prometheusSpec:
+    # Storage configuration
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: do-block-storage  # DigitalOcean block storage
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+    
+    # Resource limits
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+    
+    # Retention configuration
+    retention: 30d
+    retentionSize: 45GiB
+    
+    # Service monitoring
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    
+    # Enable web console
+    enableAdminAPI: true
+    
+    # External labels
+    externalLabels:
+      cluster: foodfund-k8s
+      region: ap-southeast-1
+
+  # Service configuration for Prometheus
+  service:
+    type: ClusterIP
+    port: 9090
+    
+  # Ingress for external access (optional)
+  ingress:
+    enabled: false  # Set to true if you want external access
+
+# Grafana Configuration
+grafana:
+  enabled: true
+  
+  # Admin credentials
+  adminPassword: "foodfund"  # Grafana login password
+  
+  # Persistence
+  persistence:
+    enabled: true
+    storageClassName: do-block-storage
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 80
+  
+  # Ingress for external access
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - grafana.foodfund.local  # Change this to your domain
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - grafana.foodfund.local
+  
+  # Resource limits
+  resources:
+    requests:
+      cpu: 50m
+      memory: 100Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  
+  # Configure data sources
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus-operated:9090
+        access: proxy
+        isDefault: true
+        editable: true
+  
+  # Pre-installed dashboards
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+      - name: 'kubernetes'
+        orgId: 1
+        folder: 'Kubernetes'
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/kubernetes
+      - name: 'microservices'
+        orgId: 1
+        folder: 'Microservices'
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/microservices
+      - name: 'aws'
+        orgId: 1
+        folder: 'AWS'
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/aws
+
+  # Import some default dashboards
+  dashboards:
+    default:
+      # Node Exporter Full
+      node-exporter:
+        gnetId: 1860
+        revision: 37
+        datasource: Prometheus
+      
+      # Kubernetes cluster monitoring
+      kubernetes-cluster:
+        gnetId: 7249
+        revision: 1
+        datasource: Prometheus
+
+# AlertManager Configuration
+alertmanager:
+  enabled: true
+  
+  alertmanagerSpec:
+    # Storage configuration
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: do-block-storage
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+    
+    # Resource limits
+    resources:
+      requests:
+        cpu: 50m
+        memory: 100Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+  
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 9093
+
+# Node Exporter Configuration
+nodeExporter:
+  enabled: true
+
+# Kube State Metrics Configuration
+kubeStateMetrics:
+  enabled: true
+
+# Prometheus Operator Configuration
+prometheusOperator:
+  enabled: true
+  
+  # Resource limits
+  resources:
+    requests:
+      cpu: 50m
+      memory: 100Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# Default rules
+defaultRules:
+  create: true
+  rules:
+    alertmanager: true
+    etcd: true
+    configReloaders: true
+    general: true
+    k8s: true
+    kubeApiserverAvailability: true
+    kubeApiserverBurnrate: true
+    kubeApiserverHistogram: true
+    kubeApiserverSlos: true
+    kubeControllerManager: true
+    kubelet: true
+    kubeProxy: true
+    kubePrometheusGeneral: true
+    kubePrometheusNodeRecording: true
+    kubernetesApps: true
+    kubernetesResources: true
+    kubernetesStorage: true
+    kubernetesSystem: true
+    kubeScheduler: true
+    kubeStateMetrics: true
+    network: true
+    node: true
+    nodeExporterAlerting: true
+    nodeExporterRecording: true
+    prometheus: true
+    prometheusOperator: true
+
+# Kubernetes API Server monitoring
+kubeApiServer:
+  enabled: true
+
+# Controller Manager monitoring
+kubeControllerManager:
+  enabled: true
+
+# Scheduler monitoring
+kubeScheduler:
+  enabled: true
+
+# Proxy monitoring
+kubeProxy:
+  enabled: true
+
+# ETCD monitoring
+kubeEtcd:
+  enabled: true
+
+# CoreDNS monitoring
+coreDns:
+  enabled: true
+
+# Kubelet monitoring
+kubelet:
+  enabled: true
+  serviceMonitor:
+    https: true
