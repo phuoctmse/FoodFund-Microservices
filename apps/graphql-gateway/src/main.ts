@@ -2,9 +2,17 @@ import { NestFactory } from "@nestjs/core"
 import { ApiGatewayModule } from "./app.module"
 import * as compression from "compression"
 import { envConfig } from "@libs/env"
+import { CloudWatchLoggerService } from "@libs/aws-cloudwatch"
 
 async function bootstrap() {
-    const app = await NestFactory.create(ApiGatewayModule)
+    const app = await NestFactory.create(ApiGatewayModule, {
+        bufferLogs: true,
+    })
+
+    // Use CloudWatch logger in production
+    if (process.env.NODE_ENV === "production") {
+        app.useLogger(app.get(CloudWatchLoggerService))
+    }
 
     const envOrigins = envConfig().cors_origin
 
