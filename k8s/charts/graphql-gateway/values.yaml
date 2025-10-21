@@ -139,6 +139,11 @@ tolerations: []
 
 affinity: {}
 
+# CloudWatch Configuration
+cloudwatch:
+  enabled: true
+  logGroup: /digitalocean/foodfund/graphql-gateway
+
 # Environment variables - only non-sensitive service-specific configs
 # Most env vars are now loaded from ConfigMap/Secret via envFrom
 env: []

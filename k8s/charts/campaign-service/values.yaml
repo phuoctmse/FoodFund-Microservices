@@ -138,6 +138,11 @@ tolerations: []
 
 affinity: {}
 
+# CloudWatch Configuration
+cloudwatch:
+  enabled: true
+  logGroup: /digitalocean/foodfund/campaign-service
+
 # Environment variables - only non-sensitive service-specific configs
 # Most env vars are now loaded from ConfigMap/Secret via envFrom  
 env: []

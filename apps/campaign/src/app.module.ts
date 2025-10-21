@@ -13,6 +13,7 @@ import { OpenSearchModule } from "@libs/aws-opensearch"
 import { SqsModule } from "@libs/aws-sqs"
 import { RedisModule } from "@libs/redis"
 import { GrpcModule } from "@libs/grpc"
+import { CloudWatchModule } from "@libs/aws-cloudwatch"
 import { QueueWorkerService } from "./workers/queue-worker.service"
 
 @Module({
@@ -36,6 +37,7 @@ import { QueueWorkerService } from "./workers/queue-worker.service"
         }),
         ScheduleModule.forRoot(),
         GrpcModule,
+        CloudWatchModule,
         CampaignModule,
         CampaignCategoryModule,
         PostModule,

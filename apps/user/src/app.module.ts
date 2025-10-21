@@ -3,6 +3,7 @@ import { envConfig } from "libs/env"
 import { SentryModule } from "libs/observability/sentry.module"
 import { UserModule } from "./user/user.module"
 import { EnvModule } from "@libs/env/env.module"
+import { CloudWatchModule } from "@libs/aws-cloudwatch"
 
 @Module({
     imports: [
@@ -14,6 +15,7 @@ import { EnvModule } from "@libs/env/env.module"
             release: envConfig().sentry.release,
             enableTracing: true,
         }),
+        CloudWatchModule,
         UserModule,
     ],
     controllers: [],

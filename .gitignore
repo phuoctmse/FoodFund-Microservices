@@ -113,3 +113,9 @@ libs/grpc/**/*.d.ts
 
 .cursor
 apps/campaign/node_modules
+
+# K8s Monitoring - Ignore sensitive files only
+k8s/monitoring/aws-credentials.yaml
+k8s/monitoring/secrets/
+k8s/monitoring/*.local.yaml
+k8s/monitoring/production-values.yaml

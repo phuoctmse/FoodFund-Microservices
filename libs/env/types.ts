@@ -48,6 +48,11 @@ export interface AwsCognitoConfig {
     clientSecret: string
 }
 
+export interface AwsCloudWatchConfig {
+    logGroup?: string
+    namespace: string
+}
+
 export interface AwsConfig {
     region: string
     cognito: AwsCognitoConfig
@@ -55,6 +60,7 @@ export interface AwsConfig {
     secretAccessKey: string
     awsOpenSearchEndpoint: string
     awsSqsQueueUrl: string
+    cloudwatch: AwsCloudWatchConfig
 }
 
 export interface RedisConfig {

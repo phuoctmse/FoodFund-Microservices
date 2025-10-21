@@ -5,9 +5,11 @@ import { GraphQLGatewayModule } from "libs/graphql/gateway"
 import { HealthController } from "./health.controller"
 import { WebhookProxyController } from "./webhook-proxy.controller"
 import { EnvModule } from "@libs/env/env.module"
+import { CloudWatchModule } from "@libs/aws-cloudwatch"
 
 @Module({
     imports: [
+        CloudWatchModule,
         GraphQLGatewayModule.forRoot({
             subgraphs: (() => {
                 const authHost =
