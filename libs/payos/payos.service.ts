@@ -53,8 +53,6 @@ export class PayOSService {
         input: CreatePaymentLinkInput,
     ): Promise<PaymentLinkResponse> {
         try {
-            console.debug("Creating payment link with input:", input)
-
             // Validate and sanitize input according to PayOS requirements
             const sanitizedInput = this.validateAndSanitizeInput(input)
 
@@ -77,7 +75,6 @@ export class PayOSService {
             )
 
             this.logger.log(`Payment link created for order ${input.orderCode}`)
-            console.debug("Payment link details:", response.data)
             return response.data.data
         } catch (error) {
             this.logger.error(`Failed to create payment link: ${error.message}`)
