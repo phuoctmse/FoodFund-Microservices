@@ -5,9 +5,20 @@ import { GraphQLExceptionFilter } from "libs/exceptions"
 import { SentryService } from "libs/observability/sentry.service"
 import { GrpcServerService } from "libs/grpc"
 import { UserGrpcService } from "./user/grpc/user-grpc.service"
+import { CloudWatchLoggerService } from "@libs/aws-cloudwatch"
+import { isProduction } from "@libs/env"
 
 async function bootstrap() {
-    const app = await NestFactory.create(AppModule)
+    const app = await NestFactory.create(AppModule, {
+        bufferLogs: true,
+    })
+
+    // Use CloudWatch logger in production
+    if (isProduction()) {
+        app.useLogger(app.get(CloudWatchLoggerService))
+    } else {
+        app.flushLogs()
+    }
 
     // Get services for setup
     const sentryService = app.get(SentryService)
