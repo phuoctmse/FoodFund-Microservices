@@ -64,8 +64,9 @@ export class DonationWebhookService {
             this.logger.warn(`Payment failed for order ${orderCode}: ${desc}`)
         }
 
-        // Update payment transaction with additional data from webhook
-        await this.DonorRepository.updatePaymentTransactionStatus(
+        // Use transaction to ensure data consistency
+        // Both payment update and campaign stats must succeed or rollback together
+        await this.DonorRepository.updatePaymentWithTransaction(
             paymentTransaction.id,
             newStatus,
             {
@@ -75,35 +76,15 @@ export class DonationWebhookService {
                 description: payload.data.description,
                 transactionDateTime: payload.data.transactionDateTime,
             },
+            // Only update campaign if payment successful
+            newStatus === PaymentStatus.SUCCESS
+                ? {
+                    campaignId: paymentTransaction.donation.campaign_id,
+                    amount: paymentTransaction.amount,
+                }
+                : undefined,
         )
 
-        // If payment successful, update campaign statistics
-        if (newStatus === PaymentStatus.SUCCESS) {
-            await this.updateCampaignStats(
-                paymentTransaction.donation.campaign_id,
-                paymentTransaction.amount,
-            )
-        }
-
         this.logger.log(`Webhook processed successfully for order ${orderCode}`)
-    }
-
-    private async updateCampaignStats(
-        campaignId: string,
-        amount: bigint,
-    ): Promise<void> {
-        try {
-            // Increment campaign received_amount and donation_count
-            await this.DonorRepository.updateCampaignStats(campaignId, amount)
-            this.logger.log(
-                `Campaign stats updated for ${campaignId}: +${amount}`,
-            )
-        } catch (error) {
-            this.logger.error(
-                `Failed to update campaign stats: ${error.message}`,
-                error.stack,
-            )
-            // Don't throw - payment is already successful
-        }
     }
 }

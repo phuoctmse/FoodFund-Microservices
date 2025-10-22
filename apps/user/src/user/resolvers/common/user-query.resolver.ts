@@ -9,6 +9,7 @@ import {
 } from "@nestjs/graphql"
 import { UserHealthResponse } from "../../types/health-response.model"
 import { OrganizationListResponse } from "../../types/organization-list-response.model"
+import { OrganizationWithMembers } from "../../types/organization-with-members.model"
 import { UserQueryService } from "../../services/common/user-query.service"
 import { OrganizationService } from "../../services"
 import { UseGuards } from "@nestjs/common"
@@ -105,6 +106,20 @@ export class UserQueryResolver {
             limit: safeLimit,
             hasMore: safeOffset + safeLimit < result.total,
         }
+    }
+
+    @Query(() => OrganizationWithMembers, {
+        name: "getOrganizationById",
+        description:
+            "Get organization details by ID (public access, only verified organizations)",
+    })
+    async getOrganizationById(
+        @Args("id", {
+            description: "Organization ID",
+        })
+            id: string,
+    ) {
+        return this.organizationService.getOrganizationById(id)
     }
 
     @ResolveReference()

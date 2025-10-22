@@ -13,7 +13,7 @@ export class DonorMutationResolver {
 
     @UseGuards(OptionalJwtAuthGuard)
     @Mutation(() => DonationResponse, {
-        description: "Create a new donation for a campaign - supports both authenticated and anonymous users"
+        description: "Create a new donation for a campaign"
     })
     async createDonation(
         @Args("input") input: CreateDonationInput,

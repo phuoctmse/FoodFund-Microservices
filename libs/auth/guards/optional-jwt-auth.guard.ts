@@ -1,33 +1,54 @@
-import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common"
+import { Injectable, CanActivate, ExecutionContext, Logger } from "@nestjs/common"
 import { GqlExecutionContext } from "@nestjs/graphql"
-import * as jwt from "jsonwebtoken"
+import { GrpcClientService } from "libs/grpc"
 
-/**
- * OptionalJwtAuthGuard: Cho phép cả anonymous và authenticated user.
- * Nếu có Authorization Bearer token thì decode và gắn user vào req/user context.
- * Nếu không có token thì next() cho phép anonymous.
- */
 @Injectable()
 export class OptionalJwtAuthGuard implements CanActivate {
+    private readonly logger = new Logger(OptionalJwtAuthGuard.name)
+
+    constructor(private readonly grpcClient: GrpcClientService) {}
+
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const gqlCtx = GqlExecutionContext.create(context)
         const req = gqlCtx.getContext().req
+
+        // Extract token from Authorization header
         const authHeader = req.headers?.authorization || req.headers?.Authorization
-        if (authHeader && typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
-            const token = authHeader.slice(7)
-            try {
-                // TODO: Replace 'your_jwt_secret' with actual secret or use a service
-                const decoded = jwt.decode(token, { json: true })
-                if (decoded) {
-                    req.user = decoded
-                }
-            } catch (err) {
-                // Nếu token lỗi thì vẫn cho qua như anonymous
-                req.user = null
-            }
-        } else {
+        
+        if (!authHeader || typeof authHeader !== "string" || !authHeader.startsWith("Bearer ")) {
+            // No token provided - treat as anonymous
             req.user = null
+            this.logger.debug("No authorization token - treating as anonymous user")
+            return true
         }
-        return true // Luôn cho phép đi qua
+
+        const token = authHeader.substring(7)
+
+        try {
+            // Validate token with Auth Service via gRPC
+            const authResponse = await this.grpcClient.callAuthService(
+                "ValidateToken",
+                { access_token: token },
+            )
+
+            if (authResponse.valid && authResponse.user) {
+                // Token is valid - attach user to context
+                req.user = authResponse.user
+                this.logger.debug(`Authenticated user: ${authResponse.user.attributes?.email || "unknown"}`)
+            } else {
+                // Token validation failed - treat as anonymous
+                req.user = null
+                this.logger.warn("Token validation failed - treating as anonymous user")
+            }
+        } catch (error) {
+            // Auth service call failed or token is invalid - treat as anonymous
+            req.user = null
+            this.logger.warn(
+                `Token validation error: ${error instanceof Error ? error.message : "Unknown error"} - treating as anonymous user`,
+            )
+        }
+
+        // Always allow request to proceed (never block)
+        return true
     }
 }

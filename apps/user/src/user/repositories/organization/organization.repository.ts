@@ -220,6 +220,8 @@ export class OrganizationRepository {
             take: options.limit,
         })
 
+        console.debug(joinRequests)
+
         return {
             joinRequests,
             total,
@@ -436,6 +438,19 @@ export class OrganizationRepository {
             },
             orderBy: {
                 joined_at: "desc",
+            },
+        })
+    }
+
+    async findVerifiedMembershipByUserId(userId: string) {
+        return this.prisma.organization_Member.findFirst({
+            where: {
+                member_id: userId,
+                status: Verification_Status.VERIFIED,
+            },
+            include: {
+                member: true,
+                organization: true,
             },
         })
     }

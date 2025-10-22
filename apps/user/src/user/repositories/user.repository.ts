@@ -124,6 +124,7 @@ export class UserRepository {
         return this.prisma.organization.findFirst({
             where: {
                 representative_id: userId,
+                status: VerificationStatus.VERIFIED,
             },
             include: {
                 Organization_Member: true,

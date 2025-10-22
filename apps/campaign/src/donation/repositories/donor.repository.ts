@@ -213,4 +213,54 @@ export class DonorRepository {
             },
         })
     }
+
+    async updatePaymentWithTransaction(
+        paymentId: string,
+        status: PaymentStatus,
+        additionalData?: {
+            accountName?: string
+            accountNumber?: string
+            description?: string
+            accountBankName?: string
+            transactionDateTime?: string
+        },
+        campaignUpdate?: {
+            campaignId: string
+            amount: bigint
+        },
+    ) {
+        return this.prisma.$transaction(async (tx) => {
+            // Step 1: Update payment transaction status
+            const updatedPayment = await tx.payment_Transaction.update({
+                where: { id: paymentId },
+                data: {
+                    status,
+                    account_name: additionalData?.accountName,
+                    account_number: additionalData?.accountNumber,
+                    account_bank_name: additionalData?.accountBankName,
+                    description: additionalData?.description,
+                    transaction_datetime: additionalData?.transactionDateTime
+                        ? new Date(additionalData.transactionDateTime)
+                        : undefined,
+                    updated_at: new Date(),
+                },
+            })
+
+            if (campaignUpdate) {
+                await tx.campaign.update({
+                    where: { id: campaignUpdate.campaignId },
+                    data: {
+                        received_amount: {
+                            increment: campaignUpdate.amount,
+                        },
+                        donation_count: {
+                            increment: 1,
+                        },
+                    },
+                })
+            }
+
+            return updatedPayment
+        })
+    }
 }

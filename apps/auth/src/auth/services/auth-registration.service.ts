@@ -11,6 +11,7 @@ import { AuthErrorHelper } from "../helpers"
 import { GrpcClientService } from "libs/grpc"
 import { generateUniqueUsername } from "libs/common"
 import { Role } from "../enum/role.enum"
+import { SentryService } from "libs/observability"
 
 @Injectable()
 export class AuthRegistrationService {
@@ -19,10 +20,18 @@ export class AuthRegistrationService {
     constructor(
         private readonly awsCognitoService: AwsCognitoService,
         private readonly grpcClient: GrpcClientService,
+        private readonly sentryService: SentryService,
     ) {}
 
     async signUp(input: SignUpInput): Promise<SignUpResponse> {
+        let cognitoUserSub: string | null = null
+        let cognitoCreated = false
+
         try {
+            this.logger.log(
+                `[SAGA] Step 1: Creating Cognito user for ${input.email}`,
+            )
+
             const result = await this.awsCognitoService.signUp(
                 input.email,
                 input.password,
@@ -32,12 +41,23 @@ export class AuthRegistrationService {
                 },
             )
 
+            cognitoUserSub = result.userSub || ""
+            cognitoCreated = true
+
+            this.logger.log(
+                `[SAGA] Step 1 SUCCESS: Cognito user created with ID: ${cognitoUserSub}`,
+            )
+
+            this.logger.log(
+                `[SAGA] Step 2: Creating user profile in User Service for ${input.email}`,
+            )
+
             const username = generateUniqueUsername(input.email)
 
             const userResult = await this.grpcClient.callUserService(
                 "CreateUser",
                 {
-                    cognito_id: result.userSub || "",
+                    cognito_id: cognitoUserSub,
                     email: input.email,
                     username: username,
                     full_name: input.name,
@@ -47,21 +67,113 @@ export class AuthRegistrationService {
 
             if (!userResult.success) {
                 throw new Error(
-                    `Failed to create user in database: ${userResult.error}`,
+                    `User Service failed: ${userResult.error || "Unknown error"}`,
                 )
             }
 
-            this.logger.log(`User signed up successfully: ${result.userSub}`)
+            this.logger.log(
+                "[SAGA] Step 2 SUCCESS: User profile created in database",
+            )
+
+            this.logger.log(
+                `[SAGA] COMPLETED: User registration successful for ${input.email}`,
+            )
 
             return {
-                userSub: result.userSub || "",
+                userSub: cognitoUserSub,
                 message:
                     "User registered successfully. Please check your email for verification code.",
                 emailSent: true,
             }
         } catch (error) {
-            this.logger.error(`Sign up failed for ${input.email}:`, error)
+            this.logger.error(
+                `[SAGA] FAILED at step ${cognitoCreated ? "2 (User Service)" : "1 (Cognito)"}: ${error}`,
+            )
+
+            // If Cognito user was created but User Service failed, rollback Cognito
+            if (cognitoCreated && cognitoUserSub) {
+                await this.rollbackCognitoUser(input.email, cognitoUserSub)
+            }
+
+            // Map and throw appropriate error
             throw AuthErrorHelper.mapCognitoError(error, "signUp", input.email)
+        }
+    }
+
+    private async rollbackCognitoUser(
+        email: string,
+        cognitoUserSub: string,
+    ): Promise<void> {
+        try {
+            this.logger.warn(
+                `[SAGA ROLLBACK] Attempting to delete Cognito user: ${email} (${cognitoUserSub})`,
+            )
+
+            await this.awsCognitoService.adminDeleteUser(email)
+
+            this.logger.log(
+                `[SAGA ROLLBACK] SUCCESS: Cognito user deleted: ${email}`,
+            )
+        } catch (rollbackError) {
+            // Critical: Rollback failed - log for manual intervention
+            const errorContext = {
+                cognitoUserSub,
+                email,
+                timestamp: new Date().toISOString(),
+                severity: "CRITICAL",
+                action: "MANUAL_CLEANUP_REQUIRED",
+                service: "auth-service",
+                operation: "user-registration-rollback",
+                issue: "Cognito user exists but User Service profile was not created",
+                instructions: [
+                    "1. Verify if Cognito user exists in AWS Console",
+                    "2. Check if User Service has profile for this email",
+                    "3. Manually delete Cognito user if no profile exists",
+                    "4. Contact user to retry registration",
+                ].join(" | "),
+            }
+
+            this.logger.error(
+                `[SAGA ROLLBACK] FAILED: Could not delete Cognito user ${email}`,
+                errorContext,
+            )
+
+            // Send critical alert to Sentry for immediate attention
+            this.sentryService.captureError(
+                new Error(
+                    `CRITICAL: User registration rollback failed for ${email}`,
+                ),
+                {
+                    rollbackError: {
+                        message:
+                            rollbackError instanceof Error
+                                ? rollbackError.message
+                                : String(rollbackError),
+                        stack:
+                            rollbackError instanceof Error
+                                ? rollbackError.stack
+                                : undefined,
+                    },
+                    userContext: errorContext,
+                    tags: {
+                        severity: "critical",
+                        operation: "saga-rollback",
+                        service: "auth-service",
+                        requiresManualIntervention: "true",
+                    },
+                },
+            )
+
+            // Also send a high-priority message to Sentry
+            this.sentryService.captureMessage(
+                `🚨 CRITICAL: Manual cleanup required for Cognito user ${email} (${cognitoUserSub})`,
+                "error",
+                {
+                    alertType: "manual-intervention-required",
+                    priority: "P1",
+                    ...errorContext,
+                },
+            )
         }
     }
 

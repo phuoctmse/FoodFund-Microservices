@@ -1,6 +1,7 @@
 import {
     BadRequestException,
     Injectable,
+    Logger,
     NotFoundException,
 } from "@nestjs/common"
 import { OrganizationRepository } from "../../repositories/organization/organization.repository"
@@ -10,7 +11,7 @@ import {
     JoinOrganizationInput,
 } from "../../dto/organization.input"
 import { JoinOrganizationRole } from "../../dto/join-organization-role.enum"
-import { Verification_Status } from "../../../generated/user-client"
+import { PrismaClient } from "../../../generated/user-client"
 import { AwsCognitoService } from "@libs/aws-cognito"
 import { DataLoaderService } from "../common"
 import {
@@ -19,7 +20,7 @@ import {
     AdminErrorHelper,
     FundraiserErrorHelper,
 } from "../../exceptions"
-import { Role } from "../../enums/user.enum"
+import { Role, VerificationStatus } from "../../enums/user.enum"
 
 // Interface for pagination options
 interface PaginationOptions {
@@ -42,11 +43,14 @@ interface PaginatedOrganizationsResponse {
 
 @Injectable()
 export class OrganizationService {
+    private readonly logger = new Logger(OrganizationService.name)
+
     constructor(
         private readonly organizationRepository: OrganizationRepository,
         private readonly userRepository: UserRepository,
         private readonly awsCognitoService: AwsCognitoService,
         private readonly organizationDataLoader: DataLoaderService,
+        private readonly prisma: PrismaClient,
     ) {}
 
     /**
@@ -83,7 +87,7 @@ export class OrganizationService {
         const existingOrg = await this.userRepository.findUserOrganization(
             user.id,
         )
-        if (existingOrg && existingOrg.status === Verification_Status.PENDING) {
+        if (existingOrg && existingOrg.status === VerificationStatus.PENDING) {
             UserErrorHelper.throwPendingOrganizationRequest(cognitoId)
         }
 
@@ -144,14 +148,21 @@ export class OrganizationService {
             })),
             total_members: organization.Organization_Member.length,
             active_members: organization.Organization_Member.filter(
-                (member) => member.status === Verification_Status.VERIFIED,
+                (member) => member.status === VerificationStatus.VERIFIED,
             ).length,
         }
 
         return transformedOrganization
     }
 
+    /**
+     * Approve organization request with transaction
+     * Uses Prisma Transaction for database operations + Saga pattern for Cognito sync
+     */
     async approveOrganizationRequest(organizationId: string) {
+        // ========================================
+        // VALIDATION
+        // ========================================
         const organization =
             await this.organizationRepository.findOrganizationById(
                 organizationId,
@@ -160,45 +171,172 @@ export class OrganizationService {
             AdminErrorHelper.throwOrganizationRequestNotFound(organizationId)
         }
 
-        if (organization.status !== Verification_Status.PENDING) {
+        if (organization.status !== VerificationStatus.PENDING) {
             AdminErrorHelper.throwOrganizationRequestNotPending(
                 organizationId,
                 organization.status,
             )
         }
 
-        // Update organization status to VERIFIED
-        const updatedOrganization =
-            await this.organizationRepository.updateOrganizationStatus(
-                organizationId,
-                Verification_Status.VERIFIED,
+        let cognitoUpdated = false
+
+        try {
+            // ========================================
+            // DATABASE TRANSACTION (Steps 1-3)
+            // ========================================
+            this.logger.log(
+                `[TRANSACTION] Starting approval for organization: ${organizationId}`,
             )
 
-        // Update user role to FUNDRAISER
-        await this.userRepository.updateUserRole(
-            organization.representative_id,
-            Role.FUNDRAISER,
-        )
+            const updatedOrganization = await this.prisma.$transaction(
+                async (tx) => {
+                    // Step 1: Update organization status to VERIFIED
+                    this.logger.debug(
+                        "[TRANSACTION] Step 1: Updating organization status",
+                    )
+                    const updatedOrg = await tx.organization.update({
+                        where: { id: organizationId },
+                        data: { status: VerificationStatus.VERIFIED },
+                        include: {
+                            user: true,
+                            Organization_Member: true,
+                        },
+                    })
 
-        // Add the organization creator to Organization_Member table as FUNDRAISER
-        // Create directly with VERIFIED status since they are the organization owner
-        await this.organizationRepository.createVerifiedMember(
-            organization.representative_id,
-            organizationId,
-            Role.FUNDRAISER,
-        )
+                    // Step 2: Update user role to FUNDRAISER
+                    this.logger.debug(
+                        "[TRANSACTION] Step 2: Updating user role to FUNDRAISER",
+                    )
+                    await tx.user.update({
+                        where: { id: organization.representative_id },
+                        data: { role: Role.FUNDRAISER },
+                    })
 
-        // Update AWS Cognito custom:role attribute
-        if (organization.user.cognito_id) {
-            await this.awsCognitoService.updateUserAttributes(
-                organization.user.cognito_id,
-                {
-                    "custom:role": Role.FUNDRAISER,
+                    // Step 3: Create organization member with VERIFIED status
+                    this.logger.debug(
+                        "[TRANSACTION] Step 3: Creating organization member",
+                    )
+                    await tx.organization_Member.create({
+                        data: {
+                            organization_id: organizationId,
+                            member_id: organization.representative_id,
+                            member_role: Role.FUNDRAISER,
+                            status: VerificationStatus.VERIFIED,
+                        },
+                    })
+
+                    this.logger.log(
+                        "[TRANSACTION] Database operations completed successfully",
+                    )
+
+                    return updatedOrg
                 },
             )
-        }
 
-        return updatedOrganization
+            // ========================================
+            // EXTERNAL SERVICE (Step 4) - Outside transaction
+            // ========================================
+            if (organization.user.cognito_id) {
+                this.logger.debug(
+                    "[SAGA] Step 4: Updating Cognito custom:role attribute",
+                )
+
+                await this.updateCognitoRoleWithRetry(
+                    organization.user.cognito_id,
+                    Role.FUNDRAISER,
+                )
+
+                cognitoUpdated = true
+                this.logger.log(
+                    `[SAGA] Cognito role updated successfully for user: ${organization.user.cognito_id}`,
+                )
+            }
+
+            this.logger.log(
+                `[TRANSACTION] Organization approval completed successfully: ${organizationId}`,
+            )
+
+            return updatedOrganization
+        } catch (error) {
+            // ========================================
+            // ERROR HANDLING
+            // ========================================
+            if (cognitoUpdated) {
+                // Database transaction succeeded but Cognito update failed
+                // This should not happen due to retry mechanism, but log for safety
+                this.logger.error(
+                    "[SAGA] Unexpected: Database committed but Cognito sync failed",
+                    {
+                        organizationId,
+                        cognitoId: organization.user.cognito_id,
+                        error: error instanceof Error ? error.message : error,
+                        timestamp: new Date().toISOString(),
+                        severity: "CRITICAL",
+                        action: "MANUAL_RECONCILIATION_REQUIRED",
+                    },
+                )
+            } else {
+                // Database transaction failed (will be rolled back automatically)
+                this.logger.error(
+                    `[TRANSACTION] Organization approval failed: ${error instanceof Error ? error.message : error}`,
+                )
+            }
+
+            throw error
+        }
+    }
+
+    /**
+     * Update Cognito role with retry mechanism
+     * Retries up to 3 times with exponential backoff
+     */
+    private async updateCognitoRoleWithRetry(
+        cognitoId: string,
+        role: Role,
+        maxRetries = 3,
+    ): Promise<void> {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                await this.awsCognitoService.updateUserAttributes(cognitoId, {
+                    "custom:role": role,
+                })
+                return // Success
+            } catch (error) {
+                const errorMessage =
+                    error instanceof Error ? error.message : String(error)
+
+                if (attempt === maxRetries) {
+                    // Final attempt failed
+                    this.logger.error(
+                        `[SAGA] Failed to update Cognito role after ${maxRetries} attempts`,
+                        {
+                            cognitoId,
+                            role,
+                            error: errorMessage,
+                            severity: "CRITICAL",
+                            action: "MANUAL_COGNITO_UPDATE_REQUIRED",
+                        },
+                    )
+                    throw new Error(
+                        `Failed to sync role with Cognito after ${maxRetries} attempts: ${errorMessage}`,
+                    )
+                }
+
+                // Wait before retry (exponential backoff)
+                const delayMs = Math.pow(2, attempt) * 1000
+                this.logger.warn(
+                    `[SAGA] Cognito update attempt ${attempt} failed, retrying in ${delayMs}ms...`,
+                )
+                await this.delay(delayMs)
+            }
+        }
+    }
+
+    /**
+     * Delay helper for retry mechanism
+     */
+    private delay(ms: number): Promise<void> {
+        return new Promise((resolve) => setTimeout(resolve, ms))
     }
 
     async rejectOrganizationRequest(organizationId: string) {
@@ -210,7 +348,7 @@ export class OrganizationService {
             throw new NotFoundException("Organization not found")
         }
 
-        if (organization.status !== Verification_Status.PENDING) {
+        if (organization.status !== VerificationStatus.PENDING) {
             throw new BadRequestException(
                 "Organization is not in pending status",
             )
@@ -218,7 +356,7 @@ export class OrganizationService {
 
         return this.organizationRepository.updateOrganizationStatus(
             organizationId,
-            Verification_Status.REJECTED,
+            VerificationStatus.REJECTED,
         )
     }
 
@@ -264,7 +402,7 @@ export class OrganizationService {
             UserErrorHelper.throwOrganizationNotFound(data.organization_id)
         }
 
-        if (organization.status !== Verification_Status.VERIFIED) {
+        if (organization.status !== VerificationStatus.VERIFIED) {
             throw new BadRequestException("Organization is not verified")
         }
 
@@ -327,39 +465,14 @@ export class OrganizationService {
         return result
     }
 
-    async getOrganizationJoinRequests(
-        organizationId: string,
-        fundraiserCognitoId: string,
-    ) {
-        // Get the fundraiser user to get their database ID
-        const fundraiserUser =
-            await this.userRepository.findUserById(fundraiserCognitoId)
-        if (!fundraiserUser) {
-            UserErrorHelper.throwUserNotFound(fundraiserCognitoId)
-        }
-
-        // Verify that the fundraiser is the representative of this organization
-        const organization =
-            await this.organizationRepository.findOrganizationById(
-                organizationId,
-            )
-        if (!organization) {
-            throw new NotFoundException("Organization not found")
-        }
-
-        if (organization.representative_id !== fundraiserUser.id) {
-            throw new BadRequestException(
-                "You are not authorized to view requests for this organization",
-            )
-        }
-
-        return this.organizationRepository.findPendingJoinRequestsByOrganization(
-            organizationId,
-        )
-    }
-
+    /**
+     * Approve join request with transaction
+     * Uses Prisma Transaction for database operations + Saga pattern for Cognito sync
+     */
     async approveJoinRequest(requestId: string, fundraiserCognitoId: string) {
-        // Get the fundraiser user to get their database ID
+        // ========================================
+        // VALIDATION
+        // ========================================
         const fundraiserUser =
             await this.userRepository.findUserById(fundraiserCognitoId)
         if (!fundraiserUser) {
@@ -372,43 +485,110 @@ export class OrganizationService {
             throw new NotFoundException("Join request not found")
         }
 
-        // Verify that the fundraiser is the representative of this organization
+        // Verify authorization
         if (joinRequest.organization.representative_id !== fundraiserUser.id) {
             throw new BadRequestException(
                 "You are not authorized to approve this request",
             )
         }
 
-        if (joinRequest.status !== Verification_Status.PENDING) {
+        if (joinRequest.status !== VerificationStatus.PENDING) {
             throw new BadRequestException(
                 "Join request is not in pending status",
             )
         }
 
-        // Update join request status to VERIFIED
-        const updatedRequest =
-            await this.organizationRepository.updateJoinRequestStatus(
-                requestId,
-                Verification_Status.VERIFIED,
+        let cognitoUpdated = false
+
+        try {
+            // ========================================
+            // DATABASE TRANSACTION (Steps 1-2)
+            // ========================================
+            this.logger.log(
+                `[TRANSACTION] Starting approval for join request: ${requestId}`,
             )
 
-        // Update user role to the requested role
-        await this.userRepository.updateUserRole(
-            joinRequest.member_id,
-            joinRequest.member_role as Role,
-        )
+            const updatedRequest = await this.prisma.$transaction(async (tx) => {
+                // Step 1: Update join request status to VERIFIED
+                this.logger.debug(
+                    "[TRANSACTION] Step 1: Updating join request status",
+                )
+                const updatedJoinRequest = await tx.organization_Member.update({
+                    where: { id: requestId },
+                    data: { status: VerificationStatus.VERIFIED },
+                    include: {
+                        member: true,
+                        organization: true,
+                    },
+                })
 
-        // Update AWS Cognito custom:role attribute
-        if (joinRequest.member.cognito_id) {
-            await this.awsCognitoService.updateUserAttributes(
-                joinRequest.member.cognito_id,
-                {
-                    "custom:role": joinRequest.member_role,
-                },
+                // Step 2: Update user role to the requested role
+                this.logger.debug(
+                    `[TRANSACTION] Step 2: Updating user role to ${joinRequest.member_role}`,
+                )
+                await tx.user.update({
+                    where: { id: joinRequest.member_id },
+                    data: { role: joinRequest.member_role as Role },
+                })
+
+                this.logger.log(
+                    "[TRANSACTION] Database operations completed successfully",
+                )
+
+                return updatedJoinRequest
+            })
+
+            // ========================================
+            // EXTERNAL SERVICE (Step 3) - Outside transaction
+            // ========================================
+            if (joinRequest.member.cognito_id) {
+                this.logger.debug(
+                    "[SAGA] Step 3: Updating Cognito custom:role attribute",
+                )
+
+                await this.updateCognitoRoleWithRetry(
+                    joinRequest.member.cognito_id,
+                    joinRequest.member_role as Role,
+                )
+
+                cognitoUpdated = true
+                this.logger.log(
+                    `[SAGA] Cognito role updated successfully for user: ${joinRequest.member.cognito_id}`,
+                )
+            }
+
+            this.logger.log(
+                `[TRANSACTION] Join request approval completed successfully: ${requestId}`,
             )
+
+            return updatedRequest
+        } catch (error) {
+            // ========================================
+            // ERROR HANDLING
+            // ========================================
+            if (cognitoUpdated) {
+                // Database transaction succeeded but Cognito update failed
+                this.logger.error(
+                    "[SAGA] Unexpected: Database committed but Cognito sync failed",
+                    {
+                        requestId,
+                        memberId: joinRequest.member_id,
+                        cognitoId: joinRequest.member.cognito_id,
+                        error: error instanceof Error ? error.message : error,
+                        timestamp: new Date().toISOString(),
+                        severity: "CRITICAL",
+                        action: "MANUAL_RECONCILIATION_REQUIRED",
+                    },
+                )
+            } else {
+                // Database transaction failed (will be rolled back automatically)
+                this.logger.error(
+                    `[TRANSACTION] Join request approval failed: ${error instanceof Error ? error.message : error}`,
+                )
+            }
+
+            throw error
         }
-
-        return updatedRequest
     }
 
     async rejectJoinRequest(requestId: string, fundraiserCognitoId: string) {
@@ -432,7 +612,7 @@ export class OrganizationService {
             )
         }
 
-        if (joinRequest.status !== Verification_Status.PENDING) {
+        if (joinRequest.status !== VerificationStatus.PENDING) {
             throw new BadRequestException(
                 "Join request is not in pending status",
             )
@@ -440,7 +620,7 @@ export class OrganizationService {
 
         return this.organizationRepository.updateJoinRequestStatus(
             requestId,
-            Verification_Status.REJECTED,
+            VerificationStatus.REJECTED,
         )
     }
 
@@ -471,7 +651,7 @@ export class OrganizationService {
             DonorErrorHelper.throwNoJoinRequestToCancel(user.id)
         }
 
-        if (pendingRequest.status !== Verification_Status.PENDING) {
+        if (pendingRequest.status !== VerificationStatus.PENDING) {
             DonorErrorHelper.throwJoinRequestNotCancellable(
                 pendingRequest.id,
                 pendingRequest.status,
@@ -553,6 +733,338 @@ export class OrganizationService {
         return {
             organizations: mappedOrganizations,
             total: result.total,
+        }
+    }
+
+    /**
+     * Get organization by ID (public access)
+     * Only returns verified/active organizations
+     */
+    async getOrganizationById(organizationId: string) {
+        const organization =
+            await this.organizationRepository.findOrganizationWithMembers(
+                organizationId,
+            )
+
+        if (!organization) {
+            throw new NotFoundException("Organization not found")
+        }
+
+        // Only return verified organizations to public
+        if (organization.status !== VerificationStatus.VERIFIED) {
+            throw new NotFoundException(
+                "Organization not found or not yet verified",
+            )
+        }
+
+        // Map to include member counts and format for GraphQL
+        return {
+            ...organization,
+            members:
+                organization.Organization_Member?.map((member) => ({
+                    id: member.id,
+                    member: member.member,
+                    member_role: member.member_role,
+                    status: member.status,
+                    joined_at: member.joined_at,
+                })) || [],
+            total_members: organization.Organization_Member?.length || 0,
+            active_members:
+                organization.Organization_Member?.filter(
+                    (member) => member.status === VerificationStatus.VERIFIED,
+                ).length || 0,
+            representative: organization.user, // Map user to representative
+        }
+    }
+
+    /**
+     * Staff member leaves organization voluntarily (self-leave)
+     * Uses Prisma Transaction for database operations + Saga pattern for Cognito sync
+     */
+    async leaveOrganization(cognitoId: string): Promise<{
+        success: boolean
+        message: string
+        previousOrganization: {
+            id: string
+            name: string
+        }
+        previousRole: string
+    }> {
+        // ========================================
+        // VALIDATION
+        // ========================================
+        const user = await this.userRepository.findUserById(cognitoId)
+        if (!user) {
+            UserErrorHelper.throwUserNotFound(cognitoId)
+        }
+
+        // Only staff members can leave (KITCHEN_STAFF, DELIVERY_STAFF)
+        const staffRoles = [Role.KITCHEN_STAFF, Role.DELIVERY_STAFF]
+        if (!staffRoles.includes(user.role as Role)) {
+            throw new BadRequestException(
+                "Only staff members (KITCHEN_STAFF, DELIVERY_STAFF) can leave organization. Fundraisers must transfer ownership first.",
+            )
+        }
+
+        // Find user's organization membership
+        const memberRecord =
+            await this.organizationRepository.findVerifiedMembershipByUserId(
+                user.id,
+            )
+
+        if (!memberRecord) {
+            throw new NotFoundException(
+                "You are not a member of any organization",
+            )
+        }
+
+        const organizationInfo = {
+            id: memberRecord.organization.id,
+            name: memberRecord.organization.name,
+        }
+        const previousRole = user.role
+
+        let cognitoUpdated = false
+
+        try {
+            // ========================================
+            // DATABASE TRANSACTION (Steps 1-2)
+            // ========================================
+            this.logger.log(
+                `[TRANSACTION] Starting self-leave for user: ${user.id}`,
+            )
+
+            await this.prisma.$transaction(async (tx) => {
+                // Step 1: Delete organization member record
+                this.logger.debug(
+                    "[TRANSACTION] Step 1: Removing user from organization",
+                )
+                await tx.organization_Member.delete({
+                    where: { id: memberRecord.id },
+                })
+
+                // Step 2: Update user role back to DONOR
+                this.logger.debug(
+                    "[TRANSACTION] Step 2: Updating user role back to DONOR",
+                )
+                await tx.user.update({
+                    where: { id: user.id },
+                    data: { role: Role.DONOR },
+                })
+
+                this.logger.log(
+                    "[TRANSACTION] Database operations completed successfully",
+                )
+            })
+
+            // ========================================
+            // EXTERNAL SERVICE (Step 3) - Outside transaction
+            // ========================================
+            if (user.cognito_id) {
+                this.logger.debug(
+                    "[SAGA] Step 3: Updating Cognito custom:role attribute back to DONOR",
+                )
+
+                await this.updateCognitoRoleWithRetry(
+                    user.cognito_id,
+                    Role.DONOR,
+                )
+
+                cognitoUpdated = true
+                this.logger.log(
+                    `[SAGA] Cognito role updated successfully for user: ${user.cognito_id}`,
+                )
+            }
+
+            this.logger.log(
+                `[TRANSACTION] Self-leave completed successfully for user: ${user.id}`,
+            )
+
+            return {
+                success: true,
+                message: `You have successfully left "${organizationInfo.name}". Your role has been changed back to DONOR.`,
+                previousOrganization: organizationInfo,
+                previousRole,
+            }
+        } catch (error) {
+            // ========================================
+            // ERROR HANDLING
+            // ========================================
+            if (cognitoUpdated) {
+                // Database transaction succeeded but Cognito update failed
+                this.logger.error(
+                    "[SAGA] Unexpected: Database committed but Cognito sync failed",
+                    {
+                        userId: user.id,
+                        cognitoId: user.cognito_id,
+                        error: error instanceof Error ? error.message : error,
+                        timestamp: new Date().toISOString(),
+                        severity: "CRITICAL",
+                        action: "MANUAL_RECONCILIATION_REQUIRED",
+                    },
+                )
+            } else {
+                // Database transaction failed (will be rolled back automatically)
+                this.logger.error(
+                    `[TRANSACTION] Self-leave failed: ${error instanceof Error ? error.message : error}`,
+                )
+            }
+
+            throw error
+        }
+    }
+
+    /**
+     * Remove staff member from organization with transaction
+     * Uses Prisma Transaction for database operations + Saga pattern for Cognito sync
+     */
+    async removeStaffMember(
+        memberId: string,
+        fundraiserCognitoId: string,
+    ): Promise<{
+        success: boolean
+        message: string
+        removedMember: {
+            id: string
+            name: string
+            email: string
+            role: string
+        }
+    }> {
+        const fundraiserUser =
+            await this.userRepository.findUserById(fundraiserCognitoId)
+        if (!fundraiserUser) {
+            UserErrorHelper.throwUserNotFound(fundraiserCognitoId)
+        }
+
+        if (fundraiserUser.role !== Role.FUNDRAISER) {
+            FundraiserErrorHelper.throwFundraiserOnlyOperation(
+                "remove staff members",
+            )
+        }
+
+        // Find the organization member record
+        const memberRecord =
+            await this.organizationRepository.findJoinRequestById(memberId)
+        if (!memberRecord) {
+            throw new NotFoundException("Staff member not found")
+        }
+
+        // Verify that the fundraiser is the representative of this organization
+        if (memberRecord.organization.representative_id !== fundraiserUser.id) {
+            throw new BadRequestException(
+                "You are not authorized to remove members from this organization",
+            )
+        }
+
+        // Cannot remove yourself (the fundraiser/representative)
+        if (memberRecord.member_id === fundraiserUser.id) {
+            throw new BadRequestException(
+                "Cannot remove yourself from the organization. Transfer ownership first.",
+            )
+        }
+
+        // Only allow removing verified members
+        if (memberRecord.status !== VerificationStatus.VERIFIED) {
+            throw new BadRequestException(
+                "Can only remove verified members. Use reject for pending requests.",
+            )
+        }
+
+        const removedMemberInfo = {
+            id: memberRecord.member.id,
+            name: memberRecord.member.full_name,
+            email: memberRecord.member.email,
+            role: memberRecord.member_role,
+        }
+
+        let cognitoUpdated = false
+
+        try {
+            // ========================================
+            // DATABASE TRANSACTION (Steps 1-2)
+            // ========================================
+            this.logger.log(
+                `[TRANSACTION] Starting staff removal for member: ${memberId}`,
+            )
+
+            await this.prisma.$transaction(async (tx) => {
+                // Step 1: Delete organization member record
+                this.logger.debug(
+                    "[TRANSACTION] Step 1: Removing member from organization",
+                )
+                await tx.organization_Member.delete({
+                    where: { id: memberId },
+                })
+
+                // Step 2: Update user role back to DONOR
+                this.logger.debug(
+                    "[TRANSACTION] Step 2: Updating user role back to DONOR",
+                )
+                await tx.user.update({
+                    where: { id: memberRecord.member_id },
+                    data: { role: Role.DONOR },
+                })
+
+                this.logger.log(
+                    "[TRANSACTION] Database operations completed successfully",
+                )
+            })
+
+            // ========================================
+            // EXTERNAL SERVICE (Step 3) - Outside transaction
+            // ========================================
+            if (memberRecord.member.cognito_id) {
+                this.logger.debug(
+                    "[SAGA] Step 3: Updating Cognito custom:role attribute back to DONOR",
+                )
+
+                await this.updateCognitoRoleWithRetry(
+                    memberRecord.member.cognito_id,
+                    Role.DONOR,
+                )
+
+                cognitoUpdated = true
+                this.logger.log(
+                    `[SAGA] Cognito role updated successfully for user: ${memberRecord.member.cognito_id}`,
+                )
+            }
+
+            this.logger.log(
+                `[TRANSACTION] Staff removal completed successfully: ${memberId}`,
+            )
+
+            return {
+                success: true,
+                message: `Successfully removed ${removedMemberInfo.name} from the organization. Their role has been changed back to DONOR.`,
+                removedMember: removedMemberInfo,
+            }
+        } catch (error) {
+            // ========================================
+            // ERROR HANDLING
+            // ========================================
+            if (cognitoUpdated) {
+                // Database transaction succeeded but Cognito update failed
+                this.logger.error(
+                    "[SAGA] Unexpected: Database committed but Cognito sync failed",
+                    {
+                        memberId,
+                        memberUserId: memberRecord.member_id,
+                        cognitoId: memberRecord.member.cognito_id,
+                        error: error instanceof Error ? error.message : error,
+                        timestamp: new Date().toISOString(),
+                        severity: "CRITICAL",
+                        action: "MANUAL_RECONCILIATION_REQUIRED",
+                    },
+                )
+            } else {
+                // Database transaction failed (will be rolled back automatically)
+                this.logger.error(
+                    `[TRANSACTION] Staff removal failed: ${error instanceof Error ? error.message : error}`,
+                )
+            }
+
+            throw error
         }
     }
 }
