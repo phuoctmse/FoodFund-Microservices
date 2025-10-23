@@ -127,7 +127,11 @@ export class OptionalJwtAuthGuard implements CanActivate, OnModuleInit {
                         },
                         (err, decoded) => {
                             if (err) {
-                                return reject(err)
+                                return reject(
+                                    err instanceof Error 
+                                        ? err 
+                                        : new Error(String(err))
+                                )
                             }
                             resolve(decoded as CognitoTokenPayload)
                         },

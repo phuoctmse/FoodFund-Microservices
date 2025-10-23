@@ -19,9 +19,9 @@ export interface SagaOptions {
 }
 
 export class SagaOrchestrator {
-    private steps: SagaStep[] = []
-    private completedSteps: Array<{ step: SagaStep; result: any }> = []
-    private logger: Logger
+    private readonly steps: SagaStep[] = []
+    private readonly completedSteps: Array<{ step: SagaStep; result: any }> = []
+    private readonly logger: Logger
 
     constructor(
         private readonly sagaName: string,
@@ -73,8 +73,11 @@ export class SagaOrchestrator {
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
+                const attemptInfo = maxRetries > 1 
+                    ? ` (attempt ${attempt}/${maxRetries})` 
+                    : ""
                 this.logger.log(
-                    `[SAGA] Executing step: ${step.name}${maxRetries > 1 ? ` (attempt ${attempt}/${maxRetries})` : ""}`,
+                    `[SAGA] Executing step: ${step.name}${attemptInfo}`,
                 )
 
                 const result = await step.execute()

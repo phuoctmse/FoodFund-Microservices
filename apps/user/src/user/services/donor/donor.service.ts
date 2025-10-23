@@ -2,7 +2,6 @@ import { Injectable, Logger } from "@nestjs/common"
 import { UserRepository } from "../../repositories/user.repository"
 import { DonorErrorHelper } from "../../exceptions"
 import { Role } from "../../enums/user.enum"
-import { SagaOrchestrator } from "@libs/common"
 
 @Injectable()
 export class DonorService {

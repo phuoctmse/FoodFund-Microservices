@@ -7,6 +7,10 @@ import {
 import { DonorRepository } from "../repositories/donor.repository"
 import { CreateDonationInput } from "../dtos/create-donation.input"
 import { DonationResponse } from "../dtos/donation-response.dto"
+import {
+    DonationTransactionData,
+    DonationNotificationData,
+} from "../dtos/donation-transaction.dto"
 import { CampaignRepository } from "../../campaign/campaign.repository"
 import { CampaignStatus } from "../../campaign/enum/campaign.enum"
 import { PaymentStatus } from "../../shared/enum/campaign.enum"
@@ -51,16 +55,16 @@ export class DonorService {
         )
 
         try {
-            await this.createDonationTransaction(
+            await this.createDonationTransaction({
                 donationId,
                 donorId,
-                input.campaignId,
+                campaignId: input.campaignId,
                 donationAmount,
-                input.message,
+                message: input.message,
                 isAnonymous,
                 orderCode,
                 payosResult,
-            )
+            })
         } catch (error) {
             await this.handleDonationCreationFailure(
                 error,
@@ -70,18 +74,18 @@ export class DonorService {
             )
         }
 
-        await this.sendDonationNotification(
+        await this.sendDonationNotification({
             donationId,
             donorId,
-            input.campaignId,
+            campaignId: input.campaignId,
             donationAmount,
-            input.message,
+            message: input.message,
             isAnonymous,
             orderCode,
             transferContent,
-            payosResult.paymentLinkId,
-            payosResult.checkoutUrl,
-        )
+            paymentLinkId: payosResult.paymentLinkId,
+            checkoutUrl: payosResult.checkoutUrl,
+        })
 
         this.logger.log(
             `[TRANSACTION] Donation creation completed successfully: ${donationId}`,
@@ -176,34 +180,21 @@ export class DonorService {
         }
     }
 
-    private async createDonationTransaction(
-        donationId: string,
-        donorId: string,
-        campaignId: string,
-        donationAmount: bigint,
-        message: string | undefined,
-        isAnonymous: boolean,
-        orderCode: number,
-        payosResult: {
-            qrCode: string | null
-            checkoutUrl: string | null
-            paymentLinkId: string | null
-        },
-    ) {
+    private async createDonationTransaction(data: DonationTransactionData) {
         this.logger.log(
-            `[TRANSACTION] Starting donation creation for ${donationId}`,
+            `[TRANSACTION] Starting donation creation for ${data.donationId}`,
         )
 
         await this.prisma.$transaction(async (tx) => {
             this.logger.debug("[TRANSACTION] Step 2: Creating donation record")
             await tx.donation.create({
                 data: {
-                    id: donationId,
-                    donor_id: donorId,
-                    campaign_id: campaignId,
-                    amount: donationAmount,
-                    message: message ?? "",
-                    is_anonymous: isAnonymous,
+                    id: data.donationId,
+                    donor_id: data.donorId,
+                    campaign_id: data.campaignId,
+                    amount: data.donationAmount,
+                    message: data.message ?? "",
+                    is_anonymous: data.isAnonymous,
                 },
             })
 
@@ -212,12 +203,12 @@ export class DonorService {
             )
             await tx.payment_Transaction.create({
                 data: {
-                    donation_id: donationId,
-                    order_code: BigInt(orderCode),
-                    amount: donationAmount,
-                    payment_link_id: payosResult.paymentLinkId || "",
-                    checkout_url: payosResult.checkoutUrl || "",
-                    qr_code: payosResult.qrCode || "",
+                    donation_id: data.donationId,
+                    order_code: BigInt(data.orderCode),
+                    amount: data.donationAmount,
+                    payment_link_id: data.payosResult.paymentLinkId || "",
+                    checkout_url: data.payosResult.checkoutUrl || "",
+                    qr_code: data.payosResult.qrCode || "",
                     status: PaymentStatus.PENDING,
                 },
             })
@@ -250,36 +241,25 @@ export class DonorService {
         )
     }
 
-    private async sendDonationNotification(
-        donationId: string,
-        donorId: string,
-        campaignId: string,
-        donationAmount: bigint,
-        message: string | undefined,
-        isAnonymous: boolean,
-        orderCode: number,
-        transferContent: string,
-        paymentLinkId: string | null,
-        checkoutUrl: string | null,
-    ) {
+    private async sendDonationNotification(data: DonationNotificationData) {
         try {
             this.logger.debug("[NOTIFICATION] Sending donation request to SQS")
 
             await this.sqsService.sendMessage({
                 messageBody: {
                     eventType: "DONATION_REQUEST",
-                    donationId,
-                    donorId,
-                    campaignId,
-                    amount: donationAmount.toString(),
-                    message,
-                    isAnonymous,
-                    orderCode,
-                    transferContent,
+                    donationId: data.donationId,
+                    donorId: data.donorId,
+                    campaignId: data.campaignId,
+                    amount: data.donationAmount.toString(),
+                    message: data.message,
+                    isAnonymous: data.isAnonymous,
+                    orderCode: data.orderCode,
+                    transferContent: data.transferContent,
                     status: "PENDING",
                     requestedAt: new Date().toISOString(),
-                    paymentLinkId,
-                    checkoutUrl,
+                    paymentLinkId: data.paymentLinkId,
+                    checkoutUrl: data.checkoutUrl,
                 },
                 messageAttributes: {
                     eventType: {
@@ -288,11 +268,11 @@ export class DonorService {
                     },
                     campaignId: {
                         DataType: "String",
-                        StringValue: campaignId,
+                        StringValue: data.campaignId,
                     },
                     orderCode: {
                         DataType: "Number",
-                        StringValue: orderCode.toString(),
+                        StringValue: data.orderCode.toString(),
                     },
                 },
             })
@@ -302,8 +282,8 @@ export class DonorService {
             this.logger.warn(
                 "[NOTIFICATION] Failed to send SQS message, but donation created successfully",
                 {
-                    donationId,
-                    orderCode,
+                    donationId: data.donationId,
+                    orderCode: data.orderCode,
                     error:
                         sqsError instanceof Error ? sqsError.message : sqsError,
                 },
