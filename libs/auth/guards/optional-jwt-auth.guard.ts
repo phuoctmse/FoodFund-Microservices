@@ -117,7 +117,23 @@ export class OptionalJwtAuthGuard implements CanActivate, OnModuleInit {
 
     private async validateAndGetUser(token: string): Promise<any> {
         try {
-            // Verify JWT locally using JWKS (no network call to auth service)
+            // Pre-parse header to enforce presence of kid and RS256
+            const decodedHeader = jwt.decode(token, { complete: true }) as {
+                header?: jwt.JwtHeader
+            } | null
+            if (!decodedHeader?.header) {
+                this.logger.warn("Invalid JWT: missing header")
+                return null
+            }
+            if (decodedHeader.header.alg !== "RS256") {
+                this.logger.warn(`Invalid JWT alg: ${decodedHeader.header.alg}`)
+                return null
+            }
+            if (!decodedHeader.header.kid) {
+                this.logger.warn("Invalid JWT: missing kid")
+                return null
+            }
+
             const decoded = await new Promise<CognitoTokenPayload>(
                 (resolve, reject) => {
                     jwt.verify(
@@ -141,15 +157,15 @@ export class OptionalJwtAuthGuard implements CanActivate, OnModuleInit {
                 },
             )
 
-            // Validate issuer explicitly
+            // Issue validation
             if (decoded.iss !== this.issuer) {
                 this.logger.warn(`Invalid issuer: ${decoded.iss}`)
                 return null
             }
-            // Validate audience/client
-            if (this.appClientId && decoded.aud !== this.appClientId) {
-                this.logger.warn(`Invalid audience: ${decoded.aud}`)
-                return null
+            // Audience/client validation for ID/access tokens
+            const audience = (decoded as any).aud || (decoded as any).client_id
+            if (this.appClientId && audience !== this.appClientId) {
+                this.logger.warn(`Invalid audience/client: ${audience}`)
             }
             // Restrict token_use if required
             if (decoded.token_use !== "id" && decoded.token_use !== "access") {

@@ -231,8 +231,9 @@ export class DonorRepository {
     ) {
         return this.prisma.$transaction(async (tx) => {
             // Step 1: Update payment transaction status
-            const updatedPayment = await tx.payment_Transaction.update({
-                where: { id: paymentId },
+            // Only update if current status is PENDING to avoid downgrades or double-processing
+            const updatedPayment = await tx.payment_Transaction.updateMany({
+                where: { id: paymentId, status: PaymentStatus.PENDING },
                 data: {
                     status,
                     account_name: additionalData?.accountName,
@@ -246,7 +247,15 @@ export class DonorRepository {
                 },
             })
 
-            if (campaignUpdate) {
+            // If no rows updated, status was not PENDING; return current record without side effects
+            if (updatedPayment.count === 0) {
+                return tx.payment_Transaction.findUnique({
+                    where: { id: paymentId },
+                })
+            }
+
+            // Only increment stats when we just transitioned to SUCCESS
+            if (campaignUpdate && status === PaymentStatus.SUCCESS) {
                 await tx.campaign.update({
                     where: { id: campaignUpdate.campaignId },
                     data: {
@@ -260,7 +269,7 @@ export class DonorRepository {
                 })
             }
 
-            return updatedPayment
+            return tx.payment_Transaction.findUnique({ where: { id: paymentId } })
         })
     }
 }
