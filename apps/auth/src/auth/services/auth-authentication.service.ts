@@ -64,9 +64,7 @@ export class AuthAuthenticationService {
             )
 
             if (!userResponse.success) {
-                this.logger.warn(
-                    `User not found in User Service: ${cognitoId}`,
-                )
+                this.logger.warn(`User not found in User Service: ${cognitoId}`)
                 throw new UnauthorizedException(
                     "User account not found. Please contact support.",
                 )
@@ -93,8 +91,7 @@ export class AuthAuthenticationService {
             this.logger.error(
                 `Failed to validate user active status: ${error instanceof Error ? error.message : error}`,
             )
-            // Optionally: throw error to block login if User Service is unreachable
-            // throw new UnauthorizedException('Unable to verify account status. Please try again later.')
+            throw new UnauthorizedException("Unable to verify account status.")
         }
     }
 
