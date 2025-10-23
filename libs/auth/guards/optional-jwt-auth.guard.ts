@@ -31,6 +31,7 @@ export class OptionalJwtAuthGuard implements CanActivate, OnModuleInit {
     private readonly logger = new Logger(OptionalJwtAuthGuard.name)
     private jwksClient: JwksClient
     private issuer: string
+    private appClientId?: string
 
     constructor() {}
 
@@ -38,6 +39,7 @@ export class OptionalJwtAuthGuard implements CanActivate, OnModuleInit {
         const env = envConfig()
         const region = env.aws.region
         const userPoolId = env.aws.cognito.userPoolId
+        this.appClientId = env.aws.cognito.clientId
 
         if (!region || !userPoolId) {
             throw new Error(
@@ -128,9 +130,9 @@ export class OptionalJwtAuthGuard implements CanActivate, OnModuleInit {
                         (err, decoded) => {
                             if (err) {
                                 return reject(
-                                    err instanceof Error 
-                                        ? err 
-                                        : new Error(String(err))
+                                    err instanceof Error
+                                        ? err
+                                        : new Error(String(err)),
                                 )
                             }
                             resolve(decoded as CognitoTokenPayload)
@@ -139,15 +141,22 @@ export class OptionalJwtAuthGuard implements CanActivate, OnModuleInit {
                 },
             )
 
-            // Validate token_use
+            // Validate issuer explicitly
+            if (decoded.iss !== this.issuer) {
+                this.logger.warn(`Invalid issuer: ${decoded.iss}`)
+                return null
+            }
+            // Validate audience/client
+            if (this.appClientId && decoded.aud !== this.appClientId) {
+                this.logger.warn(`Invalid audience: ${decoded.aud}`)
+                return null
+            }
+            // Restrict token_use if required
             if (decoded.token_use !== "id" && decoded.token_use !== "access") {
-                this.logger.warn(
-                    `Invalid token_use: ${decoded.token_use}. Expected 'id' or 'access'`,
-                )
+                this.logger.warn(`Invalid token_use: ${decoded.token_use}`)
                 return null
             }
 
-            // Map Cognito token payload to user object
             const user = {
                 sub: decoded.sub,
                 username: decoded["cognito:username"],
@@ -160,7 +169,6 @@ export class OptionalJwtAuthGuard implements CanActivate, OnModuleInit {
                     role: decoded["custom:role"],
                 },
             }
-
             this.logger.debug(
                 `Authenticated user: ${user.email || user.username}`,
             )

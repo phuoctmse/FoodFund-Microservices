@@ -122,16 +122,19 @@ export class AuthErrorHelper {
             cognitoError.name || cognitoError.code || "UnknownError"
         const errorMessage = cognitoError.message || ""
 
-        // Special handling for sign up with existing unconfirmed user
-        // AWS Cognito returns UnauthorizedException with "User already exists" message
-        // when trying to sign up with an email that exists but is not confirmed
         if (operation === "signUp") {
-            const isUnconfirmedUserError =
-                errorCode === "UsernameExistsException" ||
-                (errorCode === "UnauthorizedException" &&
-                    errorMessage.toLowerCase().includes("user already exists"))
-
-            if (isUnconfirmedUserError) {
+            // UnauthorizedException + "user already exists" => treat as unconfirmed user path
+            if (
+                errorCode === "UnauthorizedException" &&
+                errorMessage.toLowerCase().includes("user already exists")
+            ) {
+                this.throwUserNotConfirmed(email || "unknown")
+            }
+            // UsernameExistsException during signUp typically means confirmed user already exists
+            if (errorCode === "UsernameExistsException") {
+                this.throwUserAlreadyExists(email || "unknown")
+            }
+            if (errorCode === "UserNotConfirmedException") {
                 this.throwUserNotConfirmed(email || "unknown")
             }
         }

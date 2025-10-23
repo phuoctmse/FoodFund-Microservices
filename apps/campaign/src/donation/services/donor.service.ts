@@ -184,6 +184,18 @@ export class DonorService {
         this.logger.log(
             `[TRANSACTION] Starting donation creation for ${data.donationId}`,
         )
+        // Validate PayOS response before DB writes
+        if (!data.payosResult.paymentLinkId || !data.payosResult.checkoutUrl) {
+            this.logger.error(
+                "[TRANSACTION] Missing payment link data from PayOS",
+                {
+                    donationId: data.donationId,
+                    orderCode: data.orderCode,
+                    payosResult: data.payosResult,
+                },
+            )
+            throw new BadRequestException("Payment link generation failed")
+        }
 
         await this.prisma.$transaction(async (tx) => {
             this.logger.debug("[TRANSACTION] Step 2: Creating donation record")
@@ -206,8 +218,8 @@ export class DonorService {
                     donation_id: data.donationId,
                     order_code: BigInt(data.orderCode),
                     amount: data.donationAmount,
-                    payment_link_id: data.payosResult.paymentLinkId || "",
-                    checkout_url: data.payosResult.checkoutUrl || "",
+                    payment_link_id: data.payosResult.paymentLinkId,
+                    checkout_url: data.payosResult.checkoutUrl,
                     qr_code: data.payosResult.qrCode || "",
                     status: PaymentStatus.PENDING,
                 },

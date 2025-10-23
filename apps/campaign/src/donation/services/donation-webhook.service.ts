@@ -45,27 +45,27 @@ export class DonationWebhookService {
             throw new BadRequestException("Payment transaction not found")
         }
 
-        // Check if already processed
-        if (paymentTransaction.status === PaymentStatus.SUCCESS) {
-            this.logger.log(`Payment already processed for order ${orderCode}`)
+        const newStatus =
+            code === "00" ? PaymentStatus.SUCCESS : PaymentStatus.FAILED
+
+        // Idempotency guard: skip if already in terminal state
+        const currentStatus = paymentTransaction.status as string
+
+        if (currentStatus === PaymentStatus.SUCCESS) {
+            this.logger.log(
+                `Payment already processed successfully for order ${orderCode}`,
+            )
             return
         }
 
-        // Update payment transaction status based on webhook code
-        let newStatus: PaymentStatus
-
-        if (code === "00") {
-            // Payment successful
-            newStatus = PaymentStatus.SUCCESS
-            this.logger.log(`Payment successful for order ${orderCode}`)
-        } else {
-            // Payment failed
-            newStatus = PaymentStatus.FAILED
-            this.logger.warn(`Payment failed for order ${orderCode}: ${desc}`)
+        if ( currentStatus === PaymentStatus.FAILED &&
+            newStatus === PaymentStatus.FAILED ) {
+            this.logger.log(
+                `Ignoring duplicate FAILED webhook for ${orderCode}`,
+            )
+            return
         }
 
-        // Use transaction to ensure data consistency
-        // Both payment update and campaign stats must succeed or rollback together
         await this.DonorRepository.updatePaymentWithTransaction(
             paymentTransaction.id,
             newStatus,
@@ -76,7 +76,6 @@ export class DonationWebhookService {
                 description: payload.data.description,
                 transactionDateTime: payload.data.transactionDateTime,
             },
-            // Only update campaign if payment successful
             newStatus === PaymentStatus.SUCCESS
                 ? {
                     campaignId: paymentTransaction.donation.campaign_id,
@@ -84,7 +83,5 @@ export class DonationWebhookService {
                 }
                 : undefined,
         )
-
-        this.logger.log(`Webhook processed successfully for order ${orderCode}`)
     }
 }
