@@ -21,6 +21,8 @@ import {
     GlobalSignOutCommand,
     AdminSetUserPasswordCommand,
     AdminUpdateUserAttributesCommand,
+    AdminDisableUserCommand,
+    AdminEnableUserCommand,
 } from "@aws-sdk/client-cognito-identity-provider"
 import { CognitoJwtVerifier } from "aws-jwt-verify"
 import { createHmac, randomBytes } from "node:crypto"
@@ -461,6 +463,70 @@ export class AwsCognitoService {
             this.logger.error(`Admin delete user failed: ${errorMessage}`)
             throw new UnauthorizedException(
                 `Admin delete user failed: ${errorMessage}`,
+            )
+        }
+    }
+
+    /**
+     * Disable user account in Cognito
+     * Prevents user from signing in
+     */
+    async adminDisableUser(email: string): Promise<{ disabled: boolean }> {
+        if (!email || typeof email !== "string") {
+            this.logger.error(
+                "adminDisableUser: Email is required and must be a string",
+            )
+            throw new UnauthorizedException("Email is required to disable user")
+        }
+
+        try {
+            const command = new AdminDisableUserCommand({
+                UserPoolId: this.userPoolId,
+                Username: email,
+            })
+
+            await this.cognitoClient.send(command)
+            this.logger.log(`Admin disabled user: ${email}`)
+
+            return { disabled: true }
+        } catch (error) {
+            const errorMessage =
+                error instanceof Error ? error.message : String(error)
+            this.logger.error(`Admin disable user failed: ${errorMessage}`)
+            throw new UnauthorizedException(
+                `Admin disable user failed: ${errorMessage}`,
+            )
+        }
+    }
+
+    /**
+     * Enable user account in Cognito
+     * Allows user to sign in again
+     */
+    async adminEnableUser(email: string): Promise<{ enabled: boolean }> {
+        if (!email || typeof email !== "string") {
+            this.logger.error(
+                "adminEnableUser: Email is required and must be a string",
+            )
+            throw new UnauthorizedException("Email is required to enable user")
+        }
+
+        try {
+            const command = new AdminEnableUserCommand({
+                UserPoolId: this.userPoolId,
+                Username: email,
+            })
+
+            await this.cognitoClient.send(command)
+            this.logger.log(`Admin enabled user: ${email}`)
+
+            return { enabled: true }
+        } catch (error) {
+            const errorMessage =
+                error instanceof Error ? error.message : String(error)
+            this.logger.error(`Admin enable user failed: ${errorMessage}`)
+            throw new UnauthorizedException(
+                `Admin enable user failed: ${errorMessage}`,
             )
         }
     }

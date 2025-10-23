@@ -128,6 +128,7 @@ export class UserRepository {
             },
             include: {
                 Organization_Member: true,
+                user: true,
             },
         })
     }
@@ -139,6 +140,7 @@ export class UserRepository {
             },
             include: {
                 Organization_Member: true,
+                user: true
             },
         })
     }

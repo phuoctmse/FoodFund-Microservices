@@ -67,6 +67,7 @@ message CreateUserResponse {
 // Get User
 message GetUserRequest {
   string id = 1;
+  string cognito_id = 2; // Optional: get user by cognito_id
 }
 
 message GetUserResponse {

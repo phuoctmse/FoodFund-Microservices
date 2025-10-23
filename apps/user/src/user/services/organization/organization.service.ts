@@ -342,7 +342,18 @@ export class OrganizationService {
         if (!user) {
             return null
         }
-        return this.userRepository.findUserOrganization(user.id)
+        const organization = await this.userRepository.findUserOrganization(
+            user.id,
+        )
+
+        if (!organization) {
+            return null
+        }
+
+        return {
+            ...organization,
+            representative: organization.user,
+        }
     }
 
     async getUserOrganizations(cognitoId: string) {
@@ -350,7 +361,14 @@ export class OrganizationService {
         if (!user) {
             return []
         }
-        return this.userRepository.findUserOrganizations(user.id)
+        const organizations =
+            await this.userRepository.findUserOrganizations(user.id)
+
+        // Map user field to representative field for GraphQL response
+        return organizations.map((org) => ({
+            ...org,
+            representative: org.user,
+        }))
     }
 
     async requestJoinOrganization(
@@ -483,35 +501,38 @@ export class OrganizationService {
                 `[TRANSACTION] Starting approval for join request: ${requestId}`,
             )
 
-            const updatedRequest = await this.prisma.$transaction(async (tx) => {
-                // Step 1: Update join request status to VERIFIED
-                this.logger.debug(
-                    "[TRANSACTION] Step 1: Updating join request status",
-                )
-                const updatedJoinRequest = await tx.organization_Member.update({
-                    where: { id: requestId },
-                    data: { status: VerificationStatus.VERIFIED },
-                    include: {
-                        member: true,
-                        organization: true,
-                    },
-                })
+            const updatedRequest = await this.prisma.$transaction(
+                async (tx) => {
+                    // Step 1: Update join request status to VERIFIED
+                    this.logger.debug(
+                        "[TRANSACTION] Step 1: Updating join request status",
+                    )
+                    const updatedJoinRequest =
+                        await tx.organization_Member.update({
+                            where: { id: requestId },
+                            data: { status: VerificationStatus.VERIFIED },
+                            include: {
+                                member: true,
+                                organization: true,
+                            },
+                        })
 
-                // Step 2: Update user role to the requested role
-                this.logger.debug(
-                    `[TRANSACTION] Step 2: Updating user role to ${joinRequest.member_role}`,
-                )
-                await tx.user.update({
-                    where: { id: joinRequest.member_id },
-                    data: { role: joinRequest.member_role as Role },
-                })
+                    // Step 2: Update user role to the requested role
+                    this.logger.debug(
+                        `[TRANSACTION] Step 2: Updating user role to ${joinRequest.member_role}`,
+                    )
+                    await tx.user.update({
+                        where: { id: joinRequest.member_id },
+                        data: { role: joinRequest.member_role as Role },
+                    })
 
-                this.logger.log(
-                    "[TRANSACTION] Database operations completed successfully",
-                )
+                    this.logger.log(
+                        "[TRANSACTION] Database operations completed successfully",
+                    )
 
-                return updatedJoinRequest
-            })
+                    return updatedJoinRequest
+                },
+            )
 
             // ========================================
             // EXTERNAL SERVICE (Step 3) - Outside transaction
@@ -861,8 +882,12 @@ export class OrganizationService {
             role: string
         }
     }> {
-        const fundraiserUser = await this.validateFundraiserUser(fundraiserCognitoId)
-        const memberRecord = await this.validateMemberRemoval(memberId, fundraiserUser.id)
+        const fundraiserUser =
+            await this.validateFundraiserUser(fundraiserCognitoId)
+        const memberRecord = await this.validateMemberRemoval(
+            memberId,
+            fundraiserUser.id,
+        )
 
         const removedMemberInfo = {
             id: memberRecord.member.id,
@@ -872,10 +897,15 @@ export class OrganizationService {
         }
 
         try {
-            await this.performMemberRemovalTransaction(memberId, memberRecord.member_id)
-            
+            await this.performMemberRemovalTransaction(
+                memberId,
+                memberRecord.member_id,
+            )
+
             if (memberRecord.member.cognito_id) {
-                await this.syncCognitoRoleForRemoval(memberRecord.member.cognito_id)
+                await this.syncCognitoRoleForRemoval(
+                    memberRecord.member.cognito_id,
+                )
             }
 
             this.logger.log(
@@ -896,20 +926,27 @@ export class OrganizationService {
     }
 
     private async validateFundraiserUser(fundraiserCognitoId: string) {
-        const fundraiserUser = await this.userRepository.findUserById(fundraiserCognitoId)
+        const fundraiserUser =
+            await this.userRepository.findUserById(fundraiserCognitoId)
         if (!fundraiserUser) {
             UserErrorHelper.throwUserNotFound(fundraiserCognitoId)
         }
 
         if (fundraiserUser.role !== Role.FUNDRAISER) {
-            FundraiserErrorHelper.throwFundraiserOnlyOperation("remove staff members")
+            FundraiserErrorHelper.throwFundraiserOnlyOperation(
+                "remove staff members",
+            )
         }
 
         return fundraiserUser
     }
 
-    private async validateMemberRemoval(memberId: string, fundraiserId: string) {
-        const memberRecord = await this.organizationRepository.findJoinRequestById(memberId)
+    private async validateMemberRemoval(
+        memberId: string,
+        fundraiserId: string,
+    ) {
+        const memberRecord =
+            await this.organizationRepository.findJoinRequestById(memberId)
         if (!memberRecord) {
             throw new NotFoundException("Staff member not found")
         }
@@ -935,26 +972,41 @@ export class OrganizationService {
         return memberRecord
     }
 
-    private async performMemberRemovalTransaction(memberId: string, memberUserId: string) {
-        this.logger.log(`[TRANSACTION] Starting staff removal for member: ${memberId}`)
+    private async performMemberRemovalTransaction(
+        memberId: string,
+        memberUserId: string,
+    ) {
+        this.logger.log(
+            `[TRANSACTION] Starting staff removal for member: ${memberId}`,
+        )
 
         await this.prisma.$transaction(async (tx) => {
-            this.logger.debug("[TRANSACTION] Step 1: Removing member from organization")
+            this.logger.debug(
+                "[TRANSACTION] Step 1: Removing member from organization",
+            )
             await tx.organization_Member.delete({ where: { id: memberId } })
 
-            this.logger.debug("[TRANSACTION] Step 2: Updating user role back to DONOR")
+            this.logger.debug(
+                "[TRANSACTION] Step 2: Updating user role back to DONOR",
+            )
             await tx.user.update({
                 where: { id: memberUserId },
                 data: { role: Role.DONOR },
             })
 
-            this.logger.log("[TRANSACTION] Database operations completed successfully")
+            this.logger.log(
+                "[TRANSACTION] Database operations completed successfully",
+            )
         })
     }
 
     private async syncCognitoRoleForRemoval(cognitoId: string) {
-        this.logger.debug("[SAGA] Step 3: Updating Cognito custom:role attribute back to DONOR")
+        this.logger.debug(
+            "[SAGA] Step 3: Updating Cognito custom:role attribute back to DONOR",
+        )
         await this.updateCognitoRoleWithRetry(cognitoId, Role.DONOR)
-        this.logger.log(`[SAGA] Cognito role updated successfully for user: ${cognitoId}`)
+        this.logger.log(
+            `[SAGA] Cognito role updated successfully for user: ${cognitoId}`,
+        )
     }
 }

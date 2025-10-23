@@ -60,7 +60,6 @@ export class DonorProfileResolver {
         const result = await this.organizationService.getUserOrganizations(
             cognito_id,
         )
-
         return result || []
     }
 
