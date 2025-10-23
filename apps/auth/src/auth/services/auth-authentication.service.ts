@@ -1,16 +1,20 @@
-import { Injectable, Logger } from "@nestjs/common"
+import { Injectable, Logger, UnauthorizedException } from "@nestjs/common"
 import { AwsCognitoService } from "libs/aws-cognito"
 import { CognitoUser } from "libs/aws-cognito/aws-cognito.types"
 import { GetUserCommandOutput } from "@aws-sdk/client-cognito-identity-provider"
 import { SignInInput, RefreshTokenInput } from "../dto"
 import { AuthUser, SignInResponse, RefreshTokenResponse } from "../models"
 import { AuthErrorHelper } from "../helpers"
+import { GrpcClientService } from "libs/grpc"
 
 @Injectable()
 export class AuthAuthenticationService {
     private readonly logger = new Logger(AuthAuthenticationService.name)
 
-    constructor(private readonly awsCognitoService: AwsCognitoService) {}
+    constructor(
+        private readonly awsCognitoService: AwsCognitoService,
+        private readonly grpcClient: GrpcClientService,
+    ) {}
 
     async signIn(input: SignInInput): Promise<SignInResponse> {
         try {
@@ -27,6 +31,9 @@ export class AuthAuthenticationService {
             )
             const user = this.convertGetUserOutputToCognitoUser(userOutput)
 
+            // Check if user is active in User Service
+            await this.validateUserIsActive(user.sub)
+
             this.logger.log(`User signed in successfully: ${user.sub}`)
 
             return {
@@ -40,6 +47,54 @@ export class AuthAuthenticationService {
         } catch (error) {
             this.logger.error(`Sign in failed for ${input.email}:`, error)
             throw AuthErrorHelper.mapCognitoError(error, "signIn", input.email)
+        }
+    }
+
+    /**
+     * Validate if user is active in User Service
+     * Throws UnauthorizedException if user is not active
+     */
+    private async validateUserIsActive(cognitoId: string): Promise<void> {
+        try {
+            this.logger.log(`Checking if user is active: ${cognitoId}`)
+
+            const userResponse = await this.grpcClient.callUserService(
+                "GetUser",
+                { cognito_id: cognitoId },
+            )
+
+            if (!userResponse.success) {
+                this.logger.warn(
+                    `User not found in User Service: ${cognitoId}`,
+                )
+                throw new UnauthorizedException(
+                    "User account not found. Please contact support.",
+                )
+            }
+
+            // Check if user is active
+            if (!userResponse.user.is_active) {
+                this.logger.warn(
+                    `User account is inactive: ${cognitoId} (${userResponse.user.email})`,
+                )
+                throw new UnauthorizedException(
+                    "Your account has been deactivated. Please contact support for assistance.",
+                )
+            }
+
+            this.logger.log(`User is active: ${cognitoId}`)
+        } catch (error) {
+            // If it's already an UnauthorizedException, rethrow it
+            if (error instanceof UnauthorizedException) {
+                throw error
+            }
+
+            // Log other errors but don't block login if User Service is down
+            this.logger.error(
+                `Failed to validate user active status: ${error instanceof Error ? error.message : error}`,
+            )
+            // Optionally: throw error to block login if User Service is unreachable
+            // throw new UnauthorizedException('Unable to verify account status. Please try again later.')
         }
     }
 

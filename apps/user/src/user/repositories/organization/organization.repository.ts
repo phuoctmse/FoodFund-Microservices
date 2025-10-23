@@ -220,8 +220,6 @@ export class OrganizationRepository {
             take: options.limit,
         })
 
-        console.debug(joinRequests)
-
         return {
             joinRequests,
             total,
