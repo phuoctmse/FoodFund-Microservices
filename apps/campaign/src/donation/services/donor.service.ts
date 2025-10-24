@@ -18,6 +18,7 @@ import { Donation } from "../models/donation.model"
 import { SqsService } from "@libs/aws-sqs"
 import { PayOSService } from "@libs/payos"
 import { CurrentUserType } from "@libs/auth"
+import { formatPaymentDescription } from "@libs/common"
 import { v7 as uuidv7 } from "uuid"
 import { PrismaClient } from "../../generated/campaign-client"
 
@@ -46,7 +47,14 @@ export class DonorService {
         const donorId = user?.username || "anonymous"
         const isAnonymous = !user || (input.isAnonymous ?? false)
         const orderCode = Date.now()
-        const transferContent = `DONATE ${donationId.slice(0, 8)} ${campaign.title.slice(0, 15)}`
+        const orderCodeStr = orderCode.toString(36).toUpperCase()
+
+        //truncate description content
+        const transferContent = formatPaymentDescription(
+            orderCodeStr,
+            campaign.title,
+            25,
+        )
 
         const payosResult = await this.createPaymentLink(
             donationAmount,
@@ -154,7 +162,7 @@ export class DonorService {
 
             const payosResult = await this.payosService.createPaymentLink({
                 amount: Number(donationAmount),
-                description: transferContent.slice(0, 25),
+                description: transferContent, // Already formatted and truncated
                 orderCode: orderCode,
                 returnUrl: "",
                 cancelUrl: "",
