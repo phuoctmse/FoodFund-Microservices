@@ -1,10 +1,11 @@
 import { Module } from "@nestjs/common"
-import { GrpcModule } from "libs/grpc"
+import { ConfigModule } from "@nestjs/config"
 import { RoleGuard } from "./guards/role.guard"
+import { OptionalJwtAuthGuard } from "./guards/optional-jwt-auth.guard"
 
 @Module({
-    imports: [GrpcModule],
-    providers: [RoleGuard],
-    exports: [RoleGuard],
+    imports: [ConfigModule],
+    providers: [RoleGuard, OptionalJwtAuthGuard],
+    exports: [RoleGuard, OptionalJwtAuthGuard],
 })
 export class AuthLibModule {}

@@ -3,6 +3,7 @@ import { AuthSubgraphModule } from "./auth/auth-subgraph.module"
 import { envConfig } from "libs/env"
 import { SentryModule } from "libs/observability/sentry.module"
 import { EnvModule } from "@libs/env/env.module"
+import { CloudWatchModule } from "@libs/aws-cloudwatch"
 
 @Module({
     imports: [
@@ -14,7 +15,7 @@ import { EnvModule } from "@libs/env/env.module"
             release: envConfig().sentry.release,
             enableTracing: true,
         }),
-
+        CloudWatchModule,
         AuthSubgraphModule,
     ],
     controllers: [],

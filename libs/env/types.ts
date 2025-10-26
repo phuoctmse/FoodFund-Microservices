@@ -48,16 +48,39 @@ export interface AwsCognitoConfig {
     clientSecret: string
 }
 
+export interface AwsCloudWatchConfig {
+    logGroup?: string
+    namespace: string
+}
+
 export interface AwsConfig {
     region: string
     cognito: AwsCognitoConfig
     accessKeyId: string
     secretAccessKey: string
+    awsOpenSearchEndpoint: string
+    awsSqsQueueUrl: string
+    cloudwatch: AwsCloudWatchConfig
+}
+
+export interface RedisConfig {
+    host: string
+    port: number
+    password: string
+    username: string
+}
+
+export interface PayOSConfig {
+    payosClienId: string
+    payosApiKey: string
+    payosCheckSumKey: string
 }
 
 // Main environment configuration interface
 export interface EnvironmentConfig {
     nodeEnv: NodeEnv
+
+    cors_origin: string
 
     // Container configurations
     containers: {
@@ -89,7 +112,14 @@ export interface EnvironmentConfig {
         release: string
     }
 
+    // Redis Configuration
+    redis: RedisConfig
+
+    // Google Configuration
     google: GoogleConfig
+
+    //Payos Configuration
+    payos: PayOSConfig
 }
 
 export interface EnvModuleOptions {

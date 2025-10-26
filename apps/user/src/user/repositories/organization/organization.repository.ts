@@ -424,4 +424,32 @@ export class OrganizationRepository {
             total,
         }
     }
+
+    async findMyJoinRequests(userId: string) {
+        return this.prisma.organization_Member.findMany({
+            where: {
+                member_id: userId,
+            },
+            include: {
+                member: true,
+                organization: true,
+            },
+            orderBy: {
+                joined_at: "desc",
+            },
+        })
+    }
+
+    async findVerifiedMembershipByUserId(userId: string) {
+        return this.prisma.organization_Member.findFirst({
+            where: {
+                member_id: userId,
+                status: Verification_Status.VERIFIED,
+            },
+            include: {
+                member: true,
+                organization: true,
+            },
+        })
+    }
 }

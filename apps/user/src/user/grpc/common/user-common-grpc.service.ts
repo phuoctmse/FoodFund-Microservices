@@ -76,18 +76,23 @@ export class UserCommonGrpcService {
     // Get user by ID
     async getUser(call: any, callback: any) {
         try {
-            const { id } = call.request
+            const { id, cognito_id } = call.request
 
-            if (!id) {
+            if (!id && !cognito_id) {
                 callback(null, {
                     success: false,
                     user: null,
-                    error: "User ID is required",
+                    error: "User ID or Cognito ID is required",
                 })
                 return
             }
 
-            const user = await this.userCommonRepository.findUserById(id)
+            // Find user by cognito_id if provided, otherwise by id
+            const user = cognito_id
+                ? await this.userCommonRepository.findUserByCognitoId(
+                    cognito_id,
+                )
+                : await this.userCommonRepository.findUserById(id)
 
             if (!user) {
                 callback(null, {

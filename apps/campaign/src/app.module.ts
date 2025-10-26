@@ -8,6 +8,13 @@ import { ScheduleModule } from "@nestjs/schedule"
 import { User } from "./shared/model/user.model"
 import { EnvModule } from "@libs/env/env.module"
 import { PostModule } from "./post/post.module"
+import { DonationModule } from "./donation/donation.module"
+import { OpenSearchModule } from "@libs/aws-opensearch"
+import { SqsModule } from "@libs/aws-sqs"
+import { RedisModule } from "@libs/redis"
+import { GrpcModule } from "@libs/grpc"
+import { CloudWatchModule } from "@libs/aws-cloudwatch"
+import { QueueWorkerService } from "./workers/queue-worker.service"
 
 @Module({
     imports: [
@@ -29,11 +36,17 @@ import { PostModule } from "./post/post.module"
             enableTracing: true,
         }),
         ScheduleModule.forRoot(),
+        GrpcModule,
+        CloudWatchModule,
         CampaignModule,
         CampaignCategoryModule,
         PostModule,
+        DonationModule,
+        SqsModule,
+        OpenSearchModule,
+        RedisModule.registerAsync()
     ],
     controllers: [],
-    providers: [],
+    providers: [QueueWorkerService],
 })
 export class AppModule {}

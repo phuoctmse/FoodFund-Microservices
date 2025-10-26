@@ -2,9 +2,14 @@ import { Module } from "@nestjs/common"
 import { getHttpUrl } from "libs/common"
 import { Container, envConfig } from "libs/env"
 import { GraphQLGatewayModule } from "libs/graphql/gateway"
+import { HealthController } from "./health.controller"
+import { WebhookProxyController } from "./webhook-proxy.controller"
+import { EnvModule } from "@libs/env/env.module"
+import { CloudWatchModule } from "@libs/aws-cloudwatch"
 
 @Module({
     imports: [
+        CloudWatchModule,
         GraphQLGatewayModule.forRoot({
             subgraphs: (() => {
                 const authHost =
@@ -104,8 +109,9 @@ import { GraphQLGatewayModule } from "libs/graphql/gateway"
                 },
             },
         }),
+        EnvModule.forRoot()
     ],
-    controllers: [],
+    controllers: [HealthController, WebhookProxyController],
     providers: [],
 })
 export class ApiGatewayModule {}

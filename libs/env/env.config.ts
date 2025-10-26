@@ -9,6 +9,8 @@ import {
 export const envConfig = (): EnvironmentConfig => ({
     nodeEnv: (process.env.NODE_ENV ?? NodeEnv.Development) as NodeEnv,
 
+    cors_origin: process.env.CORS_ORIGIN ?? "",
+
     // Container configurations
     containers: {
         [Container.Auth]: {
@@ -114,6 +116,12 @@ export const envConfig = (): EnvironmentConfig => ({
         },
         accessKeyId: process.env.AWS_ACCESS_KEY_ID as string,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY as string,
+        awsOpenSearchEndpoint: process.env.AWS_OPENSEARCH_ENDPOINT as string,
+        awsSqsQueueUrl: process.env.AWS_SQS_QUEUE_URL as string,
+        cloudwatch: {
+            namespace: "FoodFund",
+            logGroup: process.env.AWS_CLOUDWATCH_LOG_GROUP as string,
+        }
     },
 
     // Sentry Configuration
@@ -126,6 +134,19 @@ export const envConfig = (): EnvironmentConfig => ({
     google: {
         clientId: process.env.GOOGLE_CLIENT_ID as string,
     },
+
+    redis: {
+        host: process.env.REDIS_HOST as string,
+        port: Number.parseInt(process.env.REDIS_PORT as string),
+        password: process.env.REDIS_PASSWORD as string,
+        username: process.env.REDIS_USERNAME as string,
+    },
+
+    payos: {
+        payosApiKey: process.env.PAYOS_API_KEY as string,
+        payosCheckSumKey: process.env.PAYOS_CHECKSUM_KEY as string,
+        payosClienId: process.env.PAYOS_CLIENT_ID as string
+    }
 })
 
 // Utility functions

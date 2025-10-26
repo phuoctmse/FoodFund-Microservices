@@ -7,6 +7,7 @@ import {
     JoinRequestManagementResponse,
     JoinRequestListResponse,
 } from "../../types/join-request-management-response.model"
+import { StaffRemovalResponse } from "../../types/staff-removal-response.model"
 import { Role } from "../../enums/user.enum"
 
 @Resolver()
@@ -123,5 +124,23 @@ export class FundraiserProfileResolver {
             joinRequest: result,
             requestId: result.id,
         }
+    }
+
+    @Mutation(() => StaffRemovalResponse, {
+        description:
+            "Remove a staff member from the organization (Fundraiser only)",
+    })
+    @RequireRole(Role.FUNDRAISER)
+    async removeStaffMember(
+        @CurrentUser() user: CurrentUserType,
+        @Args("memberId", {
+            description: "ID of the organization member to remove",
+        })
+            memberId: string,
+    ) {
+        return this.organizationService.removeStaffMember(
+            memberId,
+            user.cognito_id,
+        )
     }
 }

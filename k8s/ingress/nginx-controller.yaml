@@ -1,0 +1,41 @@
+# Install NGINX Ingress Controller for DigitalOcean
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ingress-nginx
+---
+# NGINX Ingress Controller optimized for DO
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: ingress-nginx
+  namespace: kube-system
+spec:
+  chart: ingress-nginx
+  repo: https://kubernetes.github.io/ingress-nginx
+  targetNamespace: ingress-nginx
+  valuesContent: |-
+    controller:
+      service:
+        type: LoadBalancer
+        annotations:
+          service.beta.kubernetes.io/do-loadbalancer-name: "foodfund-lb"
+          service.beta.kubernetes.io/do-loadbalancer-protocol: "http"
+          service.beta.kubernetes.io/do-loadbalancer-size-slug: "lb-small"
+          service.beta.kubernetes.io/do-loadbalancer-disable-lets-encrypt-dns-records: "false"
+      resources:
+        requests:
+          cpu: 100m
+          memory: 90Mi
+        limits:
+          cpu: 200m
+          memory: 180Mi
+    defaultBackend:
+      enabled: true
+      resources:
+        requests:
+          cpu: 10m
+          memory: 20Mi
+        limits:
+          cpu: 20m
+          memory: 40Mi

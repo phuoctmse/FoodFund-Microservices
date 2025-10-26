@@ -120,47 +120,67 @@ export class AuthErrorHelper {
     ): never {
         const errorCode =
             cognitoError.name || cognitoError.code || "UnknownError"
+        const errorMessage = cognitoError.message || ""
 
-        switch (errorCode) {
-        case "UsernameExistsException":
+        if (operation === "signUp") {
+            // UnauthorizedException + "user already exists" => treat as unconfirmed user path
+            if (
+                errorCode === "UnauthorizedException" &&
+                errorMessage.toLowerCase().includes("user already exists")
+            ) {
+                this.throwUserNotConfirmed(email || "unknown")
+            }
+            // UsernameExistsException during signUp typically means confirmed user already exists
+            if (errorCode === "UsernameExistsException") {
+                this.throwUserAlreadyExists(email || "unknown")
+            }
+            if (errorCode === "UserNotConfirmedException") {
+                this.throwUserNotConfirmed(email || "unknown")
+            }
+        }
+
+        // Map standard Cognito errors
+        if (errorCode === "UsernameExistsException") {
             this.throwUserAlreadyExists(email || "unknown")
-            break
+        }
 
-        case "UserNotConfirmedException":
+        if (errorCode === "UserNotConfirmedException") {
             this.throwUserNotConfirmed(email || "unknown")
-            break
+        }
 
-        case "NotAuthorizedException":
+        if (
+            errorCode === "NotAuthorizedException" ||
+            errorCode === "UnauthorizedException"
+        ) {
             this.throwInvalidCredentials(email || "unknown")
-            break
+        }
 
-        case "UserNotFoundException":
+        if (errorCode === "UserNotFoundException") {
             this.throwInvalidCredentials(email || "unknown")
-            break
+        }
 
-        case "CodeMismatchException":
+        if (errorCode === "CodeMismatchException") {
             this.throwInvalidConfirmationCode(email || "unknown")
-            break
+        }
 
-        case "ExpiredCodeException":
+        if (errorCode === "ExpiredCodeException") {
             this.throwConfirmationCodeExpired(email || "unknown")
-            break
+        }
 
-        case "TooManyRequestsException":
+        if (errorCode === "TooManyRequestsException") {
             this.throwTooManyAttempts(email || "unknown", 5)
-            break
+        }
 
-        case "InvalidPasswordException":
+        if (errorCode === "InvalidPasswordException") {
             this.throwWeakPassword([
                 "Password does not meet AWS Cognito requirements",
             ])
-            break
-
-        default:
-            this.throwCognitoError(
-                operation,
-                `${errorCode}: ${cognitoError.message}`,
-            )
         }
+
+        // Default: throw generic Cognito error
+        this.throwCognitoError(
+            operation,
+            `${errorCode}: ${cognitoError.message}`,
+        )
     }
 }

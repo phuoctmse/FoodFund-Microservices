@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: redirect-ingress
+  namespace: foodfund-k8s
+  annotations:
+    nginx.ingress.kubernetes.io/permanent-redirect: "https://api.minhphuoc.io.vn"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - minhphuoc.io.vn
+    secretName: foodfund-redirect-tls-secret
+  rules:
+  - host: minhphuoc.io.vn
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: graphql-gateway
+            port:
+              number: 8000

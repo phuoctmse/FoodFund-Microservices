@@ -151,8 +151,10 @@ jobs:
         run: |
           if [ "${GITHUB_REF##*/}" = "main" ]; then
             echo "TAG=latest" >> $GITHUB_ENV
+            echo "UNIQUE_TAG=latest" >> $GITHUB_ENV
           else
             echo "TAG=develop" >> $GITHUB_ENV
+            echo "UNIQUE_TAG=develop-${GITHUB_SHA::8}" >> $GITHUB_ENV
           fi
 
       - name: Build & Push ${{ matrix.service }} Service
@@ -164,6 +166,7 @@ jobs:
           push: true
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image }}:${{ env.TAG }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image }}:${{ env.UNIQUE_TAG }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
           platforms: linux/amd64
@@ -191,85 +194,110 @@ jobs:
     if: github.event_name == 'push' && needs.detect-changes.outputs.any-service == 'true'
     steps:
       - uses: actions/checkout@v4
-
       - name: Install doctl
         env:
           DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-          DOCTL_APP_ID: ${{ secrets.DOCTL_APP_ID }}
         run: |
-          if [ -z "$DIGITALOCEAN_ACCESS_TOKEN" ] || [ -z "$DOCTL_APP_ID" ]; then
-            echo "Deployment secrets not set, skipping doctl installation"
+          if [ -z "$DIGITALOCEAN_ACCESS_TOKEN" ]; then
+            echo "DIGITALOCEAN_ACCESS_TOKEN not set; skipping doctl install"
             exit 0
           fi
           curl -sL https://github.com/digitalocean/doctl/releases/download/v1.110.0/doctl-1.110.0-linux-amd64.tar.gz | tar -xzv
           sudo mv doctl /usr/local/bin/doctl
 
-      - name: Authenticate doctl
+      - name: Authenticate doctl and fetch kubeconfig
         env:
           DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-          DOCTL_APP_ID: ${{ secrets.DOCTL_APP_ID }}
+          DO_K8S_CLUSTER_NAME: ${{ secrets.DO_K8S_CLUSTER_NAME }}
         run: |
-          if [ -z "$DIGITALOCEAN_ACCESS_TOKEN" ] || [ -z "$DOCTL_APP_ID" ]; then
-            echo "Deployment secrets not set, skipping authentication"
+          if [ -z "$DIGITALOCEAN_ACCESS_TOKEN" ] || [ -z "$DO_K8S_CLUSTER_NAME" ]; then
+            echo "DIGITALOCEAN_ACCESS_TOKEN or DO_K8S_CLUSTER_NAME not set; skipping k8s deploy"
             exit 0
           fi
           doctl auth init -t $DIGITALOCEAN_ACCESS_TOKEN
+          doctl kubernetes cluster kubeconfig save $DO_K8S_CLUSTER_NAME
 
-      - name: Deploy to DigitalOcean App Platform
-        env:
-          DOCTL_APP_ID: ${{ secrets.DOCTL_APP_ID }}
-          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          GITHUB_SHA: ${{ github.sha }}
-          # Database secrets
-          USERS_DATABASE_URL: ${{ secrets.USERS_DATABASE_URL }}
-          CAMPAIGN_DATABASE_URL: ${{ secrets.CAMPAIGN_DATABASE_URL }}
-          # AWS secrets
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_COGNITO_USER_POOL_ID: ${{ secrets.AWS_COGNITO_USER_POOL_ID }}
-          AWS_COGNITO_CLIENT_ID: ${{ secrets.AWS_COGNITO_CLIENT_ID }}
-          AWS_COGNITO_CLIENT_SECRET: ${{ secrets.AWS_COGNITO_CLIENT_SECRET }}
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          SENTRY_ENVIRONMENT: ${{ secrets.SENTRY_ENVIRONMENT }}
-          SENTRY_RELEASE: ${{ secrets.SENTRY_RELEASE }}
-          # gRPC URLs
-          USER_GRPC_URL: ${{ secrets.USER_GRPC_URL }}
-          AUTH_GRPC_URL: ${{ secrets.AUTH_GRPC_URL }}
+      - name: Ensure namespace exists
         run: |
-          if [ -z "$DIGITALOCEAN_ACCESS_TOKEN" ] || [ -z "$DOCTL_APP_ID" ]; then
-            echo "Deployment secrets not set, skipping deployment"
-            exit 0
-          fi
-          
-          # Replace registry placeholders with actual DockerHub username
-          sed -i "s|registry: \"ttrece\"|registry: \"${DOCKERHUB_USERNAME}\"|g" .do/app-spec.yaml
-          
-          # Replace secret placeholders with actual values
-          sed -i "s|\${USERS_DATABASE_URL}|${USERS_DATABASE_URL}|g" .do/app-spec.yaml
-          sed -i "s|\${CAMPAIGN_DATABASE_URL}|${CAMPAIGN_DATABASE_URL}|g" .do/app-spec.yaml
-          sed -i "s|\${AWS_REGION}|${AWS_REGION}|g" .do/app-spec.yaml
-          sed -i "s|\${AWS_ACCESS_KEY_ID}|${AWS_ACCESS_KEY_ID}|g" .do/app-spec.yaml
-          sed -i "s|\${AWS_SECRET_ACCESS_KEY}|${AWS_SECRET_ACCESS_KEY}|g" .do/app-spec.yaml
-          sed -i "s|\${AWS_COGNITO_USER_POOL_ID}|${AWS_COGNITO_USER_POOL_ID}|g" .do/app-spec.yaml
-          sed -i "s|\${AWS_COGNITO_CLIENT_ID}|${AWS_COGNITO_CLIENT_ID}|g" .do/app-spec.yaml
-          sed -i "s|\${AWS_COGNITO_CLIENT_SECRET}|${AWS_COGNITO_CLIENT_SECRET}|g" .do/app-spec.yaml
-          sed -i "s|\${SENTRY_DSN}|${SENTRY_DSN}|g" .do/app-spec.yaml
-          sed -i "s|\${SENTRY_ENVIRONMENT}|${SENTRY_ENVIRONMENT}|g" .do/app-spec.yaml
-          sed -i "s|\${SENTRY_RELEASE}|${SENTRY_RELEASE}|g" .do/app-spec.yaml
-          sed -i "s|\${USER_GRPC_URL}|${USER_GRPC_URL}|g" .do/app-spec.yaml
-          sed -i "s|\${AUTH_GRPC_URL}|${AUTH_GRPC_URL}|g" .do/app-spec.yaml
+          kubectl create namespace foodfund-k8s --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Deploy or update services with Helm
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          set -e
           
-          # Set correct tag based on branch
+          # Set image tag based on branch
           if [ "${GITHUB_REF##*/}" = "main" ]; then
-            sed -i "s|tag: develop|tag: latest|g" .do/app-spec.yaml
+            TAG="latest"
+            UNIQUE_TAG="latest"
+          else
+            TAG="develop"
+            UNIQUE_TAG="develop-${GITHUB_SHA::8}"
           fi
           
-          echo "📝 Updated app-spec.yaml with secrets and registry info"
+          echo "Deploying/updating services with tag: $TAG (unique: $UNIQUE_TAG)"
           
-          # Update the existing app with the spec
-          doctl apps create-deployment $DOCTL_APP_ID
+          # Force delete old pods to free up resources for new deployment
+          echo "🔄 Cleaning up old pods to free resources..."
+          if [ "${{ needs.detect-changes.outputs.auth }}" = "true" ]; then
+            kubectl delete pods -l app.kubernetes.io/name=auth-service -n foodfund-k8s --ignore-not-found=true || true
+          fi
           
-          echo "🚀 Deployment triggered for changed services"
+          if [ "${{ needs.detect-changes.outputs.user }}" = "true" ]; then
+            kubectl delete pods -l app.kubernetes.io/name=user-service -n foodfund-k8s --ignore-not-found=true || true
+          fi
+          
+          if [ "${{ needs.detect-changes.outputs.campaign }}" = "true" ]; then
+            kubectl delete pods -l app.kubernetes.io/name=campaign-service -n foodfund-k8s --ignore-not-found=true || true
+          fi
+          
+          if [ "${{ needs.detect-changes.outputs.gateway }}" = "true" ]; then
+            kubectl delete pods -l app.kubernetes.io/name=graphql-gateway -n foodfund-k8s --ignore-not-found=true || true
+          fi
+          
+          # Wait a moment for pods to terminate
+          sleep 15
+          
+          # Deploy or update only changed services using Helm
+          if [ "${{ needs.detect-changes.outputs.auth }}" = "true" ]; then
+            echo "Deploying/updating auth-service..."
+            helm upgrade --install auth-service k8s/charts/auth-service \
+              --namespace foodfund-k8s \
+              --set image.tag=$UNIQUE_TAG \
+              --set image.repository=${DOCKERHUB_USERNAME}/foodfund-auth \
+              --timeout 3m
+          fi
+          
+          if [ "${{ needs.detect-changes.outputs.user }}" = "true" ]; then
+            echo "Deploying/updating user-service..."
+            helm upgrade --install user-service k8s/charts/user-service \
+              --namespace foodfund-k8s \
+              --set image.tag=$UNIQUE_TAG \
+              --set image.repository=${DOCKERHUB_USERNAME}/foodfund-user \
+              --timeout 3m
+          fi
+          
+          if [ "${{ needs.detect-changes.outputs.campaign }}" = "true" ]; then
+            echo "Deploying/updating campaign-service..."
+            helm upgrade --install campaign-service k8s/charts/campaign-service \
+              --namespace foodfund-k8s \
+              --set image.tag=$UNIQUE_TAG \
+              --set image.repository=${DOCKERHUB_USERNAME}/foodfund-campaign \
+              --timeout 3m
+          fi
+          
+          if [ "${{ needs.detect-changes.outputs.gateway }}" = "true" ]; then
+            echo "Deploying/updating graphql-gateway..."
+            helm upgrade --install graphql-gateway k8s/charts/graphql-gateway \
+              --namespace foodfund-k8s \
+              --set image.tag=$UNIQUE_TAG \
+              --set image.repository=${DOCKERHUB_USERNAME}/foodfund-graphql-gateway \
+              --timeout 3m
+          fi
+
+      - name: Final status
+        run: |
+          kubectl get pods -n foodfund-k8s
+          kubectl get deployments -n foodfund-k8s
+          kubectl get services -n foodfund-k8s

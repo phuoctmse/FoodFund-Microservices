@@ -65,14 +65,13 @@ model Campaign_Category {
 }
 
 model Donation {
-  id                String   @id @default(uuid())
-  donor_id          String
-  campaign_id       String
-  amount            BigInt   @default(0)
-  message           String?  @db.Text()
-  payment_reference String?  @db.Text()
-  is_anonymous      Boolean  @default(false)
-  created_at        DateTime @default(now())
+  id           String   @id @default(uuid())
+  donor_id     String
+  campaign_id  String
+  amount       BigInt   @default(0)
+  message      String?  @db.Text()
+  is_anonymous Boolean  @default(false)
+  created_at   DateTime @default(now())
 
   campaign             Campaign              @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
   payment_transactions Payment_Transaction[]
@@ -85,22 +84,24 @@ model Donation {
 }
 
 model Payment_Transaction {
-  id              String         @id @default(uuid())
-  donation_id     String
-  order_code      BigInt 
-  bin             String?        @db.VarChar(20)
-  account_number  String?        @db.VarChar(50)
-  account_name    String?        @db.VarChar(255)
-  amount          BigInt
-  currency        String         @default("VND") @db.VarChar(10)
-  description     String?        @db.Text()
-  payment_link_id String?        @db.Text()
-  checkout_url    String?        @db.Text()
-  qr_code         String?        @db.Text()
-  status          Payment_Status
-  created_at      DateTime       @default(now())
-  updated_at      DateTime       @updatedAt
-  refunded_at     DateTime?
+  id                   String         @id @default(uuid())
+  donation_id          String
+  order_code           BigInt
+  bin                  String?        @db.VarChar(20)
+  account_number       String?        @db.VarChar(50)
+  account_name         String?        @db.VarChar(255)
+  account_bank_name    String?        @db.VarChar(255)
+  transaction_datetime DateTime?
+  amount               BigInt
+  currency             String         @default("VND") @db.VarChar(10)
+  description          String?        @db.Text()
+  payment_link_id      String?        @db.Text()
+  checkout_url         String?        @db.Text()
+  qr_code              String?        @db.Text()
+  status               Payment_Status
+  created_at           DateTime       @default(now())
+  updated_at           DateTime       @updatedAt
+  refunded_at          DateTime?
 
   donation Donation @relation(fields: [donation_id], references: [id], onDelete: Cascade)
 
@@ -163,7 +164,7 @@ model Post_Comment {
   parent_comment_id String?
   comment_path      String?  @db.Text()
   depth             Int      @default(0)
-  is_active Boolean @default(true)
+  is_active         Boolean  @default(true)
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
 
@@ -198,6 +199,7 @@ enum Campaign_Status {
 }
 
 enum Payment_Status {
+  PENDING
   SUCCESS
   FAILED
   REFUNDED

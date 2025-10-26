@@ -119,31 +119,94 @@ export class UserAdminService {
             throw new NotFoundException(`User with ID ${userId} not found`)
         }
 
+        // Prevent deactivating admin accounts
+        if (
+            updateData.is_active === false &&
+            existingUser.role === Role.ADMIN
+        ) {
+            throw new Error("Cannot deactivate admin accounts")
+        }
+
         // Update in database
         const updatedUser = await this.userCommonRepository.updateUser(
             userId,
             updateData,
         )
 
-        // If email changed, update in Cognito too
-        if (updateData.email && updateData.email !== existingUser.email) {
-            try {
-                await this.awsCognitoService.updateUserAttributes(
-                    existingUser.cognito_id!,
-                    {
-                        email: updateData.email,
-                    },
-                )
-            } catch (error) {
-                this.logger.warn(
-                    `Failed to update email in Cognito: ${error.message}`,
-                )
-                // Don't fail the whole operation, just log the warning
-            }
+        // Sync changes with AWS Cognito
+        if (existingUser.cognito_id) {
+            await this.syncUserWithCognito(
+                existingUser,
+                updateData
+            )
         }
 
         this.logger.log(`Successfully updated user account: ${userId}`)
         return updatedUser
+    }
+
+    /**
+     * Sync user changes with AWS Cognito
+     */
+    private async syncUserWithCognito(
+        existingUser: any,
+        updateData: UpdateUserAccountInput,
+    ): Promise<void> {
+        const cognitoId = existingUser.cognito_id
+
+        try {
+            // 1. Update email if changed
+            if (updateData.email && updateData.email !== existingUser.email) {
+                this.logger.log(
+                    `Updating email in Cognito for user: ${cognitoId}`,
+                )
+                await this.awsCognitoService.updateUserAttributes(cognitoId, {
+                    email: updateData.email,
+                })
+            }
+
+            // 2. Enable/Disable user based on is_active status
+            if (
+                updateData.is_active !== undefined &&
+                updateData.is_active !== existingUser.is_active
+            ) {
+                if (updateData.is_active === false) {
+                    // Disable user in Cognito
+                    this.logger.log(
+                        `Disabling user in Cognito: ${cognitoId} (${existingUser.email})`,
+                    )
+                    await this.awsCognitoService.adminDisableUser(
+                        existingUser.email,
+                    )
+                    this.logger.log(
+                        `User disabled successfully in Cognito: ${cognitoId}`,
+                    )
+                } else {
+                    // Enable user in Cognito
+                    this.logger.log(
+                        `Enabling user in Cognito: ${cognitoId} (${existingUser.email})`,
+                    )
+                    await this.awsCognitoService.adminEnableUser(
+                        existingUser.email,
+                    )
+                    this.logger.log(
+                        `User enabled successfully in Cognito: ${cognitoId}`,
+                    )
+                }
+            }
+        } catch (error) {
+            // Log error but don't fail the whole operation
+            this.logger.error(
+                `Failed to sync user with Cognito: ${error instanceof Error ? error.message : error}`,
+                {
+                    cognitoId,
+                    email: existingUser.email,
+                    updateData,
+                },
+            )
+            // Optionally: throw error to rollback database changes
+            // throw new Error(`Failed to sync with Cognito: ${error.message}`)
+        }
     }
 
     async getAdminProfile(cognitoId: string) {

@@ -4,8 +4,11 @@ import { UpdateMyProfileInput } from "../../dto/update-my-profile.input"
 import { UserMutationService } from "../../services/common/user-mutation.service"
 import { UserQueryService } from "../../services/common/user-query.service"
 import { CognitoGraphQLGuard, AwsCognitoService } from "@libs/aws-cognito"
-import { CurrentUser, CurrentUserType } from "libs/auth"
+import { CurrentUser, CurrentUserType, RequireRole } from "libs/auth"
 import { UserProfileSchema } from "../../models/user.model"
+import { OrganizationService } from "../../services"
+import { Role } from "../../enums/user.enum"
+import { LeaveOrganizationResponse } from "../../types/leave-organization-response.model"
 
 @Resolver(() => UserProfileSchema)
 export class UserMutationResolver {
@@ -15,6 +18,7 @@ export class UserMutationResolver {
         private readonly userMutationService: UserMutationService,
         private readonly userQueryService: UserQueryService,
         private readonly awsCognitoService: AwsCognitoService,
+        private readonly organizationService: OrganizationService,
     ) {}
 
     @Mutation(() => UserProfileSchema)
@@ -81,5 +85,14 @@ export class UserMutationResolver {
 
         this.logger.log(`Profile updated successfully for user: ${cognitoId}`)
         return updatedUser
+    }
+
+    @Mutation(() => LeaveOrganizationResponse, {
+        description:
+            "Leave organization voluntarily (Staff only: KITCHEN_STAFF, DELIVERY_STAFF)",
+    })
+    @RequireRole(Role.KITCHEN_STAFF, Role.DELIVERY_STAFF)
+    async leaveOrganization(@CurrentUser() user: CurrentUserType) {
+        return this.organizationService.leaveOrganization(user.cognito_id)
     }
 }

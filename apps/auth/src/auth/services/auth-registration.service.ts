@@ -9,8 +9,9 @@ import {
 } from "../models"
 import { AuthErrorHelper } from "../helpers"
 import { GrpcClientService } from "libs/grpc"
-import { generateUniqueUsername } from "libs/common"
+import { generateUniqueUsername, SagaOrchestrator } from "libs/common"
 import { Role } from "../enum/role.enum"
+import { SentryService } from "libs/observability"
 
 @Injectable()
 export class AuthRegistrationService {
@@ -19,51 +20,117 @@ export class AuthRegistrationService {
     constructor(
         private readonly awsCognitoService: AwsCognitoService,
         private readonly grpcClient: GrpcClientService,
+        private readonly sentryService: SentryService,
     ) {}
 
     async signUp(input: SignUpInput): Promise<SignUpResponse> {
-        try {
-            const result = await this.awsCognitoService.signUp(
-                input.email,
-                input.password,
-                {
-                    name: input.name,
-                    "custom:role": Role.DONOR,
-                },
-            )
+        const username = generateUniqueUsername(input.email)
+        let cognitoUserSub: string | null = null
 
-            const username = generateUniqueUsername(input.email)
-
-            const userResult = await this.grpcClient.callUserService(
-                "CreateUser",
-                {
-                    cognito_id: result.userSub || "",
-                    email: input.email,
-                    username: username,
-                    full_name: input.name,
-                    role: Role.DONOR,
-                },
-            )
-
-            if (!userResult.success) {
-                throw new Error(
-                    `Failed to create user in database: ${userResult.error}`,
+        const saga = new SagaOrchestrator(`User Registration: ${input.email}`, {
+            logger: this.logger,
+            onCompensationFailed: (stepName, error) => {
+                // Send critical alert to Sentry for compensation failures
+                this.sentryService.captureError(
+                    new Error(`CRITICAL: Saga compensation failed for ${stepName}`),
+                    {
+                        compensationError: {
+                            message: error instanceof Error ? error.message : String(error),
+                            stack: error instanceof Error ? error.stack : undefined,
+                        },
+                        userContext: {
+                            email: input.email,
+                            cognitoUserSub,
+                            timestamp: new Date().toISOString(),
+                            severity: "CRITICAL",
+                            action: "MANUAL_CLEANUP_REQUIRED",
+                            service: "auth-service",
+                            operation: "user-registration-rollback",
+                        },
+                        tags: {
+                            severity: "critical",
+                            operation: "saga-rollback",
+                            service: "auth-service",
+                            requiresManualIntervention: "true",
+                        },
+                    },
                 )
-            }
 
-            this.logger.log(`User signed up successfully: ${result.userSub}`)
+                this.sentryService.captureMessage(
+                    `🚨 CRITICAL: Manual cleanup required for user registration ${input.email}`,
+                    "error",
+                    {
+                        alertType: "manual-intervention-required",
+                        priority: "P1",
+                        email: input.email,
+                        cognitoUserSub,
+                    },
+                )
+            },
+        })
+
+        try {
+            // Step 1: Create Cognito user
+            saga.addStep({
+                name: "Create Cognito User",
+                execute: async () => {
+                    const result = await this.awsCognitoService.signUp(
+                        input.email,
+                        input.password,
+                        {
+                            name: input.name,
+                            "custom:role": Role.DONOR,
+                        },
+                    )
+                    cognitoUserSub = result.userSub || ""
+                    return result
+                },
+                compensate: async () => {
+                    if (cognitoUserSub) {
+                        await this.awsCognitoService.adminDeleteUser(input.email)
+                    }
+                },
+            })
+
+            // Step 2: Create user profile in User Service
+            saga.addStep({
+                name: "Create User Profile",
+                execute: async () => {
+                    const userResult = await this.grpcClient.callUserService(
+                        "CreateUser",
+                        {
+                            cognito_id: cognitoUserSub,
+                            email: input.email,
+                            username: username,
+                            full_name: input.name,
+                            role: Role.DONOR,
+                        },
+                    )
+
+                    if (!userResult.success) {
+                        throw new Error(
+                            `User Service failed: ${userResult.error || "Unknown error"}`,
+                        )
+                    }
+
+                    return userResult
+                },
+            })
+
+            await saga.execute()
 
             return {
-                userSub: result.userSub || "",
+                userSub: cognitoUserSub!,
                 message:
                     "User registered successfully. Please check your email for verification code.",
                 emailSent: true,
             }
         } catch (error) {
-            this.logger.error(`Sign up failed for ${input.email}:`, error)
             throw AuthErrorHelper.mapCognitoError(error, "signUp", input.email)
         }
     }
+
+
 
     async confirmSignUp(
         input: ConfirmSignUpInput,

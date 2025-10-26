@@ -9,11 +9,12 @@ import {
 } from "@nestjs/graphql"
 import { UserHealthResponse } from "../../types/health-response.model"
 import { OrganizationListResponse } from "../../types/organization-list-response.model"
+import { OrganizationWithMembers } from "../../types/organization-with-members.model"
 import { UserQueryService } from "../../services/common/user-query.service"
 import { OrganizationService } from "../../services"
 import { UseGuards } from "@nestjs/common"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
-import { CurrentUser } from "libs/auth"
+import { CurrentUser, CurrentUserType } from "libs/auth"
 import { UserProfileSchema } from "../../models/user.model"
 
 @ObjectType()
@@ -42,12 +43,13 @@ export class UserQueryResolver {
     }
     @Query(() => RoleProfileResponse, { name: "getMyProfile" })
     @UseGuards(CognitoGraphQLGuard)
-    async getMyProfile(@CurrentUser() user: any): Promise<RoleProfileResponse> {
+    async getMyProfile(@CurrentUser() user: CurrentUserType): Promise<RoleProfileResponse> {
         if (!user) {
             throw new Error("User not authenticated")
         }
 
-        const cognito_id = user.username as string
+        // Try multiple sources for cognito_id
+        const cognito_id = user.cognito_id || user.sub || user.id
 
         if (!cognito_id) {
             throw new Error("User cognito_id not found")
@@ -57,7 +59,7 @@ export class UserQueryResolver {
         const userInfo =
             await this.userQueryService.findUserByCognitoId(cognito_id)
         if (!userInfo) {
-            throw new Error("User not found")
+            throw new Error("User not found in database")
         }
 
         const role = userInfo.role
@@ -104,6 +106,20 @@ export class UserQueryResolver {
             limit: safeLimit,
             hasMore: safeOffset + safeLimit < result.total,
         }
+    }
+
+    @Query(() => OrganizationWithMembers, {
+        name: "getOrganizationById",
+        description:
+            "Get organization details by ID (public access, only verified organizations)",
+    })
+    async getOrganizationById(
+        @Args("id", {
+            description: "Organization ID",
+        })
+            id: string,
+    ) {
+        return this.organizationService.getOrganizationById(id)
     }
 
     @ResolveReference()
