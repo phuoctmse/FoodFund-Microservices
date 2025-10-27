@@ -6,30 +6,31 @@ import { PostCommentService } from "../../services"
 export class PostCommentQueryResolver {
     constructor(private readonly postCommentService: PostCommentService) {}
 
-    @Query(() => [PostComment])
-    async postComments(
-        @Args("postId")
-            postId: string,
-        @Args("parentCommentId", {
-            nullable: true,
+    @Query(() => [PostComment], {
+        description: "Get all comments",
+    })
+    async postCommentsTree(
+        @Args("postId", {
+            description: "Post ID to fetch comments for",
         })
-            parentCommentId?: string,
+            postId: string,
         @Args("limit", {
             type: () => Int,
             nullable: true,
             defaultValue: 20,
+            description: "Maximum number of top-level comments to return",
         })
             limit: number = 20,
         @Args("offset", {
             type: () => Int,
             nullable: true,
             defaultValue: 0,
+            description: "Number of top-level comments to skip for pagination",
         })
             offset: number = 0,
     ): Promise<PostComment[]> {
         return await this.postCommentService.getCommentsByPostId(
             postId,
-            parentCommentId,
             limit,
             offset,
         )
@@ -37,9 +38,13 @@ export class PostCommentQueryResolver {
 
     @Query(() => PostComment, {
         nullable: true,
+        description: "Get a single comment by ID",
     })
     async comment(
-        @Args("commentId") commentId: string,
+        @Args("commentId", {
+            description: "Comment ID",
+        })
+            commentId: string,
     ): Promise<PostComment | null> {
         return await this.postCommentService.getCommentById(commentId)
     }

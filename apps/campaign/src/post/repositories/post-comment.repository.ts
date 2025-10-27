@@ -53,6 +53,44 @@ export class PostCommentRepository {
         return this.mapCommentToGraphQLModel(comment)
     }
 
+    async findCommentsByPostId(
+        postId: string,
+        limit: number = 20,
+        offset: number = 0,
+    ) {
+        const allComments = await this.prisma.post_Comment.findMany({
+            where: {
+                post_id: postId,
+                is_active: true,
+            },
+            orderBy: [{ depth: "asc" }, { created_at: "asc" }],
+        })
+
+        const commentMap = new Map<string, any>()
+        allComments.forEach((comment) => {
+            const mapped = this.mapCommentToGraphQLModel(comment)
+            mapped.replies = []
+            commentMap.set(comment.id, mapped)
+        })
+
+        const topLevelComments: any[] = []
+        allComments.forEach((comment) => {
+            const mapped = commentMap.get(comment.id)!
+            if (comment.parent_comment_id) {
+                const parent = commentMap.get(comment.parent_comment_id)
+                if (parent) {
+                    parent.replies.push(mapped)
+                }
+            } else {
+                topLevelComments.push(mapped)
+            }
+        })
+
+        return topLevelComments
+            .sort((a, b) => b.created_at.getTime() - a.created_at.getTime())
+            .slice(offset, offset + limit)
+    }
+
     async findCommentById(commentId: string) {
         const comment = await this.prisma.post_Comment.findUnique({
             where: { id: commentId },
@@ -184,28 +222,6 @@ export class PostCommentRepository {
                 updated_at: new Date(),
             },
         })
-    }
-
-    async findCommentsByPostId(
-        postId: string,
-        parentCommentId: string | undefined,
-        limit: number,
-        offset: number,
-    ) {
-        const comments = await this.prisma.post_Comment.findMany({
-            where: {
-                post_id: postId,
-                parent_comment_id: parentCommentId || null,
-                is_active: true,
-            },
-            orderBy: {
-                created_at: "desc",
-            },
-            take: Math.min(limit, 100),
-            skip: offset,
-        })
-
-        return comments.map((comment) => this.mapCommentToGraphQLModel(comment))
     }
 
     async getCommentCount(postId: string): Promise<number> {

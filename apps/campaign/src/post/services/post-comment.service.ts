@@ -52,6 +52,23 @@ export class PostCommentService {
         return comment
     }
 
+    async getCommentsByPostId(
+        postId: string,
+        limit: number = 20,
+        offset: number = 0,
+    ) {
+        const post = await this.postRepository.findPostById(postId)
+        if (!post) {
+            throw new NotFoundException(`Post with ${postId} not found`)
+        }
+
+        return await this.postCommentRepository.findCommentsByPostId(
+            postId,
+            limit,
+            offset,
+        )
+    }
+
     async updateComment(
         commentId: string,
         data: UpdateCommentInput,
@@ -96,25 +113,6 @@ export class PostCommentService {
             success: true,
             message: "Delete successfully",
         }
-    }
-
-    async getCommentsByPostId(
-        postId: string,
-        parentCommentId?: string,
-        limit: number = 20,
-        offset: number = 0,
-    ) {
-        const post = await this.postRepository.findPostById(postId)
-        if (!post) {
-            throw new NotFoundException(`Post with ${postId} not found`)
-        }
-
-        return await this.postCommentRepository.findCommentsByPostId(
-            postId,
-            parentCommentId,
-            limit,
-            offset,
-        )
     }
 
     async getCommentById(commentId: string) {
