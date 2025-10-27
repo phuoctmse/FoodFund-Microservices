@@ -1,32 +1,15 @@
-import { Controller, Post, Body, Logger, HttpCode, HttpStatus } from "@nestjs/common"
+import {
+    Controller,
+    Post,
+    Body,
+    Logger,
+    HttpCode,
+    HttpStatus,
+} from "@nestjs/common"
 import { DonationWebhookService } from "../services/donation-webhook.service"
+import { SepayWebhookPayload } from "@libs/sepay"
 
-export interface PayOSWebhookPayload {
-    code: string
-    desc: string
-    success: boolean
-    data: {
-        orderCode: number
-        amount: number
-        description: string
-        accountNumber: string
-        reference: string
-        transactionDateTime: string
-        currency: string
-        paymentLinkId: string
-        code: string
-        desc: string
-        counterAccountBankId?: string
-        counterAccountBankName?: string
-        counterAccountName?: string
-        counterAccountNumber?: string
-        virtualAccountName?: string
-        virtualAccountNumber?: string
-    }
-    signature: string
-}
-
-@Controller("webhooks/payos")
+@Controller("webhooks/sepay")
 export class DonationWebhookController {
     private readonly logger = new Logger(DonationWebhookController.name)
 
@@ -35,36 +18,31 @@ export class DonationWebhookController {
     @Post("payment")
     @HttpCode(HttpStatus.OK)
     async handlePaymentWebhook(
-        @Body() payload: PayOSWebhookPayload,
+        @Body() payload: SepayWebhookPayload,
     ): Promise<{ success: boolean; message: string }> {
-        this.logger.log(`Received PayOS webhook for order ${payload.data?.orderCode}`)
-        
-        try {    
-            console.debug(payload)        
-            // Verify webhook signature
-            const signature = payload.signature
-            if (!signature) {
-                this.logger.error("Missing signature in webhook payload")
-                return {
-                    success: false,
-                    message: "Missing signature"
-                }
-            }
-            
-            await this.webhookService.handlePaymentWebhook(payload, signature)
-            
+        this.logger.log(`Received Sepay webhook for transaction ${payload.id}`)
+
+        try {
+            console.debug(payload)
+
+            await this.webhookService.handlePaymentWebhook(payload)
+
             return {
                 success: true,
-                message: "Webhook processed successfully"
+                message: "Webhook processed successfully",
             }
         } catch (error) {
-            this.logger.error(`Failed to process webhook: ${error.message}`, error.stack)
-            
-            // Return success to PayOS even if processing fails
-            // to prevent retries for invalid data
+            this.logger.error(
+                `Failed to process webhook: ${error.message}`,
+                error.stack,
+            )
+
+            // IMPORTANT: Always return 200 OK to Sepay
+            // This prevents Sepay from retrying the webhook
+            // We log the error for manual review instead
             return {
-                success: false,
-                message: error.message
+                success: true,
+                message: "Webhook received",
             }
         }
     }

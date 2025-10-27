@@ -7,14 +7,14 @@ import {
 import { DonorRepository } from "../repositories/donor.repository"
 import { CreateDonationInput } from "../dtos/create-donation.input"
 import { DonationResponse } from "../dtos/donation-response.dto"
+import { CampaignDonationInfo } from "../dtos/campaign-donation-info.dto"
 import { CampaignRepository } from "../../campaign/campaign.repository"
 import { CampaignStatus } from "../../campaign/enum/campaign.enum"
 import { Donation } from "../models/donation.model"
 import { SqsService } from "@libs/aws-sqs"
-import { PayOSService } from "@libs/payos"
-import { VietQRService } from "@libs/vietqr"
+import { SepayService } from "@libs/sepay"
 import { CurrentUserType } from "@libs/auth"
-import { formatPaymentDescription } from "@libs/common"
+import { encodeDonationDescription } from "@libs/common"
 import { v7 as uuidv7 } from "uuid"
 
 @Injectable()
@@ -25,157 +25,21 @@ export class DonorService {
         private readonly donorRepository: DonorRepository,
         private readonly campaignRepository: CampaignRepository,
         private readonly sqsService: SqsService,
-        private readonly payosService: PayOSService,
-        private readonly vietqrService: VietQRService,
+        private readonly sepayService: SepayService,
     ) {}
 
+    /**
+     * DEPRECATED: This method is no longer used
+     * Use getCampaignDonationInfo to get static QR code instead
+     * Donations are auto-created by Sepay webhook
+     */
     async createDonation(
         input: CreateDonationInput,
         user: CurrentUserType | null,
     ): Promise<DonationResponse> {
-        // Step 1: Validate campaign
-        const campaign = await this.validateCampaignForDonation(
-            input.campaignId,
+        throw new BadRequestException(
+            "This endpoint is deprecated. Please use getCampaignDonationInfo to get QR code and scan to donate.",
         )
-        const donationAmount = this.validateDonationAmount(input.amount)
-
-        // Step 2: Generate IDs and prepare data
-        const donationId = uuidv7()
-        const donorId = user?.username || "anonymous"
-        const isAnonymous = !user || (input.isAnonymous ?? false)
-        const orderCode = Date.now()
-        const orderCodeStr = orderCode.toString(36).toUpperCase()
-
-        // Step 3: Create PayOS payment link (synchronous - user needs this immediately)
-        const transferContent = formatPaymentDescription(
-            orderCodeStr,
-            campaign.title,
-            25,
-        )
-
-        const payosResult = await this.createPaymentLink(
-            donationAmount,
-            transferContent,
-            orderCode,
-        )
-
-        // Step 4: Send to queue for async DB processing
-        try {
-            await this.sqsService.sendMessage({
-                messageBody: {
-                    eventType: "DONATION_CREATE_REQUEST",
-                    donationId,
-                    donorId,
-                    campaignId: input.campaignId,
-                    amount: input.amount.toString(),
-                    message: input.message,
-                    isAnonymous,
-                    orderCode,
-                    paymentLinkId: payosResult.paymentLinkId,
-                    checkoutUrl: payosResult.checkoutUrl,
-                    qrCode: payosResult.qrCode,
-                    requestedAt: new Date().toISOString(),
-                },
-                messageAttributes: {
-                    eventType: {
-                        DataType: "String",
-                        StringValue: "DONATION_CREATE_REQUEST",
-                    },
-                    campaignId: {
-                        DataType: "String",
-                        StringValue: input.campaignId,
-                    },
-                    orderCode: {
-                        DataType: "Number",
-                        StringValue: orderCode.toString(),
-                    },
-                },
-            })
-
-            this.logger.log(
-                `[QUEUE] Donation request sent to queue: ${donationId}`,
-            )
-        } catch (sqsError) {
-            // Log error but don't fail the request - we'll retry via SQS DLQ
-            this.logger.error(
-                "[QUEUE] Failed to send donation to queue, but payment link created",
-                {
-                    donationId,
-                    orderCode,
-                    error:
-                        sqsError instanceof Error ? sqsError.message : sqsError,
-                },
-            )
-        }
-
-        // Step 5: Get bank name from BIN code
-        let bankName: string | undefined
-        if (payosResult.bin) {
-            const bankNameFromCache = await this.vietqrService.getBankNameByBin(
-                payosResult.bin,
-            )
-            bankName = bankNameFromCache ?? payosResult.bin
-        }
-
-        // Step 6: Return payment details immediately to user
-        return {
-            message: user
-                ? "Thank you! Your donation request has been created. Please complete payment by scanning the QR code or transfer manually using the bank details below."
-                : "Thank you for your anonymous donation! Please complete payment by scanning the QR code or transfer manually using the bank details below.",
-            donationId,
-            qrCode: payosResult.qrCode ?? undefined,
-            checkoutUrl: payosResult.checkoutUrl ?? undefined,
-            orderCode,
-            paymentLinkId: payosResult.paymentLinkId ?? undefined,
-            // Bank transfer information from PayOS response
-            bankName,
-            accountNumber: payosResult.accountNumber ?? undefined,
-            accountName: payosResult.accountName ?? undefined,
-            amount: Number(donationAmount),
-            description: transferContent,
-        }
-    }
-
-    private async createPaymentLink(
-        donationAmount: bigint,
-        transferContent: string,
-        orderCode: number,
-    ) {
-        try {
-            this.logger.log(
-                `[PAYOS] Creating payment link for order ${orderCode}`,
-            )
-
-            const payosResult = await this.payosService.createPaymentLink({
-                amount: Number(donationAmount),
-                description: transferContent,
-                orderCode: orderCode,
-                returnUrl: "",
-                cancelUrl: "",
-            })
-
-            this.logger.log(
-                `[PAYOS] Payment link created: ${payosResult.paymentLinkId}`,
-            )
-
-            return {
-                qrCode: payosResult?.qrCode || null,
-                checkoutUrl: payosResult?.checkoutUrl || null,
-                paymentLinkId: payosResult?.paymentLinkId || null,
-                // Bank information for manual transfer
-                bin: payosResult?.bin || null,
-                accountNumber: payosResult?.accountNumber || null,
-                accountName: payosResult?.accountName || null,
-            }
-        } catch (error) {
-            this.logger.error("[PAYOS] Failed to create payment link", {
-                orderCode,
-                error: error instanceof Error ? error.message : error,
-            })
-            throw new BadRequestException(
-                "Failed to create payment link. Please try again later.",
-            )
-        }
     }
 
     private async validateCampaignForDonation(campaignId: string) {
@@ -288,6 +152,44 @@ export class DonorService {
             isAnonymous: donation.is_anonymous ?? false,
             created_at: donation.created_at,
             updated_at: donation.updated_at,
+        }
+    }
+
+    async getCampaignDonationInfo(
+        campaignId: string,
+        user: CurrentUserType | null,
+        isAnonymous?: boolean,
+    ): Promise<CampaignDonationInfo> {
+        // Validate campaign
+        await this.validateCampaignForDonation(campaignId)
+
+        const shouldIncludeUserId = !!user && !isAnonymous
+
+        const transferDescription = encodeDonationDescription({
+            campaignId,
+            userId: shouldIncludeUserId ? user.sub : undefined,
+        })
+
+        // Get Sepay account info
+        const accountInfo = this.sepayService.getAccountInfo()
+
+        this.logger.log(
+            `[SEPAY] Generated donation info for campaign ${campaignId}`,
+            {
+                isAuthenticated: !!user,
+                isAnonymous: !shouldIncludeUserId,
+                userId: shouldIncludeUserId ? user.sub : "anonymous",
+                description: transferDescription,
+            },
+        )
+
+        return {
+            bankAccountNumber: accountInfo.account_number,
+            bankAccountName: accountInfo.account_name,
+            bankName: accountInfo.bank_name,
+            bankCode: accountInfo.bank_code,
+            transferDescription,
+            isAuthenticated: !!user,
         }
     }
 }

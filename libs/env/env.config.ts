@@ -141,8 +141,16 @@ export const envConfig = (): EnvironmentConfig => ({
     payos: {
         payosApiKey: process.env.PAYOS_API_KEY as string,
         payosCheckSumKey: process.env.PAYOS_CHECKSUM_KEY as string,
-        payosClienId: process.env.PAYOS_CLIENT_ID as string
-    }
+        payosClienId: process.env.PAYOS_CLIENT_ID as string,
+    },
+
+    sepay: {
+        sepayApiKey: process.env.SEPAY_API_KEY as string,
+        sepayAccountNumber: process.env.SEPAY_ACCOUNT_NUMBER as string,
+        sepayAccountName: process.env.SEPAY_ACCOUNT_NAME as string,
+        sepayBankName: process.env.SEPAY_BANK_NAME as string,
+        sepayShortBankName: process.env.SEPAY_BANK_SHORT_NAME as string,
+    },
 })
 
 // Utility functions

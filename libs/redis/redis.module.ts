@@ -14,12 +14,12 @@ export class RedisModule extends ConfigurableModuleClass {
         return this.forRootAsync({
             useFactory: (): RedisModuleOptions => {
                 const env = envConfig()
-                
+
                 return {
                     host: env.redis.host,
                     port: env.redis.port,
                     password: env.redis.password,
-                    username: env.redis.username
+                    username: env.redis.username,
                 }
             },
             isGlobal: true,

@@ -107,7 +107,7 @@ import { EnvModule } from "@libs/env/env.module"
                 },
             },
         }),
-        EnvModule.forRoot()
+        EnvModule.forRoot(),
     ],
     controllers: [HealthController, WebhookProxyController],
     providers: [],

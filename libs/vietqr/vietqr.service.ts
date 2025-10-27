@@ -78,9 +78,8 @@ export class VietQRService implements OnModuleInit {
         try {
             this.logger.log("Loading banks from VietQR API...")
 
-            const response = await this.client.get<VietQRBanksResponse>(
-                "/banks",
-            )
+            const response =
+                await this.client.get<VietQRBanksResponse>("/banks")
 
             if (response.data.code === "00" && response.data.data) {
                 // Clear old cache

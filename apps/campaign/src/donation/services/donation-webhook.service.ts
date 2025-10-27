@@ -1,184 +1,120 @@
 import { Injectable, Logger, BadRequestException } from "@nestjs/common"
-import { PayOSService } from "@libs/payos"
-import { PayOSWebhookPayload } from "../controllers/donation-webhook.controller"
+import { SepayService, SepayWebhookPayload } from "@libs/sepay"
 import { DonorRepository } from "../repositories/donor.repository"
 import { PaymentStatus } from "../../shared/enum/campaign.enum"
+import { decodeDonationDescription } from "@libs/common"
 
 @Injectable()
 export class DonationWebhookService {
     private readonly logger = new Logger(DonationWebhookService.name)
 
     constructor(
-        private readonly payosService: PayOSService,
+        private readonly sepayService: SepayService,
         private readonly DonorRepository: DonorRepository,
     ) {}
 
-    async handlePaymentWebhook(
-        payload: PayOSWebhookPayload,
-        signature: string,
-    ): Promise<void> {
-        // Verify webhook signature
-        const isValid = this.payosService.verifyWebhookSignature(
-            payload.data,
-            signature,
-        )
-
-        if (!isValid) {
-            this.logger.warn("Invalid webhook signature", {
-                orderCode: payload.data.orderCode,
-            })
-            throw new BadRequestException("Invalid webhook signature")
+    async handlePaymentWebhook(payload: SepayWebhookPayload): Promise<void> {
+        // Validate webhook payload structure
+        if (!this.sepayService.validateWebhook(payload)) {
+            this.logger.warn("Invalid Sepay webhook payload", { payload })
+            throw new BadRequestException("Invalid webhook payload")
         }
 
-        const { orderCode, code, desc, amount, description } = payload.data
-
-        // Find payment transaction by order code
-        const paymentTransaction =
-            await this.DonorRepository.findPaymentTransactionByOrderCode(
-                BigInt(orderCode),
-            )
-
-        if (!paymentTransaction) {
-            this.logger.warn(
-                `Payment transaction not found for order ${orderCode}`,
-            )
-            throw new BadRequestException("Payment transaction not found")
-        }
-
-        // Validate payment details
-        const validation = this.validatePaymentDetails(
-            paymentTransaction,
-            amount,
+        const {
+            id,
+            gateway,
+            transactionDate,
+            accountNumber,
+            subAccount,
+            transferAmount,
+            transferType,
+            accumulated,
+            code,
+            content,
             description,
-        )
+            referenceCode,
+        } = payload
 
-        let newStatus: PaymentStatus
-        let errorDescription: string | undefined
+        // Only process incoming payments (transferType = "in")
+        if (transferType !== "in" || transferAmount <= 0) {
+            this.logger.log("Ignoring outgoing transaction", { id })
+            return
+        }
 
-        if (code === "00") {
-            // Payment successful from PayOS perspective
-            if (validation.isValid) {
-                newStatus = PaymentStatus.SUCCESS
-            } else {
-                // Payment received but has issues
-                newStatus = PaymentStatus.FAILED
-                errorDescription = validation.errors.join("; ")
-                this.logger.warn(
-                    `Payment validation failed for order ${orderCode}`,
-                    {
-                        errors: validation.errors,
-                        expected: validation.expected,
-                        actual: validation.actual,
-                    },
+        // Decode donation data from content
+        // Expected format: "DN{campaignId}" or "DN{campaignId}U{userId}"
+        // Note: Sepay may truncate the suffix based on dashboard config
+        // If UUID is truncated, you need to update Sepay config to allow longer suffix (32+ chars)
+        const donationData = decodeDonationDescription(content)
+
+        if (!donationData) {
+            this.logger.warn(
+                `Cannot decode donation data from content: ${content}`,
+                { id },
+            )
+            return // Ignore - not a donation
+        }
+
+        const { campaignId, userId } = donationData
+
+        this.logger.debug("[SEPAY] Decoded donation data from webhook", {
+            transactionId: id,
+            campaignId,
+            campaignIdLength: campaignId.length,
+            userId: userId || "anonymous",
+            rawContent: content,
+        })
+
+        // Check for duplicate by reference (prevent double processing)
+        if (referenceCode) {
+            const existing =
+                await this.DonorRepository.findPaymentTransactionByReference(
+                    referenceCode,
                 )
+            if (existing) {
+                this.logger.log(
+                    `Duplicate webhook ignored - reference already processed: ${referenceCode}`,
+                )
+                return
             }
-        } else {
-            // Payment failed from PayOS
-            newStatus = PaymentStatus.FAILED
-            errorDescription = desc
         }
 
-        // Idempotency guard: skip if already in terminal state
-        const currentStatus = paymentTransaction.status as string
-
-        if (currentStatus === PaymentStatus.SUCCESS) {
-            this.logger.log(
-                `Payment already processed successfully for order ${orderCode}`,
-            )
-            return
-        }
-
-        if (
-            currentStatus === PaymentStatus.FAILED &&
-            newStatus === PaymentStatus.FAILED
-        ) {
-            this.logger.log(
-                `Ignoring duplicate FAILED webhook for ${orderCode}`,
-            )
-            return
-        }
-
-        await this.DonorRepository.updatePaymentWithTransaction(
-            paymentTransaction.id,
-            newStatus,
+        // Create donation automatically with Sepay data
+        this.logger.log(
+            `[SEPAY] Auto-creating donation for campaign ${campaignId}`,
             {
-                customerAccountName: payload.data.counterAccountName,
-                customerAccountNumber: payload.data.counterAccountNumber,
-                customerBankName: payload.data.counterAccountBankName,
-                customerBankId: payload.data.counterAccountBankId,
-                description: payload.data.description,
-                transactionDateTime: payload.data.transactionDateTime,
-                reference: payload.data.reference,
-                errorCode: code !== "00" ? code : undefined,
-                errorDescription: errorDescription,
-                actualAmount: amount,
+                transactionId: id,
+                amount: transferAmount,
+                content,
+                reference: referenceCode,
+                userId: userId || "anonymous",
             },
-            newStatus === PaymentStatus.SUCCESS
-                ? {
-                    campaignId: paymentTransaction.donation.campaign_id,
-                    amount: paymentTransaction.amount,
-                }
-                : undefined,
         )
-    }
 
-    /**
-     * Validate payment details against expected values
-     * Returns validation result with detailed errors
-     */
-    private validatePaymentDetails(
-        paymentTransaction: any,
-        actualAmount: number,
-        actualDescription: string,
-    ): {
-        isValid: boolean
-        errors: string[]
-        expected: { amount: string; description: string }
-        actual: { amount: number; description: string }
-    } {
-        const errors: string[] = []
-        const expectedAmount = Number(paymentTransaction.amount)
-        const expectedDescription = paymentTransaction.description || ""
+        await this.DonorRepository.createDonationFromDynamicQR({
+            campaignId,
+            donorId: userId || "anonymous",
+            sepayTransactionId: id,
+            gateway,
+            transactionDate,
+            accountNumber,
+            subAccount: subAccount || undefined,
+            amountIn: BigInt(transferAmount), // transferAmount is always positive for "in"
+            amountOut: BigInt(0), // Always 0 for incoming
+            accumulated: BigInt(accumulated),
+            code: code || undefined,
+            transactionContent: content,
+            referenceNumber: referenceCode,
+            body: description, // Use full description as body
+        })
 
-        // Validate amount (must match exactly)
-        if (actualAmount !== expectedAmount) {
-            if (actualAmount < expectedAmount) {
-                errors.push(
-                    `Số tiền chuyển thiếu: Cần ${expectedAmount} VND, nhận được ${actualAmount} VND`,
-                )
-            } else {
-                errors.push(
-                    `Số tiền chuyển thừa: Cần ${expectedAmount} VND, nhận được ${actualAmount} VND`,
-                )
-            }
-        }
-
-        // Validate description (should contain order code or match expected)
-        const orderCodeStr = paymentTransaction.order_code.toString()
-        const descriptionMatch =
-            actualDescription.includes(expectedDescription) ||
-            actualDescription.includes(orderCodeStr) ||
-            actualDescription
-                .toUpperCase()
-                .includes(orderCodeStr.toString(36).toUpperCase())
-
-        if (!descriptionMatch) {
-            errors.push(
-                `Nội dung chuyển khoản không đúng: Cần "${expectedDescription}", nhận được "${actualDescription}"`,
-            )
-        }
-
-        return {
-            isValid: errors.length === 0,
-            errors,
-            expected: {
-                amount: expectedAmount.toString(),
-                description: expectedDescription,
+        this.logger.log(
+            `[SEPAY] Donation created successfully for campaign ${campaignId}`,
+            {
+                transactionId: id,
+                amount: transferAmount,
+                userId: userId || "anonymous",
             },
-            actual: {
-                amount: actualAmount,
-                description: actualDescription,
-            },
-        }
+        )
     }
 }

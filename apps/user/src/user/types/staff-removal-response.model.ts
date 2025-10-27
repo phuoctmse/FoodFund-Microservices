@@ -12,14 +12,17 @@ export class RemovedMemberInfo {
         email: string
 
     @Field(() => String, {
-        description: "Previous role of the member (KITCHEN_STAFF, DELIVERY_STAFF)",
+        description:
+            "Previous role of the member (KITCHEN_STAFF, DELIVERY_STAFF)",
     })
         role: string
 }
 
 @ObjectType()
 export class StaffRemovalResponse {
-    @Field(() => Boolean, { description: "Whether the operation was successful" })
+    @Field(() => Boolean, {
+        description: "Whether the operation was successful",
+    })
         success: boolean
 
     @Field(() => String, { description: "Success or error message" })

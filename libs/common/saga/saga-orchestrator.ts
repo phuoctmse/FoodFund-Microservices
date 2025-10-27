@@ -73,9 +73,8 @@ export class SagaOrchestrator {
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                const attemptInfo = maxRetries > 1 
-                    ? ` (attempt ${attempt}/${maxRetries})` 
-                    : ""
+                const attemptInfo =
+                    maxRetries > 1 ? ` (attempt ${attempt}/${maxRetries})` : ""
                 this.logger.log(
                     `[SAGA] Executing step: ${step.name}${attemptInfo}`,
                 )

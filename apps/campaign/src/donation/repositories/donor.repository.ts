@@ -47,7 +47,7 @@ export class DonorRepository {
         })
     }
 
-    async findById(id: string): Promise<Donation | null> {
+    async findById(id: string) {
         return this.prisma.donation.findUnique({
             where: { id },
             include: {
@@ -138,153 +138,155 @@ export class DonorRepository {
         }
     }
 
-    // Payment Transaction methods
-    async createPaymentTransaction(data: {
-        donationId: string
-        orderCode: bigint
-        amount: bigint
-        paymentLinkId: string
-        checkoutUrl: string
-        qrCode: string
-    }) {
-        return this.prisma.payment_Transaction.create({
-            data: {
-                donation_id: data.donationId,
-                order_code: data.orderCode,
-                amount: data.amount,
-                payment_link_id: data.paymentLinkId,
-                checkout_url: data.checkoutUrl,
-                qr_code: data.qrCode,
-                status: PaymentStatus.PENDING,
-            },
-        })
-    }
-
-    async findPaymentTransactionByOrderCode(orderCode: bigint) {
-        return this.prisma.payment_Transaction.findUnique({
-            where: { order_code: orderCode },
-            include: {
-                donation: {
-                    include: {
-                        campaign: true,
-                    },
-                },
-            },
-        })
-    }
-
-    async updatePaymentTransactionStatus(
-        id: string,
-        status: PaymentStatus,
-        additionalData?: {
-            customerAccountName?: string
-            customerAccountNumber?: string
-            customerBankName?: string
-            description?: string
-            transactionDateTime?: string
-        },
-    ) {
-        return this.prisma.payment_Transaction.update({
-            where: { id },
-            data: {
-                status,
-                counter_account_name: additionalData?.customerAccountName,
-                counter_account_number: additionalData?.customerAccountNumber,
-                counter_account_bank_name: additionalData?.customerBankName,
-                description: additionalData?.description,
-                transaction_datetime: additionalData?.transactionDateTime
-                    ? new Date(additionalData.transactionDateTime)
-                    : undefined,
-                updated_at: new Date(),
-            },
-        })
-    }
-
-    async updateCampaignStats(campaignId: string, amount: bigint) {
-        return this.prisma.campaign.update({
-            where: { id: campaignId },
-            data: {
-                received_amount: {
-                    increment: amount,
-                },
-                donation_count: {
-                    increment: 1,
-                },
-            },
-        })
-    }
-
-    async updatePaymentWithTransaction(
+    /**
+     * Admin manually approve a FAILED payment
+     * Updates status to SUCCESS and increments campaign stats
+     */
+    async manualApprovePayment(
         paymentId: string,
-        status: PaymentStatus,
-        additionalData?: {
-            customerAccountName?: string
-            customerAccountNumber?: string
-            customerBankName?: string
-            customerBankId?: string
-            description?: string
-            transactionDateTime?: string
-            reference?: string
-            errorCode?: string
-            errorDescription?: string
-            actualAmount?: number
-        },
-        campaignUpdate?: {
-            campaignId: string
-            amount: bigint
-        },
+        campaignId: string,
+        amount: bigint,
+        adminNote: string,
     ) {
         return this.prisma.$transaction(async (tx) => {
-            // Step 1: Update payment transaction status
-            // Only update if current status is PENDING to avoid downgrades or double-processing
-            const updatedPayment = await tx.payment_Transaction.updateMany({
-                where: { id: paymentId, status: PaymentStatus.PENDING },
+            // Update payment status
+            const payment = await tx.payment_Transaction.update({
+                where: { id: paymentId },
                 data: {
-                    status,
-                    // Transaction details
-                    reference: additionalData?.reference,
-                    description: additionalData?.description,
-                    transaction_datetime: additionalData?.transactionDateTime
-                        ? new Date(additionalData.transactionDateTime)
-                        : undefined,
-                    // Customer account info (who made the payment)
-                    counter_account_bank_id: additionalData?.customerBankId,
-                    counter_account_bank_name: additionalData?.customerBankName,
-                    counter_account_name: additionalData?.customerAccountName,
-                    counter_account_number:
-                        additionalData?.customerAccountNumber,
-                    // Error handling
-                    error_code: additionalData?.errorCode,
-                    error_description: additionalData?.errorDescription,
+                    status: PaymentStatus.SUCCESS,
+                    error_description: adminNote, // Store admin note
                     updated_at: new Date(),
                 },
             })
 
-            // If no rows updated, status was not PENDING; return current record without side effects
-            if (updatedPayment.count === 0) {
-                return tx.payment_Transaction.findUnique({
-                    where: { id: paymentId },
-                })
-            }
+            // Increment campaign stats
+            await tx.campaign.update({
+                where: { id: campaignId },
+                data: {
+                    received_amount: {
+                        increment: amount,
+                    },
+                    donation_count: {
+                        increment: 1,
+                    },
+                },
+            })
 
-            // Only increment stats when we just transitioned to SUCCESS
-            if (campaignUpdate && status === PaymentStatus.SUCCESS) {
-                await tx.campaign.update({
-                    where: { id: campaignUpdate.campaignId },
-                    data: {
-                        received_amount: {
-                            increment: campaignUpdate.amount,
-                        },
-                        donation_count: {
-                            increment: 1,
+            return payment
+        })
+    }
+
+    /**
+     * Find FAILED payments for admin review
+     */
+    async findFailedPayments(options?: { skip?: number; take?: number }) {
+        return this.prisma.payment_Transaction.findMany({
+            where: {
+                status: PaymentStatus.FAILED,
+            },
+            include: {
+                donation: {
+                    include: {
+                        campaign: {
+                            select: {
+                                id: true,
+                                title: true,
+                            },
                         },
                     },
-                })
-            }
+                },
+            },
+            orderBy: {
+                created_at: "desc",
+            },
+            skip: options?.skip,
+            take: options?.take,
+        })
+    }
 
-            return tx.payment_Transaction.findUnique({
-                where: { id: paymentId },
+    /**
+     * Find campaign by ID
+     */
+    async findCampaignById(campaignId: string) {
+        return this.prisma.campaign.findUnique({
+            where: { id: campaignId },
+        })
+    }
+
+    /**
+     * Find payment transaction by reference number (for idempotency)
+     */
+    async findPaymentTransactionByReference(referenceNumber: string) {
+        return this.prisma.payment_Transaction.findFirst({
+            where: { reference_number: referenceNumber },
+        })
+    }
+
+    /**
+     * Create donation from dynamic QR payment (auto-created by Sepay webhook)
+     * This is for payments made via dynamic QR code with encoded user info
+     */
+    async createDonationFromDynamicQR(data: {
+        campaignId: string
+        donorId: string // Can be userId or "anonymous"
+        sepayTransactionId: number // Sepay transaction ID
+        gateway: string // Bank name
+        transactionDate: string // Transaction timestamp
+        accountNumber: string // Receiving account
+        subAccount?: string
+        amountIn: bigint // Amount received
+        amountOut: bigint // Amount sent (usually 0)
+        accumulated: bigint // Account balance
+        code?: string // Bank transaction code
+        transactionContent: string // Transfer description
+        referenceNumber: string // Unique reference
+        body?: string // Additional data
+    }) {
+        return this.prisma.$transaction(async (tx) => {
+            // Create donation with donor info
+            const donation = await tx.donation.create({
+                data: {
+                    donor_id: data.donorId,
+                    campaign_id: data.campaignId,
+                    amount: data.amountIn, // Use amount_in from Sepay
+                    message: null,
+                    is_anonymous: data.donorId === "anonymous",
+                },
             })
+
+            // Create payment transaction with Sepay data
+            await tx.payment_Transaction.create({
+                data: {
+                    donation_id: donation.id,
+                    gateway: data.gateway,
+                    transaction_date: new Date(data.transactionDate),
+                    account_number: data.accountNumber,
+                    sub_account: data.subAccount,
+                    amount_in: data.amountIn,
+                    amount_out: data.amountOut,
+                    accumulated: data.accumulated,
+                    code: data.code,
+                    transaction_content: data.transactionContent,
+                    reference_number: data.referenceNumber,
+                    body: data.body,
+                    status: PaymentStatus.SUCCESS,
+                },
+            })
+
+            // Update campaign stats
+            await tx.campaign.update({
+                where: { id: data.campaignId },
+                data: {
+                    received_amount: {
+                        increment: data.amountIn,
+                    },
+                    donation_count: {
+                        increment: 1,
+                    },
+                },
+            })
+
+            return donation
         })
     }
 }

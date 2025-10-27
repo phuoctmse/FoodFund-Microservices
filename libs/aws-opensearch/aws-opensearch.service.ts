@@ -54,10 +54,11 @@ export class OpenSearchService implements OnModuleInit {
 
             if (accessKeyId && secretAccessKey) {
                 this.logger.log("Using explicit AWS credentials from config")
-                this.credentialsProvider = async () => ({
-                    accessKeyId,
-                    secretAccessKey,
-                } as any)
+                this.credentialsProvider = async () =>
+                    ({
+                        accessKeyId,
+                        secretAccessKey,
+                    }) as any
             } else {
                 this.logger.log("Using AWS default credential provider chain")
                 this.credentialsProvider = defaultProvider()
@@ -69,14 +70,17 @@ export class OpenSearchService implements OnModuleInit {
                     region,
                     service: "es",
                     // @ts-expect-error allow async credentials provider for AwsSigv4Signer
-                    credentials: this.credentialsProvider as AwsCredentialIdentityProvider,
+                    credentials: this
+                        .credentialsProvider as AwsCredentialIdentityProvider,
                 }),
                 node: endpoint,
                 requestTimeout: 60000,
                 ssl: { rejectUnauthorized: true },
             })
 
-            this.logger.log(`OpenSearch client initialized for endpoint: ${endpoint}`)
+            this.logger.log(
+                `OpenSearch client initialized for endpoint: ${endpoint}`,
+            )
         } catch (error) {
             this.logger.error("Failed to initialize OpenSearch client", error)
             this.logger.warn(
@@ -101,7 +105,9 @@ export class OpenSearchService implements OnModuleInit {
         options: SearchOptions,
     ): Promise<{ hits: T[]; total: number }> {
         if (!this.isAvailable()) {
-            this.logger.warn("OpenSearch not available, returning empty results")
+            this.logger.warn(
+                "OpenSearch not available, returning empty results",
+            )
             return { hits: [], total: 0 }
         }
 
@@ -132,13 +138,15 @@ export class OpenSearchService implements OnModuleInit {
             return { hits, total }
         } catch (error: any) {
             this.logger.error(`Search error in index ${index}`, error.message)
-            
+
             // Return empty results instead of throwing for permission errors
             if (error.statusCode === 403) {
-                this.logger.warn(`Access denied for search in index ${index}. Returning empty results.`)
+                this.logger.warn(
+                    `Access denied for search in index ${index}. Returning empty results.`,
+                )
                 return { hits: [], total: 0 }
             }
-            
+
             // For other errors, still throw
             throw error
         }
@@ -146,7 +154,9 @@ export class OpenSearchService implements OnModuleInit {
 
     async indexDocument(options: IndexDocumentOptions): Promise<any> {
         if (!this.isAvailable()) {
-            this.logger.warn("OpenSearch not available, skipping document indexing")
+            this.logger.warn(
+                "OpenSearch not available, skipping document indexing",
+            )
             return null
         }
 
@@ -163,13 +173,15 @@ export class OpenSearchService implements OnModuleInit {
             return response.body
         } catch (error: any) {
             this.logger.error(`Index document error in ${index}`, error.message)
-            
+
             // Handle permission errors gracefully
             if (error.statusCode === 403) {
-                this.logger.warn(`Access denied for indexing in ${index}. Operation skipped.`)
+                this.logger.warn(
+                    `Access denied for indexing in ${index}. Operation skipped.`,
+                )
                 return null
             }
-            
+
             throw error
         }
     }
@@ -216,7 +228,9 @@ export class OpenSearchService implements OnModuleInit {
         refresh: boolean | "wait_for" = false,
     ): Promise<any> {
         if (!this.isAvailable()) {
-            this.logger.warn("OpenSearch not available, skipping document update")
+            this.logger.warn(
+                "OpenSearch not available, skipping document update",
+            )
             return null
         }
 
@@ -241,7 +255,9 @@ export class OpenSearchService implements OnModuleInit {
         refresh: boolean | "wait_for" = false,
     ): Promise<any> {
         if (!this.isAvailable()) {
-            this.logger.warn("OpenSearch not available, skipping document deletion")
+            this.logger.warn(
+                "OpenSearch not available, skipping document deletion",
+            )
             return null
         }
 
@@ -265,7 +281,9 @@ export class OpenSearchService implements OnModuleInit {
         settings?: any,
     ): Promise<any> {
         if (!this.isAvailable()) {
-            this.logger.warn("OpenSearch not available, skipping index creation")
+            this.logger.warn(
+                "OpenSearch not available, skipping index creation",
+            )
             return null
         }
 
@@ -288,7 +306,9 @@ export class OpenSearchService implements OnModuleInit {
 
     async indexExists(index: string): Promise<boolean> {
         if (!this.isAvailable()) {
-            this.logger.warn("OpenSearch not available, returning false for index existence")
+            this.logger.warn(
+                "OpenSearch not available, returning false for index existence",
+            )
             return false
         }
 
@@ -302,7 +322,9 @@ export class OpenSearchService implements OnModuleInit {
 
     async deleteIndex(index: string): Promise<any> {
         if (!this.isAvailable()) {
-            this.logger.warn("OpenSearch not available, skipping index deletion")
+            this.logger.warn(
+                "OpenSearch not available, skipping index deletion",
+            )
             return null
         }
 

@@ -83,29 +83,30 @@ model Donation {
   @@map("donations")
 }
 
+
 model Payment_Transaction {
-  id          String @id @default(uuid())
+  id String @id @default(uuid())
+  gateway             String   @db.VarChar(100) 
+  transaction_date    DateTime @db.Timestamp() 
+  account_number      String?  @db.VarChar(100) 
+  sub_account         String?  @db.VarChar(250) 
+  amount_in           BigInt   @default(0) 
+  amount_out          BigInt   @default(0) 
+  accumulated         BigInt   @default(0) 
+  code                String?  @db.VarChar(250) 
+  transaction_content String?  @db.Text 
+  reference_number    String?  @unique @db.VarChar(255) 
+  body                String?  @db.Text 
+
   donation_id String
-  order_code  BigInt @unique
-  reference            String?   @db.VarChar(100)
-  transaction_datetime DateTime?
-  amount               BigInt
-  currency             String    @default("VND") @db.VarChar(10)
-  description          String?   @db.Text()
-  payment_link_id String? @db.Text()
-  checkout_url    String? @db.Text()
-  qr_code         String? @db.Text()
-  counter_account_bank_id   String? @db.VarChar(20)
-  counter_account_bank_name String? @db.VarChar(255)
-  counter_account_name      String? @db.VarChar(255)
-  counter_account_number    String? @db.VarChar(50)
-  virtual_account_name   String? @db.VarChar(255)
-  virtual_account_number String? @db.VarChar(50)
+  status      Payment_Status @default(PENDING)
+  currency    String         @default("VND") @db.VarChar(10)
+
   error_code        String? @db.VarChar(50)
   error_description String? @db.Text()
-  status      Payment_Status
-  created_at  DateTime       @default(now())
-  updated_at  DateTime       @updatedAt
+
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
   refunded_at DateTime?
 
   donation Donation @relation(fields: [donation_id], references: [id], onDelete: Cascade)
@@ -113,9 +114,9 @@ model Payment_Transaction {
   @@index([donation_id])
   @@index([status])
   @@index([created_at])
-  @@index([status, created_at])
-  @@index([reference])
-  @@index([counter_account_number])
+  @@index([reference_number])
+  @@index([transaction_date])
+  @@index([gateway])
   @@map("payment_transactions")
 }
 

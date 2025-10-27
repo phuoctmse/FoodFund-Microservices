@@ -36,7 +36,6 @@ export class CampaignGrpcService implements OnModuleInit {
         return {
             // Health check (required)
             Health: this.health.bind(this),
-
         }
     }
 

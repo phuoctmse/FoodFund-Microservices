@@ -17,7 +17,7 @@ export function removeVietnameseTones(str: string): string {
 /**
  * Smart truncate text to fit within maxLength, ensuring complete words
  * If truncation would cut a word, removes the incomplete word
- * 
+ *
  * Example:
  * - smartTruncate("CS8DJBKI3B7 Gop Gao Nuoi Nguoi", 25) → "CS8DJBKI3B7 Gop Gao"
  * - smartTruncate("CS8DJBKI3B7 Gop Gao", 25) → "CS8DJBKI3B7 Gop Gao"
@@ -46,7 +46,7 @@ export function smartTruncate(text: string, maxLength: number): string {
  * Prepare campaign title for payment description
  * - Removes Vietnamese tones
  * - Smart truncates to fit within available space
- * 
+ *
  * @param orderCode - The order code prefix (e.g., "CS8DJBKI3B7")
  * @param campaignTitle - The campaign title
  * @param maxLength - Maximum total length (default: 25 for PayOS)

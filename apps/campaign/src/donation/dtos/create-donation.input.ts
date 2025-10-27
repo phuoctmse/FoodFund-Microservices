@@ -1,5 +1,13 @@
 import { Field, InputType } from "@nestjs/graphql"
-import { IsNotEmpty, IsOptional, IsString, IsBoolean, Min, IsUUID, Max } from "class-validator"
+import {
+    IsNotEmpty,
+    IsOptional,
+    IsString,
+    IsBoolean,
+    Min,
+    IsUUID,
+    Max,
+} from "class-validator"
 import { Transform } from "class-transformer"
 
 @InputType()
@@ -15,17 +23,17 @@ export class CreateDonationInput {
     @Max(5000000000, { message: "Maximum donation amount is 500,000,000 VND" })
         amount: number
 
-    @Field(() => String, { 
-        nullable: true, 
-        description: "Optional message from donor" 
+    @Field(() => String, {
+        nullable: true,
+        description: "Optional message from donor",
     })
     @IsOptional()
     @IsString({ message: "Message must be a string" })
         message?: string
 
-    @Field(() => Boolean, { 
-        defaultValue: false, 
-        description: "Whether donation should be anonymous" 
+    @Field(() => Boolean, {
+        defaultValue: false,
+        description: "Whether donation should be anonymous",
     })
     @IsOptional()
     @IsBoolean({ message: "isAnonymous must be a boolean" })

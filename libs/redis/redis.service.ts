@@ -1,4 +1,10 @@
-import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common"
+import {
+    Inject,
+    Injectable,
+    Logger,
+    OnModuleDestroy,
+    OnModuleInit,
+} from "@nestjs/common"
 import Redis, { type RedisOptions } from "ioredis"
 import {
     DEFAULT_REDIS_PORT,
@@ -48,7 +54,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
             // Set up event listeners
             this.client.on("connect", () => {
-                this.logger.log(`Connected to Redis at ${redisOptions.host}:${redisOptions.port}`)
+                this.logger.log(
+                    `Connected to Redis at ${redisOptions.host}:${redisOptions.port}`,
+                )
                 this.isConnected = true
             })
 
@@ -158,7 +166,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
             port: options.port!,
             db: options.db!,
             status: this.isConnected ? "connected" : "disconnected",
-            uptime: this.isConnected ? Date.now() - this.connectionStartTime : undefined,
+            uptime: this.isConnected
+                ? Date.now() - this.connectionStartTime
+                : undefined,
         }
     }
 
@@ -223,7 +233,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     /**
      * Set a key-value pair
      */
-    async set(key: string, value: string | number, options?: RedisSetOptions): Promise<"OK" | null> {
+    async set(
+        key: string,
+        value: string | number,
+        options?: RedisSetOptions,
+    ): Promise<"OK" | null> {
         if (!this.isAvailable()) {
             this.logger.warn("Redis not available, skipping SET operation")
             return null
@@ -255,7 +269,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
      */
     async get(key: string, options?: RedisGetOptions): Promise<string | null> {
         if (!this.isAvailable()) {
-            this.logger.warn("Redis not available, returning null for GET operation")
+            this.logger.warn(
+                "Redis not available, returning null for GET operation",
+            )
             return null
         }
 
@@ -342,7 +358,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     /**
      * Set hash field
      */
-    async hset(key: string, field: string, value: string | number): Promise<number> {
+    async hset(
+        key: string,
+        field: string,
+        value: string | number,
+    ): Promise<number> {
         if (!this.isAvailable()) {
             return 0
         }
@@ -411,7 +431,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     /**
      * Push to left of list
      */
-    async lpush(key: string, ...values: (string | number | Buffer)[]): Promise<number> {
+    async lpush(
+        key: string,
+        ...values: (string | number | Buffer)[]
+    ): Promise<number> {
         if (!this.isAvailable()) {
             return 0
         }
@@ -427,7 +450,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     /**
      * Push to right of list
      */
-    async rpush(key: string, ...values: (string | number | Buffer)[]): Promise<number> {
+    async rpush(
+        key: string,
+        ...values: (string | number | Buffer)[]
+    ): Promise<number> {
         if (!this.isAvailable()) {
             return 0
         }
@@ -509,7 +535,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     /**
      * Add members to set
      */
-    async sadd(key: string, ...members: (string | number | Buffer)[]): Promise<number> {
+    async sadd(
+        key: string,
+        ...members: (string | number | Buffer)[]
+    ): Promise<number> {
         if (!this.isAvailable()) {
             return 0
         }
@@ -525,7 +554,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     /**
      * Remove members from set
      */
-    async srem(key: string, ...members: (string | number | Buffer)[]): Promise<number> {
+    async srem(
+        key: string,
+        ...members: (string | number | Buffer)[]
+    ): Promise<number> {
         if (!this.isAvailable()) {
             return 0
         }
@@ -557,7 +589,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     /**
      * Check if member exists in set
      */
-    async sismember(key: string, member: string | number | Buffer): Promise<boolean> {
+    async sismember(
+        key: string,
+        member: string | number | Buffer,
+    ): Promise<boolean> {
         if (!this.isAvailable()) {
             return false
         }
@@ -608,7 +643,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     /**
      * Execute a Redis command directly
      */
-    async executeCommand(command: string, ...args: (string | number | Buffer)[]): Promise<any> {
+    async executeCommand(
+        command: string,
+        ...args: (string | number | Buffer)[]
+    ): Promise<any> {
         if (!this.isAvailable()) {
             throw new Error("Redis not available")
         }
@@ -624,23 +662,27 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     /**
      * Execute multiple commands in a pipeline
      */
-    async pipeline(commands: Array<[string, ...(string | number | Buffer)[]]>): Promise<any[]> {
+    async pipeline(
+        commands: Array<[string, ...(string | number | Buffer)[]]>,
+    ): Promise<any[]> {
         if (!this.isAvailable()) {
             throw new Error("Redis not available")
         }
 
         try {
             const pipeline = this.client!.pipeline()
-            
+
             for (const [command, ...args] of commands) {
                 pipeline.call(command, ...args)
             }
 
             const results = await pipeline.exec()
-            return results?.map(([error, result]) => {
-                if (error) throw error
-                return result
-            }) || []
+            return (
+                results?.map(([error, result]) => {
+                    if (error) throw error
+                    return result
+                }) || []
+            )
         } catch (error) {
             this.logger.error("Redis pipeline error", error)
             throw error

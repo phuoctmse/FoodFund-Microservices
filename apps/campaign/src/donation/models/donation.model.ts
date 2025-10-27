@@ -16,18 +16,6 @@ export class Donation extends BaseSchema {
     @Field(() => String, { description: "Donation amount as string (BigInt)" })
         amount: string
 
-    @Field(() => String, {
-        nullable: true,
-        description: "Optional message from donor",
-    })
-        message?: string
-
     @Field(() => Boolean, { description: "Whether donation is anonymous" })
         isAnonymous: boolean
-
-    @Field(() => Campaign, {
-        nullable: true,
-        description: "Campaign that received this donation",
-    })
-        campaign?: Campaign
 }

@@ -57,9 +57,8 @@ export class DonorProfileResolver {
             throw new Error("User cognito_id not found")
         }
 
-        const result = await this.organizationService.getUserOrganizations(
-            cognito_id,
-        )
+        const result =
+            await this.organizationService.getUserOrganizations(cognito_id)
         return result || []
     }
 
@@ -102,7 +101,7 @@ export class DonorProfileResolver {
         )
         if (!results || results.length === 0) return []
 
-        return results.map(result => ({
+        return results.map((result) => ({
             id: result.id,
             organization: result.organization,
             requested_role: result.member_role,

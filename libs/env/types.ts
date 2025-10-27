@@ -70,6 +70,14 @@ export interface PayOSConfig {
     payosCheckSumKey: string
 }
 
+export interface SepayConfig {
+    sepayApiKey: string
+    sepayAccountNumber: string
+    sepayAccountName: string
+    sepayBankName: string
+    sepayShortBankName: string
+}
+
 // Main environment configuration interface
 export interface EnvironmentConfig {
     nodeEnv: NodeEnv
@@ -114,6 +122,9 @@ export interface EnvironmentConfig {
 
     //Payos Configuration
     payos: PayOSConfig
+
+    //Sepay Configuration
+    sepay: SepayConfig
 }
 
 export interface EnvModuleOptions {

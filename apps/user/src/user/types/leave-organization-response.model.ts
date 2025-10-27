@@ -11,7 +11,9 @@ export class PreviousOrganizationInfo {
 
 @ObjectType()
 export class LeaveOrganizationResponse {
-    @Field(() => Boolean, { description: "Whether the operation was successful" })
+    @Field(() => Boolean, {
+        description: "Whether the operation was successful",
+    })
         success: boolean
 
     @Field(() => String, { description: "Success or error message" })

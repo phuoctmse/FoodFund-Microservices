@@ -140,6 +140,7 @@ export class OrganizationService {
         // Transform data for GraphQL response
         const transformedOrganization = {
             ...organization,
+            representative: organization.user, // Map user to representative for GraphQL
             members: organization.Organization_Member.map((member) => ({
                 id: member.id,
                 member: member.member,
@@ -361,8 +362,9 @@ export class OrganizationService {
         if (!user) {
             return []
         }
-        const organizations =
-            await this.userRepository.findUserOrganizations(user.id)
+        const organizations = await this.userRepository.findUserOrganizations(
+            user.id,
+        )
 
         // Map user field to representative field for GraphQL response
         return organizations.map((org) => ({

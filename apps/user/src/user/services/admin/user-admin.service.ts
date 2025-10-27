@@ -135,10 +135,7 @@ export class UserAdminService {
 
         // Sync changes with AWS Cognito
         if (existingUser.cognito_id) {
-            await this.syncUserWithCognito(
-                existingUser,
-                updateData
-            )
+            await this.syncUserWithCognito(existingUser, updateData)
         }
 
         this.logger.log(`Successfully updated user account: ${userId}`)

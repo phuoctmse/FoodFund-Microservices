@@ -44,7 +44,7 @@ import { QueueWorkerService } from "./workers/queue-worker.service"
         SqsModule,
         OpenSearchModule,
         RedisModule.registerAsync(),
-        VietQRModule
+        VietQRModule,
     ],
     controllers: [],
     providers: [QueueWorkerService],

@@ -24,7 +24,7 @@ export class SignUpInput {
     @Field()
     @IsNotEmpty({ message: "Password is required" })
     @MinLength(6, { message: "Password must be at least 6 characters long" })
-    @MaxLength(100, { message: "Password must be at most 100 characters long"})
+    @MaxLength(100, { message: "Password must be at most 100 characters long" })
         password: string
 
     @Field()

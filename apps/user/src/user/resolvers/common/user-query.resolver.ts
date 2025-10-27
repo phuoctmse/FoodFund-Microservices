@@ -43,7 +43,9 @@ export class UserQueryResolver {
     }
     @Query(() => RoleProfileResponse, { name: "getMyProfile" })
     @UseGuards(CognitoGraphQLGuard)
-    async getMyProfile(@CurrentUser() user: CurrentUserType): Promise<RoleProfileResponse> {
+    async getMyProfile(
+        @CurrentUser() user: CurrentUserType,
+    ): Promise<RoleProfileResponse> {
         if (!user) {
             throw new Error("User not authenticated")
         }

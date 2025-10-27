@@ -32,11 +32,19 @@ export class AuthRegistrationService {
             onCompensationFailed: (stepName, error) => {
                 // Send critical alert to Sentry for compensation failures
                 this.sentryService.captureError(
-                    new Error(`CRITICAL: Saga compensation failed for ${stepName}`),
+                    new Error(
+                        `CRITICAL: Saga compensation failed for ${stepName}`,
+                    ),
                     {
                         compensationError: {
-                            message: error instanceof Error ? error.message : String(error),
-                            stack: error instanceof Error ? error.stack : undefined,
+                            message:
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error),
+                            stack:
+                                error instanceof Error
+                                    ? error.stack
+                                    : undefined,
                         },
                         userContext: {
                             email: input.email,
@@ -87,7 +95,9 @@ export class AuthRegistrationService {
                 },
                 compensate: async () => {
                     if (cognitoUserSub) {
-                        await this.awsCognitoService.adminDeleteUser(input.email)
+                        await this.awsCognitoService.adminDeleteUser(
+                            input.email,
+                        )
                     }
                 },
             })
@@ -129,8 +139,6 @@ export class AuthRegistrationService {
             throw AuthErrorHelper.mapCognitoError(error, "signUp", input.email)
         }
     }
-
-
 
     async confirmSignUp(
         input: ConfirmSignUpInput,
