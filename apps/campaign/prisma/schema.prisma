@@ -67,6 +67,7 @@ model Campaign_Category {
 model Donation {
   id           String   @id @default(uuid())
   donor_id     String
+  donor_name   String?
   campaign_id  String
   amount       BigInt   @default(0)
   message      String?  @db.Text()
@@ -83,20 +84,19 @@ model Donation {
   @@map("donations")
 }
 
-
 model Payment_Transaction {
-  id String @id @default(uuid())
-  gateway             String   @db.VarChar(100) 
-  transaction_date    DateTime @db.Timestamp() 
-  account_number      String?  @db.VarChar(100) 
-  sub_account         String?  @db.VarChar(250) 
-  amount_in           BigInt   @default(0) 
-  amount_out          BigInt   @default(0) 
-  accumulated         BigInt   @default(0) 
-  code                String?  @db.VarChar(250) 
-  transaction_content String?  @db.Text 
-  reference_number    String?  @unique @db.VarChar(255) 
-  body                String?  @db.Text 
+  id                  String   @id @default(uuid())
+  gateway             String   @db.VarChar(100)
+  transaction_date    DateTime @db.Timestamp()
+  account_number      String?  @db.VarChar(100)
+  sub_account         String?  @db.VarChar(250)
+  amount_in           BigInt   @default(0)
+  amount_out          BigInt   @default(0)
+  accumulated         BigInt   @default(0)
+  code                String?  @db.VarChar(250)
+  transaction_content String?  @db.Text
+  reference_number    String?  @unique @db.VarChar(255)
+  body                String?  @db.Text
 
   donation_id String
   status      Payment_Status @default(PENDING)

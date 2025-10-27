@@ -4,6 +4,10 @@ import { SqsService } from "@libs/aws-sqs"
 import { PaymentStatus } from "../../shared/enum/campaign.enum"
 import { PrismaClient } from "../../generated/campaign-client"
 
+/**
+ * DEPRECATED: This interface is for old PayOS flow
+ * New Sepay flow uses webhook to auto-create donations
+ */
 export interface DonationCreateRequestMessage {
     eventType: "DONATION_CREATE_REQUEST"
     donationId: string
@@ -29,65 +33,30 @@ export class DonationProcessorService {
         private readonly prisma: PrismaClient,
     ) {}
 
+    /**
+     * DEPRECATED: This method is for old PayOS flow
+     * New Sepay flow uses webhook to auto-create donations
+     * Keeping this for backward compatibility with existing queue messages
+     */
     async processDonationCreateRequest(
         message: DonationCreateRequestMessage,
     ): Promise<void> {
-        this.logger.log(
-            `[QUEUE] Processing donation DB creation: ${message.donationId}`,
+        this.logger.warn(
+            `[QUEUE] DEPRECATED: Received old PayOS donation message: ${message.donationId}`,
             {
                 donorId: message.donorId,
                 campaignId: message.campaignId,
                 amount: message.amount,
-                orderCode: message.orderCode,
-                paymentLinkId: message.paymentLinkId,
             },
         )
 
-        try {
-            // PayOS payment link already created - just save to DB
-            await this.prisma.$transaction(async (tx) => {
-                await tx.donation.create({
-                    data: {
-                        id: message.donationId,
-                        donor_id: message.donorId,
-                        campaign_id: message.campaignId,
-                        amount: BigInt(message.amount),
-                        message: message.message ?? "",
-                        is_anonymous: message.isAnonymous,
-                    },
-                })
+        this.logger.log(
+            "[QUEUE] Skipping old PayOS message - donations are now created via Sepay webhook",
+        )
 
-                await tx.payment_Transaction.create({
-                    data: {
-                        donation_id: message.donationId,
-                        order_code: BigInt(message.orderCode),
-                        amount: BigInt(message.amount),
-                        payment_link_id: message.paymentLinkId,
-                        checkout_url: message.checkoutUrl,
-                        qr_code: message.qrCode,
-                        status: PaymentStatus.PENDING,
-                    },
-                })
-            })
-
-            this.logger.log(
-                `[QUEUE] Donation saved to DB successfully: ${message.donationId}`,
-                {
-                    orderCode: message.orderCode,
-                    paymentLinkId: message.paymentLinkId,
-                },
-            )
-        } catch (error) {
-            this.logger.error(
-                `[QUEUE] Failed to save donation to DB: ${message.donationId}`,
-                {
-                    error: error instanceof Error ? error.message : error,
-                    orderCode: message.orderCode,
-                },
-            )
-
-            throw error // Re-throw to trigger SQS retry
-        }
+        // Don't process - just log and skip
+        // Donations are now created automatically by Sepay webhook
+        return
     }
 
     private parseMessageBody(message: any): {
@@ -124,34 +93,17 @@ export class DonationProcessorService {
         return true
     }
 
+    /**
+     * DEPRECATED: Validation for old PayOS flow
+     */
     private validateDonationCreateRequest(
         messageBody: any,
         messageId: string,
     ): boolean {
-        const requiredFields = [
-            "donationId",
-            "donorId",
-            "campaignId",
-            "amount",
-            "orderCode",
-            "paymentLinkId",
-            "checkoutUrl",
-            "qrCode",
-        ]
-        const missingFields = requiredFields.filter(
-            (field) => !messageBody[field],
-        )
-
-        if (missingFields.length > 0) {
-            this.logger.error(
-                "DONATION_CREATE_REQUEST missing required fields",
-                {
-                    messageId,
-                    missingFields,
-                },
-            )
-            return false
-        }
+        // Skip validation for deprecated messages
+        this.logger.debug("Skipping validation for deprecated PayOS message", {
+            messageId,
+        })
         return true
     }
 

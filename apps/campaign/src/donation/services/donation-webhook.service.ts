@@ -1,8 +1,8 @@
 import { Injectable, Logger, BadRequestException } from "@nestjs/common"
 import { SepayService, SepayWebhookPayload } from "@libs/sepay"
 import { DonorRepository } from "../repositories/donor.repository"
-import { PaymentStatus } from "../../shared/enum/campaign.enum"
 import { decodeDonationDescription } from "@libs/common"
+import { UserClientService } from "../../shared/services/user-client.service"
 
 @Injectable()
 export class DonationWebhookService {
@@ -11,6 +11,7 @@ export class DonationWebhookService {
     constructor(
         private readonly sepayService: SepayService,
         private readonly DonorRepository: DonorRepository,
+        private readonly userClientService: UserClientService,
     ) {}
 
     async handlePaymentWebhook(payload: SepayWebhookPayload): Promise<void> {
@@ -79,6 +80,15 @@ export class DonationWebhookService {
             }
         }
 
+        // Fetch donor name if userId is provided
+        let donorName: string | undefined
+        if (userId && userId !== "anonymous") {
+            donorName = (await this.userClientService.getUserName(userId)) || undefined
+            this.logger.debug(`[SEPAY] Fetched donor name: ${donorName}`, {
+                userId,
+            })
+        }
+
         // Create donation automatically with Sepay data
         this.logger.log(
             `[SEPAY] Auto-creating donation for campaign ${campaignId}`,
@@ -88,12 +98,14 @@ export class DonationWebhookService {
                 content,
                 reference: referenceCode,
                 userId: userId || "anonymous",
+                donorName,
             },
         )
 
         await this.DonorRepository.createDonationFromDynamicQR({
             campaignId,
             donorId: userId || "anonymous",
+            donorName,
             sepayTransactionId: id,
             gateway,
             transactionDate,

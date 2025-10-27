@@ -146,9 +146,9 @@ export class DonorService {
         return {
             id: donation.id,
             donorId: donation.donor_id,
+            donorName: donation.donor_name,
             campaignId: donation.campaign_id,
             amount: donation.amount.toString(),
-            message: donation.message,
             isAnonymous: donation.is_anonymous ?? false,
             created_at: donation.created_at,
             updated_at: donation.updated_at,

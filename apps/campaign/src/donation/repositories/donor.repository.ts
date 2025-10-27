@@ -229,6 +229,7 @@ export class DonorRepository {
     async createDonationFromDynamicQR(data: {
         campaignId: string
         donorId: string // Can be userId or "anonymous"
+        donorName?: string // Donor name (fetched from user service)
         sepayTransactionId: number // Sepay transaction ID
         gateway: string // Bank name
         transactionDate: string // Transaction timestamp
@@ -247,6 +248,7 @@ export class DonorRepository {
             const donation = await tx.donation.create({
                 data: {
                     donor_id: data.donorId,
+                    donor_name: data.donorName,
                     campaign_id: data.campaignId,
                     amount: data.amountIn, // Use amount_in from Sepay
                     message: null,
