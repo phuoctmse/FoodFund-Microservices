@@ -1,9 +1,9 @@
 import { SentryService } from "@libs/observability/sentry.service"
-import { Injectable, Logger } from "@nestjs/common"
+import { Injectable } from "@nestjs/common"
 import { CampaignCategory } from "apps/campaign/src/campaign-category/models/campaign-category.model"
 import { UpdateCampaignCategoryInput } from "../dtos"
 import { PrismaClient } from "../../generated/campaign-client"
-import { sanitizeSearchTerm } from "@libs/common"
+import { sanitizeSearchTerm } from "../../shared"
 
 export interface FindManyCategoriesOptions {
     search?: string
@@ -21,8 +21,6 @@ interface UpdateCategoryData extends Partial<UpdateCampaignCategoryInput> {}
 
 @Injectable()
 export class CampaignCategoryRepository {
-    private readonly logger = new Logger(CampaignCategoryRepository.name)
-
     private readonly CATEGORY_SELECT_FIELDS = {
         id: true,
         title: true,
@@ -37,9 +35,6 @@ export class CampaignCategoryRepository {
         private readonly sentryService: SentryService,
     ) {}
 
-    /**
-     * Create a new campaign category
-     */
     async create(data: CreateCategoryData): Promise<CampaignCategory> {
         try {
             const category = await this.prisma.campaign_Category.create({
@@ -51,12 +46,8 @@ export class CampaignCategoryRepository {
                 select: this.CATEGORY_SELECT_FIELDS,
             })
 
-            this.logger.log(
-                `Created new category: ${category.title} (${category.id})`,
-            )
             return this.mapToGraphQLModel(category)
         } catch (error) {
-            this.logger.error("Failed to create category:", error)
             this.sentryService.captureError(error as Error, {
                 operation: "createCategory",
                 data: {
@@ -69,9 +60,6 @@ export class CampaignCategoryRepository {
         }
     }
 
-    /**
-     * Find category by ID
-     */
     async findById(
         id: string,
         includeInactive: boolean = false,
@@ -89,7 +77,6 @@ export class CampaignCategoryRepository {
 
             return category ? this.mapToGraphQLModel(category) : null
         } catch (error) {
-            this.logger.error(`Failed to find category by ID ${id}:`, error)
             this.sentryService.captureError(error as Error, {
                 operation: "findCategoryById",
                 categoryId: id,
@@ -100,9 +87,6 @@ export class CampaignCategoryRepository {
         }
     }
 
-    /**
-     * Find multiple categories with filtering and pagination
-     */
     async findMany(
         options: FindManyCategoriesOptions,
     ): Promise<CampaignCategory[]> {
@@ -152,7 +136,6 @@ export class CampaignCategoryRepository {
                 this.mapToGraphQLModel(category),
             )
         } catch (error) {
-            this.logger.error("Failed to find categories:", error)
             this.sentryService.captureError(error as Error, {
                 operation: "findManyCategories",
                 options,
@@ -162,9 +145,6 @@ export class CampaignCategoryRepository {
         }
     }
 
-    /**
-     * Update category
-     */
     async update(
         id: string,
         data: UpdateCategoryData,
@@ -189,10 +169,8 @@ export class CampaignCategoryRepository {
                 select: this.CATEGORY_SELECT_FIELDS,
             })
 
-            this.logger.log(`Updated category: ${category.title} (${id})`)
             return this.mapToGraphQLModel(category)
         } catch (error) {
-            this.logger.error(`Failed to update category ${id}:`, error)
             this.sentryService.captureError(error as Error, {
                 operation: "updateCategory",
                 categoryId: id,
@@ -203,9 +181,6 @@ export class CampaignCategoryRepository {
         }
     }
 
-    /**
-     * Delete category
-     */
     async delete(id: string): Promise<boolean> {
         try {
             const campaignCount = await this.prisma.campaign.count({
@@ -241,7 +216,6 @@ export class CampaignCategoryRepository {
 
             return !!result
         } catch (error) {
-            this.logger.error(`Failed to soft delete category ${id}:`, error)
             this.sentryService.captureError(error as Error, {
                 operation: "softDeleteCategory",
                 categoryId: id,
@@ -251,9 +225,6 @@ export class CampaignCategoryRepository {
         }
     }
 
-    /**
-     * Reactivate a soft-deleted category
-     */
     async reactivate(id: string): Promise<CampaignCategory | null> {
         try {
             const category = await this.prisma.campaign_Category.update({
@@ -276,7 +247,6 @@ export class CampaignCategoryRepository {
 
             return this.mapToGraphQLModel(category)
         } catch (error) {
-            this.logger.error(`Failed to reactivate category ${id}:`, error)
             this.sentryService.captureError(error as Error, {
                 operation: "reactivateCategory",
                 categoryId: id,
@@ -286,9 +256,6 @@ export class CampaignCategoryRepository {
         }
     }
 
-    /**
-     * Count categories with optional filtering
-     */
     async count(
         search?: string,
         includeInactive: boolean = false,
@@ -326,7 +293,6 @@ export class CampaignCategoryRepository {
 
             return count
         } catch (error) {
-            this.logger.error("Failed to count categories:", error)
             this.sentryService.captureError(error as Error, {
                 operation: "countCategories",
                 search,
@@ -337,9 +303,6 @@ export class CampaignCategoryRepository {
         }
     }
 
-    /**
-     * Get categories with campaign counts
-     */
     async findWithCampaignCounts(): Promise<
         Array<CampaignCategory & { campaignCount: number }>
         > {
@@ -364,10 +327,6 @@ export class CampaignCategoryRepository {
                 campaignCount: category._count.campaigns,
             }))
         } catch (error) {
-            this.logger.error(
-                "Failed to find categories with campaign counts:",
-                error,
-            )
             this.sentryService.captureError(error as Error, {
                 operation: "findCategoriesWithCampaignCounts",
                 service: "campaign-category-repository",
@@ -376,9 +335,6 @@ export class CampaignCategoryRepository {
         }
     }
 
-    /**
-     * Check if category exists and is active
-     */
     async isCategoryActive(categoryId: string): Promise<boolean> {
         try {
             const count = await this.prisma.campaign_Category.count({
@@ -392,10 +348,6 @@ export class CampaignCategoryRepository {
 
             return isActive
         } catch (error) {
-            this.logger.error(
-                `Failed to check category status ${categoryId}:`,
-                error,
-            )
             this.sentryService.captureError(error as Error, {
                 operation: "isCategoryActive",
                 categoryId,
@@ -405,9 +357,6 @@ export class CampaignCategoryRepository {
         }
     }
 
-    /**
-     * Map database model to GraphQL model
-     */
     private mapToGraphQLModel(dbCategory: any): CampaignCategory {
         return {
             id: dbCategory.id,
@@ -420,9 +369,6 @@ export class CampaignCategoryRepository {
         }
     }
 
-    /**
-     * Health check for database connection
-     */
     async healthCheck(): Promise<{ status: string; timestamp: string }> {
         try {
             await this.prisma.$queryRaw`SELECT 1 as health_check`
