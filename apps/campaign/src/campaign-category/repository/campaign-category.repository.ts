@@ -1,9 +1,9 @@
 import { SentryService } from "@libs/observability/sentry.service"
 import { Injectable, Logger } from "@nestjs/common"
-import { PrismaClient } from "../generated/campaign-client"
-import { UpdateCampaignCategoryInput } from "./dtos/request/campaign-category.input"
 import { CampaignCategory } from "apps/campaign/src/campaign-category/models/campaign-category.model"
-import { sanitizeSearchTerm } from "@libs/common/utils/sanitize-search-term.util"
+import { UpdateCampaignCategoryInput } from "../dtos"
+import { PrismaClient } from "../../generated/campaign-client"
+import { sanitizeSearchTerm } from "@libs/common"
 
 export interface FindManyCategoriesOptions {
     search?: string

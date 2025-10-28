@@ -6,11 +6,7 @@ import {
     OnModuleInit,
 } from "@nestjs/common"
 import Redis, { type RedisOptions } from "ioredis"
-import {
-    DEFAULT_REDIS_PORT,
-    LOCALHOST,
-    DEFAULT_CACHE_TIMEOUT_MS,
-} from "@libs/env"
+import { DEFAULT_REDIS_PORT, LOCALHOST } from "@libs/env"
 import { MODULE_OPTIONS_TOKEN } from "./redis.module-definition"
 import type {
     RedisModuleOptions,
@@ -18,8 +14,6 @@ import type {
     RedisHealthStatus,
     RedisSetOptions,
     RedisGetOptions,
-    RedisListOptions,
-    RedisHashOptions,
 } from "./redis.types"
 
 @Injectable()

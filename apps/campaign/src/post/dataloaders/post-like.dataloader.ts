@@ -1,4 +1,4 @@
-import { Injectable, Logger, Scope } from "@nestjs/common"
+import { Injectable, Scope } from "@nestjs/common"
 import * as DataLoader from "dataloader"
 import { PostLikeRepository } from "../repositories"
 

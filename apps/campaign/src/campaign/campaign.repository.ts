@@ -4,7 +4,7 @@ import {
     CampaignSortOrder,
 } from "./dtos/request/campaign.input"
 import { Injectable, Logger } from "@nestjs/common"
-import { sanitizeSearchTerm } from "@libs/common/utils/sanitize-search-term.util"
+import { sanitizeSearchTerm } from "@app/campaign/src/shared/utils/sanitize-search-term.util"
 import { PrismaClient } from "../generated/campaign-client"
 import { Decimal } from "@prisma/client/runtime/library"
 import { CampaignStatus } from "./enum/campaign.enum"

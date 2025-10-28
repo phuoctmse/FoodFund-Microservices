@@ -1,5 +1,4 @@
 import { Module } from "@nestjs/common"
-import { ConfigModule } from "@nestjs/config"
 import { ConfigurableModuleClass } from "./redis.module-definition"
 import { RedisService } from "./redis.service"
 import type { RedisModuleOptions } from "./redis.types"

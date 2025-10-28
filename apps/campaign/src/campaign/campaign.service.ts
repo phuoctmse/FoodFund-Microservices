@@ -18,11 +18,11 @@ import {
     CampaignNotFoundException,
 } from "./exceptions/campaign.exception"
 import { GenerateUploadUrlInput } from "./dtos/request/generate-upload-url.input"
-import { CampaignCategoryRepository } from "../campaign-category/campaign-category.repository"
 import { Campaign } from "./models/campaign.model"
 import { Decimal } from "@prisma/client/runtime/library"
 import { AuthorizationService } from "../shared/services/authorization.service"
 import { UserContext } from "../shared/types/user-context.type"
+import { CampaignCategoryRepository } from "../campaign-category"
 
 @Injectable()
 export class CampaignService {
