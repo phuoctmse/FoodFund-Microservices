@@ -1,35 +1,41 @@
 import {
     BadRequestException,
     Injectable,
-    Logger,
     NotFoundException,
 } from "@nestjs/common"
-import {
-    CampaignCategoryRepository,
-    FindManyCategoriesOptions,
-} from "./campaign-category.repository"
 import { SentryService } from "@libs/observability/sentry.service"
 import {
     CreateCampaignCategoryInput,
     UpdateCampaignCategoryInput,
-} from "./dtos/request/campaign-category.input"
+} from "../dtos/request/campaign-category.input"
 import { CampaignCategory } from "apps/campaign/src/campaign-category/models/campaign-category.model"
+import { CampaignCategoryCacheService } from "./campaign-category-cache.service"
+import {
+    CampaignCategoryRepository,
+    FindManyCategoriesOptions,
+} from "../repository"
+import { AuthorizationService, createUserContextFromToken } from "../../shared"
 
 @Injectable()
 export class CampaignCategoryService {
-    private readonly logger = new Logger(CampaignCategoryService.name)
-
     constructor(
         private readonly categoryRepository: CampaignCategoryRepository,
         private readonly sentryService: SentryService,
+        private readonly cacheService: CampaignCategoryCacheService,
+        private readonly authorizationService: AuthorizationService,
     ) {}
 
-    /**
-     * Create a new campaign category
-     */
     async createCategory(
         input: CreateCampaignCategoryInput,
+        decodedToken: any,
     ): Promise<CampaignCategory> {
+        const userContext = createUserContextFromToken(decodedToken)
+
+        this.authorizationService.requireAdmin(
+            userContext,
+            "create campaign category",
+        )
+
         try {
             this.validateCategoryInput(input.title, input.description)
 
@@ -54,41 +60,51 @@ export class CampaignCategoryService {
                 description: input.description.trim(),
             })
 
+            await this.cacheService.invalidateAll()
+
             this.sentryService.addBreadcrumb("Category created", "category", {
                 categoryId: category.id,
                 title: category.title,
+                createdBy: {
+                    userId: userContext.userId,
+                    username: userContext.username,
+                    role: userContext.role,
+                },
             })
 
-            this.logger.log(
-                `Created category: ${category.title} (${category.id})`,
-            )
             return category
         } catch (error) {
-            this.logger.error("Failed to create category:", error)
-            this.sentryService.captureError(error as Error, {
-                operation: "createCategory",
-                input: {
-                    title: input.title,
-                    hasDescription: !!input.description,
-                },
-                service: "campaign-category-service",
-            })
+            if (!(error instanceof BadRequestException)) {
+                this.sentryService.captureError(error as Error, {
+                    operation: "createCategory",
+                    input: {
+                        title: input.title,
+                        hasDescription: !!input.description,
+                    },
+                    user: {
+                        userId: userContext.userId,
+                        role: userContext.role,
+                    },
+                    service: "campaign-category-service",
+                })
+            }
             throw error
         }
     }
 
-    /**
-     * Get all active categories for selection
-     * Optimized for frontend dropdowns and forms
-     */
     async getCategories(): Promise<CampaignCategory[]> {
         try {
-            return await this.categoryRepository.findMany({
+            const cached = await this.cacheService.getAllActiveCategories()
+            if (cached) {
+                return cached
+            }
+            const categories = await this.categoryRepository.findMany({
                 limit: 100,
                 includeInactive: false,
             })
+            await this.cacheService.setAllActiveCategories(categories)
+            return categories
         } catch (error) {
-            this.logger.error("Failed to get categories:", error)
             this.sentryService.captureError(error as Error, {
                 operation: "getCategories",
                 service: "campaign-category-service",
@@ -97,10 +113,6 @@ export class CampaignCategoryService {
         }
     }
 
-    /**
-     * Get categories with advanced filtering and pagination
-     * For admin interfaces and advanced search
-     */
     async getCategoriesWithOptions(
         options: FindManyCategoriesOptions,
     ): Promise<{
@@ -109,6 +121,24 @@ export class CampaignCategoryService {
         hasMore: boolean
     }> {
         try {
+            if (
+                !options.search &&
+                (options.limit || 50) === 50 &&
+                (options.offset || 0) === 0
+            ) {
+                const cacheKey = options.includeInactive
+                    ? await this.cacheService.getAllCategoriesWithInactive()
+                    : await this.cacheService.getAllActiveCategories()
+
+                if (cacheKey) {
+                    return {
+                        categories: cacheKey,
+                        total: cacheKey.length,
+                        hasMore: false,
+                    }
+                }
+            }
+
             const [categories, total] = await Promise.all([
                 this.categoryRepository.findMany(options),
                 this.categoryRepository.count(
@@ -119,13 +149,26 @@ export class CampaignCategoryService {
 
             const hasMore = (options.offset || 0) + categories.length < total
 
+            if (
+                !options.search &&
+                (options.limit || 50) === 50 &&
+                (options.offset || 0) === 0
+            ) {
+                if (options.includeInactive) {
+                    await this.cacheService.setAllCategoriesWithInactive(
+                        categories,
+                    )
+                } else {
+                    await this.cacheService.setAllActiveCategories(categories)
+                }
+            }
+
             return {
                 categories,
                 total,
                 hasMore,
             }
         } catch (error) {
-            this.logger.error("Failed to get categories with options:", error)
             this.sentryService.captureError(error as Error, {
                 operation: "getCategoriesWithOptions",
                 options,
@@ -135,21 +178,25 @@ export class CampaignCategoryService {
         }
     }
 
-    /**
-     * Find category by ID
-     */
     async findCategoryById(id: string): Promise<CampaignCategory> {
         try {
+            const cached = await this.cacheService.getCategory(id)
+            if (cached) {
+                return cached
+            }
+
             const category = await this.categoryRepository.findById(id)
             if (category == null) {
                 throw new NotFoundException(`Category with ID ${id} not found`)
             }
+
+            await this.cacheService.setCategory(id, category)
+
             return category
         } catch (error) {
             if (error instanceof NotFoundException) {
                 throw error
             }
-            this.logger.error(`Failed to find category ${id}:`, error)
             this.sentryService.captureError(error as Error, {
                 operation: "findCategoryById",
                 categoryId: id,
@@ -159,13 +206,18 @@ export class CampaignCategoryService {
         }
     }
 
-    /**
-     * Update category
-     */
     async updateCategory(
         id: string,
         input: UpdateCampaignCategoryInput,
+        decodedToken: any,
     ): Promise<CampaignCategory> {
+        const userContext = createUserContextFromToken(decodedToken)
+
+        this.authorizationService.requireAdmin(
+            userContext,
+            "update campaign category",
+        )
+
         try {
             await this.findCategoryById(id)
 
@@ -207,54 +259,73 @@ export class CampaignCategoryService {
                     "At least one field (title or description) must be provided for update",
                 )
             }
-
             const category = await this.categoryRepository.update(
                 id,
                 updateData,
             )
 
+            await this.cacheService.invalidateAll(id)
+
             this.sentryService.addBreadcrumb("Category updated", "category", {
                 categoryId: id,
                 title: category.title,
                 updateFields: Object.keys(updateData),
+                updatedBy: {
+                    userId: userContext.userId,
+                    username: userContext.username,
+                    role: userContext.role,
+                },
             })
 
             return category
         } catch (error) {
             if (
-                error instanceof NotFoundException ||
-                error instanceof BadRequestException
+                !(error instanceof NotFoundException) &&
+                !(error instanceof BadRequestException)
             ) {
-                throw error
+                this.sentryService.captureError(error as Error, {
+                    operation: "updateCategory",
+                    categoryId: id,
+                    input,
+                    user: {
+                        userId: userContext.userId,
+                        role: userContext.role,
+                    },
+                    service: "campaign-category-service",
+                })
             }
-            this.logger.error(`Failed to update category ${id}:`, error)
-            this.sentryService.captureError(error as Error, {
-                operation: "updateCategory",
-                categoryId: id,
-                input,
-                service: "campaign-category-service",
-            })
             throw error
         }
     }
 
-    /**
-     * Soft delete category
-     */
-    async deleteCategory(id: string): Promise<boolean> {
+    async deleteCategory(id: string, decodedToken: any): Promise<boolean> {
+        const userContext = createUserContextFromToken(decodedToken)
+
+        this.authorizationService.requireAdmin(
+            userContext,
+            "delete campaign category",
+        )
+
         try {
-            // Validate that category exists
             await this.findCategoryById(id)
 
             const result = await this.categoryRepository.delete(id)
 
             if (result) {
+                await this.cacheService.invalidateAll(id)
+
                 this.sentryService.addBreadcrumb(
                     "Category deleted",
                     "category",
-                    { categoryId: id },
+                    {
+                        categoryId: id,
+                        deletedBy: {
+                            userId: userContext.userId,
+                            username: userContext.username,
+                            role: userContext.role,
+                        },
+                    },
                 )
-                this.logger.log(`Deleted category: ${id}`)
             }
 
             return result
@@ -262,62 +333,33 @@ export class CampaignCategoryService {
             if (error instanceof NotFoundException) {
                 throw error
             }
-            this.logger.error(`Failed to delete category ${id}:`, error)
             this.sentryService.captureError(error as Error, {
                 operation: "deleteCategory",
                 categoryId: id,
+                user: {
+                    userId: userContext.userId,
+                    role: userContext.role,
+                },
                 service: "campaign-category-service",
             })
             throw error
         }
     }
 
-    /**
-     * Reactivate category
-     * Admin function to restore soft-deleted categories
-     */
-    async reactivateCategory(id: string): Promise<CampaignCategory> {
-        try {
-            const category = await this.categoryRepository.reactivate(id)
-            if (!category) {
-                throw new NotFoundException(
-                    `Inactive category with ID ${id} not found`,
-                )
-            }
-
-            this.sentryService.addBreadcrumb(
-                "Category reactivated",
-                "category",
-                { categoryId: id, title: category.title },
-            )
-
-            this.logger.log(`Reactivated category: ${category.title} (${id})`)
-            return category
-        } catch (error) {
-            if (error instanceof NotFoundException) {
-                throw error
-            }
-            this.logger.error(`Failed to reactivate category ${id}:`, error)
-            this.sentryService.captureError(error as Error, {
-                operation: "reactivateCategory",
-                categoryId: id,
-                service: "campaign-category-service",
-            })
-            throw error
-        }
-    }
-
-    /**
-     * Get categories with campaign statistics
-     * For admin dashboards and analytics
-     */
     async getCategoriesWithStats(): Promise<
         Array<CampaignCategory & { campaignCount: number }>
         > {
         try {
-            return await this.categoryRepository.findWithCampaignCounts()
+            const cached = await this.cacheService.getCategoryStats()
+            if (cached) {
+                return cached
+            }
+
+            const stats = await this.categoryRepository.findWithCampaignCounts()
+            await this.cacheService.setCategoryStats(stats)
+
+            return stats
         } catch (error) {
-            this.logger.error("Failed to get categories with stats:", error)
             this.sentryService.captureError(error as Error, {
                 operation: "getCategoryStats",
                 service: "campaign-category-service",
@@ -326,9 +368,6 @@ export class CampaignCategoryService {
         }
     }
 
-    /**
-     * Validate category exists (for campaign service integration)
-     */
     async validateCategoryExists(categoryId: string): Promise<void> {
         try {
             const isActive =
@@ -342,10 +381,6 @@ export class CampaignCategoryService {
             if (error instanceof BadRequestException) {
                 throw error
             }
-            this.logger.error(
-                `Failed to validate category ${categoryId}:`,
-                error,
-            )
             this.sentryService.captureError(error as Error, {
                 operation: "validateCategoryExists",
                 categoryId,
@@ -355,9 +390,6 @@ export class CampaignCategoryService {
         }
     }
 
-    /**
-     * Validate category input data
-     */
     private validateCategoryInput(title: string, description?: string): void {
         if (!title || title.trim().length === 0) {
             throw new BadRequestException("Category title is required")
@@ -390,9 +422,6 @@ export class CampaignCategoryService {
         }
     }
 
-    /**
-     * Health check for service
-     */
     async healthCheck(): Promise<{ status: string; timestamp: string }> {
         try {
             return await this.categoryRepository.healthCheck()
