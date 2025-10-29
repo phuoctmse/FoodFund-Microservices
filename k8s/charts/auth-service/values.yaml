@@ -55,6 +55,7 @@ service:
   type: ClusterIP
   # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
   port: 8002
+  grpcPort: 50001
 
 # This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
 ingress:
@@ -73,14 +74,14 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
-resources: 
+resources:
   # Ultra-optimized for small cluster - minimal resources
   limits:
-    cpu: 100m      # Max 10% of 1 vCPU (reduced from 150m)
-    memory: 200Mi  # Max 200MB (reduced from 300Mi)
+    cpu: 100m # Max 10% of 1 vCPU (reduced from 150m)
+    memory: 200Mi # Max 200MB (reduced from 300Mi)
   requests:
-    cpu: 25m       # Min 2.5% of 1 vCPU (reduced from 50m)
-    memory: 100Mi  # Min 100MB (reduced from 150Mi)
+    cpu: 25m # Min 2.5% of 1 vCPU (reduced from 50m)
+    memory: 100Mi # Min 100MB (reduced from 150Mi)
 
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 startupProbe:
@@ -90,7 +91,7 @@ startupProbe:
   initialDelaySeconds: 10
   periodSeconds: 5
   timeoutSeconds: 5
-  failureThreshold: 18  # Allow up to 90s for startup (18 * 5s)
+  failureThreshold: 18 # Allow up to 90s for startup (18 * 5s)
   successThreshold: 1
 livenessProbe:
   httpGet:
@@ -105,18 +106,18 @@ readinessProbe:
   httpGet:
     path: /health
     port: http
-  initialDelaySeconds: 20  # Increased from 5 to ensure env vars are loaded
+  initialDelaySeconds: 20 # Increased from 5 to ensure env vars are loaded
   periodSeconds: 5
   timeoutSeconds: 3
-  failureThreshold: 5  # Increased tolerance for temporary issues
+  failureThreshold: 5 # Increased tolerance for temporary issues
   successThreshold: 1
 
 # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
 autoscaling:
   enabled: true
   minReplicas: 1
-  maxReplicas: 2  # Limited to 2 for small cluster
-  targetCPUUtilizationPercentage: 80  # Higher threshold for cost efficiency
+  maxReplicas: 2 # Limited to 2 for small cluster
+  targetCPUUtilizationPercentage: 80 # Higher threshold for cost efficiency
   targetMemoryUtilizationPercentage: 85
 
 # Additional volumes on the output Deployment definition.
@@ -138,7 +139,6 @@ tolerations: []
 
 affinity: {}
 
-
 # Environment variables - only non-sensitive service-specific configs
 # Most env vars are now loaded from ConfigMap/Secret via envFrom
 env: []
@@ -146,6 +146,5 @@ env: []
   # Example:
   # - name: SERVICE_SPECIFIC_CONFIG
   #   value: "some-value"
-
 # Sensitive environment variables are set via ConfigMap/Secret
 # See k8s/config/ for templates
