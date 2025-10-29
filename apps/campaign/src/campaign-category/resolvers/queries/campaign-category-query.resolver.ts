@@ -13,7 +13,7 @@ export class CampaignCategoryQueryResolver {
     ) {}
 
     @Query(() => [CampaignCategory], {
-        description: "Get all active campaign categories",
+        description: "Get all campaign categories",
     })
     async campaignCategories(): Promise<CampaignCategory[]> {
         return this.campaignCategoryService.getCategories()

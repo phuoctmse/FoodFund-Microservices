@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common"
 import { PrismaService } from "libs/databases/prisma"
-import { PrismaClient } from "../generated/campaign-client"
+import { PrismaClient } from "../../generated/campaign-client"
 
 @Injectable()
 export class PrismaCampaignService extends PrismaService<PrismaClient> {

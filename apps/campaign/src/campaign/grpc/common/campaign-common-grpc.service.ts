@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common"
-import { CampaignService } from "../../campaign.service"
+import { CampaignService } from "../../services"
 
 @Injectable()
 export class CampaignCommonGrpcService {
@@ -42,8 +42,10 @@ export class CampaignCommonGrpcService {
                     donation_count: campaign.donationCount || 0,
                     received_amount: campaign.receivedAmount?.toString() || "0",
                     status: campaign.status,
-                    fundraising_start_date: campaign.fundraisingStartDate?.toISOString() || "",
-                    fundraising_end_date: campaign.fundraisingEndDate?.toISOString() || "",
+                    fundraising_start_date:
+                        campaign.fundraisingStartDate?.toISOString() || "",
+                    fundraising_end_date:
+                        campaign.fundraisingEndDate?.toISOString() || "",
                     is_active: campaign.isActive,
                     created_by: campaign.createdBy,
                     created_at: campaign.created_at.toISOString(),

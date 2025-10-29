@@ -108,9 +108,7 @@ export class UserClientService {
      * Batch fetch users by IDs (for optimization)
      * Returns a map of userId -> userName
      */
-    async getUserNamesByIds(
-        userIds: string[],
-    ): Promise<Map<string, string>> {
+    async getUserNamesByIds(userIds: string[]): Promise<Map<string, string>> {
         const userNameMap = new Map<string, string>()
 
         if (userIds.length === 0) return userNameMap
@@ -128,7 +126,8 @@ export class UserClientService {
         // Build map
         users.forEach((user, index) => {
             if (user) {
-                const userName = user.fullName || user.username || "Unknown Donor"
+                const userName =
+                    user.fullName || user.username || "Unknown Donor"
                 userNameMap.set(userIds[index], userName)
             }
         })
