@@ -3,26 +3,26 @@ import {
     ForbiddenException,
     Injectable,
 } from "@nestjs/common"
+import { SentryService } from "@libs/observability/sentry.service"
+import { SpacesUploadService } from "libs/s3-storage/spaces-upload.service"
+import { Decimal } from "@prisma/client/runtime/library"
+import { CampaignCategoryRepository } from "../../campaign-category"
+import { CampaignRepository } from "../repository"
+import { CampaignCacheService } from "./campaign-cache.service"
+import { CampaignStatus } from "../enum"
+import { AuthorizationService, UserContext } from "../../shared"
 import {
     CampaignFilterInput,
     CampaignSortOrder,
     CreateCampaignInput,
+    GenerateUploadUrlInput,
     UpdateCampaignInput,
-} from "./dtos/request/campaign.input"
-import { SentryService } from "@libs/observability/sentry.service"
-import { CampaignRepository } from "./campaign.repository"
-import { SpacesUploadService } from "libs/s3-storage/spaces-upload.service"
-import { CampaignStatus } from "apps/campaign/src/campaign/enum/campaign.enum"
+} from "../dtos"
 import {
     CampaignCannotBeDeletedException,
     CampaignNotFoundException,
-} from "./exceptions/campaign.exception"
-import { GenerateUploadUrlInput } from "./dtos/request/generate-upload-url.input"
-import { Campaign } from "./models/campaign.model"
-import { Decimal } from "@prisma/client/runtime/library"
-import { AuthorizationService } from "../shared/services/authorization.service"
-import { UserContext } from "../shared/types/user-context.type"
-import { CampaignCategoryRepository } from "../campaign-category"
+} from "../exceptions"
+import { Campaign } from "../models"
 
 @Injectable()
 export class CampaignService {
@@ -35,6 +35,7 @@ export class CampaignService {
         private readonly sentryService: SentryService,
         private readonly spacesUploadService: SpacesUploadService,
         private readonly authorizationService: AuthorizationService,
+        private readonly cacheService: CampaignCacheService,
     ) {}
 
     async generateCampaignImageUploadUrl(
@@ -156,6 +157,14 @@ export class CampaignService {
             categoryId: input.categoryId,
         })
 
+        await this.cacheService.setCampaign(campaign.id, campaign)
+
+        await this.cacheService.invalidateAll(
+            campaign.id,
+            userContext.userId,
+            input.categoryId,
+        )
+
         this.sentryService.addBreadcrumb(
             "Campaign created with extended flow",
             "campaign",
@@ -169,6 +178,7 @@ export class CampaignService {
                 status: CampaignStatus.PENDING,
                 title: input.title,
                 fileKey,
+                cached: true,
             },
         )
 
@@ -183,13 +193,24 @@ export class CampaignService {
         offset: number = 0,
     ) {
         try {
-            return await this.campaignRepository.findMany({
+            const cacheParams = { filter, search, sortBy, limit, offset }
+            const cached = await this.cacheService.getCampaignList(cacheParams)
+
+            if (cached) {
+                return cached
+            }
+
+            const campaigns = await this.campaignRepository.findMany({
                 filter,
                 search,
                 sortBy,
                 limit,
                 offset,
             })
+
+            await this.cacheService.setCampaignList(cacheParams, campaigns)
+
+            return campaigns
         } catch (error) {
             this.sentryService.captureError(error as Error, {
                 operation: "getCampaigns",
@@ -201,6 +222,21 @@ export class CampaignService {
             })
             throw error
         }
+    }
+
+    async findCampaignById(id: string) {
+        const cached = await this.cacheService.getCampaign(id)
+        if (cached) {
+            return cached
+        }
+
+        const campaign = await this.campaignRepository.findById(id)
+        if (campaign == null) {
+            throw new CampaignNotFoundException(id)
+        }
+
+        await this.cacheService.setCampaign(id, campaign)
+        return campaign
     }
 
     async updateCampaign(
@@ -337,6 +373,14 @@ export class CampaignService {
             updateData,
         )
 
+        await this.cacheService.setCampaign(id, updatedCampaign)
+
+        await this.cacheService.invalidateAll(
+            id,
+            userContext.userId,
+            campaign.categoryId || input.categoryId,
+        )
+
         if (oldFileKeyToDelete) {
             await this.spacesUploadService.deleteResourceImage(
                 oldFileKeyToDelete,
@@ -352,6 +396,7 @@ export class CampaignService {
             },
             updatedFields: Object.keys(input),
             coverImageReplaced: !!oldFileKeyToDelete,
+            cacheInvalidated: true,
         })
 
         return updatedCampaign
@@ -435,6 +480,14 @@ export class CampaignService {
                 updateData,
             )
 
+            await this.cacheService.setCampaign(id, updatedCampaign)
+
+            await this.cacheService.invalidateAll(
+                id,
+                campaign.createdBy,
+                campaign.categoryId,
+            )
+
             this.sentryService.addBreadcrumb(
                 "Campaign status changed",
                 "campaign",
@@ -448,6 +501,7 @@ export class CampaignService {
                     oldStatus: campaign.status,
                     newStatus: finalStatus,
                     autoActivated: finalStatus !== newStatus,
+                    cacheInvalidated: true,
                 },
             )
 
@@ -465,14 +519,6 @@ export class CampaignService {
             })
             throw error
         }
-    }
-
-    async findCampaignById(id: string) {
-        const campaign = await this.campaignRepository.findById(id)
-        if (campaign == null) {
-            throw new CampaignNotFoundException(id)
-        }
-        return campaign
     }
 
     async deleteCampaign(
@@ -508,6 +554,14 @@ export class CampaignService {
             if (!result) {
                 throw new BadRequestException(`Failed to delete campaign ${id}`)
             }
+
+            await this.cacheService.deleteCampaign(id)
+
+            await this.cacheService.invalidateAll(
+                id,
+                userContext.userId,
+                campaign.categoryId,
+            )
 
             if (campaign.coverImageFileKey) {
                 try {
@@ -546,6 +600,7 @@ export class CampaignService {
                     campaign.status === CampaignStatus.PENDING
                         ? "deleted_before_approval"
                         : "deleted_after_rejection",
+                cacheInvalidated: true,
             })
 
             return result

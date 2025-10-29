@@ -1,5 +1,5 @@
-import { CampaignCategory } from "apps/campaign/src/campaign-category/models/campaign-category.model"
 import { Field, Int, ObjectType } from "@nestjs/graphql"
+import { CampaignCategory } from "../../models"
 
 @ObjectType("CampaignCategoriesResponse")
 export class CampaignCategoriesResponse {

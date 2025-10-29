@@ -1,15 +1,17 @@
 import { AwsCognitoModule } from "@libs/aws-cognito"
 import { Module } from "@nestjs/common"
-import { CampaignCategoryService } from "./services/campaign-category.service"
 import { PrismaClient } from "../generated/campaign-client"
-import { PrismaCampaignService } from "../campaign/prisma-campaign.service"
-import { CampaignCategoryCacheService } from "./services"
+import {
+    CampaignCategoryCacheService,
+    CampaignCategoryService,
+} from "./services"
 import { CampaignCategoryRepository } from "./repository"
 import {
     CampaignCategoryMutationResolver,
     CampaignCategoryQueryResolver,
 } from "./resolvers"
 import { AuthorizationService } from "../shared"
+import { PrismaCampaignService } from "../campaign/services"
 
 @Module({
     imports: [

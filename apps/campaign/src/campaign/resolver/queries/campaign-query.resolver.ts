@@ -2,7 +2,7 @@ import { Args, Int, Query, Resolver, ResolveReference } from "@nestjs/graphql"
 import { Campaign } from "../../models/campaign.model"
 import { SentryInterceptor } from "@libs/observability/sentry.interceptor"
 import { UseGuards, UseInterceptors } from "@nestjs/common"
-import { CampaignService } from "../../campaign.service"
+import { CampaignService } from "../../services/campaign.service"
 import {
     CampaignFilterInput,
     CampaignSortOrder,

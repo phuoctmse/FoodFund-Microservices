@@ -8,7 +8,6 @@ import { DonorRepository } from "../repositories/donor.repository"
 import { CreateDonationInput } from "../dtos/create-donation.input"
 import { DonationResponse } from "../dtos/donation-response.dto"
 import { CampaignDonationInfo } from "../dtos/campaign-donation-info.dto"
-import { CampaignRepository } from "../../campaign/campaign.repository"
 import { CampaignStatus } from "../../campaign/enum/campaign.enum"
 import { Donation } from "../models/donation.model"
 import { SqsService } from "@libs/aws-sqs"
@@ -17,6 +16,7 @@ import { UserClientService } from "../../shared/services/user-client.service"
 import { UserDataLoader } from "../../shared/dataloaders/user.dataloader"
 import { PayOS } from "@payos/node"
 import { envConfig } from "@libs/env"
+import { CampaignRepository } from "../../campaign"
 
 @Injectable()
 export class DonorService {

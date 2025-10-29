@@ -1,10 +1,7 @@
 import { Module } from "@nestjs/common"
-import { CampaignService } from "./campaign.service"
-import { CampaignRepository } from "./campaign.repository"
-import { HealthController } from "./health.controller"
+import { CampaignService } from "./services/campaign.service"
 import { AwsCognitoModule } from "@libs/aws-cognito"
 import { PrismaClient } from "../generated/campaign-client"
-import { PrismaCampaignService } from "./prisma-campaign.service"
 import { SpacesUploadService } from "libs/s3-storage/spaces-upload.service"
 import { CampaignSchedulerService } from "./workers/schedulers/campaign-scheduler.service"
 import { CampaignStatusJob } from "./workers/campaign-status.job"
@@ -14,6 +11,9 @@ import { CampaignMutationResolver } from "./resolver/mutations/campaign-mutation
 import { AuthorizationService } from "../shared/services/authorization.service"
 import { UserResolver } from "../shared/resolver/users.resolver"
 import { CampaignGrpcService, CampaignCommonGrpcService } from "./grpc"
+import { CampaignCacheService, PrismaCampaignService } from "./services"
+import { CampaignRepository } from "./repository"
+import { HealthController } from "./controller"
 
 @Module({
     imports: [
@@ -31,6 +31,7 @@ import { CampaignGrpcService, CampaignCommonGrpcService } from "./grpc"
             inject: [PrismaCampaignService],
         },
         SpacesUploadService,
+        CampaignCacheService,
         CampaignService,
         CampaignQueryResolver,
         CampaignMutationResolver,
@@ -48,6 +49,7 @@ import { CampaignGrpcService, CampaignCommonGrpcService } from "./grpc"
         CampaignRepository,
         CampaignSchedulerService,
         PrismaCampaignService,
+        CampaignCacheService,
         CampaignGrpcService,
     ],
 })

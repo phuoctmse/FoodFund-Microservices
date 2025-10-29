@@ -48,7 +48,6 @@ export interface AwsCognitoConfig {
     clientSecret: string
 }
 
-
 export interface AwsConfig {
     region: string
     cognito: AwsCognitoConfig

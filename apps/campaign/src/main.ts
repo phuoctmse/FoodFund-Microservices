@@ -42,7 +42,6 @@ async function bootstrap() {
             res.removeHeader("X-Powered-By")
             next()
         })
-        
 
         // app.enableCors({
         //     origin:
@@ -70,15 +69,14 @@ async function bootstrap() {
         })
 
         const port = process.env.PORT ?? 8004
-        
+
         // Start both HTTP and gRPC servers
-        await Promise.all([
-            app.listen(port),
-            grpcServer.start(),
-        ])
+        await Promise.all([app.listen(port), grpcServer.start()])
 
         console.log(`🚀 Campaign Service HTTP running on port: ${port}`)
-        console.log(`🔗 Campaign Service gRPC running on port: ${envConfig().grpc.campaign?.port || 50003}`)
+        console.log(
+            `🔗 Campaign Service gRPC running on port: ${envConfig().grpc.campaign?.port || 50003}`,
+        )
     } catch (error) {
         console.error("❌ Failed to start Campaign Service:", error)
         process.exit(1)
