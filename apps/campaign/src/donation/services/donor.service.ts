@@ -298,6 +298,11 @@ export class DonorService {
         options?: {
             skip?: number
             take?: number
+            filter?: {
+                searchDonorName?: string
+                sortBy?: string
+                sortOrder?: string
+            }
         },
     ): Promise<Donation[]> {
         const donations = await this.donorRepository.findByCampaignId(
@@ -355,7 +360,7 @@ export class DonorService {
         })
 
         // Populate donor_name for all donations
-        const donationsWithNames = validDonations.map((donation: any) => {
+        let donationsWithNames = validDonations.map((donation: any) => {
             if (!donation.donor_name) {
                 // Anonymous donations
                 if (
@@ -370,6 +375,50 @@ export class DonorService {
                 }
             }
             return donation
+        })
+
+        // Apply search filter
+        if (options?.filter?.searchDonorName) {
+            const searchTerm = options.filter.searchDonorName.toLowerCase()
+            donationsWithNames = donationsWithNames.filter((donation: any) =>
+                donation.donor_name?.toLowerCase().includes(searchTerm),
+            )
+        }
+
+        // Apply sorting
+        const sortBy = options?.filter?.sortBy || "transactionDate"
+        const sortOrder = options?.filter?.sortOrder || "desc"
+
+        donationsWithNames.sort((a: any, b: any) => {
+            let compareValue = 0
+
+            switch (sortBy) {
+            case "amount":
+                compareValue = Number(a.amount) - Number(b.amount)
+                break
+            case "transactionDate": {
+                const aDate =
+                        a.payment_transactions?.find(
+                            (tx: any) => tx.status === "SUCCESS",
+                        )?.transaction_datetime || a.created_at
+                const bDate =
+                        b.payment_transactions?.find(
+                            (tx: any) => tx.status === "SUCCESS",
+                        )?.transaction_datetime || b.created_at
+                compareValue =
+                        new Date(aDate).getTime() - new Date(bDate).getTime()
+                break
+            }
+            case "createdAt":
+                compareValue =
+                        new Date(a.created_at).getTime() -
+                        new Date(b.created_at).getTime()
+                break
+            default:
+                compareValue = 0
+            }
+
+            return sortOrder === "asc" ? compareValue : -compareValue
         })
 
         return donationsWithNames.map(this.mapDonationToGraphQLModel)

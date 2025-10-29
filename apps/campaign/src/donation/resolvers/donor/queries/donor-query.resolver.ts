@@ -3,10 +3,8 @@ import { UseGuards } from "@nestjs/common"
 import { CurrentUser } from "@app/campaign/src/shared"
 import { DonorService } from "../../../services/donor.service"
 import { Donation } from "../../../models/donation.model"
-import { CampaignDonationInfo } from "../../../dtos/campaign-donation-info.dto"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
-import { CurrentUserType } from "@libs/auth"
-import { OptionalJwtAuthGuard } from "@libs/auth/guards/optional-jwt-auth.guard"
+import { CampaignDonationsFilterInput } from "../../../dtos/campaign-donations-filter.input"
 
 @Resolver(() => Donation)
 export class DonorQueryResolver {
@@ -61,10 +59,16 @@ export class DonorQueryResolver {
         @Args("campaignId", { type: () => String }) campaignId: string,
         @Args("skip", { type: () => Number, nullable: true }) skip?: number,
         @Args("take", { type: () => Number, nullable: true }) take?: number,
+        @Args("filter", {
+            type: () => CampaignDonationsFilterInput,
+            nullable: true,
+        })
+            filter?: CampaignDonationsFilterInput,
     ): Promise<Donation[]> {
         return this.donorService.getDonationsByCampaign(campaignId, {
             skip,
             take,
+            filter,
         })
     }
 }
