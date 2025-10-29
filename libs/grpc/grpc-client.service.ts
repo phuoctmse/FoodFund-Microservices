@@ -48,13 +48,13 @@ export class GrpcClientService implements OnModuleDestroy {
                 serviceName: "AuthService",
                 url: env.grpc.auth?.url || "localhost:50001",
             },
-            // {
-            //     name: "campaign-service",
-            //     protoPath: "campaign.proto",
-            //     packageName: "foodfund.campaign",
-            //     serviceName: "CampaignService",
-            //     url: env.grpc.campaign?.url || "localhost:50003",
-            // },
+            {
+                name: "campaign-service",
+                protoPath: "campaign.proto",
+                packageName: "foodfund.campaign",
+                serviceName: "CampaignService",
+                url: env.grpc.campaign?.url || "localhost:50003",
+            },
             // {
             //     name: "donation-service",
             //     protoPath: "donation.proto",

@@ -1,7 +1,6 @@
 export * from "./base/base.schema"
 export * from "./decorators/current-user.decorator"
 export * from "./enum/campaign.enum"
-export * from "./grpc/campaign-grpc.service"
 export * from "./guards/cognito.guard"
 export * from "./model/user.model"
 export * from "./resolver/users.resolver"

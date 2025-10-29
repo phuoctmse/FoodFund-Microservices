@@ -7,99 +7,228 @@ import {
 import { DonorRepository } from "../repositories/donor.repository"
 import { CreateDonationInput } from "../dtos/create-donation.input"
 import { DonationResponse } from "../dtos/donation-response.dto"
-import {
-    DonationTransactionData,
-    DonationNotificationData,
-} from "../dtos/donation-transaction.dto"
+import { CampaignDonationInfo } from "../dtos/campaign-donation-info.dto"
 import { CampaignRepository } from "../../campaign/campaign.repository"
 import { CampaignStatus } from "../../campaign/enum/campaign.enum"
-import { PaymentStatus } from "../../shared/enum/campaign.enum"
 import { Donation } from "../models/donation.model"
 import { SqsService } from "@libs/aws-sqs"
-import { PayOSService } from "@libs/payos"
 import { CurrentUserType } from "@libs/auth"
-import { v7 as uuidv7 } from "uuid"
-import { PrismaClient } from "../../generated/campaign-client"
+import { UserClientService } from "../../shared/services/user-client.service"
+import { UserDataLoader } from "../../shared/dataloaders/user.dataloader"
+import { PayOS } from "@payos/node"
+import { envConfig } from "@libs/env"
 
 @Injectable()
 export class DonorService {
     private readonly logger = new Logger(DonorService.name)
+    private payOS: PayOS | null = null
 
     constructor(
         private readonly donorRepository: DonorRepository,
         private readonly campaignRepository: CampaignRepository,
         private readonly sqsService: SqsService,
-        private readonly payosService: PayOSService,
-        private readonly prisma: PrismaClient,
+        private readonly userClientService: UserClientService,
+        private readonly userDataLoader: UserDataLoader,
     ) {}
 
+    private getPayOS(): PayOS {
+        if (!this.payOS) {
+            const config = envConfig().payos
+            if (
+                !config.payosClienId ||
+                !config.payosApiKey ||
+                !config.payosCheckSumKey
+            ) {
+                throw new BadRequestException(
+                    "PayOS is not configured. Please contact administrator.",
+                )
+            }
+            this.payOS = new PayOS({
+                clientId: config.payosClienId,
+                apiKey: config.payosApiKey,
+                checksumKey: config.payosCheckSumKey,
+            })
+        }
+        return this.payOS
+    }
+
+    /**
+     * Extract description from VietQR EMV QR code
+     * QR format: field 62 contains additional data with description
+     */
+    private extractDescriptionFromQR(qrCode: string): string | null {
+        try {
+            // VietQR EMV format: field 62 (Additional Data Field Template)
+            // Example QR: ...62360832CS7T2L64YT0 Donate 1761660076555630463A4
+            // Field 62: length=36, subfield 08: length=32, content="CS7T2L64YT0 Donate 1761660076555"
+
+            const field62Index = qrCode.indexOf("62")
+            if (field62Index === -1) return null
+
+            const field62Length = Number.parseInt(
+                qrCode.substring(field62Index + 2, field62Index + 4),
+                10,
+            )
+            const field62Content = qrCode.substring(
+                field62Index + 4,
+                field62Index + 4 + field62Length,
+            )
+
+            // Find subfield 08 (Bill Number / Description)
+            const subfield08Index = field62Content.indexOf("08")
+            if (subfield08Index === -1) return null
+
+            const descriptionLength = Number.parseInt(
+                field62Content.substring(
+                    subfield08Index + 2,
+                    subfield08Index + 4,
+                ),
+                10,
+            )
+            const fullDescription = field62Content.substring(
+                subfield08Index + 4,
+                subfield08Index + 4 + descriptionLength,
+            )
+
+            // Return the full description (no "Donate" text since we removed it from source)
+            // Example: "CS7T2L64YT0 1761660076555"
+            return fullDescription.trim()
+        } catch (error) {
+            this.logger.warn(
+                "Failed to extract description from QR code",
+                error,
+            )
+            return null
+        }
+    }
+
+    /**
+     * Create a donation and generate PayOS payment link
+     */
     async createDonation(
         input: CreateDonationInput,
         user: CurrentUserType | null,
     ): Promise<DonationResponse> {
+        // Validate campaign
         const campaign = await this.validateCampaignForDonation(
             input.campaignId,
         )
+
+        // Validate amount
         const donationAmount = this.validateDonationAmount(input.amount)
 
-        const donationId = uuidv7()
-        const donorId = user?.username || "anonymous"
-        const isAnonymous = !user || (input.isAnonymous ?? false)
-        const orderCode = Date.now()
-        const transferContent = `DONATE ${donationId.slice(0, 8)} ${campaign.title.slice(0, 15)}`
+        // Determine donor info
+        const donorId = user?.sub || "Người dùng ẩn danh"
+        const isAnonymous = input.isAnonymous || !user
 
-        const payosResult = await this.createPaymentLink(
-            donationAmount,
-            transferContent,
-            orderCode,
-        )
-
-        try {
-            await this.createDonationTransaction({
-                donationId,
-                donorId,
-                campaignId: input.campaignId,
-                donationAmount,
-                message: input.message,
-                isAnonymous,
-                orderCode,
-                payosResult,
-            })
-        } catch (error) {
-            await this.handleDonationCreationFailure(
-                error,
-                donationId,
-                orderCode,
-                payosResult.paymentLinkId,
+        // Fetch donor name if authenticated and not anonymous
+        let donorName: string | undefined
+        if (user && !isAnonymous) {
+            this.logger.log(
+                `[DONOR] Fetching donor name for cognito_id: ${user.sub}`,
             )
+            const fetchedName =
+                await this.userClientService.getUserNameByCognitoId(
+                    user.sub as string,
+                )
+            this.logger.log(
+                `[DONOR] Fetched donor name: ${fetchedName || "null"}`,
+            )
+            donorName = fetchedName || undefined
+        } else if (isAnonymous) {
+            donorName = "Người dùng ẩn danh"
         }
 
-        await this.sendDonationNotification({
-            donationId,
-            donorId,
-            campaignId: input.campaignId,
-            donationAmount,
-            message: input.message,
-            isAnonymous,
-            orderCode,
-            transferContent,
-            paymentLinkId: payosResult.paymentLinkId,
-            checkoutUrl: payosResult.checkoutUrl,
-        })
-
         this.logger.log(
-            `[TRANSACTION] Donation creation completed successfully: ${donationId}`,
+            `[DONOR] Creating donation with donor_name: ${donorName || "null"}`,
         )
 
-        return {
-            message: user
-                ? "Thank you! Your donation request has been created. Please complete payment by scanning the QR code below."
-                : "Thank you for your anonymous donation! Please complete payment by scanning the QR code below.",
-            donationId,
-            checkoutUrl: payosResult.checkoutUrl ?? undefined,
-            qrCode: payosResult.qrCode ?? undefined,
+        // Create donation record
+        const donation = await this.donorRepository.create({
+            donor_id: donorId,
+            donor_name: donorName,
+            campaign_id: input.campaignId,
+            amount: donationAmount,
+            is_anonymous: isAnonymous,
+        })
+
+        // Generate unique order code (timestamp-based)
+        const orderCode = Number(Date.now())
+
+        // Create PayOS payment link
+        // Note: returnUrl and cancelUrl are required by PayOS but not used in our flow
+        // Payment status is handled via webhook
+        const paymentData = {
             orderCode,
-            paymentLinkId: payosResult.paymentLinkId ?? undefined,
+            amount: Number(donationAmount),
+            description: `${orderCode}`, // Just order code, max 25 chars
+            returnUrl: "",
+            cancelUrl: "",
+        }
+
+        try {
+            const payOS = this.getPayOS()
+            const paymentLinkResponse =
+                await payOS.paymentRequests.create(paymentData)
+
+            // Create payment transaction record
+            await this.donorRepository.createPaymentTransaction({
+                donation_id: donation.id,
+                order_code: BigInt(orderCode),
+                amount: donationAmount,
+                description: paymentData.description,
+                checkout_url: paymentLinkResponse.checkoutUrl,
+                qr_code: paymentLinkResponse.qrCode,
+                payment_link_id: paymentLinkResponse.paymentLinkId,
+            })
+
+            this.logger.log(
+                `[PayOS] Payment link created for donation ${donation.id}`,
+                {
+                    orderCode,
+                    amount: donationAmount.toString(),
+                    donorId,
+                },
+            )
+
+            // Send to SQS for async processing (optional - for background tasks)
+            try {
+                await this.sqsService.sendMessage({
+                    messageBody: {
+                        donationId: donation.id,
+                        orderCode,
+                        campaignId: input.campaignId,
+                        amount: donationAmount.toString(),
+                    },
+                })
+            } catch (sqsError) {
+                this.logger.warn("Failed to send SQS message", sqsError)
+                // Don't fail the request if SQS fails
+            }
+
+            // Get PayOS bank account info from config
+            const config = envConfig().payos
+
+            // Extract description from QR code (VietQR EMV format)
+            // QR code contains the actual transfer description that will be used
+            const qrDescription = this.extractDescriptionFromQR(
+                paymentLinkResponse.qrCode,
+            )
+
+            return {
+                donationId: donation.id,
+                qrCode: paymentLinkResponse.qrCode,
+                bankName: config.payosBankName,
+                bankNumber: config.payosBankNumber,
+                bankAccountName: config.payosBankAccountName,
+                bankFullName: config.payosBankFullName,
+                bankLogo: config.payosBankLogo,
+                description: qrDescription || paymentData.description,
+                amount: Number(donationAmount),
+            }
+        } catch (error) {
+            this.logger.error("[PayOS] Failed to create payment link", error)
+            throw new BadRequestException("Failed to create payment link")
         }
     }
 
@@ -142,222 +271,6 @@ export class DonorService {
         return donationAmount
     }
 
-    private async createPaymentLink(
-        donationAmount: bigint,
-        transferContent: string,
-        orderCode: number,
-    ) {
-        try {
-            this.logger.log(
-                `[SAGA] Step 1: Creating PayOS payment link for order ${orderCode}`,
-            )
-
-            const payosResult = await this.payosService.createPaymentLink({
-                amount: Number(donationAmount),
-                description: transferContent.slice(0, 25),
-                orderCode: orderCode,
-                returnUrl: "",
-                cancelUrl: "",
-            })
-
-            this.logger.log(
-                `[SAGA] PayOS payment link created: ${payosResult.paymentLinkId}`,
-            )
-
-            return {
-                qrCode: payosResult?.qrCode || null,
-                checkoutUrl: payosResult?.checkoutUrl || null,
-                paymentLinkId: payosResult?.paymentLinkId || null,
-            }
-        } catch (error) {
-            this.logger.error("[SAGA] Failed to create PayOS payment link", {
-                orderCode,
-                error: error instanceof Error ? error.message : error,
-            })
-            throw new BadRequestException(
-                "Failed to create payment link. Please try again later.",
-            )
-        }
-    }
-
-    private async createDonationTransaction(data: DonationTransactionData) {
-        this.logger.log(
-            `[TRANSACTION] Starting donation creation for ${data.donationId}`,
-        )
-        // Validate PayOS response before DB writes
-        if (!data.payosResult.paymentLinkId || !data.payosResult.checkoutUrl) {
-            this.logger.error(
-                "[TRANSACTION] Missing payment link data from PayOS",
-                {
-                    donationId: data.donationId,
-                    orderCode: data.orderCode,
-                    payosResult: data.payosResult,
-                },
-            )
-            throw new BadRequestException("Payment link generation failed")
-        }
-
-        await this.prisma.$transaction(async (tx) => {
-            this.logger.debug("[TRANSACTION] Step 2: Creating donation record")
-            await tx.donation.create({
-                data: {
-                    id: data.donationId,
-                    donor_id: data.donorId,
-                    campaign_id: data.campaignId,
-                    amount: data.donationAmount,
-                    message: data.message ?? "",
-                    is_anonymous: data.isAnonymous,
-                },
-            })
-
-            this.logger.debug(
-                "[TRANSACTION] Step 3: Creating payment transaction",
-            )
-            await tx.payment_Transaction.create({
-                data: {
-                    donation_id: data.donationId,
-                    order_code: BigInt(data.orderCode),
-                    amount: data.donationAmount,
-                    payment_link_id: data.payosResult.paymentLinkId,
-                    checkout_url: data.payosResult.checkoutUrl,
-                    qr_code: data.payosResult.qrCode || "",
-                    status: PaymentStatus.PENDING,
-                },
-            })
-
-            this.logger.log(
-                "[TRANSACTION] Database operations completed successfully",
-            )
-        })
-    }
-
-    private async handleDonationCreationFailure(
-        error: unknown,
-        donationId: string,
-        orderCode: number,
-        paymentLinkId: string | null,
-    ) {
-        this.logger.error(
-            "[TRANSACTION] Donation creation failed, attempting to rollback PayOS payment link",
-            {
-                donationId,
-                orderCode,
-                paymentLinkId,
-                error: error instanceof Error ? error.message : error,
-            },
-        )
-
-        await this.cancelPayOSPaymentLinkWithRetry(orderCode, paymentLinkId)
-        throw new BadRequestException(
-            "Failed to create donation request. Please try again.",
-        )
-    }
-
-    private async sendDonationNotification(data: DonationNotificationData) {
-        try {
-            this.logger.debug("[NOTIFICATION] Sending donation request to SQS")
-
-            await this.sqsService.sendMessage({
-                messageBody: {
-                    eventType: "DONATION_REQUEST",
-                    donationId: data.donationId,
-                    donorId: data.donorId,
-                    campaignId: data.campaignId,
-                    amount: data.donationAmount.toString(),
-                    message: data.message,
-                    isAnonymous: data.isAnonymous,
-                    orderCode: data.orderCode,
-                    transferContent: data.transferContent,
-                    status: "PENDING",
-                    requestedAt: new Date().toISOString(),
-                    paymentLinkId: data.paymentLinkId,
-                    checkoutUrl: data.checkoutUrl,
-                },
-                messageAttributes: {
-                    eventType: {
-                        DataType: "String",
-                        StringValue: "DONATION_REQUEST",
-                    },
-                    campaignId: {
-                        DataType: "String",
-                        StringValue: data.campaignId,
-                    },
-                    orderCode: {
-                        DataType: "Number",
-                        StringValue: data.orderCode.toString(),
-                    },
-                },
-            })
-
-            this.logger.log("[NOTIFICATION] SQS message sent successfully")
-        } catch (sqsError) {
-            this.logger.warn(
-                "[NOTIFICATION] Failed to send SQS message, but donation created successfully",
-                {
-                    donationId: data.donationId,
-                    orderCode: data.orderCode,
-                    error:
-                        sqsError instanceof Error ? sqsError.message : sqsError,
-                },
-            )
-        }
-    }
-
-    /**
-     * Cancel PayOS payment link with retry mechanism
-     * Retries up to 3 times with exponential backoff
-     */
-    private async cancelPayOSPaymentLinkWithRetry(
-        orderCode: number,
-        paymentLinkId: string | null,
-        maxRetries = 3,
-    ): Promise<void> {
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                await this.payosService.cancelPaymentLink(orderCode)
-                this.logger.log(
-                    `[SAGA ROLLBACK] PayOS payment link cancelled successfully: ${paymentLinkId}`,
-                )
-                return // Success
-            } catch (error) {
-                const errorMessage =
-                    error instanceof Error ? error.message : String(error)
-
-                if (attempt === maxRetries) {
-                    // Final attempt failed - CRITICAL ERROR
-                    this.logger.error(
-                        `[SAGA ROLLBACK] FAILED: Could not cancel PayOS payment link after ${maxRetries} attempts`,
-                        {
-                            orderCode,
-                            paymentLinkId,
-                            error: errorMessage,
-                            severity: "CRITICAL",
-                            action: "MANUAL_PAYOS_CANCELLATION_REQUIRED",
-                            instructions:
-                                "Please manually cancel this payment link in PayOS dashboard to prevent unauthorized payments",
-                        },
-                    )
-                    // Don't throw - we already logged the critical error
-                    return
-                }
-
-                // Wait before retry (exponential backoff)
-                const delayMs = Math.pow(2, attempt) * 1000
-                this.logger.warn(
-                    `[SAGA ROLLBACK] PayOS cancellation attempt ${attempt} failed, retrying in ${delayMs}ms...`,
-                )
-                await this.delay(delayMs)
-            }
-        }
-    }
-
-    /**
-     * Delay helper for retry mechanism
-     */
-    private delay(ms: number): Promise<void> {
-        return new Promise((resolve) => setTimeout(resolve, ms))
-    }
-
     async getDonationById(id: string): Promise<Donation | null> {
         const donation = await this.donorRepository.findById(id)
         if (!donation) {
@@ -385,13 +298,130 @@ export class DonorService {
         options?: {
             skip?: number
             take?: number
+            filter?: {
+                searchDonorName?: string
+                sortBy?: string
+                sortOrder?: string
+            }
         },
     ): Promise<Donation[]> {
         const donations = await this.donorRepository.findByCampaignId(
             campaignId,
             options,
         )
-        return donations.map(this.mapDonationToGraphQLModel)
+
+        // Filter and validate donations
+        const validDonations = donations.filter((donation: any) => {
+            // Must have at least one successful payment transaction
+            const successfulTx = donation.payment_transactions?.find(
+                (tx: any) => tx.status === "SUCCESS",
+            )
+            if (!successfulTx) return false
+
+            // Validate amount matches between donation and transaction
+            if (donation.amount !== successfulTx.amount) {
+                this.logger.warn(
+                    `Donation ${donation.id} amount mismatch: donation=${donation.amount}, transaction=${successfulTx.amount}`,
+                )
+                return false
+            }
+
+            return true
+        })
+
+        // Use DataLoader to batch fetch donor names (automatic batching & caching)
+        // Collect donor IDs that need to be fetched
+        const donorIdsToFetch = validDonations
+            .filter(
+                (d: any) =>
+                    !d.donor_name &&
+                    !d.is_anonymous &&
+                    d.donor_id !== "anonymous",
+            )
+            .map((d: any) => d.donor_id)
+
+        // Get unique donor IDs
+        const uniqueDonorIds = [...new Set(donorIdsToFetch)]
+
+        // Batch fetch using DataLoader (automatically batches and caches)
+        const users =
+            uniqueDonorIds.length > 0
+                ? await this.userDataLoader.loadMany(uniqueDonorIds)
+                : []
+
+        // Build map for quick lookup
+        const userNameMap = new Map<string, string>()
+        users.forEach((user, index) => {
+            if (user) {
+                const userName =
+                    user.fullName || user.username || "Unknown Donor"
+                userNameMap.set(uniqueDonorIds[index], userName)
+            }
+        })
+
+        // Populate donor_name for all donations
+        let donationsWithNames = validDonations.map((donation: any) => {
+            if (!donation.donor_name) {
+                // Anonymous donations
+                if (
+                    donation.is_anonymous ||
+                    donation.donor_id === "anonymous"
+                ) {
+                    donation.donor_name = "Người dùng ẩn danh"
+                } else {
+                    // Get from DataLoader fetched map
+                    donation.donor_name =
+                        userNameMap.get(donation.donor_id) || "Unknown Donor"
+                }
+            }
+            return donation
+        })
+
+        // Apply search filter
+        if (options?.filter?.searchDonorName) {
+            const searchTerm = options.filter.searchDonorName.toLowerCase()
+            donationsWithNames = donationsWithNames.filter((donation: any) =>
+                donation.donor_name?.toLowerCase().includes(searchTerm),
+            )
+        }
+
+        // Apply sorting
+        const sortBy = options?.filter?.sortBy || "transactionDate"
+        const sortOrder = options?.filter?.sortOrder || "desc"
+
+        donationsWithNames.sort((a: any, b: any) => {
+            let compareValue = 0
+
+            switch (sortBy) {
+            case "amount":
+                compareValue = Number(a.amount) - Number(b.amount)
+                break
+            case "transactionDate": {
+                const aDate =
+                        a.payment_transactions?.find(
+                            (tx: any) => tx.status === "SUCCESS",
+                        )?.transaction_datetime || a.created_at
+                const bDate =
+                        b.payment_transactions?.find(
+                            (tx: any) => tx.status === "SUCCESS",
+                        )?.transaction_datetime || b.created_at
+                compareValue =
+                        new Date(aDate).getTime() - new Date(bDate).getTime()
+                break
+            }
+            case "createdAt":
+                compareValue =
+                        new Date(a.created_at).getTime() -
+                        new Date(b.created_at).getTime()
+                break
+            default:
+                compareValue = 0
+            }
+
+            return sortOrder === "asc" ? compareValue : -compareValue
+        })
+
+        return donationsWithNames.map(this.mapDonationToGraphQLModel)
     }
 
     async getDonationStats(donorId: string): Promise<{
@@ -420,15 +450,35 @@ export class DonorService {
     }
 
     private mapDonationToGraphQLModel(donation: any): Donation {
+        // Get transaction_datetime from successful payment transaction
+        const successfulTx = donation.payment_transactions?.find(
+            (tx: any) => tx.status === "SUCCESS",
+        )
+
         return {
             id: donation.id,
             donorId: donation.donor_id,
+            donorName: donation.donor_name,
             campaignId: donation.campaign_id,
             amount: donation.amount.toString(),
-            message: donation.message,
             isAnonymous: donation.is_anonymous ?? false,
+            transactionDatetime: successfulTx?.transaction_datetime || null,
             created_at: donation.created_at,
             updated_at: donation.updated_at,
         }
+    }
+
+    /**
+     * DEPRECATED: This method is no longer used with PayOS
+     * Use createDonation to generate payment link instead
+     */
+    async getCampaignDonationInfo(
+        campaignId: string,
+        user: CurrentUserType | null,
+        isAnonymous?: boolean,
+    ): Promise<CampaignDonationInfo> {
+        throw new BadRequestException(
+            "This endpoint is deprecated. Please use createDonation mutation to generate payment link.",
+        )
     }
 }

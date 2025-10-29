@@ -1,27 +1,26 @@
 import { Injectable, Logger } from "@nestjs/common"
 import { DonorRepository } from "../repositories/donor.repository"
 import { SqsService } from "@libs/aws-sqs"
-import { CreateDonationRepositoryInput } from "../dtos/create-donation-repository.input"
+import { PaymentStatus } from "../../shared/enum/campaign.enum"
+import { PrismaClient } from "../../generated/campaign-client"
 
-export interface DonationRequestMessage {
-    eventType: "DONATION_REQUEST"
+/**
+ * DEPRECATED: This interface is for old PayOS flow
+ * New Sepay flow uses webhook to auto-create donations
+ */
+export interface DonationCreateRequestMessage {
+    eventType: "DONATION_CREATE_REQUEST"
     donationId: string
     donorId: string
     campaignId: string
     amount: string
     message?: string
     isAnonymous: boolean
+    orderCode: number
+    paymentLinkId: string
+    checkoutUrl: string
+    qrCode: string
     requestedAt: string
-    // PayOS tracking fields
-    orderCode?: number
-    paymentLinkId?: string
-    payosTransactionData?: {
-        bin: string
-        accountNumber: string
-        accountName: string
-        checkoutUrl: string
-        status: string
-    }
 }
 
 @Injectable()
@@ -31,127 +30,33 @@ export class DonationProcessorService {
     constructor(
         private readonly DonorRepository: DonorRepository,
         private readonly sqsService: SqsService,
+        private readonly prisma: PrismaClient,
     ) {}
 
-    async processDonationRequest(
-        message: DonationRequestMessage,
+    /**
+     * DEPRECATED: This method is for old PayOS flow
+     * New Sepay flow uses webhook to auto-create donations
+     * Keeping this for backward compatibility with existing queue messages
+     */
+    async processDonationCreateRequest(
+        message: DonationCreateRequestMessage,
     ): Promise<void> {
-        try {
-            this.logger.log(
-                `Processing donation request: ${message.donationId}`,
-                {
-                    donorId: message.donorId,
-                    campaignId: message.campaignId,
-                    amount: message.amount,
-                    isAnonymous: message.isAnonymous,
-                    orderCode: message.orderCode,
-                    paymentLinkId: message.paymentLinkId,
-                },
-            )
+        this.logger.warn(
+            `[QUEUE] DEPRECATED: Received old PayOS donation message: ${message.donationId}`,
+            {
+                donorId: message.donorId,
+                campaignId: message.campaignId,
+                amount: message.amount,
+            },
+        )
 
-            // Create donation in database with predefined ID
-            const donationData: CreateDonationRepositoryInput = {
-                donor_id: message.donorId,
-                campaign_id: message.campaignId,
-                amount: BigInt(message.amount),
-                message: message.message,
-                is_anonymous: message.isAnonymous,
-            }
+        this.logger.log(
+            "[QUEUE] Skipping old PayOS message - donations are now created via Sepay webhook",
+        )
 
-            await this.DonorRepository.createWithId(
-                message.donationId,
-                donationData,
-            )
-
-            // Send success notification to SQS
-            await this.sqsService.sendMessage({
-                messageBody: {
-                    eventType: "DONATION_COMPLETED",
-                    donationId: message.donationId,
-                    campaignId: message.campaignId,
-                    donorId: message.donorId,
-                    amount: message.amount,
-                    status: "SUCCESS",
-                    orderCode: message.orderCode,
-                    paymentLinkId: message.paymentLinkId,
-                    completedAt: new Date().toISOString(),
-                },
-                messageAttributes: {
-                    eventType: {
-                        DataType: "String",
-                        StringValue: "DONATION_COMPLETED",
-                    },
-                    campaignId: {
-                        DataType: "String",
-                        StringValue: message.campaignId,
-                    },
-                    status: {
-                        DataType: "String",
-                        StringValue: "SUCCESS",
-                    },
-                },
-            })
-
-            this.logger.log(
-                `Successfully processed donation: ${message.donationId}`,
-                {
-                    orderCode: message.orderCode,
-                    paymentLinkId: message.paymentLinkId,
-                },
-            )
-        } catch (error) {
-            this.logger.error(
-                `Failed to process donation request: ${message.donationId}`,
-                {
-                    donorId: message.donorId,
-                    campaignId: message.campaignId,
-                    orderCode: message.orderCode,
-                    paymentLinkId: message.paymentLinkId,
-                    error: error.message,
-                    stack: error.stack,
-                },
-            )
-
-            // Send failure notification to SQS
-            try {
-                await this.sqsService.sendMessage({
-                    messageBody: {
-                        eventType: "DONATION_FAILED",
-                        donationId: message.donationId,
-                        campaignId: message.campaignId,
-                        donorId: message.donorId,
-                        amount: message.amount,
-                        status: "FAILED",
-                        error: error.message,
-                        orderCode: message.orderCode,
-                        paymentLinkId: message.paymentLinkId,
-                        failedAt: new Date().toISOString(),
-                    },
-                    messageAttributes: {
-                        eventType: {
-                            DataType: "String",
-                            StringValue: "DONATION_FAILED",
-                        },
-                        campaignId: {
-                            DataType: "String",
-                            StringValue: message.campaignId,
-                        },
-                        status: {
-                            DataType: "String",
-                            StringValue: "FAILED",
-                        },
-                    },
-                })
-            } catch (notificationError) {
-                this.logger.error(
-                    "Failed to send failure notification",
-                    notificationError,
-                )
-            }
-
-            // Re-throw error for queue retry mechanism
-            throw error
-        }
+        // Don't process - just log and skip
+        // Donations are now created automatically by Sepay webhook
+        return
     }
 
     private parseMessageBody(message: any): {
@@ -188,22 +93,17 @@ export class DonationProcessorService {
         return true
     }
 
-    private validateDonationRequest(
+    /**
+     * DEPRECATED: Validation for old PayOS flow
+     */
+    private validateDonationCreateRequest(
         messageBody: any,
         messageId: string,
     ): boolean {
-        const requiredFields = ["donationId", "donorId", "campaignId", "amount"]
-        const missingFields = requiredFields.filter(
-            (field) => !messageBody[field],
-        )
-
-        if (missingFields.length > 0) {
-            this.logger.error("DONATION_REQUEST missing required fields", {
-                messageId,
-                missingFields,
-            })
-            return false
-        }
+        // Skip validation for deprecated messages
+        this.logger.debug("Skipping validation for deprecated PayOS message", {
+            messageId,
+        })
         return true
     }
 
@@ -219,24 +119,18 @@ export class DonationProcessorService {
             return true
         }
 
-        if (messageBody.eventType === "DONATION_REQUEST") {
-            if (!this.validateDonationRequest(messageBody, message.MessageId)) {
+        if (messageBody.eventType === "DONATION_CREATE_REQUEST") {
+            if (
+                !this.validateDonationCreateRequest(
+                    messageBody,
+                    message.MessageId,
+                )
+            ) {
                 return true
             }
-            await this.processDonationRequest(
-                messageBody as DonationRequestMessage,
+            await this.processDonationCreateRequest(
+                messageBody as DonationCreateRequestMessage,
             )
-            return true
-        }
-
-        if (
-            messageBody.eventType === "DONATION_COMPLETED" ||
-            messageBody.eventType === "DONATION_FAILED"
-        ) {
-            this.logger.debug("Deleting notification message", {
-                eventType: messageBody.eventType,
-                messageId: message.MessageId,
-            })
             return true
         }
 

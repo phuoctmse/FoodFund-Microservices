@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package foodfund.campaign;
+
+// Campaign Service for internal communication
+service CampaignService {
+  // Health check
+  rpc Health(HealthRequest) returns (HealthResponse);
+  
+  // Get campaign by ID
+  rpc GetCampaign(GetCampaignRequest) returns (GetCampaignResponse);
+}
+
+// Messages
+message Campaign {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  string cover_image = 4;
+  string location = 5;
+  string target_amount = 6;
+  int32 donation_count = 7;
+  string received_amount = 8;
+  string status = 9;
+  string fundraising_start_date = 10;
+  string fundraising_end_date = 11;
+  bool is_active = 12;
+  string created_by = 13;
+  string created_at = 14;
+  string updated_at = 15;
+}
+
+// Health Check
+message HealthRequest {}
+
+message HealthResponse {
+  bool healthy = 1;
+  string message = 2;
+}
+
+// Get Campaign
+message GetCampaignRequest {
+  string id = 1;
+}
+
+message GetCampaignResponse {
+  bool success = 1;
+  Campaign campaign = 2;
+  string error = 3;
+}

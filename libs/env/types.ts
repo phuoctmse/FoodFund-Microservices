@@ -48,10 +48,6 @@ export interface AwsCognitoConfig {
     clientSecret: string
 }
 
-export interface AwsCloudWatchConfig {
-    logGroup?: string
-    namespace: string
-}
 
 export interface AwsConfig {
     region: string
@@ -60,7 +56,6 @@ export interface AwsConfig {
     secretAccessKey: string
     awsOpenSearchEndpoint: string
     awsSqsQueueUrl: string
-    cloudwatch: AwsCloudWatchConfig
 }
 
 export interface RedisConfig {
@@ -74,6 +69,11 @@ export interface PayOSConfig {
     payosClienId: string
     payosApiKey: string
     payosCheckSumKey: string
+    payosBankNumber: string
+    payosBankName: string
+    payosBankAccountName: string
+    payosBankFullName: string
+    payosBankLogo: string
 }
 
 // Main environment configuration interface

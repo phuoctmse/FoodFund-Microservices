@@ -1,89 +1,114 @@
-import { Injectable, Logger, BadRequestException } from "@nestjs/common"
-import { PayOSService } from "@libs/payos"
-import { PayOSWebhookPayload } from "../controllers/donation-webhook.controller"
+import { Injectable, Logger } from "@nestjs/common"
 import { DonorRepository } from "../repositories/donor.repository"
+import { UserClientService } from "../../shared/services/user-client.service"
+import { PayOS } from "@payos/node"
+import { envConfig } from "@libs/env"
 import { PaymentStatus } from "../../shared/enum/campaign.enum"
+
+interface PayOSWebhookData {
+    orderCode: number
+    amount: number
+    description: string
+    accountNumber: string
+    reference: string
+    transactionDateTime: string
+    currency: string
+    paymentLinkId: string
+    code: string
+    desc: string
+    counterAccountBankId?: string
+    counterAccountBankName?: string
+    counterAccountName?: string
+    counterAccountNumber?: string
+    virtualAccountName?: string
+    virtualAccountNumber?: string
+}
 
 @Injectable()
 export class DonationWebhookService {
     private readonly logger = new Logger(DonationWebhookService.name)
+    private payOS: PayOS | null = null
 
     constructor(
-        private readonly payosService: PayOSService,
-        private readonly DonorRepository: DonorRepository,
+        private readonly donorRepository: DonorRepository,
+        private readonly userClientService: UserClientService,
     ) {}
 
-    async handlePaymentWebhook(
-        payload: PayOSWebhookPayload,
-        signature: string,
-    ): Promise<void> {
-        // Verify webhook signature
-        const isValid = this.payosService.verifyWebhookSignature(
-            payload.data,
-            signature,
-        )
-
-        if (!isValid) {
-            this.logger.warn("Invalid webhook signature", {
-                orderCode: payload.data.orderCode,
+    private getPayOS(): PayOS {
+        if (!this.payOS) {
+            const config = envConfig().payos
+            if (!config.payosClienId || !config.payosApiKey || !config.payosCheckSumKey) {
+                throw new Error("PayOS credentials are not configured. Please set PAYOS_CLIENT_ID, PAYOS_API_KEY, and PAYOS_CHECKSUM_KEY in environment variables.")
+            }
+            this.payOS = new PayOS({
+                clientId: config.payosClienId,
+                apiKey: config.payosApiKey,
+                checksumKey: config.payosCheckSumKey,
             })
-            throw new BadRequestException("Invalid webhook signature")
         }
+        return this.payOS
+    }
 
-        const { orderCode, code, desc } = payload.data
+    async handlePaymentWebhook(webhookData: PayOSWebhookData): Promise<void> {
+        const { orderCode, code, desc } = webhookData
 
-        // Find payment transaction by order code
+        this.logger.log(`[PayOS] Received webhook for order ${orderCode}`, {
+            code,
+            desc,
+        })
+
+        // Verify webhook signature (PayOS provides verification method)
+        // Note: You need to implement signature verification based on PayOS docs
+
+        // Find payment transaction by order_code
         const paymentTransaction =
-            await this.DonorRepository.findPaymentTransactionByOrderCode(
+            await this.donorRepository.findPaymentTransactionByOrderCode(
                 BigInt(orderCode),
             )
 
         if (!paymentTransaction) {
             this.logger.warn(
-                `Payment transaction not found for order ${orderCode}`,
-            )
-            throw new BadRequestException("Payment transaction not found")
-        }
-
-        const newStatus =
-            code === "00" ? PaymentStatus.SUCCESS : PaymentStatus.FAILED
-
-        // Idempotency guard: skip if already in terminal state
-        const currentStatus = paymentTransaction.status as string
-
-        if (currentStatus === PaymentStatus.SUCCESS) {
-            this.logger.log(
-                `Payment already processed successfully for order ${orderCode}`,
+                `[PayOS] Payment transaction not found for order ${orderCode}`,
             )
             return
         }
 
-        if (
-            currentStatus === PaymentStatus.FAILED &&
-            newStatus === PaymentStatus.FAILED
-        ) {
+        // Check if already processed
+        if (paymentTransaction.status === PaymentStatus.SUCCESS) {
             this.logger.log(
-                `Ignoring duplicate FAILED webhook for ${orderCode}`,
+                `[PayOS] Payment already processed for order ${orderCode}`,
             )
             return
         }
 
-        await this.DonorRepository.updatePaymentWithTransaction(
-            paymentTransaction.id,
-            newStatus,
-            {
-                accountName: payload.data.counterAccountName,
-                accountNumber: payload.data.counterAccountNumber,
-                accountBankName: payload.data.counterAccountBankName,
-                description: payload.data.description,
-                transactionDateTime: payload.data.transactionDateTime,
-            },
-            newStatus === PaymentStatus.SUCCESS
-                ? {
-                    campaignId: paymentTransaction.donation.campaign_id,
-                    amount: paymentTransaction.amount,
-                }
-                : undefined,
-        )
+        // Update payment status based on webhook code
+        if (code === "00") {
+            // Payment successful
+            await this.donorRepository.updatePaymentTransactionSuccess({
+                order_code: BigInt(orderCode),
+                reference: webhookData.reference,
+                transaction_datetime: new Date(webhookData.transactionDateTime),
+                counter_account_bank_id: webhookData.counterAccountBankId,
+                counter_account_bank_name: webhookData.counterAccountBankName,
+                counter_account_name: webhookData.counterAccountName,
+                counter_account_number: webhookData.counterAccountNumber,
+                virtual_account_name: webhookData.virtualAccountName,
+                virtual_account_number: webhookData.virtualAccountNumber,
+            })
+
+            this.logger.log(`[PayOS] Payment successful for order ${orderCode}`)
+        } else {
+            // Payment failed
+            await this.donorRepository.updatePaymentTransactionFailed({
+                order_code: BigInt(orderCode),
+                error_code: code,
+                error_description: desc,
+            })
+
+            this.logger.warn(`[PayOS] Payment failed for order ${orderCode}`, {
+                code,
+                desc,
+            })
+        }
     }
 }

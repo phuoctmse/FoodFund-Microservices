@@ -55,6 +55,7 @@ service:
   type: ClusterIP
   # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
   port: 8003
+  grpcPort: 50002
 
 # This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
 ingress:
@@ -137,11 +138,6 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
-
-# CloudWatch Configuration
-cloudwatch:
-  enabled: true
-  logGroup: /digitalocean/foodfund/user-service
 
 # Environment variables - only non-sensitive service-specific configs  
 # Most env vars are now loaded from ConfigMap/Secret via envFrom

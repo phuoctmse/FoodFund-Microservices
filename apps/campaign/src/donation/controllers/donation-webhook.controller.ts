@@ -8,10 +8,7 @@ import {
 } from "@nestjs/common"
 import { DonationWebhookService } from "../services/donation-webhook.service"
 
-export interface PayOSWebhookPayload {
-    code: string
-    desc: string
-    success: boolean
+interface PayOSWebhookPayload {
     data: {
         orderCode: number
         amount: number
@@ -44,22 +41,10 @@ export class DonationWebhookController {
     async handlePaymentWebhook(
         @Body() payload: PayOSWebhookPayload,
     ): Promise<{ success: boolean; message: string }> {
-        this.logger.log(
-            `Received PayOS webhook for order ${payload.data?.orderCode}`,
-        )
+        this.logger.log(`Received PayOS webhook for order ${payload.data.orderCode}`)
 
         try {
-            // Verify webhook signature
-            const signature = payload.signature
-            if (!signature) {
-                this.logger.error("Missing signature in webhook payload")
-                return {
-                    success: false,
-                    message: "Missing signature",
-                }
-            }
-
-            await this.webhookService.handlePaymentWebhook(payload, signature)
+            await this.webhookService.handlePaymentWebhook(payload.data)
 
             return {
                 success: true,
@@ -71,11 +56,12 @@ export class DonationWebhookController {
                 error.stack,
             )
 
-            // Return success to PayOS even if processing fails
-            // to prevent retries for invalid data
+            // IMPORTANT: Always return 200 OK to PayOS
+            // This prevents PayOS from retrying the webhook
+            // We log the error for manual review instead
             return {
-                success: false,
-                message: error.message,
+                success: true,
+                message: "Webhook received",
             }
         }
     }

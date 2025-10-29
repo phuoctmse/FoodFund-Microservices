@@ -11,16 +11,39 @@ export class DonorRepository {
         return this.prisma.donation.create({
             data: {
                 donor_id: data.donor_id,
+                donor_name: data.donor_name,
                 campaign: {
                     connect: { id: data.campaign_id },
                 },
                 amount: data.amount,
-                message: data.message,
                 is_anonymous: data.is_anonymous,
             },
             include: {
                 campaign: true,
                 payment_transactions: true,
+            },
+        })
+    }
+
+    async createPaymentTransaction(data: {
+        donation_id: string
+        order_code: bigint
+        amount: bigint
+        description: string
+        checkout_url: string
+        qr_code: string
+        payment_link_id: string
+    }) {
+        return this.prisma.payment_Transaction.create({
+            data: {
+                donation_id: data.donation_id,
+                order_code: data.order_code,
+                amount: data.amount,
+                description: data.description,
+                checkout_url: data.checkout_url,
+                qr_code: data.qr_code,
+                payment_link_id: data.payment_link_id,
+                status: PaymentStatus.PENDING,
             },
         })
     }
@@ -33,11 +56,11 @@ export class DonorRepository {
             data: {
                 id,
                 donor_id: data.donor_id,
+                donor_name: data.donor_name,
                 campaign: {
                     connect: { id: data.campaign_id },
                 },
                 amount: data.amount,
-                message: data.message,
                 is_anonymous: data.is_anonymous,
             },
             include: {
@@ -47,7 +70,7 @@ export class DonorRepository {
         })
     }
 
-    async findById(id: string): Promise<Donation | null> {
+    async findById(id: string) {
         return this.prisma.donation.findUnique({
             where: { id },
             include: {
@@ -86,10 +109,22 @@ export class DonorRepository {
         },
     ): Promise<Donation[]> {
         return this.prisma.donation.findMany({
-            where: { campaign_id: campaignId },
+            where: {
+                campaign_id: campaignId,
+                // Only get donations with successful payment transactions
+                payment_transactions: {
+                    some: {
+                        status: PaymentStatus.SUCCESS,
+                    },
+                },
+            },
             include: {
                 campaign: true,
-                payment_transactions: true,
+                payment_transactions: {
+                    where: {
+                        status: PaymentStatus.SUCCESS,
+                    },
+                },
             },
             skip: options?.skip,
             take: options?.take,
@@ -138,28 +173,93 @@ export class DonorRepository {
         }
     }
 
-    // Payment Transaction methods
-    async createPaymentTransaction(data: {
-        donationId: string
-        orderCode: bigint
-        amount: bigint
-        paymentLinkId: string
-        checkoutUrl: string
-        qrCode: string
-    }) {
-        return this.prisma.payment_Transaction.create({
-            data: {
-                donation_id: data.donationId,
-                order_code: data.orderCode,
-                amount: data.amount,
-                payment_link_id: data.paymentLinkId,
-                checkout_url: data.checkoutUrl,
-                qr_code: data.qrCode,
-                status: PaymentStatus.PENDING,
-            },
+    /**
+     * Admin manually approve a FAILED payment
+     * Updates status to SUCCESS and increments campaign stats
+     */
+    async manualApprovePayment(
+        paymentId: string,
+        campaignId: string,
+        amount: bigint,
+        adminNote: string,
+    ) {
+        return this.prisma.$transaction(async (tx) => {
+            // Update payment status
+            const payment = await tx.payment_Transaction.update({
+                where: { id: paymentId },
+                data: {
+                    status: PaymentStatus.SUCCESS,
+                    error_description: adminNote, // Store admin note
+                    updated_at: new Date(),
+                },
+            })
+
+            // Increment campaign stats
+            await tx.campaign.update({
+                where: { id: campaignId },
+                data: {
+                    received_amount: {
+                        increment: amount,
+                    },
+                    donation_count: {
+                        increment: 1,
+                    },
+                },
+            })
+
+            return payment
         })
     }
 
+    /**
+     * Find FAILED payments for admin review
+     */
+    async findFailedPayments(options?: { skip?: number; take?: number }) {
+        return this.prisma.payment_Transaction.findMany({
+            where: {
+                status: PaymentStatus.FAILED,
+            },
+            include: {
+                donation: {
+                    include: {
+                        campaign: {
+                            select: {
+                                id: true,
+                                title: true,
+                            },
+                        },
+                    },
+                },
+            },
+            orderBy: {
+                created_at: "desc",
+            },
+            skip: options?.skip,
+            take: options?.take,
+        })
+    }
+
+    /**
+     * Find campaign by ID
+     */
+    async findCampaignById(campaignId: string) {
+        return this.prisma.campaign.findUnique({
+            where: { id: campaignId },
+        })
+    }
+
+    /**
+     * Find payment transaction by reference number (for idempotency)
+     */
+    async findPaymentTransactionByReference(referenceNumber: string) {
+        return this.prisma.payment_Transaction.findFirst({
+            where: { reference: referenceNumber },
+        })
+    }
+
+    /**
+     * Find payment transaction by order code
+     */
     async findPaymentTransactionByOrderCode(orderCode: bigint) {
         return this.prisma.payment_Transaction.findUnique({
             where: { order_code: orderCode },
@@ -173,105 +273,74 @@ export class DonorRepository {
         })
     }
 
-    async updatePaymentTransactionStatus(
-        id: string,
-        status: PaymentStatus,
-        additionalData?: {
-            accountName?: string
-            accountNumber?: string
-            description?: string
-            accountBankName?: string
-            transactionDateTime?: string
-        },
-    ) {
-        return this.prisma.payment_Transaction.update({
-            where: { id },
-            data: {
-                status,
-                account_name: additionalData?.accountName,
-                account_number: additionalData?.accountNumber,
-                account_bank_name: additionalData?.accountBankName,
-                description: additionalData?.description,
-                transaction_datetime: additionalData?.transactionDateTime
-                    ? new Date(additionalData.transactionDateTime)
-                    : undefined,
-                updated_at: new Date(),
-            },
-        })
-    }
-
-    async updateCampaignStats(campaignId: string, amount: bigint) {
-        return this.prisma.campaign.update({
-            where: { id: campaignId },
-            data: {
-                received_amount: {
-                    increment: amount,
-                },
-                donation_count: {
-                    increment: 1,
-                },
-            },
-        })
-    }
-
-    async updatePaymentWithTransaction(
-        paymentId: string,
-        status: PaymentStatus,
-        additionalData?: {
-            accountName?: string
-            accountNumber?: string
-            description?: string
-            accountBankName?: string
-            transactionDateTime?: string
-        },
-        campaignUpdate?: {
-            campaignId: string
-            amount: bigint
-        },
-    ) {
+    /**
+     * Update payment transaction to SUCCESS status
+     */
+    async updatePaymentTransactionSuccess(data: {
+        order_code: bigint
+        reference: string
+        transaction_datetime: Date
+        counter_account_bank_id?: string
+        counter_account_bank_name?: string
+        counter_account_name?: string
+        counter_account_number?: string
+        virtual_account_name?: string
+        virtual_account_number?: string
+    }) {
         return this.prisma.$transaction(async (tx) => {
-            // Step 1: Update payment transaction status
-            // Only update if current status is PENDING to avoid downgrades or double-processing
-            const updatedPayment = await tx.payment_Transaction.updateMany({
-                where: { id: paymentId, status: PaymentStatus.PENDING },
+            // Update payment transaction
+            const payment = await tx.payment_Transaction.update({
+                where: { order_code: data.order_code },
                 data: {
-                    status,
-                    account_name: additionalData?.accountName,
-                    account_number: additionalData?.accountNumber,
-                    account_bank_name: additionalData?.accountBankName,
-                    description: additionalData?.description,
-                    transaction_datetime: additionalData?.transactionDateTime
-                        ? new Date(additionalData.transactionDateTime)
-                        : undefined,
+                    status: PaymentStatus.SUCCESS,
+                    reference: data.reference,
+                    transaction_datetime: data.transaction_datetime,
+                    counter_account_bank_id: data.counter_account_bank_id,
+                    counter_account_bank_name: data.counter_account_bank_name,
+                    counter_account_name: data.counter_account_name,
+                    counter_account_number: data.counter_account_number,
+                    virtual_account_name: data.virtual_account_name,
+                    virtual_account_number: data.virtual_account_number,
                     updated_at: new Date(),
                 },
+                include: {
+                    donation: true,
+                },
             })
 
-            // If no rows updated, status was not PENDING; return current record without side effects
-            if (updatedPayment.count === 0) {
-                return tx.payment_Transaction.findUnique({
-                    where: { id: paymentId },
-                })
-            }
-
-            // Only increment stats when we just transitioned to SUCCESS
-            if (campaignUpdate && status === PaymentStatus.SUCCESS) {
-                await tx.campaign.update({
-                    where: { id: campaignUpdate.campaignId },
-                    data: {
-                        received_amount: {
-                            increment: campaignUpdate.amount,
-                        },
-                        donation_count: {
-                            increment: 1,
-                        },
+            // Update campaign stats
+            await tx.campaign.update({
+                where: { id: payment.donation.campaign_id },
+                data: {
+                    received_amount: {
+                        increment: payment.amount,
                     },
-                })
-            }
-
-            return tx.payment_Transaction.findUnique({
-                where: { id: paymentId },
+                    donation_count: {
+                        increment: 1,
+                    },
+                },
             })
+
+            return payment
+        })
+    }
+
+    /**
+     * Update payment transaction to FAILED status
+     */
+    async updatePaymentTransactionFailed(data: {
+        order_code: bigint
+        error_code: string
+        error_description: string
+    }) {
+        return this.prisma.payment_Transaction.update({
+            where: { order_code: data.order_code },
+            data: {
+                status: PaymentStatus.FAILED,
+                error_code: data.error_code,
+                error_description: data.error_description,
+                updated_at: new Date(),
+            },
         })
     }
 }

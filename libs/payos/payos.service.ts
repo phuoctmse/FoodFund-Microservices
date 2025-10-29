@@ -1,7 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common"
 import { envConfig } from "@libs/env"
-import axios, { AxiosInstance } from "axios"
-import * as crypto from "node:crypto"
+import { PayOS } from "@payos/node"
 
 export interface CreatePaymentLinkInput {
     orderCode: number
@@ -28,25 +27,18 @@ export interface PaymentLinkResponse {
 @Injectable()
 export class PayOSService {
     private readonly logger = new Logger(PayOSService.name)
-    private readonly client: AxiosInstance
-    private readonly apiKey: string
-    private readonly clientId: string
-    private readonly checksumKey: string
+    private readonly payos: PayOS
 
     constructor() {
         const config = envConfig()
 
-        this.apiKey = config.payos.payosApiKey
-        this.clientId = config.payos.payosClienId
-        this.checksumKey = config.payos.payosCheckSumKey
-
-        this.client = axios.create({
-            baseURL: "https://api-merchant.payos.vn",
-            headers: {
-                "x-client-id": this.clientId,
-                "x-api-key": this.apiKey,
-            },
+        this.payos = new PayOS({
+            clientId: config.payos.payosClienId,
+            apiKey: config.payos.payosApiKey,
+            checksumKey: config.payos.payosCheckSumKey,
         })
+
+        this.logger.log("[PayOS SDK] Initialized successfully")
     }
 
     async createPaymentLink(
@@ -56,52 +48,72 @@ export class PayOSService {
             // Validate and sanitize input according to PayOS requirements
             const sanitizedInput = this.validateAndSanitizeInput(input)
 
-            const signature = this.generateSignature(sanitizedInput)
-
-            const requestBody = {
+            const paymentData = {
                 orderCode: sanitizedInput.orderCode,
                 amount: sanitizedInput.amount,
                 description: sanitizedInput.description,
-                returnUrl: sanitizedInput.returnUrl,
-                cancelUrl: sanitizedInput.cancelUrl,
-                signature: signature,
+                returnUrl: sanitizedInput.returnUrl || "",
+                cancelUrl: sanitizedInput.cancelUrl || "",
             }
 
-            console.log("Request body:", JSON.stringify(requestBody, null, 2))
-
-            const response = await this.client.post(
-                "/v2/payment-requests",
-                requestBody,
+            this.logger.log(
+                `[PayOS SDK] Creating payment link for order ${input.orderCode}`,
             )
 
-            this.logger.log(`Payment link created for order ${input.orderCode}`)
-            return response.data.data
+            const response =
+                await this.payos.paymentRequests.create(paymentData)
+
+            this.logger.log(
+                `[PayOS SDK] Payment link created: ${response.paymentLinkId}`,
+            )
+
+            return response as PaymentLinkResponse
         } catch (error) {
-            this.logger.error(`Failed to create payment link: ${error.message}`)
+            this.logger.error(
+                `[PayOS SDK] Failed to create payment link: ${error.message}`,
+            )
             throw error
         }
     }
 
     async getPaymentLinkInfo(orderCode: number): Promise<PaymentLinkResponse> {
         try {
-            const response = await this.client.get(
-                `/v2/payment-requests/${orderCode}`,
+            this.logger.log(
+                `[PayOS SDK] Getting payment info for order ${orderCode}`,
             )
-            return response.data.data
+
+            const response = await this.payos.paymentRequests.get(orderCode)
+
+            return response as any as PaymentLinkResponse
         } catch (error) {
             this.logger.error(
-                `Failed to get payment link info: ${error.message}`,
+                `[PayOS SDK] Failed to get payment link info: ${error.message}`,
             )
             throw error
         }
     }
 
-    async cancelPaymentLink(orderCode: number): Promise<void> {
+    async cancelPaymentLink(
+        orderCode: number,
+        cancellationReason?: string,
+    ): Promise<void> {
         try {
-            await this.client.put(`/v2/payment-requests/${orderCode}/cancel`)
-            this.logger.log(`Payment link cancelled for order ${orderCode}`)
+            this.logger.log(
+                `[PayOS SDK] Cancelling payment link for order ${orderCode}`,
+            )
+
+            await this.payos.paymentRequests.cancel(
+                orderCode,
+                cancellationReason,
+            )
+
+            this.logger.log(
+                `[PayOS SDK] Payment link cancelled for order ${orderCode}`,
+            )
         } catch (error) {
-            this.logger.error(`Failed to cancel payment link: ${error.message}`)
+            this.logger.error(
+                `[PayOS SDK] Failed to cancel payment link: ${error.message}`,
+            )
             throw error
         }
     }
@@ -149,91 +161,28 @@ export class PayOSService {
             cancelUrl: input.cancelUrl,
         }
 
-        console.log("Sanitized input:", sanitizedInput)
         return sanitizedInput
     }
 
-    private generateSignature(input: CreatePaymentLinkInput): string {
-        try {
-            // Create data string sorted alphabetically by parameter names
-            // PayOS format: amount=$amount&cancelUrl=$cancelUrl&description=$description&orderCode=$orderCode&returnUrl=$returnUrl
-            // Always include all 5 fields in correct order, even if empty
-            const dataString =
-                `amount=${input.amount}` +
-                `&cancelUrl=${input.cancelUrl ?? ""}` +
-                `&description=${input.description}` +
-                `&orderCode=${input.orderCode}` +
-                `&returnUrl=${input.returnUrl ?? ""}`
-
-            // Generate HMAC SHA256 signature using checksum key
-            const signature = crypto
-                .createHmac("sha256", this.checksumKey)
-                .update(dataString)
-                .digest("hex")
-
-            return signature
-        } catch (error) {
-            this.logger.error(
-                "Failed to generate PayOS signature:",
-                error.message,
-            )
-            throw new Error(`Signature generation failed: ${error.message}`)
-        }
-    }
-
     /**
-     * Verify webhook signature from PayOS
+     * Verify webhook data from PayOS using SDK
      * Used to validate incoming webhook requests
      */
-    verifyWebhookSignature(
-        webhookData: any,
-        receivedSignature: string,
-    ): boolean {
+    async verifyWebhookData(webhook: any): Promise<any> {
         try {
-            // Generate signature for webhook data
-            const dataParams: string[] = []
+            this.logger.log("[PayOS SDK] Verifying webhook data")
 
-            // Sort webhook data keys alphabetically and build string
-            const sortedKeys = Object.keys(webhookData).sort((a, b) =>
-                a.localeCompare(b),
-            )
+            const verifiedData = await this.payos.webhooks.verify(webhook)
 
-            for (const key of sortedKeys) {
-                if (
-                    webhookData[key] !== undefined &&
-                    webhookData[key] !== null
-                ) {
-                    dataParams.push(`${key}=${webhookData[key]}`)
-                }
-            }
+            this.logger.log("[PayOS SDK] Webhook verified successfully")
 
-            const dataString = dataParams.join("&")
-
-            const expectedSignature = crypto
-                .createHmac("sha256", this.checksumKey)
-                .update(dataString)
-                .digest("hex")
-
-            const isValid = expectedSignature === receivedSignature
-
-            if (!isValid) {
-                this.logger.warn(
-                    "PayOS webhook signature verification failed",
-                    {
-                        expected: expectedSignature,
-                        received: receivedSignature,
-                        dataString,
-                    },
-                )
-            }
-
-            return isValid
+            return verifiedData
         } catch (error) {
             this.logger.error(
-                "Failed to verify PayOS webhook signature:",
+                "[PayOS SDK] Failed to verify webhook:",
                 error.message,
             )
-            return false
+            throw error
         }
     }
 }

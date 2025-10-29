@@ -1,3 +1,4 @@
+// cSpell:words payos PAYOS sepay SEPAY
 import { EnvironmentConfig, NodeEnv, Container, GrpcService } from "./types"
 import {
     DEFAULT_HEALTH_PORT,
@@ -91,12 +92,12 @@ export const envConfig = (): EnvironmentConfig => ({
                 : 50002,
             url: process.env.USER_GRPC_URL ?? "localhost:50002",
         },
-        // [GrpcService.Campaign]: {
-        //     port: process.env.CAMPAIGN_GRPC_PORT
-        //         ? Number.parseInt(process.env.CAMPAIGN_GRPC_PORT)
-        //         : 50003,
-        //     url: process.env.CAMPAIGN_GRPC_URL ?? "localhost:50003",
-        // },
+        [GrpcService.Campaign]: {
+            port: process.env.CAMPAIGN_GRPC_PORT
+                ? Number.parseInt(process.env.CAMPAIGN_GRPC_PORT)
+                : 50003,
+            url: process.env.CAMPAIGN_GRPC_URL ?? "localhost:50003",
+        },
         // [GrpcService.Donation]: {
         //     port: process.env.DONATION_GRPC_PORT
         //         ? Number.parseInt(process.env.DONATION_GRPC_PORT)
@@ -117,11 +118,7 @@ export const envConfig = (): EnvironmentConfig => ({
         accessKeyId: process.env.AWS_ACCESS_KEY_ID as string,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY as string,
         awsOpenSearchEndpoint: process.env.AWS_OPENSEARCH_ENDPOINT as string,
-        awsSqsQueueUrl: process.env.AWS_SQS_QUEUE_URL as string,
-        cloudwatch: {
-            namespace: "FoodFund",
-            logGroup: process.env.AWS_CLOUDWATCH_LOG_GROUP as string,
-        },
+        awsSqsQueueUrl: process.env.AWS_SQS_QUEUE_URL as string
     },
 
     // Sentry Configuration
@@ -146,6 +143,11 @@ export const envConfig = (): EnvironmentConfig => ({
         payosApiKey: process.env.PAYOS_API_KEY as string,
         payosCheckSumKey: process.env.PAYOS_CHECKSUM_KEY as string,
         payosClienId: process.env.PAYOS_CLIENT_ID as string,
+        payosBankName: process.env.PAYOS_BANK_NAME as string,
+        payosBankNumber: process.env.PAYOS_BANK_NUMBER as string,
+        payosBankAccountName: process.env.PAYOS_BANK_ACCOUNT_NAME as string,
+        payosBankFullName: process.env.PAYOS_BANK_FULLNAME as string,
+        payosBankLogo: process.env.PAYOS_BANK_LOGO as string,
     },
 })
 

@@ -67,9 +67,9 @@ model Campaign_Category {
 model Donation {
   id           String   @id @default(uuid())
   donor_id     String
+  donor_name   String?
   campaign_id  String
   amount       BigInt   @default(0)
-  message      String?  @db.Text()
   is_anonymous Boolean  @default(false)
   created_at   DateTime @default(now())
 
@@ -84,32 +84,42 @@ model Donation {
 }
 
 model Payment_Transaction {
-  id                   String         @id @default(uuid())
-  donation_id          String
-  order_code           BigInt
-  bin                  String?        @db.VarChar(20)
-  account_number       String?        @db.VarChar(50)
-  account_name         String?        @db.VarChar(255)
-  account_bank_name    String?        @db.VarChar(255)
-  transaction_datetime DateTime?
-  amount               BigInt
-  currency             String         @default("VND") @db.VarChar(10)
-  description          String?        @db.Text()
-  payment_link_id      String?        @db.Text()
-  checkout_url         String?        @db.Text()
-  qr_code              String?        @db.Text()
-  status               Payment_Status
-  created_at           DateTime       @default(now())
-  updated_at           DateTime       @updatedAt
-  refunded_at          DateTime?
+  id          String   @id @default(uuid())
+  donation_id String
+  order_code  BigInt?  @unique
+  amount      BigInt   @default(0)
+  description String?  @db.Text()
+  status      Payment_Status @default(PENDING)
+  currency    String         @default("VND") @db.VarChar(10)
+
+  // PayOS payment link info
+  checkout_url            String? @db.Text()
+  qr_code                 String? @db.Text()
+  payment_link_id         String? @db.VarChar(255)
+  counter_account_bank_id String? @db.VarChar(50)
+  counter_account_bank_name String? @db.VarChar(255)
+  counter_account_name    String? @db.VarChar(255)
+  counter_account_number  String? @db.VarChar(50)
+  virtual_account_name    String? @db.VarChar(255)
+  virtual_account_number  String? @db.VarChar(50)
+  reference               String? @db.VarChar(255)
+  transaction_datetime    DateTime? @db.Timestamp()
+
+  error_code        String? @db.VarChar(50)
+  error_description String? @db.Text()
+
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+  refunded_at DateTime?
 
   donation Donation @relation(fields: [donation_id], references: [id], onDelete: Cascade)
 
-  @@unique([order_code])
   @@index([donation_id])
   @@index([status])
   @@index([created_at])
-  @@index([status, created_at])
+  @@index([order_code])
+  @@index([payment_link_id])
+  @@index([reference])
   @@map("payment_transactions")
 }
 

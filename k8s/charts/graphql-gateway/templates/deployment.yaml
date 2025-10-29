@@ -49,14 +49,10 @@ spec:
                 name: app-config
             - secretRef:
                 name: app-secrets
+          {{- with .Values.env }}
           env:
-            {{- if .Values.cloudwatch.enabled }}
-            - name: AWS_CLOUDWATCH_LOG_GROUP
-              value: {{ .Values.cloudwatch.logGroup }}
-            {{- end }}
-            {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
-            {{- end }}
+          {{- end }}
           {{- with .Values.startupProbe }}
           startupProbe:
             {{- toYaml . | nindent 12 }}

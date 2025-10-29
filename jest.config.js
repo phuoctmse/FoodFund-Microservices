@@ -23,8 +23,6 @@ module.exports = {
         "^@libs/auth/(.*)$": "<rootDir>/libs/auth/$1",
         "^@libs/aws-sqs$": "<rootDir>/libs/aws-sqs/index.ts",
         "^@libs/aws-sqs/(.*)$": "<rootDir>/libs/aws-sqs/$1",
-        "^@libs/aws-cloudwatch$": "<rootDir>/libs/aws-cloudwatch/index.ts",
-        "^@libs/aws-cloudwatch/(.*)$": "<rootDir>/libs/aws-cloudwatch/$1",
         "^@libs/aws-opensearch$": "<rootDir>/libs/aws-opensearch/index.ts",
         "^@libs/aws-opensearch/(.*)$": "<rootDir>/libs/aws-opensearch/$1",
         "^@libs/payos$": "<rootDir>/libs/payos/index.ts",

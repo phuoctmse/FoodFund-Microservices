@@ -140,6 +140,7 @@ export class OrganizationService {
         // Transform data for GraphQL response
         const transformedOrganization = {
             ...organization,
+            representative: organization.user, // Map user to representative for GraphQL
             members: organization.Organization_Member.map((member) => ({
                 id: member.id,
                 member: member.member,
