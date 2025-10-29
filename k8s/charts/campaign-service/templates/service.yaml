@@ -1,17 +1,17 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: { { include "campaign-service.fullname" . } }
-  labels: { { - include "campaign-service.labels" . | nindent 4 } }
+  name: {{ include "campaign-service.fullname" . }}
+  labels: {{ - include "campaign-service.labels" . | nindent 4 }}
 spec:
-  type: { { .Values.service.type } }
+  type: {{ .Values.service.type }}
   ports:
-    - port: { { .Values.service.port } }
+    - port: {{ .Values.service.port }}
       targetPort: http
       protocol: TCP
       name: http
-    - port: { { .Values.service.grpcPort } }
+    - port: {{ .Values.service.grpcPort }}
       targetPort: grpc
       protocol: TCP
       name: grpc
-  selector: { { - include "campaign-service.selectorLabels" . | nindent 4 } }
+  selector: {{ - include "campaign-service.selectorLabels" . | nindent 4 }}
