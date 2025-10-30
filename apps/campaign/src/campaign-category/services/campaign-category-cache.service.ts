@@ -72,34 +72,6 @@ export class CampaignCategoryCacheService {
         await this.redis.del(this.KEYS.ALL_ACTIVE)
     }
 
-    async getAllCategoriesWithInactive(): Promise<CampaignCategory[] | null> {
-        try {
-            const cached = await this.redis.get(this.KEYS.ALL_WITH_INACTIVE)
-
-            if (cached) {
-                return JSON.parse(cached) as CampaignCategory[]
-            }
-
-            return null
-        } catch (error) {
-            return null
-        }
-    }
-
-    async setAllCategoriesWithInactive(
-        categories: CampaignCategory[],
-    ): Promise<void> {
-        await this.redis.set(
-            this.KEYS.ALL_WITH_INACTIVE,
-            JSON.stringify(categories),
-            { ex: this.TTL.ALL_CATEGORIES },
-        )
-    }
-
-    async deleteAllCategoriesWithInactive(): Promise<void> {
-        await this.redis.del(this.KEYS.ALL_WITH_INACTIVE)
-    }
-
     async getCategoryStats(): Promise<Array<
         CampaignCategory & { campaignCount: number }
     > | null> {
@@ -133,7 +105,6 @@ export class CampaignCategoryCacheService {
     async invalidateAll(categoryId?: string): Promise<void> {
         const deleteOperations: Promise<void>[] = [
             this.deleteAllActiveCategories(),
-            this.deleteAllCategoriesWithInactive(),
             this.deleteCategoryStats(),
         ]
 
