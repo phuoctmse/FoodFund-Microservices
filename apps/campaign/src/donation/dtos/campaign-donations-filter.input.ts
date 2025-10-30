@@ -31,15 +31,13 @@ export class CampaignDonationsFilterInput {
 
     @Field(() => DonationSortField, {
         nullable: true,
-        defaultValue: DonationSortField.TRANSACTION_DATE,
-        description: "Field to sort by",
+        description: "Field to sort by (default: TRANSACTION_DATE)",
     })
         sortBy?: DonationSortField
 
     @Field(() => SortOrder, {
         nullable: true,
-        defaultValue: SortOrder.DESC,
-        description: "Sort order (ascending or descending)",
+        description: "Sort order (default: DESC)",
     })
         sortOrder?: SortOrder
 }

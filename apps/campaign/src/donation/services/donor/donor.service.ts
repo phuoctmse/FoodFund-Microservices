@@ -4,19 +4,19 @@ import {
     Logger,
     NotFoundException,
 } from "@nestjs/common"
-import { DonorRepository } from "../repositories/donor.repository"
-import { CreateDonationInput } from "../dtos/create-donation.input"
-import { DonationResponse } from "../dtos/donation-response.dto"
-import { CampaignDonationInfo } from "../dtos/campaign-donation-info.dto"
-import { CampaignRepository } from "../../campaign/campaign.repository"
-import { CampaignStatus } from "../../campaign/enum/campaign.enum"
-import { Donation } from "../models/donation.model"
+
 import { SqsService } from "@libs/aws-sqs"
 import { CurrentUserType } from "@libs/auth"
-import { UserClientService } from "../../shared/services/user-client.service"
-import { UserDataLoader } from "../../shared/dataloaders/user.dataloader"
+
 import { PayOS } from "@payos/node"
 import { envConfig } from "@libs/env"
+import { CampaignRepository, CampaignStatus } from "@app/campaign/src/campaign"
+import { UserDataLoader } from "@app/campaign/src/shared/dataloaders/user.dataloader"
+import { UserClientService } from "@app/campaign/src/shared/services/user-client.service"
+import { CreateDonationInput, DonationResponse } from "../../dtos"
+import { CampaignDonationInfo } from "../../dtos/campaign-donation-info.dto"
+import { Donation } from "../../models"
+import { DonorRepository } from "../../repositories"
 
 @Injectable()
 export class DonorService {
@@ -279,6 +279,77 @@ export class DonorService {
         return this.mapDonationToGraphQLModel(donation)
     }
 
+    async getPaymentLinkInfoByOrderCode(
+        orderCode: string,
+        userId: string,
+    ): Promise<any> {
+        // Find payment transaction by order code
+        const paymentTx =
+            await this.donorRepository.findPaymentTransactionByOrderCode(
+                BigInt(orderCode),
+            )
+
+        if (!paymentTx) {
+            throw new NotFoundException("Payment transaction not found")
+        }
+
+        // Verify donation belongs to user
+        if (paymentTx.donation.donor_id !== userId) {
+            throw new BadRequestException(
+                "You don't have permission to view this payment",
+            )
+        }
+
+        try {
+            const payOS = this.getPayOS()
+            const paymentLink = await payOS.paymentRequests.get(
+                Number(orderCode),
+            )
+
+            const response: any = {
+                id: paymentLink.id,
+                orderCode: paymentLink.orderCode.toString(),
+                amount: paymentLink.amount,
+                amountPaid: paymentLink.amountPaid,
+                amountRemaining: paymentLink.amountRemaining,
+                status: paymentLink.status,
+                createdAt: paymentLink.createdAt,
+                transactions: paymentLink.transactions || [],
+                cancellationReason: paymentLink.cancellationReason || null,
+                canceledAt: paymentLink.canceledAt || null,
+            }
+
+            // If status is PENDING, include banking info for QR payment
+            if (paymentLink.status === "PENDING" && paymentTx.qr_code) {
+                const config = envConfig().payos
+
+                // Extract description from QR code
+                const qrDescription = this.extractDescriptionFromQR(
+                    paymentTx.qr_code,
+                )
+
+                response.qrCode = paymentTx.qr_code
+                response.bankNumber = config.payosBankNumber
+                response.bankAccountName = config.payosBankAccountName
+                response.bankFullName = config.payosBankFullName
+                response.bankName = config.payosBankName
+                response.bankLogo = config.payosBankLogo
+                response.description =
+                    qrDescription || paymentTx.description || orderCode
+            }
+
+            return response
+        } catch (error) {
+            this.logger.error(
+                `Failed to get payment link info for order code ${orderCode}`,
+                error,
+            )
+            throw new BadRequestException(
+                "Failed to get payment link information",
+            )
+        }
+    }
+
     async getDonationsByDonor(
         donorId: string,
         options?: {
@@ -291,6 +362,47 @@ export class DonorService {
             options,
         )
         return donations.map(this.mapDonationToGraphQLModel)
+    }
+
+    async getMyDonationsWithTotal(
+        donorId: string,
+        options?: {
+            skip?: number
+            take?: number
+        },
+    ): Promise<{
+        donations: Donation[]
+        totalAmount: string
+        totalSuccessDonations: number
+        totalDonatedCampaigns: number
+    }> {
+        const donations = await this.donorRepository.findByDonorId(
+            donorId,
+            options,
+        )
+
+        // Calculate statistics
+        let totalAmount = BigInt(0)
+        let totalSuccessDonations = 0
+        const uniqueCampaignIds = new Set<string>()
+
+        donations.forEach((donation: any) => {
+            const successTx = donation.payment_transactions?.find(
+                (tx: any) => tx.status === "SUCCESS",
+            )
+            if (successTx) {
+                totalAmount += donation.amount
+                totalSuccessDonations++
+                uniqueCampaignIds.add(donation.campaign_id)
+            }
+        })
+
+        return {
+            donations: donations.map(this.mapDonationToGraphQLModel),
+            totalAmount: totalAmount.toString(),
+            totalSuccessDonations,
+            totalDonatedCampaigns: uniqueCampaignIds.size,
+        }
     }
 
     async getDonationsByCampaign(
@@ -450,10 +562,44 @@ export class DonorService {
     }
 
     private mapDonationToGraphQLModel(donation: any): Donation {
-        // Get transaction_datetime from successful payment transaction
-        const successfulTx = donation.payment_transactions?.find(
-            (tx: any) => tx.status === "SUCCESS",
-        )
+        // Get payment transaction status
+        // Priority: SUCCESS > PENDING > FAILED > REFUNDED
+        let status = "PENDING"
+        let transactionDatetime: Date | undefined = undefined
+        let orderCode: string | undefined = undefined
+
+        if (donation.payment_transactions?.length > 0) {
+            const successTx = donation.payment_transactions.find(
+                (tx: any) => tx.status === "SUCCESS",
+            )
+            const failedTx = donation.payment_transactions.find(
+                (tx: any) => tx.status === "FAILED",
+            )
+            const refundedTx = donation.payment_transactions.find(
+                (tx: any) => tx.status === "REFUNDED",
+            )
+
+            // Get the most relevant transaction
+            const relevantTx =
+                successTx ||
+                refundedTx ||
+                failedTx ||
+                donation.payment_transactions[0]
+
+            if (successTx) {
+                status = "SUCCESS"
+                transactionDatetime = successTx.transaction_datetime
+            } else if (refundedTx) {
+                status = "REFUNDED"
+            } else if (failedTx) {
+                status = "FAILED"
+            }
+
+            // Get order code from the relevant transaction
+            if (relevantTx?.order_code) {
+                orderCode = relevantTx.order_code.toString()
+            }
+        }
 
         return {
             id: donation.id,
@@ -462,7 +608,9 @@ export class DonorService {
             campaignId: donation.campaign_id,
             amount: donation.amount.toString(),
             isAnonymous: donation.is_anonymous ?? false,
-            transactionDatetime: successfulTx?.transaction_datetime || null,
+            status: status as any,
+            orderCode,
+            transactionDatetime,
             created_at: donation.created_at,
             updated_at: donation.updated_at,
         }

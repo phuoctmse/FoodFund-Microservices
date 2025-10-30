@@ -1,46 +1,36 @@
 import { Args, Query, Resolver } from "@nestjs/graphql"
 import { UseGuards } from "@nestjs/common"
 import { CurrentUser } from "@app/campaign/src/shared"
-import { DonorService } from "../../../services/donor.service"
 import { Donation } from "../../../models/donation.model"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
-import { CampaignDonationsFilterInput } from "../../../dtos/campaign-donations-filter.input"
+import {
+    DonationSortField,
+    SortOrder,
+} from "../../../dtos/campaign-donations-filter.input"
+import { DonorService } from "../../../services"
+import { PaymentLinkInfo } from "../../../dtos/payment-link-info.dto"
+import { MyDonationsResponse } from "../../../dtos/my-donations-response.dto"
+import { CurrentUserType } from "@libs/auth"
 
 @Resolver(() => Donation)
 export class DonorQueryResolver {
     constructor(private readonly donorService: DonorService) {}
 
-    // @UseGuards(OptionalJwtAuthGuard)
-    // @Query(() => CampaignDonationInfo, {
-    //     description:
-    //         "Get campaign donation info with dynamic QR code (DEPRECATED - use createDonation mutation instead)",
-    //     deprecationReason:
-    //         "Use createDonation mutation to generate PayOS payment link instead",
-    // })
-    // async getCampaignDonationInfo(
-    //     @Args("campaignId", { type: () => String }) campaignId: string,
-    //     @Args("isAnonymous", { type: () => Boolean, nullable: true })
-    //         isAnonymous?: boolean,
-    //     @CurrentUser() user: CurrentUserType | null = null,
-    // ): Promise<CampaignDonationInfo> {
-    //     return this.donorService.getCampaignDonationInfo(
-    //         campaignId,
-    //         user,
-    //         isAnonymous,
-    //     )
-    // }
-
-    @Query(() => Donation, {
-        nullable: true,
-        description: "Get a donation by ID",
+    @Query(() => PaymentLinkInfo, {
+        description: "Get payment link information for my donation",
     })
-    async getDonation(
-        @Args("id", { type: () => String }) id: string,
-    ): Promise<Donation | null> {
-        return this.donorService.getDonationById(id)
+    @UseGuards(CognitoGraphQLGuard)
+    async getMyDonationPaymentLink(
+        @CurrentUser("sub") userId: string,
+        @Args("orderCode", { type: () => String }) orderCode: string,
+    ): Promise<PaymentLinkInfo> {
+        return this.donorService.getPaymentLinkInfoByOrderCode(
+            orderCode,
+            userId,
+        )
     }
 
-    @Query(() => [Donation], {
+    @Query(() => MyDonationsResponse, {
         description: "Get donations for current user",
     })
     @UseGuards(CognitoGraphQLGuard)
@@ -48,8 +38,11 @@ export class DonorQueryResolver {
         @CurrentUser("sub") userId: string,
         @Args("skip", { type: () => Number, nullable: true }) skip?: number,
         @Args("take", { type: () => Number, nullable: true }) take?: number,
-    ): Promise<Donation[]> {
-        return this.donorService.getDonationsByDonor(userId, { skip, take })
+    ): Promise<MyDonationsResponse> {
+        return this.donorService.getMyDonationsWithTotal(userId, {
+            skip,
+            take,
+        })
     }
 
     @Query(() => [Donation], {
@@ -59,16 +52,21 @@ export class DonorQueryResolver {
         @Args("campaignId", { type: () => String }) campaignId: string,
         @Args("skip", { type: () => Number, nullable: true }) skip?: number,
         @Args("take", { type: () => Number, nullable: true }) take?: number,
-        @Args("filter", {
-            type: () => CampaignDonationsFilterInput,
-            nullable: true,
-        })
-            filter?: CampaignDonationsFilterInput,
+        @Args("searchDonorName", { type: () => String, nullable: true })
+            searchDonorName?: string,
+        @Args("sortBy", { type: () => DonationSortField, nullable: true })
+            sortBy?: DonationSortField,
+        @Args("sortOrder", { type: () => SortOrder, nullable: true })
+            sortOrder?: SortOrder,
     ): Promise<Donation[]> {
         return this.donorService.getDonationsByCampaign(campaignId, {
             skip,
             take,
-            filter,
+            filter: {
+                searchDonorName,
+                sortBy,
+                sortOrder,
+            },
         })
     }
 }

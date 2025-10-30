@@ -1,11 +1,14 @@
 import { Injectable } from "@nestjs/common"
-import { Donation, Prisma, PrismaClient } from "../../generated/campaign-client"
+import { Donation, Prisma } from "../../generated/campaign-client"
 import { CreateDonationRepositoryInput } from "../dtos/create-donation-repository.input"
 import { PaymentStatus } from "../../shared/enum/campaign.enum"
+import { BaseDonationRepository } from "./base-donation.repository"
 
+/**
+ * Repository for donor donation operations
+ */
 @Injectable()
-export class DonorRepository {
-    constructor(private readonly prisma: PrismaClient) {}
+export class DonorRepository extends BaseDonationRepository {
 
     async create(data: CreateDonationRepositoryInput): Promise<Donation> {
         return this.prisma.donation.create({
@@ -171,72 +174,6 @@ export class DonorRepository {
             donationCount: donations._count.id || 0,
             campaignCount: campaignCount.length,
         }
-    }
-
-    /**
-     * Admin manually approve a FAILED payment
-     * Updates status to SUCCESS and increments campaign stats
-     */
-    async manualApprovePayment(
-        paymentId: string,
-        campaignId: string,
-        amount: bigint,
-        adminNote: string,
-    ) {
-        return this.prisma.$transaction(async (tx) => {
-            // Update payment status
-            const payment = await tx.payment_Transaction.update({
-                where: { id: paymentId },
-                data: {
-                    status: PaymentStatus.SUCCESS,
-                    error_description: adminNote, // Store admin note
-                    updated_at: new Date(),
-                },
-            })
-
-            // Increment campaign stats
-            await tx.campaign.update({
-                where: { id: campaignId },
-                data: {
-                    received_amount: {
-                        increment: amount,
-                    },
-                    donation_count: {
-                        increment: 1,
-                    },
-                },
-            })
-
-            return payment
-        })
-    }
-
-    /**
-     * Find FAILED payments for admin review
-     */
-    async findFailedPayments(options?: { skip?: number; take?: number }) {
-        return this.prisma.payment_Transaction.findMany({
-            where: {
-                status: PaymentStatus.FAILED,
-            },
-            include: {
-                donation: {
-                    include: {
-                        campaign: {
-                            select: {
-                                id: true,
-                                title: true,
-                            },
-                        },
-                    },
-                },
-            },
-            orderBy: {
-                created_at: "desc",
-            },
-            skip: options?.skip,
-            take: options?.take,
-        })
     }
 
     /**

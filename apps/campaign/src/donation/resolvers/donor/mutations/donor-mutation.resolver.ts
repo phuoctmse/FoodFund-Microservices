@@ -1,11 +1,11 @@
 import { Args, Mutation, Resolver } from "@nestjs/graphql"
 import { UseGuards } from "@nestjs/common"
 import { CurrentUser } from "@app/campaign/src/shared"
-import { DonorService } from "../../../services/donor.service"
 import { CreateDonationInput } from "../../../dtos/create-donation.input"
 import { DonationResponse } from "../../../dtos/donation-response.dto"
 import { CurrentUserType } from "@libs/auth"
 import { OptionalJwtAuthGuard } from "@libs/auth/guards/optional-jwt-auth.guard"
+import { DonorService } from "../../../services"
 
 @Resolver(() => DonationResponse)
 export class DonorMutationResolver {

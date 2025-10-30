@@ -1,9 +1,14 @@
 import { Module } from "@nestjs/common"
-import { DonorService } from "./services/donor.service"
+import { DonorService } from "./services/donor"
 import { DonationProcessorService } from "./services/donation-processor.service"
 import { DonationWebhookService } from "./services/donation-webhook.service"
 import { DonationAdminService } from "./services/admin"
-import { DonorRepository } from "./repositories/donor.repository"
+import { PaymentCleanupService } from "./services/payment-cleanup.service"
+import {
+    BaseDonationRepository,
+    DonorRepository,
+    AdminDonationRepository,
+} from "./repositories"
 import { DonorMutationResolver } from "./resolvers/donor/mutations/donor-mutation.resolver"
 import { DonorQueryResolver } from "./resolvers/donor/queries/donor-query.resolver"
 import { AdminQueryResolver, AdminMutationResolver } from "./resolvers/admin"
@@ -24,7 +29,10 @@ import { UserDataLoader } from "../shared/dataloaders/user.dataloader"
         DonationProcessorService,
         DonationWebhookService,
         DonationAdminService,
+        PaymentCleanupService,
+        BaseDonationRepository,
         DonorRepository,
+        AdminDonationRepository,
         DonorMutationResolver,
         DonorQueryResolver,
         AdminQueryResolver,
@@ -33,6 +41,12 @@ import { UserDataLoader } from "../shared/dataloaders/user.dataloader"
         UserDataLoader,
         PrismaClient,
     ],
-    exports: [DonorService, DonationProcessorService, DonorRepository],
+    exports: [
+        DonorService,
+        DonationProcessorService,
+        DonorRepository,
+        AdminDonationRepository,
+        PaymentCleanupService,
+    ],
 })
 export class DonationModule {}
