@@ -1,23 +1,52 @@
 # syntax=docker/dockerfile:1
 ARG NODE_VERSION=22.20.0
 
-# Build Stage
+# ============================================
+# Stage 1: Build
+# ============================================
 FROM node:${NODE_VERSION}-slim AS build
-WORKDIR /usr/src/app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npx nest build auth
 
-# Production Stage
-FROM node:${NODE_VERSION}-alpine AS production
 WORKDIR /usr/src/app
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig*.json ./
+COPY nest-cli.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Build auth service
+RUN npm run build auth
+
+# ============================================
+# Stage 2: Production
+# ============================================
+FROM node:${NODE_VERSION}-alpine AS production
+
+WORKDIR /usr/src/app
+
+
+# Copy built files
 COPY --from=build /usr/src/app/dist ./dist
 COPY --from=build /usr/src/app/package*.json ./
-# Copy proto files for gRPC service registration
+COPY --from=build /usr/src/app/node_modules ./node_modules
+
+# Copy proto files for gRPC
 COPY --from=build /usr/src/app/libs/grpc/proto ./libs/grpc/proto
-RUN npm ci --omit=dev && npm cache clean --force
-RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nestjs -u 1001 && \
+    chown -R nestjs:nodejs /usr/src/app
+
 USER nestjs
+
+# Expose ports
 EXPOSE 8002
+
+# Start application
 CMD ["node", "dist/apps/auth/main.js"]
