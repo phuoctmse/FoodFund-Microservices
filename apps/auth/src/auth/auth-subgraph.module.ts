@@ -5,28 +5,20 @@ import { HealthController } from "./health.controller"
 import { AuthGrpcService } from "./grpc"
 import { GrpcModule } from "libs/grpc"
 import { AuthLibModule } from "libs/auth/auth.module"
-import {
-    AuthRegistrationResolver,
-    AuthAuthenticationResolver,
-    AuthUserResolver,
-} from "./resolvers"
-import {
-    AuthRegistrationService,
-    AuthAuthenticationService,
-    AuthUserService,
-} from "./services"
+import { AuthResolver } from "./resolvers/auth.resolver"
+import { AuthService } from "./services/auth.service"
+import { CognitoMapperHelper } from "./helpers/cognito-mapper.helper"
 
 @Module({
     providers: [
-        // Resolvers
-        AuthRegistrationResolver,
-        AuthAuthenticationResolver,
-        AuthUserResolver,
+        // Resolver
+        AuthResolver,
 
-        // Services
-        AuthRegistrationService,
-        AuthAuthenticationService,
-        AuthUserService,
+        // Service
+        AuthService,
+
+        // Helpers
+        CognitoMapperHelper,
 
         // gRPC
         AuthGrpcService,

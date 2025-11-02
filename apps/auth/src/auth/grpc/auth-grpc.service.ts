@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common"
 import { GrpcServerService } from "libs/grpc"
-import { AuthAuthenticationService } from "../services"
+import { AuthenticationService } from "../services"
 import { AwsCognitoService } from "libs/aws-cognito"
 import { envConfig } from "libs/env"
 
@@ -10,7 +10,7 @@ export class AuthGrpcService implements OnModuleInit {
 
     constructor(
         private readonly grpcServer: GrpcServerService,
-        private readonly authAuthenticationService: AuthAuthenticationService,
+        private readonly authenticationService: AuthenticationService,
         private readonly cognitoService: AwsCognitoService,
     ) {}
 
@@ -116,7 +116,7 @@ export class AuthGrpcService implements OnModuleInit {
             const { access_token } = call.request
 
             const authUser =
-                await this.authAuthenticationService.verifyToken(access_token)
+                await this.authenticationService.verifyToken(access_token)
 
             callback(null, {
                 success: true,

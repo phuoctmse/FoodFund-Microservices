@@ -52,6 +52,8 @@ module.exports = {
         "^libs/env/(.*)$": "<rootDir>/libs/env/$1",
         "^libs/exceptions$": "<rootDir>/libs/exceptions/index.ts",
         "^libs/exceptions/(.*)$": "<rootDir>/libs/exceptions/$1",
+        "^libs/validation$": "<rootDir>/libs/validation/index.ts",
+        "^libs/validation/(.*)$": "<rootDir>/libs/validation/$1",
         "^libs/graphql/(.*)$": "<rootDir>/libs/graphql/$1",
         "^libs/s3-storage$": "<rootDir>/libs/s3-storage/index.ts",
         "^libs/s3-storage/(.*)$": "<rootDir>/libs/s3-storage/$1",
