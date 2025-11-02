@@ -1,42 +1,55 @@
 # syntax=docker/dockerfile:1
 ARG NODE_VERSION=22.20.0
 
-# Build Stage
+# ============================================
+# Stage 1: Build
+# ============================================
 FROM node:${NODE_VERSION}-slim AS build
-WORKDIR /usr/src/app
-COPY package*.json ./
-COPY apps/user/package*.json ./apps/user/
-RUN npm ci
-COPY . .
-# Generate Prisma client for build (needed for compilation)
-RUN cd apps/user && npx prisma generate
-# Build application
-RUN npm run build:user
 
-# Production Stage
-FROM node:${NODE_VERSION}-alpine AS production
 WORKDIR /usr/src/app
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig*.json ./
+COPY nest-cli.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Build user service
+RUN npm run build user
+
+# ============================================
+# Stage 2: Production
+# ============================================
+FROM node:${NODE_VERSION}-alpine AS production
+
+WORKDIR /usr/src/app
+
+# Copy built files
 COPY --from=build /usr/src/app/dist ./dist
 COPY --from=build /usr/src/app/package*.json ./
-COPY --from=build /usr/src/app/apps/user/package*.json ./apps/user/
 COPY --from=build /usr/src/app/node_modules ./node_modules
-COPY --from=build /usr/src/app/apps/user/prisma ./apps/user/prisma
-# Copy generated client from build stage as starting point
-COPY --from=build /usr/src/app/apps/user/src/generated ./apps/user/src/generated
-# Copy proto files
+
+# Copy proto files for gRPC (if needed in future)
 COPY --from=build /usr/src/app/libs/grpc/proto ./libs/grpc/proto
 
-# Regenerate Prisma client for Linux runtime (overwrite Windows binaries)
-WORKDIR /usr/src/app/apps/user
-RUN npx prisma generate
+# Copy Prisma files
+COPY --from=build /usr/src/app/apps/user/prisma ./apps/user/prisma
+COPY --from=build /usr/src/app/apps/user/src/generated ./apps/user/src/generated
 
-# Create symlink from custom path to default Prisma location for user
-RUN mkdir -p /usr/src/app/node_modules/.prisma && \
-    ln -sf /usr/src/app/apps/user/src/generated/user-client /usr/src/app/node_modules/.prisma/user-client
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nestjs -u 1001 && \
+    chown -R nestjs:nodejs /usr/src/app
 
-# Set working directory back and add user
-WORKDIR /usr/src/app
-RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
 USER nestjs
+
+# Expose ports
 EXPOSE 8003
+
+# Start application
 CMD ["node", "dist/apps/user/main.js"]

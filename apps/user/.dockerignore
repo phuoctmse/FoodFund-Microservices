@@ -1,77 +1,78 @@
 # Dependencies
 node_modules
-!node_modules/.prisma
-npm-debug.log*
+npm-debug.log
+yarn-error.log
 
-# Environment files
-.env
-.env.local
-.env.*.local
-*.env
+# Build output
+dist
+build
+*.tsbuildinfo
+
+# Tests
+**/__tests__
+**/*.spec.ts
+**/*.test.ts
+coverage
+.nyc_output
+
+# Documentation
+*.md
+!README.md
+docs
+
+# Migration documentation (keep only essential docs)
+USER_SERVICE_MIGRATION_PLAN.md
+USER_SERVICE_MIGRATION_COMPLETE.md
+INFRASTRUCTURE_LAYER_COMPLETE.md
+PRESENTATION_LAYER_MIGRATION_STATUS.md
+QUICK_IMPLEMENTATION_GUIDE.md
+API_MIGRATION_SUMMARY.md
+PHASE_2_COMPLETE.md
+PHASE_2_PROGRESS.md
+UNIT_TESTS_SUMMARY.md
 
 # Git
 .git
 .gitignore
+.gitattributes
 
 # IDE
 .vscode
 .idea
 *.swp
 *.swo
-
-# OS
+*~
 .DS_Store
-Thumbs.db
+
+# Environment
+.env
+.env.*
+!.env.example
 
 # Logs
 logs
 *.log
 
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage
-
-# Build outputs
-dist
-build
-
-# Temporary directories
+# Temporary files
 tmp
 temp
-
-# Documentation
-README.md
-*.md
-
-# Test files
-test
-tests
-__tests__
-*.test.js
-*.test.ts
-*.spec.js
-*.spec.ts
-
-# Docker
-Dockerfile*
-docker-compose*
-
-# Kubernetes
-k8s
+*.tmp
 
 # CI/CD
 .github
+.gitlab-ci.yml
+.travis.yml
 
-# Sensitive data
-secrets
-*.key
-*.pem
-*.p12
-*.crt
-kubeconfig*
-.kube
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Other
+.editorconfig
+.prettierrc
+.eslintrc.js
+
+# Old legacy code (optional - remove if you want to keep for reference)
+# src/user/
+

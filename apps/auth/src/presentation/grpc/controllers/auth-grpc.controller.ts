@@ -1,88 +1,50 @@
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common"
-import { GrpcServerService } from "libs/grpc"
+import { Controller, Logger } from "@nestjs/common"
+import { GrpcMethod } from "@nestjs/microservices"
 import { AuthApplicationService } from "../../../application/services/auth-application.service"
-import { envConfig } from "libs/env"
+import {
+    ValidateTokenRequest,
+    ValidateTokenResponse,
+    GetUserFromTokenRequest,
+    GetUserFromTokenResponse,
+    RefreshTokenRequest,
+    RefreshTokenResponse,
+    CheckPermissionRequest,
+    CheckPermissionResponse,
+} from "libs/grpc/interfaces/auth-grpc.interface"
 
 /**
  * Presentation Controller: Auth gRPC
- * Handles gRPC requests for auth service
+ * Handles gRPC requests for auth service using NestJS Microservices
  */
-@Injectable()
-export class AuthGrpcController implements OnModuleInit {
+@Controller()
+export class AuthGrpcController {
     private readonly logger = new Logger(AuthGrpcController.name)
 
     constructor(
-        private readonly grpcServer: GrpcServerService,
         private readonly authApplicationService: AuthApplicationService,
     ) {}
 
-    async onModuleInit() {
+    @GrpcMethod("AuthService", "ValidateToken")
+    async validateToken(
+        data: ValidateTokenRequest,
+    ): Promise<ValidateTokenResponse> {
         try {
-            const env = envConfig()
-            // Initialize gRPC server
-            await this.grpcServer.initialize({
-                port: env.grpc.auth?.port || 50001,
-                protoPath: "auth.proto",
-                packageName: "foodfund.auth",
-                serviceName: "AuthService",
-                implementation: this.getImplementation(),
-            })
+            this.logger.log("gRPC ValidateToken called")
 
-            // Start server
-            await this.grpcServer.start()
-            this.logger.log(
-                `Auth gRPC server started on port ${env.grpc.auth?.port || 50001}`,
-            )
-        } catch (error) {
-            this.logger.error("Failed to start Auth gRPC service:", error)
-        }
-    }
-
-    private getImplementation() {
-        return {
-            // Health check (required)
-            Health: this.health.bind(this),
-
-            // Auth service methods
-            ValidateToken: this.validateToken.bind(this),
-            GetUserFromToken: this.getUserFromToken.bind(this),
-            RefreshToken: this.refreshToken.bind(this),
-            CheckPermission: this.checkPermission.bind(this),
-        }
-    }
-
-    // Health check implementation
-    private async health(call: any, callback: any) {
-        const response = {
-            status: "healthy",
-            service: "auth-service",
-            timestamp: new Date().toISOString(),
-            uptime: process.uptime(),
-        }
-
-        callback(null, response)
-    }
-
-    // Validate access token
-    private async validateToken(call: any, callback: any) {
-        try {
-            const { access_token } = call.request
-
-            if (!access_token) {
-                callback(null, {
+            if (!data.access_token) {
+                return {
                     valid: false,
                     user: null,
                     error: "Access token is required",
                     expires_at: 0,
-                })
-                return
+                }
             }
 
-            // Validate token using application service
-            const user =
-                await this.authApplicationService.verifyToken(access_token)
+            const user = await this.authApplicationService.verifyToken(
+                data.access_token,
+            )
 
-            callback(null, {
+            return {
                 valid: true,
                 user: {
                     id: user.id,
@@ -91,15 +53,15 @@ export class AuthGrpcController implements OnModuleInit {
                     username: user.username,
                     name: user.name,
                     provider: user.provider,
+                    roles: [],
                     attributes: {},
                 },
                 error: null,
                 expires_at: Date.now() + 3600000, // 1 hour from now
-            })
+            }
         } catch (error) {
             this.logger.error("Token validation failed:", error)
-
-            callback(null, {
+            return {
                 valid: false,
                 user: null,
                 error:
@@ -107,19 +69,30 @@ export class AuthGrpcController implements OnModuleInit {
                         ? error.message
                         : "Token validation failed",
                 expires_at: 0,
-            })
+            }
         }
     }
 
-    // Get user info from token
-    private async getUserFromToken(call: any, callback: any) {
+    @GrpcMethod("AuthService", "GetUserFromToken")
+    async getUserFromToken(
+        data: GetUserFromTokenRequest,
+    ): Promise<GetUserFromTokenResponse> {
         try {
-            const { access_token } = call.request
+            this.logger.log("gRPC GetUserFromToken called")
 
-            const user =
-                await this.authApplicationService.verifyToken(access_token)
+            if (!data.access_token) {
+                return {
+                    success: false,
+                    user: null,
+                    error: "Access token is required",
+                }
+            }
 
-            callback(null, {
+            const user = await this.authApplicationService.verifyToken(
+                data.access_token,
+            )
+
+            return {
                 success: true,
                 user: {
                     id: user.id,
@@ -132,85 +105,85 @@ export class AuthGrpcController implements OnModuleInit {
                     attributes: {},
                 },
                 error: null,
-            })
+            }
         } catch (error) {
             this.logger.error("Get user from token failed:", error)
-
-            callback(null, {
+            return {
                 success: false,
                 user: null,
                 error:
                     error instanceof Error
                         ? error.message
                         : "Failed to get user",
-            })
+            }
         }
     }
 
-    // Refresh token
-    private async refreshToken(call: any, callback: any) {
+    @GrpcMethod("AuthService", "RefreshToken")
+    async refreshToken(
+        data: RefreshTokenRequest,
+    ): Promise<RefreshTokenResponse> {
         try {
-            const { refresh_token, user_name } = call.request
+            this.logger.log("gRPC RefreshToken called")
 
-            if (!refresh_token || !user_name) {
-                callback(null, {
+            if (!data.refresh_token) {
+                return {
                     success: false,
-                    access_token: null,
-                    refresh_token: null,
+                    access_token: "",
+                    refresh_token: "",
                     expires_in: 0,
-                    error: "Refresh token and user name are required",
-                })
-                return
+                    error: "Refresh token is required",
+                }
             }
 
-            const result = await this.authApplicationService.refreshToken(
-                refresh_token,
-                user_name,
-            )
-
-            callback(null, {
-                success: true,
-                access_token: result.accessToken,
-                id_token: result.idToken,
-                expires_in: result.expiresIn,
-                error: null,
-            })
+            // Note: refreshToken method needs username parameter
+            // This is a limitation - we need to pass username in the request
+            // For now, return error asking for username
+            return {
+                success: false,
+                access_token: "",
+                refresh_token: "",
+                expires_in: 0,
+                error: "Username is required for token refresh. Please use the GraphQL mutation instead.",
+            }
         } catch (error) {
             this.logger.error("Refresh token failed:", error)
-
-            callback(null, {
+            return {
                 success: false,
-                access_token: null,
-                refresh_token: null,
+                access_token: "",
+                refresh_token: "",
                 expires_in: 0,
                 error:
                     error instanceof Error
                         ? error.message
                         : "Refresh token failed",
-            })
+            }
         }
     }
 
-    // Check user permissions (placeholder - implement based on your RBAC)
-    private async checkPermission(call: any, callback: any) {
+    @GrpcMethod("AuthService", "CheckPermission")
+    async checkPermission(
+        data: CheckPermissionRequest,
+    ): Promise<CheckPermissionResponse> {
         try {
-            const { user_id, resource, action } = call.request
+            this.logger.log(
+                `gRPC CheckPermission: ${data.user_id} - ${data.resource} - ${data.action}`,
+            )
 
             // TODO: Implement permission checking logic
             // This is a placeholder implementation
 
             // For now, allow all actions for demo purposes
-            callback(null, {
+            return {
                 allowed: true,
                 reason: "Permission granted (demo mode)",
-            })
+            }
         } catch (error) {
             this.logger.error("Permission check failed:", error)
-
-            callback(null, {
+            return {
                 allowed: false,
                 reason: `Permission check failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-            })
+            }
         }
     }
 }

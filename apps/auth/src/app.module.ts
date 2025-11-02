@@ -1,38 +1,19 @@
 import { Module } from "@nestjs/common"
+import { ClientsModule, Transport } from "@nestjs/microservices"
 import { envConfig } from "libs/env"
 import { SentryModule } from "libs/observability/sentry.module"
 import { EnvModule } from "@libs/env/env.module"
 import { GraphQLSubgraphModule } from "libs/graphql/subgraph"
 import { AwsCognitoModule } from "libs/aws-cognito"
-import { GrpcModule } from "libs/grpc"
 import { AuthLibModule } from "libs/auth/auth.module"
-
-// ============================================
-// PRESENTATION LAYER
-// ============================================
-// GraphQL
+import { GrpcModule } from "libs/grpc"
+import { join } from "path"
 import { AuthResolver } from "./presentation/graphql/resolvers"
-
-// gRPC
 import { AuthGrpcController } from "./presentation/grpc/controllers"
-
-// HTTP
 import { HealthController } from "./presentation/http/controllers"
-
-// ============================================
-// APPLICATION LAYER
-// ============================================
 import { AuthApplicationService } from "./application/services/auth-application.service"
-
-// ============================================
-// INFRASTRUCTURE LAYER
-// ============================================
 import { CognitoAdapter } from "./infrastructure/external/aws"
 import { UserGrpcClient } from "./infrastructure/messaging/grpc"
-
-// ============================================
-// SHARED LAYER
-// ============================================
 import { UserMapper } from "./shared/mappers"
 
 /**
@@ -64,7 +45,7 @@ import { UserMapper } from "./shared/mappers"
         // ============================================
         // EXTERNAL MODULES
         // ============================================
-        GrpcModule,
+        GrpcModule, // Keep for RoleGuard in AuthLibModule
         AuthLibModule,
         GraphQLSubgraphModule.forRoot({
             debug: true,
@@ -74,6 +55,24 @@ import { UserMapper } from "./shared/mappers"
             isGlobal: true,
             mockMode: false, // Set to true for development without AWS
         }),
+
+        // ============================================
+        // gRPC CLIENT - User Service
+        // ============================================
+        ClientsModule.register([
+            {
+                name: "USER_PACKAGE",
+                transport: Transport.GRPC,
+                options: {
+                    package: "foodfund.user",
+                    protoPath: join(
+                        __dirname,
+                        "../../../libs/grpc/proto/user.proto",
+                    ),
+                    url: `localhost:${envConfig().grpc.user?.port || 50002}`,
+                },
+            },
+        ]),
     ],
 
     controllers: [
