@@ -19,6 +19,9 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Generate Prisma Client for user service
+RUN cd apps/user && npx prisma generate
+
 # Build user service
 RUN npm run build user
 
@@ -39,7 +42,15 @@ COPY --from=build /usr/src/app/libs/grpc/proto ./libs/grpc/proto
 
 # Copy Prisma files
 COPY --from=build /usr/src/app/apps/user/prisma ./apps/user/prisma
-COPY --from=build /usr/src/app/apps/user/src/generated ./apps/user/src/generated
+
+# Generate Prisma Client for Alpine Linux runtime
+WORKDIR /usr/src/app/apps/user
+RUN npx prisma generate
+
+# Create symlink from custom path to default Prisma location
+WORKDIR /usr/src/app
+RUN mkdir -p /usr/src/app/node_modules/.prisma && \
+    ln -sf /usr/src/app/apps/user/src/generated/user-client /usr/src/app/node_modules/.prisma/user-client
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
