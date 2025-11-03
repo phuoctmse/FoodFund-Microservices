@@ -93,10 +93,13 @@ export class PostCommentRepository {
 
     async findCommentById(commentId: string) {
         const comment = await this.prisma.post_Comment.findUnique({
-            where: { id: commentId },
+            where: {
+                id: commentId,
+                is_active: true,
+            },
         })
 
-        if (!comment || !comment.is_active) {
+        if (!comment) {
             return null
         }
 

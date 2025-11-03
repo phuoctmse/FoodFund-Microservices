@@ -10,10 +10,7 @@ import {
 } from "../dtos/request/campaign-category.input"
 import { CampaignCategory } from "apps/campaign/src/campaign-category/models/campaign-category.model"
 import { CampaignCategoryCacheService } from "./campaign-category-cache.service"
-import {
-    CampaignCategoryRepository,
-    FindManyCategoriesOptions,
-} from "../repository"
+import { CampaignCategoryRepository } from "../repository"
 import { AuthorizationService, createUserContextFromToken } from "../../shared"
 
 @Injectable()
@@ -113,71 +110,6 @@ export class CampaignCategoryService {
         }
     }
 
-    async getCategoriesWithOptions(
-        options: FindManyCategoriesOptions,
-    ): Promise<{
-        categories: CampaignCategory[]
-        total: number
-        hasMore: boolean
-    }> {
-        try {
-            if (
-                !options.search &&
-                (options.limit || 50) === 50 &&
-                (options.offset || 0) === 0
-            ) {
-                const cacheKey = options.includeInactive
-                    ? await this.cacheService.getAllCategoriesWithInactive()
-                    : await this.cacheService.getAllActiveCategories()
-
-                if (cacheKey) {
-                    return {
-                        categories: cacheKey,
-                        total: cacheKey.length,
-                        hasMore: false,
-                    }
-                }
-            }
-
-            const [categories, total] = await Promise.all([
-                this.categoryRepository.findMany(options),
-                this.categoryRepository.count(
-                    options.search,
-                    options.includeInactive,
-                ),
-            ])
-
-            const hasMore = (options.offset || 0) + categories.length < total
-
-            if (
-                !options.search &&
-                (options.limit || 50) === 50 &&
-                (options.offset || 0) === 0
-            ) {
-                if (options.includeInactive) {
-                    await this.cacheService.setAllCategoriesWithInactive(
-                        categories,
-                    )
-                } else {
-                    await this.cacheService.setAllActiveCategories(categories)
-                }
-            }
-
-            return {
-                categories,
-                total,
-                hasMore,
-            }
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "getCategoriesWithOptions",
-                options,
-                service: "campaign-category-service",
-            })
-            throw error
-        }
-    }
-
     async findCategoryById(id: string): Promise<CampaignCategory> {
         try {
             const cached = await this.cacheService.getCategory(id)
@@ -200,6 +132,28 @@ export class CampaignCategoryService {
             this.sentryService.captureError(error as Error, {
                 operation: "findCategoryById",
                 categoryId: id,
+                service: "campaign-category-service",
+            })
+            throw error
+        }
+    }
+
+    async getCategoriesWithStats(): Promise<
+        Array<CampaignCategory & { campaignCount: number }>
+        > {
+        try {
+            const cached = await this.cacheService.getCategoryStats()
+            if (cached) {
+                return cached
+            }
+
+            const stats = await this.categoryRepository.findWithCampaignCounts()
+            await this.cacheService.setCategoryStats(stats)
+
+            return stats
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "getCategoryStats",
                 service: "campaign-category-service",
             })
             throw error
@@ -343,50 +297,6 @@ export class CampaignCategoryService {
                 service: "campaign-category-service",
             })
             throw error
-        }
-    }
-
-    async getCategoriesWithStats(): Promise<
-        Array<CampaignCategory & { campaignCount: number }>
-        > {
-        try {
-            const cached = await this.cacheService.getCategoryStats()
-            if (cached) {
-                return cached
-            }
-
-            const stats = await this.categoryRepository.findWithCampaignCounts()
-            await this.cacheService.setCategoryStats(stats)
-
-            return stats
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "getCategoryStats",
-                service: "campaign-category-service",
-            })
-            throw error
-        }
-    }
-
-    async validateCategoryExists(categoryId: string): Promise<void> {
-        try {
-            const isActive =
-                await this.categoryRepository.isCategoryActive(categoryId)
-            if (!isActive) {
-                throw new BadRequestException(
-                    `Campaign category with ID ${categoryId} not found or inactive`,
-                )
-            }
-        } catch (error) {
-            if (error instanceof BadRequestException) {
-                throw error
-            }
-            this.sentryService.captureError(error as Error, {
-                operation: "validateCategoryExists",
-                categoryId,
-                service: "campaign-category-service",
-            })
-            throw new BadRequestException("Invalid category ID provided")
         }
     }
 

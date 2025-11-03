@@ -71,7 +71,10 @@ export class PostRepository {
 
     async findPostById(id: string) {
         const post = await this.prisma.post.findUnique({
-            where: { id },
+            where: {
+                id,
+                is_active: true,
+            },
             include: this.POST_INCLUDE,
         })
 
@@ -87,7 +90,9 @@ export class PostRepository {
             offset = 0,
         } = options
 
-        const whereClause: Prisma.PostWhereInput = {}
+        const whereClause: Prisma.PostWhereInput = {
+            is_active: true,
+        }
 
         if (filter?.campaignId) {
             whereClause.campaign_id = filter.campaignId
@@ -241,7 +246,9 @@ export class PostRepository {
         filter?: PostFilterInput,
         search?: string,
     ): Promise<number> {
-        const whereClause: Prisma.PostWhereInput = {}
+        const whereClause: Prisma.PostWhereInput = {
+            is_active: true,
+        }
 
         if (filter?.campaignId) {
             whereClause.campaign_id = filter.campaignId

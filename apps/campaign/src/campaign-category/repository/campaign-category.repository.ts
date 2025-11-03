@@ -145,6 +145,38 @@ export class CampaignCategoryRepository {
         }
     }
 
+    async findWithCampaignCounts(): Promise<
+        Array<CampaignCategory & { campaignCount: number }>
+        > {
+        try {
+            const categories = await this.prisma.campaign_Category.findMany({
+                where: { is_active: true },
+                select: {
+                    ...this.CATEGORY_SELECT_FIELDS,
+                    _count: {
+                        select: {
+                            campaigns: {
+                                where: { is_active: true },
+                            },
+                        },
+                    },
+                },
+                orderBy: { title: "asc" },
+            })
+
+            return categories.map((category) => ({
+                ...this.mapToGraphQLModel(category),
+                campaignCount: category._count.campaigns,
+            }))
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "findCategoriesWithCampaignCounts",
+                service: "campaign-category-repository",
+            })
+            throw error
+        }
+    }
+
     async update(
         id: string,
         data: UpdateCategoryData,
@@ -225,37 +257,6 @@ export class CampaignCategoryRepository {
         }
     }
 
-    async reactivate(id: string): Promise<CampaignCategory | null> {
-        try {
-            const category = await this.prisma.campaign_Category.update({
-                where: {
-                    id,
-                    is_active: false,
-                },
-                data: {
-                    is_active: true,
-                    updated_at: new Date(),
-                },
-                select: this.CATEGORY_SELECT_FIELDS,
-            })
-
-            this.sentryService.addBreadcrumb(
-                "Category reactivated",
-                "category",
-                { categoryId: id, title: category.title },
-            )
-
-            return this.mapToGraphQLModel(category)
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "reactivateCategory",
-                categoryId: id,
-                service: "campaign-category-repository",
-            })
-            throw error
-        }
-    }
-
     async count(
         search?: string,
         includeInactive: boolean = false,
@@ -297,60 +298,6 @@ export class CampaignCategoryRepository {
                 operation: "countCategories",
                 search,
                 includeInactive,
-                service: "campaign-category-repository",
-            })
-            throw error
-        }
-    }
-
-    async findWithCampaignCounts(): Promise<
-        Array<CampaignCategory & { campaignCount: number }>
-        > {
-        try {
-            const categories = await this.prisma.campaign_Category.findMany({
-                where: { is_active: true },
-                select: {
-                    ...this.CATEGORY_SELECT_FIELDS,
-                    _count: {
-                        select: {
-                            campaigns: {
-                                where: { is_active: true },
-                            },
-                        },
-                    },
-                },
-                orderBy: { title: "asc" },
-            })
-
-            return categories.map((category) => ({
-                ...this.mapToGraphQLModel(category),
-                campaignCount: category._count.campaigns,
-            }))
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "findCategoriesWithCampaignCounts",
-                service: "campaign-category-repository",
-            })
-            throw error
-        }
-    }
-
-    async isCategoryActive(categoryId: string): Promise<boolean> {
-        try {
-            const count = await this.prisma.campaign_Category.count({
-                where: {
-                    id: categoryId,
-                    is_active: true,
-                },
-            })
-
-            const isActive = count > 0
-
-            return isActive
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "isCategoryActive",
-                categoryId,
                 service: "campaign-category-repository",
             })
             throw error

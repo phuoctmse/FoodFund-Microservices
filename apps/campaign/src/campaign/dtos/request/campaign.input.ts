@@ -9,7 +9,7 @@ import {
     IsUUID,
 } from "class-validator"
 import { Transform, Type } from "class-transformer"
-import { CampaignStatus } from "apps/campaign/src/campaign/enum/campaign.enum"
+import { CampaignStatus } from "../../enum"
 
 @InputType()
 export class CreateCampaignInput {

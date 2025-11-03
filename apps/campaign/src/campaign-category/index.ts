@@ -1,7 +1,6 @@
 export * from "./campaign-category.module"
 export * from "./dtos/request/campaign-category.input"
 export * from "./dtos/response/campaign-category-stats.response"
-export * from "./dtos/response/campaign-category.response"
 export * from "./models/campaign-category.model"
 export * from "./repository/campaign-category.repository"
 export * from "./resolvers/mutations/campaign-category-mutation.resolver"

@@ -41,7 +41,9 @@ export class DonationWebhookController {
     async handlePaymentWebhook(
         @Body() payload: PayOSWebhookPayload,
     ): Promise<{ success: boolean; message: string }> {
-        this.logger.log(`Received PayOS webhook for order ${payload.data.orderCode}`)
+        this.logger.log(
+            `Received PayOS webhook for order ${payload.data.orderCode}`,
+        )
 
         try {
             await this.webhookService.handlePaymentWebhook(payload.data)

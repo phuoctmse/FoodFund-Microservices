@@ -1,15 +1,12 @@
 import {
     ForbiddenException,
     Injectable,
-    Logger,
     UnauthorizedException,
 } from "@nestjs/common"
 import { Role, UserContext } from "../types/user-context.type"
 
 @Injectable()
 export class AuthorizationService {
-    private readonly logger = new Logger(AuthorizationService.name)
-
     requireAuthentication(
         userContext: UserContext | null,
         operation: string,

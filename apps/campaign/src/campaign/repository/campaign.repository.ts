@@ -1,14 +1,10 @@
 import { SentryService } from "@libs/observability/sentry.service"
-import {
-    CampaignFilterInput,
-    CampaignSortOrder,
-} from "./dtos/request/campaign.input"
 import { Injectable, Logger } from "@nestjs/common"
-import { sanitizeSearchTerm } from "@app/campaign/src/shared/utils/sanitize-search-term.util"
-import { PrismaClient } from "../generated/campaign-client"
 import { Decimal } from "@prisma/client/runtime/library"
-import { CampaignStatus } from "./enum/campaign.enum"
-import { User } from "../shared/model/user.model"
+import { CampaignFilterInput, CampaignSortOrder } from "../dtos"
+import { CampaignStatus } from "../enum"
+import { PrismaClient } from "../../generated/campaign-client"
+import { sanitizeSearchTerm, User } from "../../shared"
 
 export interface FindManyOptions {
     filter?: CampaignFilterInput

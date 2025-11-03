@@ -4,7 +4,6 @@ import {
     Logger,
     NotFoundException,
 } from "@nestjs/common"
-
 import { SqsService } from "@libs/aws-sqs"
 import { CurrentUserType } from "@libs/auth"
 

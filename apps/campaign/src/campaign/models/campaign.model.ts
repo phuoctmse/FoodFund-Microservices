@@ -76,6 +76,12 @@ export class Campaign extends BaseSchema {
     })
         deliveryFundsAmount?: string
 
+    @Field(() => Date, {
+        nullable: true,
+        description: "Timestamp when funds were disbursed",
+    })
+        fundsDisbursedAt?: Date
+
     @Field(() => Boolean)
         isActive: boolean
 

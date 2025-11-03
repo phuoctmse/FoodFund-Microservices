@@ -37,8 +37,14 @@ export class DonationWebhookService {
     private getPayOS(): PayOS {
         if (!this.payOS) {
             const config = envConfig().payos
-            if (!config.payosClienId || !config.payosApiKey || !config.payosCheckSumKey) {
-                throw new Error("PayOS credentials are not configured. Please set PAYOS_CLIENT_ID, PAYOS_API_KEY, and PAYOS_CHECKSUM_KEY in environment variables.")
+            if (
+                !config.payosClienId ||
+                !config.payosApiKey ||
+                !config.payosCheckSumKey
+            ) {
+                throw new Error(
+                    "PayOS credentials are not configured. Please set PAYOS_CLIENT_ID, PAYOS_API_KEY, and PAYOS_CHECKSUM_KEY in environment variables.",
+                )
             }
             this.payOS = new PayOS({
                 clientId: config.payosClienId,
