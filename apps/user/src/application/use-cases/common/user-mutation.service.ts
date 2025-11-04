@@ -1,5 +1,5 @@
-import { UserProfileSchema } from "@app/user/src/domain/entities"
-import { UserRepository } from "@app/user/src/domain/repositories"
+import { UserProfileSchema } from "../../../domain/entities"
+import { UserRepository } from "../../../domain/repositories"
 import { Injectable, Logger } from "@nestjs/common"
 import { UpdateUserInput } from "../../dtos"
 

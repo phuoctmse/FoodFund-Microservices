@@ -15,11 +15,11 @@ import {
     DonorErrorHelper,
     AdminErrorHelper,
     FundraiserErrorHelper,
-} from "@app/user/src/domain/exceptions"
+} from "../../../domain/exceptions"
 import {
     OrganizationRepository,
     UserRepository,
-} from "@app/user/src/domain/repositories"
+} from "../../../domain/repositories"
 import { VerificationStatus } from "@libs/databases"
 import {
     JoinOrganizationRole,

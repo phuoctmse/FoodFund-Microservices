@@ -1,7 +1,6 @@
 import { Controller, Logger } from "@nestjs/common"
 import { GrpcMethod } from "@nestjs/microservices"
-import { UserCommonRepository } from "@app/user/src/domain/repositories"
-import { UserAdminRepository } from "@app/user/src/domain/repositories"
+import { UserCommonRepository, UserAdminRepository } from "../../domain/repositories"
 import { Role } from "@libs/databases"
 import { generateUniqueUsername } from "libs/common"
 
