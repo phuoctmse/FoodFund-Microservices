@@ -12,10 +12,16 @@ export class UserCommonGrpcService {
     // Create user from auth service
     async createUser(call: any, callback: any) {
         try {
-            const { cognito_id, email, full_name, cognito_attributes } =
+            // Proto loader converts to camelCase when keepCase=false
+            const { cognitoId, email, fullName, cognitoAttributes } =
                 call.request
 
-            if (!cognito_id || !email) {
+            this.logger.debug(
+                "CreateUser called:",
+                JSON.stringify(call.request),
+            )
+
+            if (!cognitoId || !email) {
                 callback(null, {
                     success: false,
                     user: null,
@@ -27,12 +33,12 @@ export class UserCommonGrpcService {
             const finalUsername = generateUniqueUsername(email)
 
             const user = await this.userCommonRepository.createUser({
-                cognito_id,
+                cognito_id: cognitoId,
                 email,
                 user_name: finalUsername,
-                full_name: full_name || "",
-                avatar_url: cognito_attributes?.avatar_url || "",
-                bio: cognito_attributes?.bio || "",
+                full_name: fullName || "",
+                avatar_url: cognitoAttributes?.avatarUrl || "",
+                bio: cognitoAttributes?.bio || "",
                 role: Role.DONOR,
             } as any)
 
@@ -45,21 +51,22 @@ export class UserCommonGrpcService {
                 return
             }
 
+            // Return camelCase for gRPC
             callback(null, {
                 success: true,
                 user: {
                     id: user.id,
-                    cognito_id: user.cognito_id,
+                    cognitoId: user.cognito_id,
                     email: user.email,
                     username: finalUsername,
-                    full_name: user.full_name,
-                    phone_number: user.phone_number,
-                    avatar_url: user.avatar_url || "",
+                    fullName: user.full_name,
+                    phoneNumber: user.phone_number || "",
+                    avatarUrl: user.avatar_url || "",
                     bio: user.bio || "",
-                    role: Role.DONOR,
-                    is_active: user.is_active,
-                    created_at: user.created_at.toISOString(),
-                    updated_at: user.updated_at.toISOString(),
+                    role: 0, // DONOR = 0
+                    isActive: user.is_active,
+                    createdAt: user.created_at.toISOString(),
+                    updatedAt: user.updated_at.toISOString(),
                 },
                 error: null,
             })
@@ -73,26 +80,24 @@ export class UserCommonGrpcService {
         }
     }
 
-    // Get user by ID
+    // Get user by cognito_id
     async getUser(call: any, callback: any) {
         try {
-            const { id, cognito_id } = call.request
+            // Proto loader converts cognito_id to cognitoId when keepCase=false
+            const { cognitoId } = call.request
 
-            if (!id && !cognito_id) {
+            if (!cognitoId) {
                 callback(null, {
                     success: false,
                     user: null,
-                    error: "User ID or Cognito ID is required",
+                    error: "Cognito ID is required",
                 })
                 return
             }
 
-            // Find user by cognito_id if provided, otherwise by id
-            const user = cognito_id
-                ? await this.userCommonRepository.findUserByCognitoId(
-                    cognito_id,
-                )
-                : await this.userCommonRepository.findUserById(id)
+            // Find user by cognito_id
+            const user =
+                await this.userCommonRepository.findUserByCognitoId(cognitoId)
 
             if (!user) {
                 callback(null, {
@@ -111,21 +116,22 @@ export class UserCommonGrpcService {
                 ADMIN: 4,
             }
 
+            // Return camelCase for gRPC (proto loader will handle conversion)
             callback(null, {
                 success: true,
                 user: {
                     id: user.id,
-                    cognito_id: user.cognito_id,
+                    cognitoId: user.cognito_id,
                     email: user.email,
                     username: user.user_name,
-                    full_name: user.full_name,
-                    phone_number: user.phone_number,
-                    avatar_url: user.avatar_url || "",
+                    fullName: user.full_name,
+                    phoneNumber: user.phone_number || "",
+                    avatarUrl: user.avatar_url || "",
                     bio: user.bio || "",
                     role: roleMap[user.role] || 0,
-                    is_active: user.is_active,
-                    created_at: user.created_at.toISOString(),
-                    updated_at: user.updated_at.toISOString(),
+                    isActive: user.is_active,
+                    createdAt: user.created_at.toISOString(),
+                    updatedAt: user.updated_at.toISOString(),
                 },
                 error: null,
             })
@@ -164,21 +170,30 @@ export class UserCommonGrpcService {
                 return
             }
 
+            const roleMap = {
+                DONOR: 0,
+                FUNDRAISER: 1,
+                KITCHEN_STAFF: 2,
+                DELIVERY_STAFF: 3,
+                ADMIN: 4,
+            }
+
+            // Return camelCase for gRPC
             callback(null, {
                 success: true,
                 user: {
                     id: user.id,
-                    cognito_id: user.cognito_id,
+                    cognitoId: user.cognito_id,
                     email: user.email,
                     username: user.user_name,
-                    full_name: user.full_name,
-                    phone_number: user.phone_number,
-                    avatar_url: user.avatar_url || "",
+                    fullName: user.full_name,
+                    phoneNumber: user.phone_number || "",
+                    avatarUrl: user.avatar_url || "",
                     bio: user.bio || "",
-                    role: user.role,
-                    is_active: user.is_active,
-                    created_at: user.created_at.toISOString(),
-                    updated_at: user.updated_at.toISOString(),
+                    role: roleMap[user.role] || 0,
+                    isActive: user.is_active,
+                    createdAt: user.created_at.toISOString(),
+                    updatedAt: user.updated_at.toISOString(),
                 },
                 error: null,
             })

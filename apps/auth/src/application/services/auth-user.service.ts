@@ -252,11 +252,11 @@ export class AuthUserService {
         try {
             const createUserResult =
                 await this.grpcClientService.callUserService("CreateUser", {
-                    cognito_id: cognitoUser.sub,
+                    cognitoId: cognitoUser.sub,
                     email: cognitoUser.email,
-                    full_name: cognitoUser.name,
-                    cognito_attributes: {
-                        avatar_url: googleUserInfo.picture || "",
+                    fullName: cognitoUser.name,
+                    cognitoAttributes: {
+                        avatarUrl: googleUserInfo.picture || "",
                         bio: "",
                     },
                 })

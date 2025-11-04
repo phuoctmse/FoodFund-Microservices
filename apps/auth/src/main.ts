@@ -17,20 +17,22 @@ async function bootstrap() {
     // Setup gRPC microservice
     const env = envConfig()
     const grpcPort = env.grpc.auth?.port || 50001
+    const grpcUrl = env.grpc.auth?.url || "localhost:50001"
+    const port = env.containers.auth?.port || 8002
 
     app.connectMicroservice<MicroserviceOptions>({
         transport: Transport.GRPC,
         options: {
             package: "foodfund.auth",
             protoPath: join(__dirname, "../../../libs/grpc/proto/auth.proto"),
-            url: `0.0.0.0:${grpcPort}`,
+            url: grpcUrl,
         },
     })
 
     await app.startAllMicroservices()
-    await app.listen(process.env.PORT ?? 8002)
+    await app.listen(port)
 
-    console.log(`🚀 Auth Service is running on port ${process.env.PORT ?? 8002}`)
-    console.log(`🔌 gRPC server is running on port ${grpcPort}`)
+    console.log(`🚀 Auth Service is running on port ${grpcPort}`)
+    console.log(`🔌 gRPC server is running on port ${grpcUrl}`)
 }
 bootstrap()

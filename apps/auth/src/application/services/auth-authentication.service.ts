@@ -3,7 +3,11 @@ import { AwsCognitoService } from "libs/aws-cognito"
 import { CognitoUser } from "libs/aws-cognito/aws-cognito.types"
 import { GetUserCommandOutput } from "@aws-sdk/client-cognito-identity-provider"
 import { SignInInput, RefreshTokenInput } from "../dtos"
-import { AuthUser, SignInResponse, RefreshTokenResponse } from "../../domain/entities"
+import {
+    AuthUser,
+    SignInResponse,
+    RefreshTokenResponse,
+} from "../../domain/entities"
 import { AuthErrorHelper } from "../../shared/helpers"
 import { GrpcClientService } from "libs/grpc"
 
@@ -58,9 +62,10 @@ export class AuthAuthenticationService {
         try {
             this.logger.log(`Checking if user is active: ${cognitoId}`)
 
+            // Use camelCase because proto loader converts with keepCase=false
             const userResponse = await this.grpcClient.callUserService(
                 "GetUser",
-                { cognito_id: cognitoId },
+                { cognitoId: cognitoId },
             )
 
             if (!userResponse.success) {
@@ -70,8 +75,8 @@ export class AuthAuthenticationService {
                 )
             }
 
-            // Check if user is active
-            if (!userResponse.user.is_active) {
+            // Check if user is active (use camelCase from gRPC response)
+            if (!userResponse.user.isActive) {
                 this.logger.warn(
                     `User account is inactive: ${cognitoId} (${userResponse.user.email})`,
                 )

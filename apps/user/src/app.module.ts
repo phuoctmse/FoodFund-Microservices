@@ -20,7 +20,8 @@ import {
 } from "./application/use-cases"
 import { UserRepository, OrganizationRepository, UserAdminRepository, UserCommonRepository, KitchenStaffRepository, FundraiserRepository, DeliveryStaffRepository } from "./domain/repositories"
 import { PrismaUserService } from "./infrastructure/database"
-import { UserGrpcService, UserCommonGrpcService, UserAdminGrpcService } from "./infrastructure/grpc"
+import { UserGrpcController } from "./infrastructure/grpc/user-grpc.controller"
+import { UserCommonGrpcService, UserAdminGrpcService } from "./infrastructure/grpc"
 import { UserQueryResolver, UserMutationResolver, UserAdminResolver, DonorProfileResolver, KitchenStaffProfileResolver, FundraiserProfileResolver, DeliveryStaffProfileResolver } from "./presentation/graphql/resolvers"
 import { HealthController } from "./presentation/http/controllers"
 
@@ -48,6 +49,9 @@ import { HealthController } from "./presentation/http/controllers"
     controllers: [
         // Presentation - HTTP Controllers
         HealthController,
+        
+        // Infrastructure - gRPC Controller
+        UserGrpcController,
     ],
     providers: [
         // Infrastructure - Database
@@ -88,11 +92,10 @@ import { HealthController } from "./presentation/http/controllers"
         FundraiserProfileResolver,
         DeliveryStaffProfileResolver,
 
-        // Infrastructure - gRPC
-        UserGrpcService,
+        // Infrastructure - gRPC Services (helpers)
         UserCommonGrpcService,
         UserAdminGrpcService,
     ],
-    exports: [UserRepository, UserGrpcService],
+    exports: [UserRepository],
 })
 export class AppModule {}

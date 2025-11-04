@@ -5,18 +5,18 @@ import { AwsCognitoService } from "libs/aws-cognito"
 
 // Request/Response interfaces matching proto definitions
 interface ValidateTokenRequest {
-    access_token: string
+    accessToken: string // camelCase for JavaScript
 }
 
 interface ValidateTokenResponse {
     valid: boolean
     user: AuthUser | null
     error: string | null
-    expires_at: number
+    expiresAt: number // camelCase
 }
 
 interface GetUserFromTokenRequest {
-    access_token: string
+    accessToken: string // camelCase
 }
 
 interface GetUserFromTokenResponse {
@@ -50,7 +50,7 @@ interface CheckPermissionResponse {
 
 interface AuthUser {
     id: string
-    cognito_id: string
+    cognitoId: string // camelCase
     email: string
     username: string
     name: string
@@ -73,27 +73,28 @@ export class AuthGrpcController {
         data: ValidateTokenRequest,
     ): Promise<ValidateTokenResponse> {
         try {
-            const { access_token } = data
+            const { accessToken } = data
 
-            if (!access_token) {
+            if (!accessToken) {
                 return {
                     valid: false,
                     user: null,
                     error: "Access token is required",
-                    expires_at: 0,
+                    expiresAt: 0, // camelCase
                 }
             }
 
             // Validate token with Cognito
             const decodedToken =
-                await this.cognitoService.validateToken(access_token)
+                await this.cognitoService.validateToken(accessToken)
 
             // Get user details
-            const cognitoUser = await this.cognitoService.getUser(access_token)
+            const cognitoUser = await this.cognitoService.getUser(accessToken)
 
-            const customAttributes = this.cognitoService.extractCustomAttributes(
-                cognitoUser.UserAttributes || [],
-            )
+            const customAttributes =
+                this.cognitoService.extractCustomAttributes(
+                    cognitoUser.UserAttributes || [],
+                )
 
             // Convert attributes to Record<string, string>
             const attributes: Record<string, string> = {}
@@ -103,7 +104,7 @@ export class AuthGrpcController {
 
             const authUser: AuthUser = {
                 id: String(decodedToken.sub || ""),
-                cognito_id: String(decodedToken.sub || ""),
+                cognitoId: String(decodedToken.sub || ""),
                 email: String(decodedToken.email || ""),
                 username: String(decodedToken["cognito:username"] || ""),
                 name: String(decodedToken.name || ""),
@@ -116,7 +117,7 @@ export class AuthGrpcController {
                 valid: true,
                 user: authUser,
                 error: null,
-                expires_at: decodedToken.exp * 1000, // Convert to milliseconds
+                expiresAt: decodedToken.exp * 1000, // Convert to milliseconds (camelCase)
             }
         } catch (error) {
             this.logger.error("Token validation failed:", error)
@@ -125,7 +126,7 @@ export class AuthGrpcController {
                 valid: false,
                 user: null,
                 error: error.message,
-                expires_at: 0,
+                expiresAt: 0, // camelCase
             }
         }
     }
@@ -135,16 +136,16 @@ export class AuthGrpcController {
         data: GetUserFromTokenRequest,
     ): Promise<GetUserFromTokenResponse> {
         try {
-            const { access_token } = data
+            const { accessToken } = data
 
             const authUser =
-                await this.authAuthenticationService.verifyToken(access_token)
+                await this.authAuthenticationService.verifyToken(accessToken)
 
             return {
                 success: true,
                 user: {
                     id: authUser.id,
-                    cognito_id: authUser.id,
+                    cognitoId: authUser.id,
                     email: authUser.email,
                     username: authUser.username,
                     name: authUser.name,

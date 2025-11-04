@@ -109,10 +109,10 @@ export class AuthRegistrationService {
                     const userResult = await this.grpcClient.callUserService(
                         "CreateUser",
                         {
-                            cognito_id: cognitoUserSub,
+                            cognitoId: cognitoUserSub,
                             email: input.email,
                             username: username,
-                            full_name: input.name,
+                            fullName: input.name,
                             role: Role.DONOR,
                         },
                     )

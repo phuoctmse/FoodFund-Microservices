@@ -20,7 +20,6 @@ export class UserAdminResolver {
 
     // Admin Query: Get all users
     @Query(() => [UserProfileSchema], { name: "getAllUsers" })
-    @UseGuards(CognitoGraphQLGuard)
     @RequireRole(Role.ADMIN)
     async getAllUsers(
         @Args("offset", {

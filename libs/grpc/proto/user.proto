@@ -10,8 +10,11 @@ service UserService {
   // Create staff user from admin service
   rpc CreateStaffUser(CreateStaffUserRequest) returns (CreateStaffUserResponse);
   
-  // Get user by ID
+  // Get user by Cognito ID
   rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  
+  // Get user by database ID
+  rpc GetUserById(GetUserByIdRequest) returns (GetUserResponse);
   
   // Update user profile
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
@@ -64,10 +67,14 @@ message CreateUserResponse {
   string error = 3;
 }
 
-// Get User
+// Get User by Cognito ID
 message GetUserRequest {
-  string id = 1;
-  string cognito_id = 2; // Optional: get user by cognito_id
+  string cognito_id = 1; // Primary identifier
+}
+
+// Get User by Database ID
+message GetUserByIdRequest {
+  string id = 1; // Database ID
 }
 
 message GetUserResponse {
