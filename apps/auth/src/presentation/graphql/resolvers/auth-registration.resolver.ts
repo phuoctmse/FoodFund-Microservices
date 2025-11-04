@@ -7,7 +7,7 @@ import {
     ResendCodeResponse,
     AuthHealthResponse,
 } from "../../../domain/entities"
-import { AuthRegistrationService } from "../../../application/use-cases"
+import { AuthRegistrationService } from "../../../application/services"
 import {
     SignUpInput,
     ConfirmSignUpInput,

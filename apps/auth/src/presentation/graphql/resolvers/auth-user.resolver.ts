@@ -20,7 +20,7 @@ import {
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
 import { UseGuards } from "@nestjs/common"
 import { CurrentUser } from "libs/auth"
-import { AuthUserService } from "../../../application/use-cases"
+import { AuthUserService } from "../../../application/services"
 
 @Resolver(() => AuthUser)
 export class AuthUserResolver {

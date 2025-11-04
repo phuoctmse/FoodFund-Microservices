@@ -4,8 +4,8 @@ import { CustomValidationPipe } from "libs/validation"
 import { GraphQLExceptionFilter } from "libs/exceptions"
 import { SentryService } from "libs/observability/sentry.service"
 import { GrpcServerService } from "libs/grpc"
-import { UserGrpcService } from "./user/grpc/user-grpc.service"
 import { envConfig } from "@libs/env"
+import { UserGrpcService } from "./infrastructure/grpc"
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule, {

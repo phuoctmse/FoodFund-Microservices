@@ -1,5 +1,5 @@
 import { Args, Resolver, Mutation, Context } from "@nestjs/graphql"
-import { AuthAdminService } from "../../../application/use-cases/auth-admin.service"
+import { AuthAdminService } from "../../../application/services/auth-admin.service"
 
 @Resolver()
 export class AdminResolver {
