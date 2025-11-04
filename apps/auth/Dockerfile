@@ -48,8 +48,7 @@ COPY package*.json ./
 
 # Install ONLY production dependencies with cache
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev --prefer-offline --no-audit && \
-    npm cache clean --force
+    npm ci --omit=dev --prefer-offline --no-audit
 
 # Copy built application (only dist folder)
 COPY --from=build /usr/src/app/dist/apps/auth ./dist/apps/auth
