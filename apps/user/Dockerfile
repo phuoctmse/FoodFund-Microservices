@@ -13,7 +13,7 @@ COPY package*.json ./
 
 # Install ALL dependencies (needed for build)
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --prefer-offline --no-audit
+    npm ci --prefer-offline --no-audit --ignore-scripts
 
 # Copy source files
 COPY tsconfig*.json nest-cli.json ./
