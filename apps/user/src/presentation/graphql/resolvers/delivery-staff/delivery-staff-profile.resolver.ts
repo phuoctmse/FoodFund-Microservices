@@ -1,7 +1,7 @@
 import { Resolver, Mutation, Args, ID, Query } from "@nestjs/graphql"
 import { ValidationPipe } from "@nestjs/common"
 import { CurrentUser, RequireRole } from "libs/auth"
-import { DeliveryStaffService } from "@app/user/src/application/use-cases"
+import { DeliveryStaffService } from "@app/user/src/application/services"
 
 @Resolver()
 export class DeliveryStaffProfileResolver {
