@@ -39,9 +39,7 @@ async function bootstrap() {
     await app.startAllMicroservices()
     await app.listen(port)
 
-    console.log(
-        `🚀 User Service is running on port ${port}`,
-    )
+    console.log(`🚀 User Service is running on port ${port}`)
     console.log(`🔌 gRPC server is running on url ${grpcUrl}`)
 }
 bootstrap()

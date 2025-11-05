@@ -1,6 +1,9 @@
 import DataLoader from "dataloader"
 import { Injectable, Scope } from "@nestjs/common"
-import { OrganizationRepository, UserRepository } from "../../../domain/repositories"
+import {
+    OrganizationRepository,
+    UserRepository,
+} from "../../../domain/repositories"
 
 @Injectable({ scope: Scope.REQUEST })
 export class DataLoaderFactory {

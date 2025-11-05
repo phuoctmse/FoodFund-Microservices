@@ -1,4 +1,8 @@
-import { AvailabilityStatus, Role, VerificationStatus } from "../../domain/enums"
+import {
+    AvailabilityStatus,
+    Role,
+    VerificationStatus,
+} from "../../domain/enums"
 
 export interface CreateUserInput {
     cognito_id?: string

@@ -3,7 +3,6 @@ import { UserRepository } from "@app/user/src/domain/repositories"
 import { Role } from "@libs/databases"
 import { Injectable, Logger } from "@nestjs/common"
 
-
 @Injectable()
 export class DonorService {
     private readonly logger = new Logger(DonorService.name)
