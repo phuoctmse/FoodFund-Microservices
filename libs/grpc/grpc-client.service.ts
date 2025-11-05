@@ -87,7 +87,7 @@ export class GrpcClientService implements OnModuleDestroy {
                 config.protoPath,
             )
             const packageDefinition = protoLoader.loadSync(protoPath, {
-                keepCase: true,
+                keepCase: false, // Convert to camelCase for JavaScript
                 longs: String,
                 enums: String,
                 defaults: true,

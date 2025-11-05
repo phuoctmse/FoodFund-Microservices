@@ -1,11 +1,11 @@
 import { NestFactory } from "@nestjs/core"
+import { MicroserviceOptions, Transport } from "@nestjs/microservices"
 import { AppModule } from "./app.module"
 import { CustomValidationPipe } from "libs/validation"
 import { GraphQLExceptionFilter } from "libs/exceptions"
 import { SentryService } from "libs/observability/sentry.service"
-import { GrpcServerService } from "libs/grpc"
-import { UserGrpcService } from "./user/grpc/user-grpc.service"
 import { envConfig } from "@libs/env"
+import { join } from "path"
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule, {
@@ -14,8 +14,6 @@ async function bootstrap() {
 
     // Get services for setup
     const sentryService = app.get(SentryService)
-    const grpcServer = app.get(GrpcServerService)
-    const userGrpcService = app.get(UserGrpcService)
 
     // Enable validation with class-validator using custom pipe
     app.useGlobalPipes(new CustomValidationPipe())
@@ -23,31 +21,27 @@ async function bootstrap() {
     // Enable GraphQL exception filter (better for GraphQL APIs)
     app.useGlobalFilters(new GraphQLExceptionFilter(sentryService))
 
-    try {
-        // Initialize and start gRPC server with UserGrpcService implementation
-        await grpcServer.initialize({
-            serviceName: "UserService",
-            protoPath: "user.proto",
-            packageName: "foodfund.user",
-            port: envConfig().grpc.user?.port || 50002,
-            implementation: userGrpcService.getImplementation(),
-        })
+    // Setup gRPC microservice
+    const env = envConfig()
+    const grpcPort = env.grpc.user?.port || 50002
+    const grpcUrl = env.grpc.user?.url || "localhost:50002"
+    const port = env.containers["users-subgraph"]?.port || 8003
 
-        // Start both HTTP and gRPC servers
-        await Promise.all([
-            app.listen(process.env.PORT ?? 8003),
-            grpcServer.start(),
-        ])
-    } catch (error) {
-        console.error("Failed to start User service:", error)
-        process.exit(1)
-    }
+    app.connectMicroservice<MicroserviceOptions>({
+        transport: Transport.GRPC,
+        options: {
+            package: "foodfund.user",
+            protoPath: join(__dirname, "../../../libs/grpc/proto/user.proto"),
+            url: grpcUrl,
+        },
+    })
+
+    await app.startAllMicroservices()
+    await app.listen(port)
 
     console.log(
-        `🚀 User Service HTTP running on: http://${process.env.USERS_SUBGRAPH_HOST}:${process.env.USERS_SUBGRAPH_PORT}`,
+        `🚀 User Service is running on port ${port}`,
     )
-    console.log(
-        `🔗 User Service gRPC running on: ${process.env.USERS_SUBGRAPH_HOST}:${envConfig().grpc.user?.port}`,
-    )
+    console.log(`🔌 gRPC server is running on url ${grpcUrl}`)
 }
 bootstrap()

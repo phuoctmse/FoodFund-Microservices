@@ -43,6 +43,8 @@ export class RoleGuard implements CanActivate {
             throw new UnauthorizedException("Invalid or expired token")
         }
 
+        console.debug(authResponse)
+
         const user = authResponse.user
 
         const customRole = user.attributes.role
@@ -95,7 +97,7 @@ export class RoleGuard implements CanActivate {
             const result = await this.grpcClient.callAuthService(
                 "ValidateToken",
                 {
-                    access_token: token,
+                    accessToken: token, // Use camelCase for gRPC
                 },
             )
             return result

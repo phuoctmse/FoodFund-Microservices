@@ -59,5 +59,7 @@ module.exports = {
         "^libs/observability/(.*)$": "<rootDir>/libs/observability/$1",
         "^libs/grpc$": "<rootDir>/libs/grpc/index.ts",
         "^libs/grpc/(.*)$": "<rootDir>/libs/grpc/$1",
+        "^libs/validation$": "<rootDir>/libs/validation/index.ts",
+        "^libs/validation/(.*)$": "<rootDir>/libs/validation/$1",
     },
 }

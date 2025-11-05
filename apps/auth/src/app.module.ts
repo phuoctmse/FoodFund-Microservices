@@ -1,8 +1,25 @@
 import { Module } from "@nestjs/common"
-import { AuthSubgraphModule } from "./auth/auth-subgraph.module"
 import { envConfig } from "libs/env"
 import { SentryModule } from "libs/observability/sentry.module"
 import { EnvModule } from "@libs/env/env.module"
+import { AuthLibModule } from "@libs/auth"
+import { AwsCognitoModule } from "@libs/aws-cognito"
+import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
+import { GrpcModule } from "@libs/grpc"
+import {
+    AuthRegistrationService,
+    AuthAuthenticationService,
+    AuthUserService,
+    AuthAdminService,
+} from "./application/services"
+import {
+    AuthRegistrationResolver,
+    AuthAuthenticationResolver,
+    AuthUserResolver,
+    AdminResolver,
+} from "./presentation/graphql/resolvers"
+import { AuthGrpcController } from "./infrastructure/messaging/grpc"
+import { HealthController } from "./presentation/http/controllers"
 
 @Module({
     imports: [
@@ -14,9 +31,33 @@ import { EnvModule } from "@libs/env/env.module"
             release: envConfig().sentry.release,
             enableTracing: true,
         }),
-        AuthSubgraphModule,
+        GrpcModule,
+        AuthLibModule,
+        GraphQLSubgraphModule.forRoot({
+            debug: true,
+            playground: true,
+        }),
+        AwsCognitoModule.forRoot({
+            isGlobal: true,
+            mockMode: false,
+        }),
     ],
-    controllers: [],
-    providers: [],
+    controllers: [
+        HealthController,
+        AuthGrpcController, // gRPC Controller (Infrastructure Layer)
+    ],
+    providers: [
+        // Resolvers (Presentation Layer)
+        AuthRegistrationResolver,
+        AuthAuthenticationResolver,
+        AuthUserResolver,
+        AdminResolver,
+
+        // Services (Application Layer)
+        AuthRegistrationService,
+        AuthAuthenticationService,
+        AuthUserService,
+        AuthAdminService,
+    ],
 })
 export class AppModule {}

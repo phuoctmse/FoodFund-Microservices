@@ -1,77 +1,57 @@
 # Dependencies
 node_modules
-!node_modules/.prisma
-npm-debug.log*
+npm-debug.log
+yarn-error.log
 
-# Environment files
-.env
+# Build outputs
+dist
+build
+*.tsbuildinfo
+
+# Tests
+**/*.spec.ts
+**/*.test.ts
+**/test
+coverage
+.nyc_output
+
+# Development files
 .env.local
-.env.*.local
-*.env
+.env.development
+.env.test
 
 # Git
 .git
 .gitignore
+.gitattributes
 
 # IDE
 .vscode
 .idea
 *.swp
 *.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-logs
-*.log
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage
-
-# Build outputs
-dist
-build
-
-# Temporary directories
-tmp
-temp
+*~
 
 # Documentation
-README.md
 *.md
-
-# Test files
-test
-tests
-__tests__
-*.test.js
-*.test.ts
-*.spec.js
-*.spec.ts
-
-# Docker
-Dockerfile*
-docker-compose*
-
-# Kubernetes
-k8s
+!README.md
+docs
 
 # CI/CD
 .github
+.gitlab-ci.yml
 
-# Sensitive data
-secrets
-*.key
-*.pem
-*.p12
-*.crt
-kubeconfig*
-.kube
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Prisma
+apps/user/src/generated
+# Will be regenerated in container
+
+# Misc
+.DS_Store
+*.log
+tmp
+temp
