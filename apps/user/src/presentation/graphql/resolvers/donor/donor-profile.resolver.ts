@@ -3,24 +3,10 @@ import { UseGuards } from "@nestjs/common"
 
 import { CurrentUser, RequireRole, CurrentUserType } from "libs/auth"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
-import {
-    CreateOrganizationInput,
-    JoinOrganizationInput,
-    JoinOrganizationRole,
-} from "@app/user/src/application/dtos"
-import {
-    DonorService,
-    OrganizationService,
-} from "@app/user/src/application/use-cases"
-import {
-    UserProfileSchema,
-    OrganizationSchema,
-} from "@app/user/src/domain/entities"
-import {
-    OrganizationActionResponse,
-    JoinRequestResponse,
-    CancelJoinRequestResponse,
-} from "@app/user/src/shared/types"
+import { CreateOrganizationInput, JoinOrganizationInput, JoinOrganizationRole } from "@app/user/src/application/dtos"
+import { DonorService, OrganizationService } from "@app/user/src/application/services"
+import { UserProfileSchema, OrganizationSchema } from "@app/user/src/domain/entities"
+import { OrganizationActionResponse, JoinRequestResponse, CancelJoinRequestResponse } from "@app/user/src/shared/types"
 import { Role } from "@libs/databases"
 
 @Resolver(() => UserProfileSchema)
