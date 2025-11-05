@@ -14,6 +14,7 @@ import { CampaignGrpcService, CampaignCommonGrpcService } from "./grpc"
 import { CampaignCacheService, PrismaCampaignService } from "./services"
 import { CampaignRepository } from "./repository"
 import { HealthController } from "./controller"
+import { CampaignPhaseModule } from "../campaign-phase"
 
 @Module({
     imports: [
@@ -22,6 +23,7 @@ import { HealthController } from "./controller"
             mockMode: false,
         }),
         CampaignCategoryModule,
+        CampaignPhaseModule,
     ],
     providers: [
         PrismaCampaignService,

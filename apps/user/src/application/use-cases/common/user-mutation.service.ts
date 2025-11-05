@@ -3,7 +3,6 @@ import { UserRepository } from "../../../domain/repositories"
 import { Injectable, Logger } from "@nestjs/common"
 import { UpdateUserInput } from "../../dtos"
 
-
 @Injectable()
 export class UserMutationService {
     private readonly logger = new Logger(UserMutationService.name)

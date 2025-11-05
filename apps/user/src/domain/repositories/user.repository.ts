@@ -3,7 +3,11 @@ import { PrismaClient } from "../../generated/user-client"
 import { v7 as uuidv7 } from "uuid"
 
 import { Role, VerificationStatus } from "../enums/user.enum"
-import { CreateStaffUserInput, CreateUserInput, UpdateUserInput } from "../../shared/types"
+import {
+    CreateStaffUserInput,
+    CreateUserInput,
+    UpdateUserInput,
+} from "../../shared/types"
 
 @Injectable()
 export class UserRepository {

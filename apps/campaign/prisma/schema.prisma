@@ -15,38 +15,65 @@ model Campaign {
   description                  String          @db.Text()
   cover_image                  String          @db.Text()
   cover_image_file_key         String?         @db.Text()
-  location                     String          @db.Text()
   target_amount                BigInt          @default(0)
-  donation_count               Int             @default(0)
   received_amount              BigInt          @default(0)
-  ingredient_budget_percentage Decimal         @db.Decimal(5, 2)
-  cooking_budget_percentage    Decimal         @db.Decimal(5, 2)
-  delivery_budget_percentage   Decimal         @db.Decimal(5, 2)
+  donation_count               Int             @default(0)
   status                       Campaign_Status @default(PENDING)
   fundraising_start_date       DateTime
   fundraising_end_date         DateTime
-  ingredient_purchase_date     DateTime
-  cooking_date                 DateTime
-  delivery_date                DateTime
+  ingredient_budget_percentage Decimal         @db.Decimal(5, 2)
+  cooking_budget_percentage    Decimal         @db.Decimal(5, 2)
+  delivery_budget_percentage   Decimal         @db.Decimal(5, 2)
+  extension_count              Int             @default(0)
+  extension_days               Int             @default(0)
   is_active                    Boolean         @default(true)
   created_by                   String
-  approved_at                  DateTime?
-  completed_at                 DateTime?
   category_id                  String?
+  changed_status_at            DateTime?
+  completed_at                 DateTime?
   created_at                   DateTime        @default(now())
   updated_at                   DateTime        @updatedAt
 
   donations Donation[]
   category  Campaign_Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
   posts     Post[]
+  campaign_phases Campaign_Phase[]
 
   @@index([status])
   @@index([created_by])
   @@index([created_at])
   @@index([fundraising_start_date, fundraising_end_date])
+  @@index([changed_status_at])
+  @@index([status, changed_status_at])
   @@index([category_id])
   @@index([status, fundraising_end_date])
+  @@index([donation_count])
   @@map("campaigns")
+}
+
+model Campaign_Phase {
+  id                       String                  @id @default(uuid())
+  campaign_id              String
+  phase_name               String                  @db.VarChar(100)
+  location                 String                  @db.Text()
+  ingredient_purchase_date DateTime
+  cooking_date             DateTime
+  delivery_date            DateTime
+  status                   Campaign_Phase_Status   @default(PLANNING)
+  is_active Boolean @default(true)
+  created_at               DateTime                @default(now())
+  updated_at               DateTime                @updatedAt
+
+  campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+
+  @@index([campaign_id])
+  @@index([status])
+  @@index([created_at])
+  @@index([campaign_id, status])
+  @@index([ingredient_purchase_date])
+  @@index([cooking_date])
+  @@index([delivery_date])
+  @@map("campaign_phases")
 }
 
 model Campaign_Category {
@@ -199,13 +226,23 @@ enum Campaign_Status {
   APPROVED
   REJECTED
   ACTIVE
-  AWAITING_DISBURSEMENT
-  FUNDS_DISBURSED
+  PROCESSING
+  COMPLETED
+  CANCELLED
+}
+
+enum Campaign_Phase_Status {
+  PLANNING
+  AWAITING_INGREDIENT_DISBURSEMENT
   INGREDIENT_PURCHASE
+  AWAITING_AUDIT
+  AWAITING_COOKING_DISBURSEMENT
   COOKING
+  AWAITING_DELIVERY_DISBURSEMENT
   DELIVERY
   COMPLETED
   CANCELLED
+  FAILED
 }
 
 enum Payment_Status {

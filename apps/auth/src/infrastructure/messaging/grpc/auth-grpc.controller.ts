@@ -185,8 +185,10 @@ export class AuthGrpcController {
             }
 
             // Decode refresh token to get username (without verification)
-            const decodedToken = this.decodeTokenWithoutVerification(refreshToken)
-            const userName = decodedToken["cognito:username"] || decodedToken.username
+            const decodedToken =
+                this.decodeTokenWithoutVerification(refreshToken)
+            const userName =
+                decodedToken["cognito:username"] || decodedToken.username
 
             if (!userName) {
                 return {
@@ -204,7 +206,9 @@ export class AuthGrpcController {
                 userName,
             )
 
-            this.logger.log(`Token refreshed successfully for user: ${userName}`)
+            this.logger.log(
+                `Token refreshed successfully for user: ${userName}`,
+            )
 
             return {
                 success: true,

@@ -8,11 +8,12 @@ import { CognitoGraphQLGuard } from "@libs/aws-cognito"
 import { GenerateUploadUrlInput } from "../../dtos/request/generate-upload-url.input"
 import {
     CreateCampaignInput,
+    ExtendCampaignInput,
     UpdateCampaignInput,
 } from "../../dtos/request/campaign.input"
 import { CampaignStatus } from "../../enum/campaign.enum"
-import { createUserContextFromToken } from "apps/campaign/src/shared/types/user-context.type"
-import { CurrentUser } from "@app/campaign/src/shared"
+import { createUserContextFromToken } from "../../../shared/types/user-context.type"
+import { CurrentUser } from "../../../shared"
 
 @Resolver(() => Campaign)
 @UseInterceptors(SentryInterceptor)
@@ -86,6 +87,26 @@ export class CampaignMutationResolver {
     ): Promise<Campaign> {
         const userContext = createUserContextFromToken(decodedToken)
         return this.campaignService.changeStatus(id, status, userContext)
+    }
+
+    @Mutation(() => Campaign, {
+        description:
+            "Extend campaign fundraising period (one-time only, max 30 days)",
+    })
+    @UseGuards(CognitoGraphQLGuard)
+    async extendCampaign(
+        @Args("id", { type: () => String, description: "Campaign ID" })
+            id: string,
+        @Args(
+            "input",
+            { type: () => ExtendCampaignInput },
+            new ValidationPipe(),
+        )
+            input: ExtendCampaignInput,
+        @CurrentUser("decodedToken") decodedToken: any,
+    ): Promise<Campaign> {
+        const userContext = createUserContextFromToken(decodedToken)
+        return this.campaignService.extendCampaign(id, input, userContext)
     }
 
     @Mutation(() => Boolean, {

@@ -1,9 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common"
 import { SentryService } from "@libs/observability/sentry.service"
-import { CampaignStatus } from "apps/campaign/src/campaign/enum/campaign.enum"
 import { JobExecutionResult } from "@libs/common/base/base.job"
 import { Campaign } from "../../models/campaign.model"
 import { CampaignRepository } from "../../repository"
+import { CampaignStatus } from "../../enum"
 
 export interface StatusTransitionResult {
     campaignId: string
@@ -338,13 +338,13 @@ export class CampaignSchedulerService {
                 : "FUNDRAISING_END_DATE_REACHED"
 
             await this.campaignRepository.update(campaign.id, {
-                status: CampaignStatus.AWAITING_DISBURSEMENT,
+                status: CampaignStatus.PROCESSING,
             })
 
             return {
                 campaignId: campaign.id,
                 oldStatus: campaign.status,
-                newStatus: CampaignStatus.AWAITING_DISBURSEMENT,
+                newStatus: CampaignStatus.PROCESSING,
                 reason,
                 success: true,
             }

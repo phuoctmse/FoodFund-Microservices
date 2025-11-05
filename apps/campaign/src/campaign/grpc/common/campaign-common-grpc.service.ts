@@ -37,7 +37,6 @@ export class CampaignCommonGrpcService {
                     title: campaign.title,
                     description: campaign.description || "",
                     cover_image: campaign.coverImage || "",
-                    location: campaign.location || "",
                     target_amount: campaign.targetAmount.toString(),
                     donation_count: campaign.donationCount || 0,
                     received_amount: campaign.receivedAmount?.toString() || "0",

@@ -6,22 +6,38 @@ import { AwsCognitoModule } from "@libs/aws-cognito"
 import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 import { GrpcModule } from "@libs/grpc"
 import { PrismaClient } from "./generated/user-client"
-import { 
-    UserAdminService, 
-    OrganizationService, 
-    DataLoaderFactory, 
-    DataLoaderService, 
-    DonorService, 
-    FundraiserService, 
-    KitchenStaffService, 
+import {
+    UserAdminService,
+    OrganizationService,
+    DataLoaderFactory,
+    DataLoaderService,
+    DonorService,
+    FundraiserService,
+    KitchenStaffService,
     DeliveryStaffService,
     UserQueryService,
-    UserMutationService
+    UserMutationService,
 } from "./application/use-cases"
-import { UserRepository, OrganizationRepository, UserAdminRepository, UserCommonRepository, KitchenStaffRepository, FundraiserRepository, DeliveryStaffRepository } from "./domain/repositories"
+import {
+    UserRepository,
+    OrganizationRepository,
+    UserAdminRepository,
+    UserCommonRepository,
+    KitchenStaffRepository,
+    FundraiserRepository,
+    DeliveryStaffRepository,
+} from "./domain/repositories"
 import { PrismaUserService } from "./infrastructure/database"
 import { UserGrpcController } from "./infrastructure/grpc/user-grpc.controller"
-import { UserQueryResolver, UserMutationResolver, UserAdminResolver, DonorProfileResolver, KitchenStaffProfileResolver, FundraiserProfileResolver, DeliveryStaffProfileResolver } from "./presentation/graphql/resolvers"
+import {
+    UserQueryResolver,
+    UserMutationResolver,
+    UserAdminResolver,
+    DonorProfileResolver,
+    KitchenStaffProfileResolver,
+    FundraiserProfileResolver,
+    DeliveryStaffProfileResolver,
+} from "./presentation/graphql/resolvers"
 import { HealthController } from "./presentation/http/controllers"
 
 @Module({
@@ -48,7 +64,7 @@ import { HealthController } from "./presentation/http/controllers"
     controllers: [
         // Presentation - HTTP Controllers
         HealthController,
-        
+
         // Infrastructure - gRPC Controller
         UserGrpcController,
     ],

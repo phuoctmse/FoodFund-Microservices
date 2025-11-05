@@ -2,7 +2,6 @@ import { UserProfileSchema } from "../../../domain/entities"
 import { UserRepository } from "../../../domain/repositories"
 import { Injectable, Logger } from "@nestjs/common"
 
-
 @Injectable()
 export class UserQueryService {
     private readonly logger = new Logger(UserQueryService.name)

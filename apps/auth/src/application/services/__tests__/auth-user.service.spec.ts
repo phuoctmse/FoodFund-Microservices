@@ -189,10 +189,11 @@ describe("AuthUserService", () => {
             global.fetch = jest.fn(() =>
                 Promise.resolve({
                     ok: true,
-                    json: () => Promise.resolve({
-                        ...mockGoogleUserInfo,
-                        aud: "mock-google-client-id", // Match the mocked client ID
-                    }),
+                    json: () =>
+                        Promise.resolve({
+                            ...mockGoogleUserInfo,
+                            aud: "mock-google-client-id", // Match the mocked client ID
+                        }),
                 }),
             ) as jest.Mock
         })

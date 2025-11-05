@@ -8,8 +8,8 @@ import {
     CampaignSortOrder,
 } from "../../dtos/request/campaign.input"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
-import { createUserContextFromToken } from "apps/campaign/src/shared/types/user-context.type"
-import { CurrentUser } from "@app/campaign/src/shared"
+import { createUserContextFromToken } from "../../../shared/types/user-context.type"
+import { CurrentUser } from "../../../shared"
 
 @Resolver(() => Campaign)
 @UseInterceptors(SentryInterceptor)

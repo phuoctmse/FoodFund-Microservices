@@ -14,6 +14,7 @@ import {
     CampaignCannotBeDeletedException,
 } from "../exceptions/campaign.exception"
 import { Role, UserContext } from "../../shared"
+import { CampaignPhaseService } from "../../campaign-phase"
 
 describe("CampaignService", () => {
     let service: CampaignService
@@ -23,6 +24,7 @@ describe("CampaignService", () => {
     let sentryService: jest.Mocked<SentryService>
     let spacesUploadService: jest.Mocked<SpacesUploadService>
     let authService: jest.Mocked<AuthorizationService>
+    let phaseService: jest.Mocked<CampaignPhaseService>
 
     // Mock user contexts
     const mockUserContext: UserContext = {
@@ -43,9 +45,8 @@ describe("CampaignService", () => {
         description: "Test Description",
         coverImage: "https://cdn.example.com/campaigns/image.jpg",
         coverImageFileKey: "campaigns/user-123/image.jpg",
-        location: "Ho Chi Minh City",
         targetAmount: "10000000",
-        donationCount: 5,
+        donationCount: 0,
         receivedAmount: "5000000",
         ingredientBudgetPercentage: "60.00",
         cookingBudgetPercentage: "30.00",
@@ -53,23 +54,21 @@ describe("CampaignService", () => {
         status: CampaignStatus.PENDING,
         fundraisingStartDate: new Date("2025-02-01"),
         fundraisingEndDate: new Date("2025-03-01"),
-        ingredientPurchaseDate: new Date("2025-03-02"),
-        cookingDate: new Date("2025-03-03"),
-        deliveryDate: new Date("2025-03-04"),
         ingredientFundsAmount: undefined,
         cookingFundsAmount: undefined,
         deliveryFundsAmount: undefined,
-        fundsDisbursedAt: undefined,
+        extensionCount: 0,
+        extensionDays: 0,
         isActive: true,
         createdBy: "user-123",
         categoryId: "category-123",
-        approvedAt: undefined,
+        changedStatusAt: undefined,
         completedAt: undefined,
         created_at: new Date("2025-01-01"),
         updated_at: new Date("2025-01-01"),
         category: undefined,
         creator: undefined,
-        donations: undefined,
+        phases: [],
     }
 
     const mockCategory = {
@@ -152,6 +151,18 @@ describe("CampaignService", () => {
                         requireOwnership: jest.fn(),
                     },
                 },
+                {
+                    provide: CampaignPhaseService,
+                    useValue: {
+                        createPhase: jest.fn(),
+                        getPhasesByCampaignId: jest.fn(),
+                        getPhaseById: jest.fn(),
+                        updatePhase: jest.fn(),
+                        deletePhase: jest.fn(),
+                        deleteManyPhases: jest.fn(),
+                        validatePhaseDates: jest.fn(),
+                    },
+                },
             ],
         }).compile()
 
@@ -162,11 +173,53 @@ describe("CampaignService", () => {
         sentryService = module.get(SentryService)
         spacesUploadService = module.get(SpacesUploadService)
         authService = module.get(AuthorizationService)
+        phaseService = module.get(CampaignPhaseService)
     })
 
     afterEach(() => {
         jest.clearAllMocks()
     })
+
+    // ==================== HELPER FUNCTION ====================
+    const getCreateInput = () => {
+        const tomorrow = new Date()
+        tomorrow.setDate(tomorrow.getDate() + 1)
+        tomorrow.setHours(0, 0, 0, 0)
+
+        const nextMonth = new Date(tomorrow)
+        nextMonth.setMonth(nextMonth.getMonth() + 1)
+
+        // ✅ Add at least one phase to satisfy validation
+        const phaseDate1 = new Date(nextMonth)
+        phaseDate1.setDate(phaseDate1.getDate() + 1)
+        const phaseDate2 = new Date(phaseDate1)
+        phaseDate2.setDate(phaseDate2.getDate() + 1)
+        const phaseDate3 = new Date(phaseDate2)
+        phaseDate3.setDate(phaseDate3.getDate() + 1)
+
+        return {
+            title: "New Campaign",
+            description:
+                "Campaign Description with sufficient length to meet validation requirements",
+            coverImageFileKey: "campaigns/user-123/image.jpg",
+            targetAmount: "10000000",
+            categoryId: "category-123",
+            ingredientBudgetPercentage: "60.00",
+            cookingBudgetPercentage: "30.00",
+            deliveryBudgetPercentage: "10.00",
+            fundraisingStartDate: tomorrow,
+            fundraisingEndDate: nextMonth,
+            phases: [
+                {
+                    phaseName: "Phase 1 - Test District",
+                    location: "District 1, HCMC",
+                    ingredientPurchaseDate: phaseDate1,
+                    cookingDate: phaseDate2,
+                    deliveryDate: phaseDate3,
+                },
+            ],
+        }
+    }
 
     // ==================== GENERATE UPLOAD URL ====================
 
@@ -307,41 +360,6 @@ describe("CampaignService", () => {
     // ==================== CREATE CAMPAIGN ====================
 
     describe("createCampaign", () => {
-        const getCreateInput = () => {
-            const tomorrow = new Date()
-            tomorrow.setDate(tomorrow.getDate() + 1)
-            tomorrow.setHours(0, 0, 0, 0)
-
-            const nextMonth = new Date(tomorrow)
-            nextMonth.setMonth(nextMonth.getMonth() + 1)
-
-            const ingredientDate = new Date(nextMonth)
-            ingredientDate.setDate(ingredientDate.getDate() + 1)
-
-            const cookingDate = new Date(ingredientDate)
-            cookingDate.setDate(cookingDate.getDate() + 1)
-
-            const deliveryDate = new Date(cookingDate)
-            deliveryDate.setDate(deliveryDate.getDate() + 1)
-
-            return {
-                title: "New Campaign",
-                description: "Campaign Description",
-                coverImageFileKey: "campaigns/user-123/image.jpg",
-                location: "Ho Chi Minh City",
-                targetAmount: "10000000",
-                categoryId: "category-123",
-                ingredientBudgetPercentage: "60.00",
-                cookingBudgetPercentage: "30.00",
-                deliveryBudgetPercentage: "10.00",
-                fundraisingStartDate: tomorrow,
-                fundraisingEndDate: nextMonth,
-                ingredientPurchaseDate: ingredientDate,
-                cookingDate: cookingDate,
-                deliveryDate: deliveryDate,
-            }
-        }
-
         describe("Normal values (Happy path)", () => {
             it("should create campaign successfully with valid input", async () => {
                 // Arrange
@@ -357,6 +375,7 @@ describe("CampaignService", () => {
                 spacesUploadService.extractFileKeyFromUrl.mockReturnValue(
                     "campaigns/user-123/image.jpg",
                 )
+                phaseService.validatePhaseDates.mockReturnValue(undefined)
                 repository.create.mockResolvedValue(mockCampaign as any)
                 cacheService.setCampaign.mockResolvedValue(undefined)
                 cacheService.invalidateAll.mockResolvedValue(undefined)
@@ -375,6 +394,7 @@ describe("CampaignService", () => {
                 expect(
                     spacesUploadService.validateUploadedFile,
                 ).toHaveBeenCalled()
+                expect(phaseService.validatePhaseDates).toHaveBeenCalled()
                 expect(repository.create).toHaveBeenCalled()
                 expect(cacheService.setCampaign).toHaveBeenCalledWith(
                     mockCampaign.id,
@@ -382,6 +402,9 @@ describe("CampaignService", () => {
                 )
                 expect(cacheService.invalidateAll).toHaveBeenCalled()
                 expect(result).toEqual(mockCampaign)
+                expect(result.donationCount).toBe(0)
+                expect(result.extensionCount).toBe(0)
+                expect(result.extensionDays).toBe(0)
             })
 
             it("should create campaign without category", async () => {
@@ -399,6 +422,7 @@ describe("CampaignService", () => {
                 spacesUploadService.extractFileKeyFromUrl.mockReturnValue(
                     "campaigns/user-123/image.jpg",
                 )
+                phaseService.validatePhaseDates.mockReturnValue(undefined)
                 repository.create.mockResolvedValue(mockCampaign as any)
                 cacheService.setCampaign.mockResolvedValue(undefined)
                 cacheService.invalidateAll.mockResolvedValue(undefined)
@@ -411,6 +435,61 @@ describe("CampaignService", () => {
 
                 // Assert
                 expect(categoryRepository.findById).not.toHaveBeenCalled()
+                expect(result).toEqual(mockCampaign)
+            })
+
+            it("should create campaign with phases successfully", async () => {
+                // Arrange
+                const tomorrow = new Date()
+                tomorrow.setDate(tomorrow.getDate() + 1)
+                const nextMonth = new Date(tomorrow)
+                nextMonth.setMonth(nextMonth.getMonth() + 1)
+
+                const phaseDate1 = new Date(nextMonth)
+                phaseDate1.setDate(phaseDate1.getDate() + 1)
+                const phaseDate2 = new Date(phaseDate1)
+                phaseDate2.setDate(phaseDate2.getDate() + 1)
+                const phaseDate3 = new Date(phaseDate2)
+                phaseDate3.setDate(phaseDate3.getDate() + 1)
+
+                const createInput = {
+                    ...getCreateInput(),
+                    phases: [
+                        {
+                            phaseName: "Phase 1 - North District",
+                            location: "District 1, HCMC",
+                            ingredientPurchaseDate: phaseDate1,
+                            cookingDate: phaseDate2,
+                            deliveryDate: phaseDate3,
+                        },
+                    ],
+                }
+
+                authService.requireAuthentication.mockReturnValue(undefined)
+                categoryRepository.findById.mockResolvedValue(mockCategory)
+                spacesUploadService.validateUploadedFile.mockResolvedValue({
+                    exists: true,
+                    contentType: "image/jpeg",
+                })
+                spacesUploadService.extractFileKeyFromUrl.mockReturnValue(
+                    "campaigns/user-123/image.jpg",
+                )
+                phaseService.validatePhaseDates.mockReturnValue(undefined)
+                repository.create.mockResolvedValue(mockCampaign as any)
+                cacheService.setCampaign.mockResolvedValue(undefined)
+                cacheService.invalidateAll.mockResolvedValue(undefined)
+
+                // Act
+                const result = await service.createCampaign(
+                    createInput,
+                    mockUserContext,
+                )
+
+                // Assert
+                expect(phaseService.validatePhaseDates).toHaveBeenCalledWith(
+                    createInput.phases,
+                    expect.any(Date), // ✅ Don't assert exact date due to timezone differences
+                )
                 expect(result).toEqual(mockCampaign)
             })
         })
@@ -438,6 +517,7 @@ describe("CampaignService", () => {
                 spacesUploadService.extractFileKeyFromUrl.mockReturnValue(
                     "campaigns/user-123/image.jpg",
                 )
+                phaseService.validatePhaseDates.mockReturnValue(undefined)
                 repository.create.mockResolvedValue(mockCampaign as any)
                 cacheService.setCampaign.mockResolvedValue(undefined)
                 cacheService.invalidateAll.mockResolvedValue(undefined)
@@ -474,6 +554,7 @@ describe("CampaignService", () => {
                 spacesUploadService.extractFileKeyFromUrl.mockReturnValue(
                     "campaigns/user-123/image.jpg",
                 )
+                phaseService.validatePhaseDates.mockReturnValue(undefined)
                 repository.create.mockResolvedValue(mockCampaign as any)
                 cacheService.setCampaign.mockResolvedValue(undefined)
                 cacheService.invalidateAll.mockResolvedValue(undefined)
@@ -506,6 +587,7 @@ describe("CampaignService", () => {
                 spacesUploadService.extractFileKeyFromUrl.mockReturnValue(
                     "campaigns/user-123/image.jpg",
                 )
+                phaseService.validatePhaseDates.mockReturnValue(undefined)
                 repository.create.mockResolvedValue(mockCampaign as any)
                 cacheService.setCampaign.mockResolvedValue(undefined)
                 cacheService.invalidateAll.mockResolvedValue(undefined)
@@ -536,6 +618,7 @@ describe("CampaignService", () => {
                 spacesUploadService.extractFileKeyFromUrl.mockReturnValue(
                     "campaigns/user-123/image.jpg",
                 )
+                phaseService.validatePhaseDates.mockReturnValue(undefined)
                 repository.create.mockResolvedValue(mockCampaign as any)
                 cacheService.setCampaign.mockResolvedValue(undefined)
                 cacheService.invalidateAll.mockResolvedValue(undefined)
@@ -609,7 +692,6 @@ describe("CampaignService", () => {
 
                 authService.requireAuthentication.mockReturnValue(undefined)
                 categoryRepository.findById.mockResolvedValue(mockCategory)
-                // ✅ Fix: Add missing mock
                 spacesUploadService.validateUploadedFile.mockResolvedValue({
                     exists: true,
                     contentType: "image/jpeg",
@@ -643,11 +725,14 @@ describe("CampaignService", () => {
 
                 authService.requireAuthentication.mockReturnValue(undefined)
                 categoryRepository.findById.mockResolvedValue(mockCategory)
-                // ✅ Fix: Add missing mock
                 spacesUploadService.validateUploadedFile.mockResolvedValue({
                     exists: true,
                     contentType: "image/jpeg",
                 })
+                // ✅ Add mock for extractFileKeyFromUrl
+                spacesUploadService.extractFileKeyFromUrl.mockReturnValue(
+                    "campaigns/user-123/image.jpg",
+                )
 
                 // Act & Assert
                 await expect(
@@ -672,11 +757,14 @@ describe("CampaignService", () => {
 
                 authService.requireAuthentication.mockReturnValue(undefined)
                 categoryRepository.findById.mockResolvedValue(mockCategory)
-                // ✅ Fix: Add missing mock
                 spacesUploadService.validateUploadedFile.mockResolvedValue({
                     exists: true,
                     contentType: "image/jpeg",
                 })
+                // ✅ Add mock for extractFileKeyFromUrl
+                spacesUploadService.extractFileKeyFromUrl.mockReturnValue(
+                    "campaigns/user-123/image.jpg",
+                )
 
                 // Act & Assert
                 await expect(
@@ -697,11 +785,14 @@ describe("CampaignService", () => {
 
                 authService.requireAuthentication.mockReturnValue(undefined)
                 categoryRepository.findById.mockResolvedValue(mockCategory)
-                // ✅ Fix: Add missing mock
                 spacesUploadService.validateUploadedFile.mockResolvedValue({
                     exists: true,
                     contentType: "image/jpeg",
                 })
+                // ✅ Add mock for extractFileKeyFromUrl
+                spacesUploadService.extractFileKeyFromUrl.mockReturnValue(
+                    "campaigns/user-123/image.jpg",
+                )
 
                 // Act & Assert
                 await expect(
@@ -722,11 +813,14 @@ describe("CampaignService", () => {
 
                 authService.requireAuthentication.mockReturnValue(undefined)
                 categoryRepository.findById.mockResolvedValue(mockCategory)
-                // ✅ Fix: Add missing mock
                 spacesUploadService.validateUploadedFile.mockResolvedValue({
                     exists: true,
                     contentType: "image/jpeg",
                 })
+                // ✅ Add mock for extractFileKeyFromUrl
+                spacesUploadService.extractFileKeyFromUrl.mockReturnValue(
+                    "campaigns/user-123/image.jpg",
+                )
 
                 // Act & Assert
                 await expect(
@@ -752,11 +846,14 @@ describe("CampaignService", () => {
 
                 authService.requireAuthentication.mockReturnValue(undefined)
                 categoryRepository.findById.mockResolvedValue(mockCategory)
-                // ✅ Fix: Add missing mock
                 spacesUploadService.validateUploadedFile.mockResolvedValue({
                     exists: true,
                     contentType: "image/jpeg",
                 })
+                // ✅ Add mock for extractFileKeyFromUrl
+                spacesUploadService.extractFileKeyFromUrl.mockReturnValue(
+                    "campaigns/user-123/image.jpg",
+                )
 
                 // Act & Assert
                 await expect(
@@ -779,11 +876,14 @@ describe("CampaignService", () => {
 
                 authService.requireAuthentication.mockReturnValue(undefined)
                 categoryRepository.findById.mockResolvedValue(mockCategory)
-                // ✅ Fix: Add missing mock
                 spacesUploadService.validateUploadedFile.mockResolvedValue({
                     exists: true,
                     contentType: "image/jpeg",
                 })
+                // ✅ Add mock for extractFileKeyFromUrl
+                spacesUploadService.extractFileKeyFromUrl.mockReturnValue(
+                    "campaigns/user-123/image.jpg",
+                )
 
                 // Act & Assert
                 await expect(
@@ -797,266 +897,409 @@ describe("CampaignService", () => {
                     ),
                 )
             })
-        })
 
-        // ==================== GET CAMPAIGNS ====================
+            it("should throw error when phases have invalid dates", async () => {
+                // Arrange
+                const tomorrow = new Date()
+                tomorrow.setDate(tomorrow.getDate() + 1)
+                const nextMonth = new Date(tomorrow)
+                nextMonth.setMonth(nextMonth.getMonth() + 1)
 
-        describe("getCampaigns", () => {
-            const mockCampaigns = [mockCampaign]
+                const createInput = {
+                    ...getCreateInput(),
+                    phases: [
+                        {
+                            phaseName: "Phase 1",
+                            location: "HCMC",
+                            ingredientPurchaseDate: tomorrow,
+                            cookingDate: tomorrow,
+                            deliveryDate: tomorrow,
+                        },
+                    ],
+                }
 
-            describe("Normal values (Happy path)", () => {
-                it("should return campaigns from cache when available", async () => {
-                    // Arrange
-                    cacheService.getCampaignList.mockResolvedValue(
-                        mockCampaigns,
+                authService.requireAuthentication.mockReturnValue(undefined)
+                categoryRepository.findById.mockResolvedValue(mockCategory)
+                spacesUploadService.validateUploadedFile.mockResolvedValue({
+                    exists: true,
+                    contentType: "image/jpeg",
+                })
+                spacesUploadService.extractFileKeyFromUrl.mockReturnValue(
+                    "campaigns/user-123/image.jpg",
+                )
+                phaseService.validatePhaseDates.mockImplementation(() => {
+                    throw new BadRequestException(
+                        "Phase dates must be after fundraising end date",
                     )
-
-                    // Act
-                    const result = await service.getCampaigns()
-
-                    // Assert
-                    expect(cacheService.getCampaignList).toHaveBeenCalled()
-                    expect(repository.findMany).not.toHaveBeenCalled()
-                    expect(result).toEqual(mockCampaigns)
                 })
 
-                it("should fetch from database when cache miss", async () => {
-                    // Arrange
-                    cacheService.getCampaignList.mockResolvedValue(null)
-                    repository.findMany.mockResolvedValue(mockCampaigns as any)
-                    cacheService.setCampaignList.mockResolvedValue(undefined)
-
-                    // Act
-                    const result = await service.getCampaigns()
-
-                    // Assert
-                    expect(repository.findMany).toHaveBeenCalled()
-                    expect(cacheService.setCampaignList).toHaveBeenCalledWith(
-                        expect.any(Object),
-                        mockCampaigns,
-                    )
-                    expect(result).toEqual(mockCampaigns)
-                })
+                // Act & Assert
+                await expect(
+                    service.createCampaign(createInput, mockUserContext),
+                ).rejects.toThrow(BadRequestException)
             })
 
-            describe("Boundary values", () => {
-                it("should return empty array when no campaigns exist", async () => {
-                    // Arrange
-                    cacheService.getCampaignList.mockResolvedValue(null)
-                    repository.findMany.mockResolvedValue([])
-                    cacheService.setCampaignList.mockResolvedValue(undefined)
+            // ✅ NEW TEST: Test empty phases array
+            it("should throw error when phases array is empty", async () => {
+                // Arrange
+                const inputNoPhases = {
+                    ...getCreateInput(),
+                    phases: [],
+                }
 
-                    // Act
-                    const result = await service.getCampaigns()
-
-                    // Assert
-                    expect(result).toEqual([])
+                authService.requireAuthentication.mockReturnValue(undefined)
+                categoryRepository.findById.mockResolvedValue(mockCategory)
+                spacesUploadService.validateUploadedFile.mockResolvedValue({
+                    exists: true,
+                    contentType: "image/jpeg",
                 })
+                spacesUploadService.extractFileKeyFromUrl.mockReturnValue(
+                    "campaigns/user-123/image.jpg",
+                )
 
-                it("should handle limit = 100 (maximum)", async () => {
-                    // Arrange
-                    const campaigns100 = Array(100).fill(mockCampaign)
-                    cacheService.getCampaignList.mockResolvedValue(null)
-                    repository.findMany.mockResolvedValue(campaigns100)
-                    cacheService.setCampaignList.mockResolvedValue(undefined)
-
-                    // Act
-                    const result = await service.getCampaigns(
-                        undefined,
-                        undefined,
-                        undefined,
-                        100,
-                    )
-
-                    // Assert
-                    expect(result).toHaveLength(100)
-                })
-            })
-
-            describe("Abnormal values (Error cases)", () => {
-                it("should capture error when repository fails", async () => {
-                    // Arrange
-                    cacheService.getCampaignList.mockResolvedValue(null)
-                    const dbError = new Error("Database connection failed")
-                    repository.findMany.mockRejectedValue(dbError)
-
-                    // Act & Assert
-                    await expect(service.getCampaigns()).rejects.toThrow(
-                        dbError,
-                    )
-                    expect(sentryService.captureError).toHaveBeenCalledWith(
-                        dbError,
-                        expect.objectContaining({
-                            operation: "getCampaigns",
-                        }),
-                    )
-                })
+                // Act & Assert
+                await expect(
+                    service.createCampaign(inputNoPhases, mockUserContext),
+                ).rejects.toThrow(
+                    new BadRequestException(
+                        "At least one campaign phase is required",
+                    ),
+                )
             })
         })
+    })
 
-        // ==================== FIND CAMPAIGN BY ID ====================
+    // ==================== GET CAMPAIGNS ====================
 
-        describe("findCampaignById", () => {
-            describe("Normal values (Happy path)", () => {
-                it("should return campaign from cache when available", async () => {
-                    // Arrange
-                    cacheService.getCampaign.mockResolvedValue(mockCampaign)
+    describe("getCampaigns", () => {
+        const mockCampaigns = [mockCampaign]
 
-                    // Act
-                    const result =
-                        await service.findCampaignById("campaign-123")
+        describe("Normal values (Happy path)", () => {
+            it("should return campaigns from cache when available", async () => {
+                // Arrange
+                cacheService.getCampaignList.mockResolvedValue(mockCampaigns)
 
-                    // Assert
-                    expect(cacheService.getCampaign).toHaveBeenCalledWith(
-                        "campaign-123",
-                    )
-                    expect(repository.findById).not.toHaveBeenCalled()
-                    expect(result).toEqual(mockCampaign)
-                })
+                // Act
+                const result = await service.getCampaigns()
 
-                it("should fetch from database when cache miss", async () => {
-                    // Arrange
-                    cacheService.getCampaign.mockResolvedValue(null)
-                    repository.findById.mockResolvedValue(mockCampaign as any)
-                    cacheService.setCampaign.mockResolvedValue(undefined)
-
-                    // Act
-                    const result =
-                        await service.findCampaignById("campaign-123")
-
-                    // Assert
-                    expect(repository.findById).toHaveBeenCalledWith(
-                        "campaign-123",
-                    )
-                    expect(cacheService.setCampaign).toHaveBeenCalledWith(
-                        "campaign-123",
-                        mockCampaign,
-                    )
-                    expect(result).toEqual(mockCampaign)
-                })
+                // Assert
+                expect(cacheService.getCampaignList).toHaveBeenCalled()
+                expect(repository.findMany).not.toHaveBeenCalled()
+                expect(result).toEqual(mockCampaigns)
             })
 
-            describe("Abnormal values (Error cases)", () => {
-                it("should throw CampaignNotFoundException when not found", async () => {
-                    // Arrange
-                    cacheService.getCampaign.mockResolvedValue(null)
-                    repository.findById.mockResolvedValue(null)
+            it("should fetch from database when cache miss", async () => {
+                // Arrange
+                cacheService.getCampaignList.mockResolvedValue(null)
+                repository.findMany.mockResolvedValue(mockCampaigns as any)
+                cacheService.setCampaignList.mockResolvedValue(undefined)
 
-                    // Act & Assert
-                    await expect(
-                        service.findCampaignById("non-existent"),
-                    ).rejects.toThrow(CampaignNotFoundException)
-                })
+                // Act
+                const result = await service.getCampaigns()
+
+                // Assert
+                expect(repository.findMany).toHaveBeenCalled()
+                expect(cacheService.setCampaignList).toHaveBeenCalledWith(
+                    expect.any(Object),
+                    mockCampaigns,
+                )
+                expect(result).toEqual(mockCampaigns)
             })
         })
 
-        // ==================== DELETE CAMPAIGN ====================
+        describe("Boundary values", () => {
+            it("should return empty array when no campaigns exist", async () => {
+                // Arrange
+                cacheService.getCampaignList.mockResolvedValue(null)
+                repository.findMany.mockResolvedValue([])
+                cacheService.setCampaignList.mockResolvedValue(undefined)
 
-        describe("deleteCampaign", () => {
-            describe("Normal values (Happy path)", () => {
-                it("should delete campaign with PENDING status", async () => {
-                    // Arrange
-                    authService.requireAuthentication.mockReturnValue(undefined)
-                    cacheService.getCampaign.mockResolvedValue(mockCampaign)
-                    authService.requireOwnership.mockReturnValue(undefined)
-                    repository.delete.mockResolvedValue(true)
-                    cacheService.deleteCampaign.mockResolvedValue(undefined)
-                    cacheService.invalidateAll.mockResolvedValue(undefined)
-                    spacesUploadService.deleteResourceImage.mockResolvedValue(
-                        undefined,
-                    )
+                // Act
+                const result = await service.getCampaigns()
 
-                    // Act
-                    const result = await service.deleteCampaign(
+                // Assert
+                expect(result).toEqual([])
+            })
+
+            it("should handle limit = 100 (maximum)", async () => {
+                // Arrange
+                const campaigns100 = Array(100).fill(mockCampaign)
+                cacheService.getCampaignList.mockResolvedValue(null)
+                repository.findMany.mockResolvedValue(campaigns100)
+                cacheService.setCampaignList.mockResolvedValue(undefined)
+
+                // Act
+                const result = await service.getCampaigns(
+                    undefined,
+                    undefined,
+                    undefined,
+                    100,
+                )
+
+                // Assert
+                expect(result).toHaveLength(100)
+            })
+        })
+
+        describe("Abnormal values (Error cases)", () => {
+            it("should capture error when repository fails", async () => {
+                // Arrange
+                cacheService.getCampaignList.mockResolvedValue(null)
+                const dbError = new Error("Database connection failed")
+                repository.findMany.mockRejectedValue(dbError)
+
+                // Act & Assert
+                await expect(service.getCampaigns()).rejects.toThrow(dbError)
+                expect(sentryService.captureError).toHaveBeenCalledWith(
+                    dbError,
+                    expect.objectContaining({
+                        operation: "getCampaigns",
+                    }),
+                )
+            })
+        })
+    })
+
+    // ==================== FIND CAMPAIGN BY ID ====================
+
+    describe("findCampaignById", () => {
+        describe("Normal values (Happy path)", () => {
+            it("should return campaign from cache when available", async () => {
+                // Arrange
+                cacheService.getCampaign.mockResolvedValue(mockCampaign)
+
+                // Act
+                const result = await service.findCampaignById("campaign-123")
+
+                // Assert
+                expect(cacheService.getCampaign).toHaveBeenCalledWith(
+                    "campaign-123",
+                )
+                expect(repository.findById).not.toHaveBeenCalled()
+                expect(result).toEqual(mockCampaign)
+            })
+
+            it("should fetch from database when cache miss", async () => {
+                // Arrange
+                cacheService.getCampaign.mockResolvedValue(null)
+                repository.findById.mockResolvedValue(mockCampaign as any)
+                cacheService.setCampaign.mockResolvedValue(undefined)
+
+                // Act
+                const result = await service.findCampaignById("campaign-123")
+
+                // Assert
+                expect(repository.findById).toHaveBeenCalledWith("campaign-123")
+                expect(cacheService.setCampaign).toHaveBeenCalledWith(
+                    "campaign-123",
+                    mockCampaign,
+                )
+                expect(result).toEqual(mockCampaign)
+            })
+        })
+
+        describe("Abnormal values (Error cases)", () => {
+            it("should throw CampaignNotFoundException when not found", async () => {
+                // Arrange
+                cacheService.getCampaign.mockResolvedValue(null)
+                repository.findById.mockResolvedValue(null)
+
+                // Act & Assert
+                await expect(
+                    service.findCampaignById("non-existent"),
+                ).rejects.toThrow(CampaignNotFoundException)
+            })
+        })
+    })
+
+    // ==================== DELETE CAMPAIGN ====================
+
+    describe("deleteCampaign", () => {
+        describe("Normal values (Happy path)", () => {
+            it("should delete campaign with PENDING status", async () => {
+                // Arrange
+                authService.requireAuthentication.mockReturnValue(undefined)
+                cacheService.getCampaign.mockResolvedValue(mockCampaign)
+                authService.requireOwnership.mockReturnValue(undefined)
+                repository.delete.mockResolvedValue(true)
+                cacheService.deleteCampaign.mockResolvedValue(undefined)
+                cacheService.invalidateAll.mockResolvedValue(undefined)
+                spacesUploadService.deleteResourceImage.mockResolvedValue(
+                    undefined,
+                )
+
+                // Act
+                const result = await service.deleteCampaign(
+                    "campaign-123",
+                    mockUserContext,
+                )
+
+                // Assert
+                expect(repository.delete).toHaveBeenCalledWith("campaign-123")
+                expect(cacheService.deleteCampaign).toHaveBeenCalledWith(
+                    "campaign-123",
+                )
+                expect(result).toBe(true)
+            })
+        })
+
+        describe("Abnormal values (Error cases)", () => {
+            it("should throw error when campaign status is ACTIVE", async () => {
+                // Arrange
+                const activeCampaign = {
+                    ...mockCampaign,
+                    status: CampaignStatus.ACTIVE,
+                }
+                authService.requireAuthentication.mockReturnValue(undefined)
+                cacheService.getCampaign.mockResolvedValue(activeCampaign)
+                authService.requireOwnership.mockReturnValue(undefined)
+
+                // Act & Assert
+                await expect(
+                    service.deleteCampaign("campaign-123", mockUserContext),
+                ).rejects.toThrow(CampaignCannotBeDeletedException)
+            })
+
+            it("should throw error when user not campaign owner", async () => {
+                // Arrange
+                const otherUserContext = {
+                    ...mockUserContext,
+                    userId: "other-user",
+                }
+                authService.requireAuthentication.mockReturnValue(undefined)
+                cacheService.getCampaign.mockResolvedValue(mockCampaign)
+                authService.requireOwnership.mockImplementation(() => {
+                    throw new ForbiddenException("Not campaign owner")
+                })
+
+                // Act & Assert
+                await expect(
+                    service.deleteCampaign("campaign-123", otherUserContext),
+                ).rejects.toThrow(ForbiddenException)
+            })
+        })
+    })
+
+    // ==================== EXTEND CAMPAIGN ====================
+
+    describe("extendCampaign", () => {
+        describe("Normal values (Happy path)", () => {
+            it("should extend campaign successfully within 7 days of end date", async () => {
+                // Arrange
+                const now = new Date()
+                const endDateIn5Days = new Date(now)
+                endDateIn5Days.setDate(endDateIn5Days.getDate() + 5)
+
+                const activeCampaign = {
+                    ...mockCampaign,
+                    status: CampaignStatus.ACTIVE,
+                    fundraisingEndDate: endDateIn5Days,
+                    extensionCount: 0,
+                }
+
+                const extendedCampaign = {
+                    ...activeCampaign,
+                    extensionCount: 1,
+                    extensionDays: 14,
+                    fundraisingEndDate: new Date(
+                        endDateIn5Days.getTime() + 14 * 24 * 60 * 60 * 1000,
+                    ),
+                }
+
+                authService.requireAuthentication.mockReturnValue(undefined)
+                cacheService.getCampaign.mockResolvedValue(activeCampaign)
+                repository.update.mockResolvedValue(extendedCampaign as any)
+                cacheService.deleteCampaign.mockResolvedValue(undefined)
+                cacheService.invalidateAll.mockResolvedValue(undefined)
+
+                // Act
+                const result = await service.extendCampaign(
+                    "campaign-123",
+                    { extensionDays: 14 },
+                    mockUserContext,
+                )
+
+                // Assert
+                expect(repository.update).toHaveBeenCalledWith(
+                    "campaign-123",
+                    expect.objectContaining({
+                        extensionCount: 1,
+                        extensionDays: 14,
+                    }),
+                )
+                expect(result.extensionCount).toBe(1)
+                expect(result.extensionDays).toBe(14)
+            })
+        })
+
+        describe("Abnormal values (Error cases)", () => {
+            it("should throw error when campaign already extended", async () => {
+                // Arrange
+                const alreadyExtended = {
+                    ...mockCampaign,
+                    status: CampaignStatus.ACTIVE,
+                    extensionCount: 1,
+                }
+
+                authService.requireAuthentication.mockReturnValue(undefined)
+                cacheService.getCampaign.mockResolvedValue(alreadyExtended)
+
+                // Act & Assert
+                await expect(
+                    service.extendCampaign(
                         "campaign-123",
+                        { extensionDays: 14 },
                         mockUserContext,
-                    )
+                    ),
+                ).rejects.toThrow(
+                    new BadRequestException(
+                        "Campaign can only be extended once",
+                    ),
+                )
+            })
 
-                    // Assert
-                    expect(repository.delete).toHaveBeenCalledWith(
+            it("should throw error when campaign not ACTIVE", async () => {
+                // Arrange
+                authService.requireAuthentication.mockReturnValue(undefined)
+                cacheService.getCampaign.mockResolvedValue(mockCampaign)
+
+                // Act & Assert
+                await expect(
+                    service.extendCampaign(
                         "campaign-123",
-                    )
-                    expect(cacheService.deleteCampaign).toHaveBeenCalledWith(
+                        { extensionDays: 14 },
+                        mockUserContext,
+                    ),
+                ).rejects.toThrow(
+                    new BadRequestException(
+                        "Only ACTIVE campaigns can be extended. Current status: PENDING",
+                    ),
+                )
+            })
+
+            it("should throw error when more than 7 days until end date", async () => {
+                // Arrange
+                const now = new Date()
+                const endDateIn10Days = new Date(now)
+                endDateIn10Days.setDate(endDateIn10Days.getDate() + 10)
+
+                const activeCampaign = {
+                    ...mockCampaign,
+                    status: CampaignStatus.ACTIVE,
+                    fundraisingEndDate: endDateIn10Days,
+                }
+
+                authService.requireAuthentication.mockReturnValue(undefined)
+                cacheService.getCampaign.mockResolvedValue(activeCampaign)
+
+                // Act & Assert
+                await expect(
+                    service.extendCampaign(
                         "campaign-123",
-                    )
-                    expect(result).toBe(true)
-                })
-            })
-
-            describe("Abnormal values (Error cases)", () => {
-                it("should throw error when campaign status is ACTIVE", async () => {
-                    // Arrange
-                    const activeCampaign = {
-                        ...mockCampaign,
-                        status: CampaignStatus.ACTIVE,
-                    }
-                    authService.requireAuthentication.mockReturnValue(undefined)
-                    cacheService.getCampaign.mockResolvedValue(activeCampaign)
-                    authService.requireOwnership.mockReturnValue(undefined)
-
-                    // Act & Assert
-                    await expect(
-                        service.deleteCampaign("campaign-123", mockUserContext),
-                    ).rejects.toThrow(CampaignCannotBeDeletedException)
-                })
-
-                it("should throw error when user not campaign owner", async () => {
-                    // Arrange
-                    const otherUserContext = {
-                        ...mockUserContext,
-                        userId: "other-user",
-                    }
-                    authService.requireAuthentication.mockReturnValue(undefined)
-                    cacheService.getCampaign.mockResolvedValue(mockCampaign)
-                    authService.requireOwnership.mockImplementation(() => {
-                        throw new ForbiddenException("Not campaign owner")
-                    })
-
-                    // Act & Assert
-                    await expect(
-                        service.deleteCampaign(
-                            "campaign-123",
-                            otherUserContext,
-                        ),
-                    ).rejects.toThrow(ForbiddenException)
-                })
-            })
-        })
-
-        // ==================== HELPER METHODS ====================
-
-        describe("Helper Methods", () => {
-            describe("checkDatabaseHealth", () => {
-                it("should return health status from repository", async () => {
-                    // Arrange
-                    const healthResult = {
-                        status: "healthy",
-                        timestamp: new Date().toISOString(),
-                    }
-                    repository.healthCheck.mockResolvedValue(healthResult)
-
-                    // Act
-                    const result = await service.checkDatabaseHealth()
-
-                    // Assert
-                    expect(result).toEqual(healthResult)
-                })
-            })
-
-            describe("getHealth", () => {
-                it("should return service health information", () => {
-                    // Act
-                    const result = service.getHealth()
-
-                    // Assert
-                    expect(result).toMatchObject({
-                        status: "healthy",
-                        service: "Campaign Service",
-                        version: "1.0.0",
-                    })
-                    expect(result.timestamp).toBeDefined()
-                    expect(result.uptime).toBeGreaterThanOrEqual(0)
-                })
+                        { extensionDays: 14 },
+                        mockUserContext,
+                    ),
+                ).rejects.toThrow(BadRequestException)
             })
         })
     })

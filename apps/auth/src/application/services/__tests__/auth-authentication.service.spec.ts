@@ -79,7 +79,11 @@ describe("AuthAuthenticationService", () => {
             awsCognitoService.getUser.mockResolvedValue(mockUserOutput)
             grpcClient.callUserService.mockResolvedValue({
                 success: true,
-                user: { cognitoId: mockCognitoId, isActive: true, email: mockEmail },
+                user: {
+                    cognitoId: mockCognitoId,
+                    isActive: true,
+                    email: mockEmail,
+                },
             })
 
             const result = await service.signIn(signInInput)
@@ -100,7 +104,11 @@ describe("AuthAuthenticationService", () => {
             awsCognitoService.getUser.mockResolvedValue(mockUserOutput)
             grpcClient.callUserService.mockResolvedValue({
                 success: true,
-                user: { cognitoId: mockCognitoId, isActive: false, email: mockEmail },
+                user: {
+                    cognitoId: mockCognitoId,
+                    isActive: false,
+                    email: mockEmail,
+                },
             })
 
             await expect(service.signIn(signInInput)).rejects.toThrow()
@@ -122,7 +130,9 @@ describe("AuthAuthenticationService", () => {
             awsCognitoService.signIn.mockRejectedValue(cognitoError)
 
             jest.spyOn(AuthErrorHelper, "mapCognitoError").mockImplementation(
-                () => { throw new UnauthorizedException("Invalid credentials") }
+                () => {
+                    throw new UnauthorizedException("Invalid credentials")
+                },
             )
 
             await expect(service.signIn(signInInput)).rejects.toThrow(
@@ -160,7 +170,9 @@ describe("AuthAuthenticationService", () => {
             awsCognitoService.getUser.mockRejectedValue(error)
 
             jest.spyOn(AuthErrorHelper, "mapCognitoError").mockImplementation(
-                () => { throw new UnauthorizedException("Invalid token") }
+                () => {
+                    throw new UnauthorizedException("Invalid token")
+                },
             )
 
             await expect(service.verifyToken("invalid-token")).rejects.toThrow(
@@ -205,7 +217,9 @@ describe("AuthAuthenticationService", () => {
             awsCognitoService.refreshToken.mockRejectedValue(error)
 
             jest.spyOn(AuthErrorHelper, "mapCognitoError").mockImplementation(
-                () => { throw new UnauthorizedException("Invalid refresh token") }
+                () => {
+                    throw new UnauthorizedException("Invalid refresh token")
+                },
             )
 
             await expect(service.refreshToken(refreshInput)).rejects.toThrow(
@@ -236,7 +250,9 @@ describe("AuthAuthenticationService", () => {
             awsCognitoService.signOut.mockRejectedValue(error)
 
             jest.spyOn(AuthErrorHelper, "mapCognitoError").mockImplementation(
-                () => { throw new Error("Sign out failed") }
+                () => {
+                    throw new Error("Sign out failed")
+                },
             )
 
             await expect(service.signOut(mockAccessToken)).rejects.toThrow()

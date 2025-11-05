@@ -1,7 +1,10 @@
 import { Injectable } from "@nestjs/common"
 import { PrismaClient } from "../../../generated/user-client"
 import { Role } from "../../enums/user.enum"
-import { UpdateUserInput, UpdateUserAccountInput } from "../../../application/dtos"
+import {
+    UpdateUserInput,
+    UpdateUserAccountInput,
+} from "../../../application/dtos"
 
 @Injectable()
 export class UserAdminRepository {
@@ -81,7 +84,10 @@ export class UserAdminRepository {
         })
     }
 
-    async updateUser(id: string, data: UpdateUserInput | UpdateUserAccountInput) {
+    async updateUser(
+        id: string,
+        data: UpdateUserInput | UpdateUserAccountInput,
+    ) {
         return this.prisma.user.update({
             where: { id },
             data,

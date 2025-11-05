@@ -1,10 +1,15 @@
 import { Test, TestingModule } from "@nestjs/testing"
 import { UserGrpcController } from "../user-grpc.controller"
-import { UserCommonRepository, UserAdminRepository } from "../../../domain/repositories"
+import {
+    UserCommonRepository,
+    UserAdminRepository,
+} from "../../../domain/repositories"
 import { Role } from "@libs/databases"
 
 jest.mock("libs/common", () => ({
-    generateUniqueUsername: jest.fn((email: string) => `user_${email.split("@")[0]}`),
+    generateUniqueUsername: jest.fn(
+        (email: string) => `user_${email.split("@")[0]}`,
+    ),
 }))
 
 describe("UserGrpcController", () => {
@@ -150,9 +155,7 @@ describe("UserGrpcController", () => {
 
     describe("getUser", () => {
         it("should get user by cognitoId successfully", async () => {
-            userCommonRepository.findUserByCognitoId.mockResolvedValue(
-                mockUser,
-            )
+            userCommonRepository.findUserByCognitoId.mockResolvedValue(mockUser)
 
             const result = await controller.getUser({
                 cognitoId: "cognito-123",
@@ -175,7 +178,9 @@ describe("UserGrpcController", () => {
         })
 
         it("should return error if user not found", async () => {
-            userCommonRepository.findUserByCognitoId.mockResolvedValue(null as any)
+            userCommonRepository.findUserByCognitoId.mockResolvedValue(
+                null as any,
+            )
 
             const result = await controller.getUser({
                 cognitoId: "cognito-123",
@@ -239,7 +244,10 @@ describe("UserGrpcController", () => {
         }
 
         it("should update user successfully", async () => {
-            const updatedUser = { ...mockUser, full_name: "Updated Name" } as any
+            const updatedUser = {
+                ...mockUser,
+                full_name: "Updated Name",
+            } as any
             userAdminRepository.updateUser.mockResolvedValue(updatedUser)
 
             const result = await controller.updateUser(updateRequest)
@@ -280,9 +288,7 @@ describe("UserGrpcController", () => {
 
     describe("userExists", () => {
         it("should return true if user exists", async () => {
-            userCommonRepository.findUserByCognitoId.mockResolvedValue(
-                mockUser,
-            )
+            userCommonRepository.findUserByCognitoId.mockResolvedValue(mockUser)
 
             const result = await controller.userExists({
                 cognitoId: "cognito-123",
