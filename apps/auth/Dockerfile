@@ -2,39 +2,26 @@
 ARG NODE_VERSION=22.20.0
 
 # ============================================
-# Dependencies Stage - Cache npm dependencies
-# ============================================
-FROM node:${NODE_VERSION}-slim AS deps
-
-WORKDIR /usr/src/app
-
-# Copy only package files for better caching
-COPY package*.json ./
-
-# Install dependencies with cache mount for faster builds
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --prefer-offline --no-audit
-
-# ============================================
 # Build Stage - Build application
 # ============================================
 FROM node:${NODE_VERSION}-slim AS build
 
 WORKDIR /usr/src/app
 
-# Copy dependencies from deps stage
-COPY --from=deps /usr/src/app/node_modules ./node_modules
-
 # Copy package files
 COPY package*.json ./
 
-# Copy only necessary source files (exclude tests, docs, etc via .dockerignore)
+# Install ALL dependencies (needed for build)
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --prefer-offline --no-audit
+
+# Copy source files
 COPY tsconfig*.json nest-cli.json ./
 COPY apps/auth ./apps/auth
 COPY libs ./libs
 
-# Build only auth service (not entire monorepo)
-RUN npx nest build auth
+# Build only auth service
+RUN npm run build:auth
 
 # ============================================
 # Production Stage - Minimal runtime image
@@ -43,20 +30,19 @@ FROM node:${NODE_VERSION}-alpine AS production
 
 WORKDIR /usr/src/app
 
+# Copy built application
+COPY --from=build /usr/src/app/dist ./dist
+
 # Copy package files
-COPY package*.json ./
+COPY --from=build /usr/src/app/package*.json ./
 
-# Install ONLY production dependencies with cache
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev --prefer-offline --no-audit
-
-# Copy built application (only dist folder)
-COPY --from=build /usr/src/app/dist/apps/auth ./dist/apps/auth
+# Copy node_modules from build (includes all dependencies)
+COPY --from=build /usr/src/app/node_modules ./node_modules
 
 # Copy proto files for gRPC
 COPY --from=build /usr/src/app/libs/grpc/proto ./libs/grpc/proto
 
-# Create non-root user and set permissions in one layer
+# Create non-root user and set permissions
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nestjs -u 1001 && \
     chown -R nestjs:nodejs /usr/src/app

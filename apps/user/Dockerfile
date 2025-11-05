@@ -2,42 +2,29 @@
 ARG NODE_VERSION=22.20.0
 
 # ============================================
-# Dependencies Stage - Cache npm dependencies
-# ============================================
-FROM node:${NODE_VERSION}-slim AS deps
-
-WORKDIR /usr/src/app
-
-# Copy only package files for better caching
-COPY package*.json ./
-
-# Install dependencies with cache mount for faster builds
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --prefer-offline --no-audit
-
-# ============================================
 # Build Stage - Build application
 # ============================================
 FROM node:${NODE_VERSION}-slim AS build
 
 WORKDIR /usr/src/app
 
-# Copy dependencies from deps stage
-COPY --from=deps /usr/src/app/node_modules ./node_modules
-
 # Copy package files
 COPY package*.json ./
 
-# Copy only necessary source files (exclude tests, docs, etc via .dockerignore)
+# Install ALL dependencies (needed for build)
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --prefer-offline --no-audit
+
+# Copy source files
 COPY tsconfig*.json nest-cli.json ./
 COPY apps/user ./apps/user
 COPY libs ./libs
 
-# Generate Prisma client
+# Generate Prisma client for build
 RUN cd apps/user && npx prisma generate
 
-# Build only user service (not entire monorepo)
-RUN npx nest build user
+# Build only user service
+RUN npm run build:user
 
 # ============================================
 # Production Stage - Minimal runtime image
@@ -46,15 +33,14 @@ FROM node:${NODE_VERSION}-alpine AS production
 
 WORKDIR /usr/src/app
 
+# Copy built application
+COPY --from=build /usr/src/app/dist ./dist
+
 # Copy package files
-COPY package*.json ./
+COPY --from=build /usr/src/app/package*.json ./
 
-# Install ONLY production dependencies with cache
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev --prefer-offline --no-audit
-
-# Copy built application (only dist folder)
-COPY --from=build /usr/src/app/dist/apps/user ./dist/apps/user
+# Copy node_modules from build (includes all dependencies)
+COPY --from=build /usr/src/app/node_modules ./node_modules
 
 # Copy Prisma schema
 COPY --from=build /usr/src/app/apps/user/prisma ./apps/user/prisma
@@ -62,10 +48,13 @@ COPY --from=build /usr/src/app/apps/user/prisma ./apps/user/prisma
 # Copy proto files
 COPY --from=build /usr/src/app/libs/grpc/proto ./libs/grpc/proto
 
-# Generate Prisma client for Alpine Linux
-RUN cd apps/user && npx prisma generate
+# Generate Prisma client for Alpine Linux runtime
+WORKDIR /usr/src/app/apps/user
+RUN npx prisma generate
 
-# Create non-root user and set permissions in one layer
+WORKDIR /usr/src/app
+
+# Create non-root user and set permissions
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nestjs -u 1001 && \
     chown -R nestjs:nodejs /usr/src/app
