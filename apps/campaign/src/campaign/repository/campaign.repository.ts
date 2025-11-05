@@ -1,10 +1,10 @@
 import { SentryService } from "@libs/observability/sentry.service"
-import { Injectable, Logger } from "@nestjs/common"
-import { Decimal } from "@prisma/client/runtime/library"
-import { CampaignFilterInput, CampaignSortOrder } from "../dtos"
+import { Injectable } from "@nestjs/common"
 import { CampaignStatus } from "../enum"
 import { PrismaClient } from "../../generated/campaign-client"
 import { sanitizeSearchTerm, User } from "../../shared"
+import { Campaign } from "../models"
+import { CampaignFilterInput, CampaignSortOrder } from "../dtos"
 
 export interface FindManyOptions {
     filter?: CampaignFilterInput
@@ -14,59 +14,54 @@ export interface FindManyOptions {
     offset?: number
 }
 
-interface CreateCampaignData {
+export interface CreateCampaignData {
     title: string
     description: string
     coverImage: string
-    location: string
-    targetAmount: string
-    ingredientBudgetPercentage: Decimal
-    cookingBudgetPercentage: Decimal
-    deliveryBudgetPercentage: Decimal
+    coverImageFileKey?: string
+    targetAmount: bigint
+    ingredientBudgetPercentage: number
+    cookingBudgetPercentage: number
+    deliveryBudgetPercentage: number
     fundraisingStartDate: Date
     fundraisingEndDate: Date
-    ingredientPurchaseDate: Date
-    cookingDate: Date
-    deliveryDate: Date
     createdBy: string
-    status: CampaignStatus
-    coverImageFileKey?: string
     categoryId?: string
+    status?: CampaignStatus
+    phases?: Array<{
+        phaseName: string
+        location: string
+        ingredientPurchaseDate: Date
+        cookingDate: Date
+        deliveryDate: Date
+    }>
 }
 
-interface UpdateCampaignData {
+export interface UpdateCampaignData {
     title?: string
     description?: string
     coverImage?: string
     coverImageFileKey?: string
-    location?: string
-    targetAmount?: string
-    ingredientBudgetPercentage?: Decimal
-    cookingBudgetPercentage?: Decimal
-    deliveryBudgetPercentage?: Decimal
+    targetAmount?: bigint
+    ingredientBudgetPercentage?: number
+    cookingBudgetPercentage?: number
+    deliveryBudgetPercentage?: number
     fundraisingStartDate?: Date
     fundraisingEndDate?: Date
-    ingredientPurchaseDate?: Date
-    cookingDate?: Date
-    deliveryDate?: Date
-    status?: CampaignStatus
-    approvedAt?: Date
-    completedAt?: Date
-    fundsDisbursedAt?: Date
-    ingredientFundsAmount?: bigint
-    cookingFundsAmount?: bigint
-    deliveryFundsAmount?: bigint
     categoryId?: string
+    status?: CampaignStatus
+    changedStatusAt?: Date | null
+    completedAt?: Date | null
+    extensionCount?: number
+    extensionDays?: number
+    donationCount?: number
 }
 
 @Injectable()
 export class CampaignRepository {
-    private readonly logger = new Logger(CampaignRepository.name)
     private readonly CAMPAIGN_JOIN_FIELDS = {
         category: {
-            where: {
-                is_active: true,
-            },
+            where: { is_active: true },
             select: {
                 id: true,
                 title: true,
@@ -76,6 +71,10 @@ export class CampaignRepository {
                 updated_at: true,
             },
         },
+        campaign_phases: {
+            where: { is_active: true },
+            orderBy: { created_at: "asc" as const },
+        },
     } as const
 
     constructor(
@@ -83,82 +82,77 @@ export class CampaignRepository {
         private readonly sentryService: SentryService,
     ) {}
 
-    async create(data: CreateCampaignData) {
+    async create(data: CreateCampaignData): Promise<Campaign> {
         try {
-            const campaign = await this.prisma.campaign.create({
-                data: {
-                    title: data.title,
-                    description: data.description,
-                    cover_image: data.coverImage,
-                    cover_image_file_key: data.coverImageFileKey || null,
-                    location: data.location,
-                    target_amount: BigInt(data.targetAmount),
-                    ingredient_budget_percentage:
-                        data.ingredientBudgetPercentage,
-                    cooking_budget_percentage: data.cookingBudgetPercentage,
-                    delivery_budget_percentage: data.deliveryBudgetPercentage,
-                    fundraising_start_date: data.fundraisingStartDate,
-                    fundraising_end_date: data.fundraisingEndDate,
-                    ingredient_purchase_date: data.ingredientPurchaseDate,
-                    cooking_date: data.cookingDate,
-                    delivery_date: data.deliveryDate,
-                    created_by: data.createdBy,
-                    status: data.status,
-                    category_id: data.categoryId || null,
-                    donation_count: 0,
-                    received_amount: BigInt(0),
-                    is_active: true,
-                },
-                include: this.CAMPAIGN_JOIN_FIELDS,
+            const { phases, ...campaignData } = data
+
+            const result = await this.prisma.$transaction(async (tx) => {
+                const campaign = await tx.campaign.create({
+                    data: {
+                        title: campaignData.title,
+                        description: campaignData.description,
+                        cover_image: campaignData.coverImage,
+                        cover_image_file_key: campaignData.coverImageFileKey,
+                        target_amount: campaignData.targetAmount,
+                        ingredient_budget_percentage:
+                            campaignData.ingredientBudgetPercentage,
+                        cooking_budget_percentage:
+                            campaignData.cookingBudgetPercentage,
+                        delivery_budget_percentage:
+                            campaignData.deliveryBudgetPercentage,
+                        fundraising_start_date:
+                            campaignData.fundraisingStartDate,
+                        fundraising_end_date: campaignData.fundraisingEndDate,
+                        created_by: campaignData.createdBy,
+                        category_id: campaignData.categoryId,
+                        status: campaignData.status || CampaignStatus.PENDING,
+                        is_active: true,
+                    },
+                    include: this.CAMPAIGN_JOIN_FIELDS,
+                })
+
+                if (phases && phases.length > 0) {
+                    await tx.campaign_Phase.createMany({
+                        data: phases.map((phase) => ({
+                            campaign_id: campaign.id,
+                            phase_name: phase.phaseName,
+                            location: phase.location,
+                            ingredient_purchase_date:
+                                phase.ingredientPurchaseDate,
+                            cooking_date: phase.cookingDate,
+                            delivery_date: phase.deliveryDate,
+                            status: "PLANNING" as const,
+                            is_active: true,
+                        })),
+                    })
+                }
+
+                return await tx.campaign.findUnique({
+                    where: { id: campaign.id },
+                    include: this.CAMPAIGN_JOIN_FIELDS,
+                })
             })
 
-            return this.mapToGraphQLModel(campaign)
+            return this.mapToGraphQLModel(result!)
         } catch (error) {
-            this.logger.error("Failed to create campaign:", error)
             this.sentryService.captureError(error as Error, {
                 operation: "createCampaign",
-                data: {
-                    title: data.title,
-                    hasFileKey: !!data.coverImageFileKey,
-                    createdBy: data.createdBy,
-                    status: data.status,
-                },
+                title: data.title,
+                createdBy: data.createdBy,
             })
             throw error
         }
     }
 
-    async findById(id: string) {
+    async findMany(options: FindManyOptions): Promise<Campaign[]> {
         try {
-            const campaign = await this.prisma.campaign.findUnique({
-                where: {
-                    id,
-                    is_active: true,
-                },
-                include: this.CAMPAIGN_JOIN_FIELDS,
-            })
-
-            return campaign ? this.mapToGraphQLModel(campaign) : null
-        } catch (error) {
-            this.logger.error(`Failed to find campaign by ID ${id}:`, error)
-            this.sentryService.captureError(error as Error, {
-                operation: "findCampaignById",
-                campaignId: id,
-            })
-            throw error
-        }
-    }
-
-    async findMany(options: FindManyOptions) {
-        const {
-            filter,
-            search,
-            sortBy = CampaignSortOrder.ACTIVE_FIRST,
-            limit = 10,
-            offset = 0,
-        } = options
-
-        try {
+            const {
+                filter,
+                search,
+                sortBy = CampaignSortOrder.ACTIVE_FIRST,
+                limit = 10,
+                offset = 0,
+            } = options
             const whereClause: any = {
                 AND: [{ is_active: true }],
             }
@@ -222,29 +216,41 @@ export class CampaignRepository {
             const campaigns = await this.prisma.campaign.findMany({
                 where: whereClause,
                 include: this.CAMPAIGN_JOIN_FIELDS,
+                take: options.limit,
+                skip: options.offset,
                 orderBy: this.buildOrderByClause(sortBy),
-                take: Math.min(limit, 100),
-                skip: offset,
             })
 
-            return campaigns.map((campaign) => this.mapToGraphQLModel(campaign))
+            return campaigns.map((c) => this.mapToGraphQLModel(c))
         } catch (error) {
-            this.logger.error("Failed to find campaigns:", error)
             this.sentryService.captureError(error as Error, {
                 operation: "findManyCampaigns",
-                filterData: filter,
-                searchTerm: search,
-                sortOrder: sortBy,
-                limitValue: limit,
-                offsetValue: offset,
             })
             throw error
         }
     }
 
-    async update(id: string, data: UpdateCampaignData) {
+    async findById(id: string): Promise<Campaign | null> {
+        try {
+            const campaign = await this.prisma.campaign.findUnique({
+                where: { id, is_active: true },
+                include: this.CAMPAIGN_JOIN_FIELDS,
+            })
+
+            return campaign ? this.mapToGraphQLModel(campaign) : null
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "findCampaignById",
+                campaignId: id,
+            })
+            throw error
+        }
+    }
+
+    async update(id: string, data: UpdateCampaignData): Promise<Campaign> {
         try {
             const updateData: any = {}
+
             if (data.title !== undefined) updateData.title = data.title
             if (data.description !== undefined)
                 updateData.description = data.description
@@ -252,9 +258,8 @@ export class CampaignRepository {
                 updateData.cover_image = data.coverImage
             if (data.coverImageFileKey !== undefined)
                 updateData.cover_image_file_key = data.coverImageFileKey
-            if (data.location !== undefined) updateData.location = data.location
             if (data.targetAmount !== undefined)
-                updateData.target_amount = BigInt(data.targetAmount)
+                updateData.target_amount = data.targetAmount
             if (data.ingredientBudgetPercentage !== undefined)
                 updateData.ingredient_budget_percentage =
                     data.ingredientBudgetPercentage
@@ -268,150 +273,78 @@ export class CampaignRepository {
                 updateData.fundraising_start_date = data.fundraisingStartDate
             if (data.fundraisingEndDate !== undefined)
                 updateData.fundraising_end_date = data.fundraisingEndDate
-            if (data.ingredientPurchaseDate !== undefined)
-                updateData.ingredient_purchase_date =
-                    data.ingredientPurchaseDate
-            if (data.cookingDate !== undefined)
-                updateData.cooking_date = data.cookingDate
-            if (data.deliveryDate !== undefined)
-                updateData.delivery_date = data.deliveryDate
-            if (data.status !== undefined) updateData.status = data.status
-            if (data.approvedAt !== undefined)
-                updateData.approved_at = data.approvedAt
-            if (data.completedAt !== undefined)
-                updateData.completed_at = data.completedAt
-            if (data.fundsDisbursedAt !== undefined)
-                updateData.funds_disbursed_at = data.fundsDisbursedAt
-            if (data.ingredientFundsAmount !== undefined)
-                updateData.ingredient_funds_amount = data.ingredientFundsAmount
-            if (data.cookingFundsAmount !== undefined)
-                updateData.cooking_funds_amount = data.cookingFundsAmount
-            if (data.deliveryFundsAmount !== undefined)
-                updateData.delivery_funds_amount = data.deliveryFundsAmount
             if (data.categoryId !== undefined)
                 updateData.category_id = data.categoryId
+            if (data.status !== undefined) updateData.status = data.status
+            if (data.changedStatusAt !== undefined)
+                updateData.changed_status_at = data.changedStatusAt
+            if (data.completedAt !== undefined)
+                updateData.completed_at = data.completedAt
+            if (data.extensionCount !== undefined)
+                updateData.extension_count = data.extensionCount
+            if (data.extensionDays !== undefined)
+                updateData.extension_days = data.extensionDays
+            if (data.donationCount !== undefined)
+                updateData.donation_count = data.donationCount
 
-            return await this.prisma.$transaction(async (tx) => {
-                const campaign = await tx.campaign.update({
-                    where: {
-                        id,
-                        is_active: true,
-                    },
-                    data: updateData,
-                    include: this.CAMPAIGN_JOIN_FIELDS,
-                })
-                return this.mapToGraphQLModel(campaign)
-            })
-        } catch (error) {
-            this.logger.error(`Failed to update campaign ${id}:`, error)
-            this.sentryService.captureError(error as Error, {
-                operation: "updateCampaign",
-                campaignId: id,
-                data: {
-                    hasFileKey: !!data.coverImageFileKey,
-                    updateFields: Object.keys(data),
-                },
-            })
-            throw error
-        }
-    }
-
-    async count(
-        filter?: CampaignFilterInput,
-        search?: string,
-    ): Promise<number> {
-        try {
-            const whereClause: any = {
-                AND: [{ is_active: true }],
-            }
-
-            if (filter?.status && filter.status.length > 0) {
-                whereClause.AND.push({
-                    status: {
-                        in: filter.status,
-                    },
-                })
-            }
-
-            if (filter?.creatorId) {
-                whereClause.AND.push({
-                    created_by: filter.creatorId,
-                })
-            }
-
-            if (search) {
-                whereClause.AND.push({
-                    OR: [
-                        { title: { contains: search, mode: "insensitive" } },
-                        {
-                            description: {
-                                contains: search,
-                                mode: "insensitive",
-                            },
-                        },
-                        { location: { contains: search, mode: "insensitive" } },
-                    ],
-                })
-            }
-
-            return await this.prisma.campaign.count({
-                where: whereClause,
-            })
-        } catch (error) {
-            this.logger.error("Failed to count campaigns:", error)
-            this.sentryService.captureError(error as Error, {
-                operation: "countCampaigns",
-                filter,
-                search,
-            })
-            throw error
-        }
-    }
-
-    async delete(id: string) {
-        try {
-            const result = await this.prisma.campaign.update({
-                where: {
-                    id,
-                    is_active: true,
-                },
-                data: {
-                    is_active: false,
-                    updated_at: new Date(),
-                },
-                select: { id: true },
-            })
-
-            return !!result
-        } catch (error) {
-            this.logger.error(`Failed to soft delete campaign ${id}:`, error)
-            this.sentryService.captureError(error as Error, {
-                operation: "softDeleteCampaign",
-                campaignId: id,
-            })
-            throw error
-        }
-    }
-
-    async reactivate(id: string) {
-        try {
             const campaign = await this.prisma.campaign.update({
-                where: {
-                    id,
-                    is_active: false,
-                },
-                data: {
-                    is_active: true,
-                    updated_at: new Date(),
-                },
+                where: { id, is_active: true },
+                data: updateData,
                 include: this.CAMPAIGN_JOIN_FIELDS,
             })
 
             return this.mapToGraphQLModel(campaign)
         } catch (error) {
             this.sentryService.captureError(error as Error, {
-                operation: "reactivateCampaign",
+                operation: "updateCampaign",
                 campaignId: id,
+                updateFields: Object.keys(data),
+            })
+            throw error
+        }
+    }
+
+    async delete(id: string): Promise<boolean> {
+        try {
+            await this.prisma.$transaction(async (tx) => {
+                await tx.campaign_Phase.updateMany({
+                    where: { campaign_id: id },
+                    data: {
+                        is_active: false,
+                        updated_at: new Date(),
+                    },
+                })
+
+                await tx.campaign.update({
+                    where: { id },
+                    data: {
+                        is_active: false,
+                        updated_at: new Date(),
+                    },
+                })
+            })
+
+            return true
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "deleteCampaign",
+                campaignId: id,
+            })
+            throw error
+        }
+    }
+
+    async count(filter?: any): Promise<number> {
+        try {
+            return await this.prisma.campaign.count({
+                where: {
+                    is_active: true,
+                    ...filter,
+                },
+            })
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "countCampaigns",
             })
             throw error
         }
@@ -429,12 +362,16 @@ export class CampaignRepository {
             return { target_amount: "asc" }
         case CampaignSortOrder.TARGET_AMOUNT_DESC:
             return { target_amount: "desc" }
+        case CampaignSortOrder.MOST_DONATED:
+            return { donation_count: "desc" }
+        case CampaignSortOrder.LEAST_DONATED:
+            return { donation_count: "asc" }
         default:
             return { created_at: "desc" }
         }
     }
 
-    private mapToGraphQLModel(dbCampaign: any) {
+    private mapToGraphQLModel(dbCampaign: any): Campaign {
         const bigIntFields = {
             targetAmount: dbCampaign.target_amount?.toString() ?? "0",
             receivedAmount: dbCampaign.received_amount?.toString() ?? "0",
@@ -478,51 +415,46 @@ export class CampaignRepository {
             }
             : undefined
 
+        const phases =
+            dbCampaign.campaign_phases?.map((phase: any) => ({
+                id: phase.id,
+                campaignId: phase.campaign_id,
+                phaseName: phase.phase_name,
+                location: phase.location,
+                ingredientPurchaseDate: phase.ingredient_purchase_date,
+                cookingDate: phase.cooking_date,
+                deliveryDate: phase.delivery_date,
+                status: phase.status,
+                created_at: phase.created_at,
+                updated_at: phase.updated_at,
+            })) || []
+
         return {
             id: dbCampaign.id,
             title: dbCampaign.title,
             description: dbCampaign.description,
             coverImage: dbCampaign.cover_image,
             coverImageFileKey: dbCampaign.cover_image_file_key || undefined,
-            location: dbCampaign.location,
-            donationCount: dbCampaign.donation_count,
+            donationCount: dbCampaign.donation_count ?? 0,
             ...bigIntFields,
             ...budgetPercentages,
             status: dbCampaign.status as CampaignStatus,
             fundraisingStartDate: dbCampaign.fundraising_start_date,
             fundraisingEndDate: dbCampaign.fundraising_end_date,
-            ingredientPurchaseDate: dbCampaign.ingredient_purchase_date,
-            cookingDate: dbCampaign.cooking_date,
-            deliveryDate: dbCampaign.delivery_date,
             ...disbursementFields,
             isActive: dbCampaign.is_active,
             createdBy: dbCampaign.created_by,
             categoryId: dbCampaign.category_id || undefined,
-            approvedAt: dbCampaign.approved_at || undefined,
+            changedStatusAt: dbCampaign.changed_status_at || undefined,
             completedAt: dbCampaign.completed_at || undefined,
+            extensionCount: dbCampaign.extension_count ?? 0,
+            extensionDays: dbCampaign.extension_days ?? 0,
             created_at: dbCampaign.created_at,
             updated_at: dbCampaign.updated_at,
             category: category,
             creator: creator,
             donations: undefined,
-        }
-    }
-
-    async healthCheck(): Promise<{ status: string; timestamp: string }> {
-        try {
-            await this.prisma.$queryRaw`SELECT 1 as health_check`
-            return {
-                status: "healthy",
-                timestamp: new Date().toISOString(),
-            }
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "databaseHealthCheck",
-                service: "campaign-repository",
-                database: "postgresql",
-            })
-
-            throw new Error(`Database health check failed: ${error.message}`)
-        }
+            phases: phases,
+        } as Campaign
     }
 }

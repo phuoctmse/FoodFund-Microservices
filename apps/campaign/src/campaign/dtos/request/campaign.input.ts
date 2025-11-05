@@ -1,54 +1,55 @@
-import { Field, InputType, registerEnumType } from "@nestjs/graphql"
+import { InputType, Field, Int, registerEnumType } from "@nestjs/graphql"
 import {
-    IsDate,
-    IsEnum,
     IsNotEmpty,
+    IsString,
     IsNumberString,
     IsOptional,
-    IsString,
     IsUUID,
+    MinLength,
+    MaxLength,
+    Min,
+    Max,
+    IsEnum,
 } from "class-validator"
-import { Transform, Type } from "class-transformer"
+import { Type } from "class-transformer"
 import { CampaignStatus } from "../../enum"
+import { CreatePhaseInput } from "../../../campaign-phase/dtos/request/campaign-phase.input"
 
 @InputType()
 export class CreateCampaignInput {
     @Field(() => String, { description: "Campaign title" })
-    @IsString({ message: "Title must be a string" })
-    @IsNotEmpty({ message: "Title is required and cannot be empty" })
+    @IsString()
+    @IsNotEmpty()
+    @MinLength(5, { message: "Title must be at least 5 characters" })
+    @MaxLength(200, { message: "Title must not exceed 200 characters" })
         title: string
 
     @Field(() => String, { description: "Campaign description" })
-    @IsString({ message: "Description must be a string" })
-    @IsNotEmpty({ message: "Description is required and cannot be empty" })
+    @IsString()
+    @IsNotEmpty()
+    @MinLength(20, { message: "Description must be at least 20 characters" })
         description: string
 
     @Field(() => String, {
-        description:
-            "File key of uploaded cover image (from generateUploadUrl)",
+        description: "Cover image file key from generateUploadUrl",
     })
-    @IsString({ message: "Cover image file key must be a string" })
-    @IsNotEmpty({ message: "Cover image file key is required" })
+    @IsString()
+    @IsNotEmpty()
         coverImageFileKey: string
 
-    @Field(() => String, { description: "Campaign location" })
-    @IsString({ message: "Location must be a string" })
-    @IsNotEmpty({ message: "Location is required and cannot be empty" })
-        location: string
-
     @Field(() => String, {
-        description: "Target amount as string (BigInt compatible)",
+        description: "Target amount as string (e.g., '10000000')",
     })
-    @IsString({ message: "Target amount must be a string" })
-    @IsNotEmpty({ message: "Target amount is required" })
+    @IsNumberString({}, { message: "Target amount must be a number string" })
+    @IsNotEmpty()
         targetAmount: string
 
     @Field(() => String, {
         nullable: true,
-        description: "Campaign category ID",
+        description: "Campaign category UUID",
     })
     @IsOptional()
-    @IsUUID(4, { message: "Category ID must be a valid UUID" })
+    @IsUUID()
         categoryId?: string
 
     @Field(() => String, {
@@ -83,266 +84,86 @@ export class CreateCampaignInput {
 
     @Field(() => Date, { description: "Fundraising start date (ISO 8601)" })
     @Type(() => Date)
-    @IsDate({ message: "Fundraising start date must be a valid date" })
-    @Transform(({ value }) => {
-        if (typeof value === "string") {
-            const date = new Date(value)
-            if (isNaN(date.getTime())) {
-                throw new Error("Invalid date format for fundraisingStartDate")
-            }
-            return date
-        }
-        return value
-    })
+    @IsNotEmpty()
         fundraisingStartDate: Date
 
-    @Field(() => Date, { description: "Fundraising end date" })
+    @Field(() => Date, { description: "Fundraising end date (ISO 8601)" })
     @Type(() => Date)
-    @IsDate({ message: "Fundraising end date must be a valid date" })
-    @Transform(({ value }) => {
-        if (typeof value === "string") {
-            const date = new Date(value)
-            if (isNaN(date.getTime())) {
-                throw new Error("Invalid date format for fundraisingEndDate")
-            }
-            return date
-        }
-        return value
-    })
+    @IsNotEmpty()
         fundraisingEndDate: Date
 
-    @Field(() => Date, { description: "Ingredient purchase date" })
-    @Type(() => Date)
-    @IsDate({ message: "Ingredient purchase date must be a valid date" })
-    @Transform(({ value }) => {
-        if (typeof value === "string") {
-            const date = new Date(value)
-            if (isNaN(date.getTime())) {
-                throw new Error(
-                    "Invalid date format for ingredientPurchaseDate",
-                )
-            }
-            return date
-        }
-        return value
+    @Field(() => [CreatePhaseInput], {
+        description: "Campaign phases (at least 1 required)",
     })
-        ingredientPurchaseDate: Date
-
-    @Field(() => Date, { description: "Cooking date" })
-    @Type(() => Date)
-    @IsDate({ message: "Cooking date must be a valid date" })
-    @Transform(({ value }) => {
-        if (typeof value === "string") {
-            const date = new Date(value)
-            if (isNaN(date.getTime())) {
-                throw new Error("Invalid date format for cookingDate")
-            }
-            return date
-        }
-        return value
-    })
-        cookingDate: Date
-
-    @Field(() => Date, { description: "Delivery date (ISO 8601)" })
-    @Type(() => Date)
-    @IsDate({ message: "Delivery date must be a valid date" })
-    @Transform(({ value }) => {
-        if (typeof value === "string") {
-            const date = new Date(value)
-            if (isNaN(date.getTime())) {
-                throw new Error("Invalid date format for deliveryDate")
-            }
-            return date
-        }
-        return value
-    })
-        deliveryDate: Date
+    @Type(() => CreatePhaseInput)
+    @IsNotEmpty({ message: "At least one phase is required" })
+        phases: CreatePhaseInput[]
 }
 
 @InputType()
 export class UpdateCampaignInput {
-    @Field(() => String, { nullable: true, description: "Campaign title" })
+    @Field(() => String, { nullable: true })
     @IsOptional()
-    @IsString({ message: "Title must be a string" })
-    @IsNotEmpty({ message: "Title cannot be empty if provided" })
+    @IsString()
+    @MinLength(5)
+    @MaxLength(200)
         title?: string
 
-    @Field(() => String, {
-        nullable: true,
-        description: "Campaign description",
-    })
+    @Field(() => String, { nullable: true })
     @IsOptional()
-    @IsString({ message: "Description must be a string" })
-    @IsNotEmpty({ message: "Description cannot be empty if provided" })
+    @IsString()
+    @MinLength(20)
         description?: string
 
-    @Field(() => String, {
-        nullable: true,
-        description:
-            "File key for uploaded cover image (from generateUploadUrl)",
-    })
+    @Field(() => String, { nullable: true })
     @IsOptional()
-    @IsString({ message: "Cover image file key must be a string" })
-    @IsNotEmpty({ message: "Cover image file key cannot be empty if provided" })
+    @IsString()
         coverImageFileKey?: string
 
-    @Field(() => String, { nullable: true, description: "Campaign location" })
+    @Field(() => String, { nullable: true })
     @IsOptional()
-    @IsString({ message: "Location must be a string" })
-    @IsNotEmpty({ message: "Location cannot be empty if provided" })
-        location?: string
-
-    @Field(() => String, {
-        nullable: true,
-        description: "Target amount as string (BigInt compatible)",
-    })
-    @IsOptional()
-    @IsString({ message: "Target amount must be a string" })
-    @IsNotEmpty({ message: "Target amount cannot be empty if provided" })
+    @IsNumberString()
         targetAmount?: string
 
-    @Field(() => String, {
-        nullable: true,
-        description: "Ingredient budget percentage (0-100)",
-    })
+    @Field(() => String, { nullable: true })
     @IsOptional()
-    @IsNumberString(
-        {},
-        { message: "Ingredient budget percentage must be a number string" },
-    )
+    @IsUUID()
+        categoryId?: string
+
+    @Field(() => String, { nullable: true })
+    @IsOptional()
+    @IsNumberString()
         ingredientBudgetPercentage?: string
 
-    @Field(() => String, {
-        nullable: true,
-        description: "Cooking budget percentage (0-100)",
-    })
+    @Field(() => String, { nullable: true })
     @IsOptional()
-    @IsNumberString(
-        {},
-        { message: "Cooking budget percentage must be a number string" },
-    )
+    @IsNumberString()
         cookingBudgetPercentage?: string
 
-    @Field(() => String, {
-        nullable: true,
-        description: "Delivery budget percentage (0-100)",
-    })
+    @Field(() => String, { nullable: true })
     @IsOptional()
-    @IsNumberString(
-        {},
-        { message: "Delivery budget percentage must be a number string" },
-    )
+    @IsNumberString()
         deliveryBudgetPercentage?: string
 
-    @Field(() => Date, {
-        nullable: true,
-        description: "Fundraising start date",
-    })
+    @Field(() => Date, { nullable: true })
     @IsOptional()
     @Type(() => Date)
-    @IsDate({ message: "Fundraising start date must be a valid date" })
-    @Transform(({ value }) => {
-        if (!value) return value
-        if (typeof value === "string") {
-            const date = new Date(value)
-            if (isNaN(date.getTime())) {
-                throw new Error("Invalid date format for fundraisingStartDate")
-            }
-            return date
-        }
-        return value
-    })
         fundraisingStartDate?: Date
 
-    @Field(() => Date, {
-        nullable: true,
-        description: "Fundraising end date (ISO 8601)",
-    })
+    @Field(() => Date, { nullable: true })
     @IsOptional()
     @Type(() => Date)
-    @IsDate({ message: "Fundraising end date must be a valid date" })
-    @Transform(({ value }) => {
-        if (!value) return value
-        if (typeof value === "string") {
-            const date = new Date(value)
-            if (isNaN(date.getTime())) {
-                throw new Error("Invalid date format for fundraisingEndDate")
-            }
-            return date
-        }
-        return value
-    })
         fundraisingEndDate?: Date
+}
 
-    @Field(() => Date, {
-        nullable: true,
-        description: "Ingredient purchase date (ISO 8601)",
+@InputType()
+export class ExtendCampaignInput {
+    @Field(() => Int, {
+        description: "Number of days to extend (1-30)",
     })
-    @IsOptional()
-    @Type(() => Date)
-    @IsDate({ message: "Ingredient purchase date must be a valid date" })
-    @Transform(({ value }) => {
-        if (!value) return value
-        if (typeof value === "string") {
-            const date = new Date(value)
-            if (isNaN(date.getTime())) {
-                throw new Error(
-                    "Invalid date format for ingredientPurchaseDate",
-                )
-            }
-            return date
-        }
-        return value
-    })
-        ingredientPurchaseDate?: Date
-
-    @Field(() => Date, {
-        nullable: true,
-        description: "Cooking date",
-    })
-    @IsOptional()
-    @Type(() => Date)
-    @IsDate({ message: "Cooking date must be a valid date" })
-    @Transform(({ value }) => {
-        if (!value) return value
-        if (typeof value === "string") {
-            const date = new Date(value)
-            if (isNaN(date.getTime())) {
-                throw new Error("Invalid date format for cookingDate")
-            }
-            return date
-        }
-        return value
-    })
-        cookingDate?: Date
-
-    @Field(() => Date, {
-        nullable: true,
-        description: "Delivery date (ISO 8601)",
-    })
-    @IsOptional()
-    @Type(() => Date)
-    @IsDate({ message: "Delivery date must be a valid date" })
-    @Transform(({ value }) => {
-        if (!value) return value
-        if (typeof value === "string") {
-            const date = new Date(value)
-            if (isNaN(date.getTime())) {
-                throw new Error("Invalid date format for deliveryDate")
-            }
-            return date
-        }
-        return value
-    })
-        deliveryDate?: Date
-
-    @Field(() => String, {
-        nullable: true,
-        description: "Campaign category ID",
-    })
-    @IsOptional()
-    @IsUUID(4, { message: "Category ID must be a valid UUID" })
-        categoryId?: string
+    @Min(1, { message: "Extension days must be at least 1" })
+    @Max(30, { message: "Extension days cannot exceed 30" })
+        extensionDays: number
 }
 
 @InputType()
@@ -381,6 +202,8 @@ export enum CampaignSortOrder {
     OLDEST_FIRST = "OLDEST_FIRST",
     TARGET_AMOUNT_ASC = "TARGET_AMOUNT_ASC",
     TARGET_AMOUNT_DESC = "TARGET_AMOUNT_DESC",
+    MOST_DONATED = "MOST_DONATED",
+    LEAST_DONATED = "LEAST_DONATED",
 }
 
 registerEnumType(CampaignSortOrder, {
@@ -402,6 +225,12 @@ registerEnumType(CampaignSortOrder, {
         },
         TARGET_AMOUNT_DESC: {
             description: "Sort by target amount (highest to lowest)",
+        },
+        MOST_DONATED: {
+            description: "Sort by donation count (most donated first)",
+        },
+        LEAST_DONATED: {
+            description: "Sort by donation count (least donated first)",
         },
     },
 })

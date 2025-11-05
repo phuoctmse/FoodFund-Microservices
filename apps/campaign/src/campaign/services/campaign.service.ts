@@ -1,11 +1,12 @@
 import {
     BadRequestException,
     ForbiddenException,
+    forwardRef,
+    Inject,
     Injectable,
 } from "@nestjs/common"
 import { SentryService } from "@libs/observability/sentry.service"
 import { SpacesUploadService } from "libs/s3-storage/spaces-upload.service"
-import { Decimal } from "@prisma/client/runtime/library"
 import { CampaignCategoryRepository } from "../../campaign-category"
 import { CampaignRepository } from "../repository"
 import { CampaignCacheService } from "./campaign-cache.service"
@@ -15,6 +16,7 @@ import {
     CampaignFilterInput,
     CampaignSortOrder,
     CreateCampaignInput,
+    ExtendCampaignInput,
     GenerateUploadUrlInput,
     UpdateCampaignInput,
 } from "../dtos"
@@ -23,6 +25,7 @@ import {
     CampaignNotFoundException,
 } from "../exceptions"
 import { Campaign } from "../models"
+import { CampaignPhaseService } from "../../campaign-phase/services"
 
 @Injectable()
 export class CampaignService {
@@ -36,6 +39,8 @@ export class CampaignService {
         private readonly spacesUploadService: SpacesUploadService,
         private readonly authorizationService: AuthorizationService,
         private readonly cacheService: CampaignCacheService,
+        @Inject(forwardRef(() => CampaignPhaseService))
+        private readonly phaseService: CampaignPhaseService,
     ) {}
 
     async generateCampaignImageUploadUrl(
@@ -89,100 +94,129 @@ export class CampaignService {
         }
     }
 
-    async createCampaign(input: CreateCampaignInput, userContext: UserContext) {
-        this.authorizationService.requireAuthentication(
-            userContext,
-            "create campaign",
-        )
+    async createCampaign(
+        input: CreateCampaignInput,
+        userContext: UserContext,
+    ): Promise<Campaign> {
+        try {
+            this.authorizationService.requireAuthentication(
+                userContext,
+                "create campaign",
+            )
 
-        if (input.categoryId) {
-            await this.validateCategoryExists(input.categoryId)
-        }
+            if (input.categoryId) {
+                await this.validateCategoryExists(input.categoryId)
+            }
 
-        const fileValidation =
-            await this.spacesUploadService.validateUploadedFile(
+            const fileValidation =
+                await this.spacesUploadService.validateUploadedFile(
+                    input.coverImageFileKey,
+                )
+
+            if (!fileValidation.exists) {
+                throw new BadRequestException(
+                    "Cover image file not found. Please upload the file first using generateUploadUrl.",
+                )
+            }
+
+            const fileKey = this.spacesUploadService.extractFileKeyFromUrl(
+                this.resource,
                 input.coverImageFileKey,
             )
+            if (!fileKey || !fileKey.startsWith(`${this.resource}/`)) {
+                throw new BadRequestException(
+                    "Invalid file key. Please use a valid file key from generateCampaignImageUploadUrl.",
+                )
+            }
 
-        if (!fileValidation.exists) {
-            throw new BadRequestException(
-                "Cover image file not found. Please upload the file first using generateUploadUrl.",
+            this.validateCampaignDates(
+                input.fundraisingStartDate,
+                input.fundraisingEndDate,
             )
-        }
-
-        this.validateCampaignDates(
-            input.fundraisingStartDate,
-            input.fundraisingEndDate,
-        )
-        this.parseAndValidateTargetAmount(input.targetAmount)
-        this.validateBudgetPercentages(
-            input.ingredientBudgetPercentage,
-            input.cookingBudgetPercentage,
-            input.deliveryBudgetPercentage,
-        )
-
-        const fileKey = this.spacesUploadService.extractFileKeyFromUrl(
-            this.resource,
-            input.coverImageFileKey,
-        )
-        if (!fileKey || !fileKey.startsWith(`${this.resource}/`)) {
-            throw new BadRequestException(
-                "Invalid file key. Please use a valid file key from generateCampaignImageUploadUrl.",
+            const targetAmountBigInt = this.parseAndValidateTargetAmount(
+                input.targetAmount,
             )
-        }
-
-        const cdnUrl = `${this.SPACES_CDN_ENDPOINT}/${fileKey}`
-
-        const campaign = await this.campaignRepository.create({
-            title: input.title,
-            description: input.description,
-            coverImage: cdnUrl,
-            location: input.location,
-            targetAmount: input.targetAmount,
-            ingredientBudgetPercentage: new Decimal(
+            this.validateBudgetPercentages(
                 input.ingredientBudgetPercentage,
-            ),
-            cookingBudgetPercentage: new Decimal(input.cookingBudgetPercentage),
-            deliveryBudgetPercentage: new Decimal(
+                input.cookingBudgetPercentage,
                 input.deliveryBudgetPercentage,
-            ),
-            fundraisingStartDate: input.fundraisingStartDate,
-            fundraisingEndDate: input.fundraisingEndDate,
-            ingredientPurchaseDate: input.ingredientPurchaseDate,
-            cookingDate: input.cookingDate,
-            deliveryDate: input.deliveryDate,
-            createdBy: userContext.userId,
-            status: CampaignStatus.PENDING,
-            coverImageFileKey: fileKey,
-            categoryId: input.categoryId,
-        })
+            )
 
-        await this.cacheService.setCampaign(campaign.id, campaign)
+            if (!input.phases || input.phases.length === 0) {
+                throw new BadRequestException(
+                    "At least one campaign phase is required",
+                )
+            }
 
-        await this.cacheService.invalidateAll(
-            campaign.id,
-            userContext.userId,
-            input.categoryId,
-        )
+            this.phaseService.validatePhaseDates(
+                input.phases,
+                input.fundraisingEndDate,
+            )
 
-        this.sentryService.addBreadcrumb(
-            "Campaign created with extended flow",
-            "campaign",
-            {
+            const cdnUrl = `${this.SPACES_CDN_ENDPOINT}/${fileKey}`
+
+            const campaign = await this.campaignRepository.create({
+                title: input.title,
+                description: input.description,
+                coverImage: cdnUrl,
+                coverImageFileKey: fileKey,
+                targetAmount: targetAmountBigInt,
+                ingredientBudgetPercentage: parseFloat(
+                    input.ingredientBudgetPercentage,
+                ),
+                cookingBudgetPercentage: parseFloat(
+                    input.cookingBudgetPercentage,
+                ),
+                deliveryBudgetPercentage: parseFloat(
+                    input.deliveryBudgetPercentage,
+                ),
+                fundraisingStartDate: input.fundraisingStartDate,
+                fundraisingEndDate: input.fundraisingEndDate,
+                createdBy: userContext.userId,
+                status: CampaignStatus.PENDING,
+                categoryId: input.categoryId,
+                phases: input.phases.map((phase) => ({
+                    phaseName: phase.phaseName,
+                    location: phase.location,
+                    ingredientPurchaseDate: phase.ingredientPurchaseDate,
+                    cookingDate: phase.cookingDate,
+                    deliveryDate: phase.deliveryDate,
+                })),
+            })
+
+            await this.cacheService.setCampaign(campaign.id, campaign)
+
+            await this.cacheService.invalidateAll(
+                campaign.id,
+                userContext.userId,
+                input.categoryId,
+            )
+
+            this.sentryService.addBreadcrumb("Campaign created", "campaign", {
                 campaignId: campaign.id,
-                creator: {
+                title: campaign.title,
+                user: {
                     id: userContext.userId,
                     username: userContext.username,
-                    role: userContext.role,
                 },
-                status: CampaignStatus.PENDING,
-                title: input.title,
-                fileKey,
-                cached: true,
-            },
-        )
+                phaseCount: input.phases.length,
+            })
 
-        return campaign
+            return campaign
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "createCampaign",
+                user: {
+                    id: userContext.userId,
+                    username: userContext.username,
+                },
+                input: {
+                    title: input.title,
+                    categoryId: input.categoryId,
+                },
+            })
+            throw error
+        }
     }
 
     async getCampaigns(
@@ -244,162 +278,154 @@ export class CampaignService {
         input: UpdateCampaignInput,
         userContext: UserContext,
     ) {
-        this.authorizationService.requireAuthentication(
-            userContext,
-            "update campaign",
-        )
-
-        const campaign = await this.findCampaignById(id)
-
-        this.authorizationService.requireOwnership(
-            campaign.createdBy,
-            userContext,
-            "campaign",
-            "update",
-        )
-
-        this.validateCampaignForUpdate(campaign)
-
-        if (input.categoryId) {
-            await this.validateCategoryExists(input.categoryId)
-        }
-
-        if (input.fundraisingStartDate || input.fundraisingEndDate) {
-            const startDate =
-                input.fundraisingStartDate || campaign.fundraisingStartDate
-            const endDate =
-                input.fundraisingEndDate || campaign.fundraisingEndDate
-            this.validateCampaignDates(startDate, endDate)
-        }
-
-        if (
-            input.ingredientBudgetPercentage ||
-            input.cookingBudgetPercentage ||
-            input.deliveryBudgetPercentage
-        ) {
-            this.validateBudgetPercentages(
-                input.ingredientBudgetPercentage ||
-                    campaign.ingredientBudgetPercentage,
-                input.cookingBudgetPercentage ||
-                    campaign.cookingBudgetPercentage,
-                input.deliveryBudgetPercentage ||
-                    campaign.deliveryBudgetPercentage,
+        try {
+            this.authorizationService.requireAuthentication(
+                userContext,
+                "update campaign",
             )
-        }
-
-        const updateData: any = {}
-
-        if (input.title !== undefined) updateData.title = input.title
-        if (input.description !== undefined)
-            updateData.description = input.description
-        if (input.location !== undefined) updateData.location = input.location
-
-        if (input.targetAmount !== undefined) {
-            try {
-                updateData.targetAmount = this.parseAndValidateTargetAmount(
-                    input.targetAmount,
-                )
-            } catch (error) {
-                throw new BadRequestException(
-                    "Target amount must be a valid number greater than 0",
-                )
+            const campaign = await this.findCampaignById(id)
+            this.authorizationService.requireOwnership(
+                campaign.createdBy,
+                userContext,
+                "campaign",
+                "update",
+            )
+            this.validateCampaignForUpdate(campaign)
+            if (input.categoryId) {
+                await this.validateCategoryExists(input.categoryId)
             }
-        }
+            const updateData: any = {}
+            let oldFileKeyToDelete: string | null = null
 
-        if (input.ingredientBudgetPercentage) {
-            updateData.ingredientBudgetPercentage = new Decimal(
-                input.ingredientBudgetPercentage,
-            )
-        }
-        if (input.cookingBudgetPercentage) {
-            updateData.cookingBudgetPercentage = new Decimal(
-                input.cookingBudgetPercentage,
-            )
-        }
-        if (input.deliveryBudgetPercentage) {
-            updateData.deliveryBudgetPercentage = new Decimal(
-                input.deliveryBudgetPercentage,
-            )
-        }
-
-        if (input.fundraisingStartDate !== undefined)
-            updateData.fundraisingStartDate = input.fundraisingStartDate
-        if (input.fundraisingEndDate !== undefined)
-            updateData.fundraisingEndDate = input.fundraisingEndDate
-        if (input.ingredientPurchaseDate !== undefined)
-            updateData.ingredientPurchaseDate = input.ingredientPurchaseDate
-        if (input.cookingDate !== undefined)
-            updateData.cookingDate = input.cookingDate
-        if (input.deliveryDate !== undefined)
-            updateData.deliveryDate = input.deliveryDate
-
-        let oldFileKeyToDelete: string | null = null
-
-        if (input.coverImageFileKey) {
-            const newFileKey = this.spacesUploadService.extractFileKeyFromUrl(
-                this.resource,
-                input.coverImageFileKey,
-            )
-
-            if (!newFileKey || !newFileKey.startsWith(`${this.resource}/`)) {
-                throw new BadRequestException(
-                    "Invalid file key. Please use a valid file key from generateUploadUrl.",
-                )
-            }
-
-            if (campaign.coverImageFileKey !== newFileKey) {
-                const fileValidation =
-                    await this.spacesUploadService.validateUploadedFile(
+            if (input.coverImageFileKey) {
+                const newFileKey =
+                    this.spacesUploadService.extractFileKeyFromUrl(
+                        this.resource,
                         input.coverImageFileKey,
                     )
 
-                if (!fileValidation.exists) {
+                if (
+                    !newFileKey ||
+                    !newFileKey.startsWith(`${this.resource}/`)
+                ) {
                     throw new BadRequestException(
-                        "Cover image file not found. Please upload the file first using generateUploadUrl.",
+                        "Invalid file key. Please use a valid file key from generateUploadUrl.",
                     )
                 }
 
-                if (campaign.coverImageFileKey) {
-                    oldFileKeyToDelete = campaign.coverImageFileKey
+                if (campaign.coverImageFileKey !== newFileKey) {
+                    const fileValidation =
+                        await this.spacesUploadService.validateUploadedFile(
+                            input.coverImageFileKey,
+                        )
+
+                    if (!fileValidation.exists) {
+                        throw new BadRequestException(
+                            "Cover image file not found. Please upload the file first using generateUploadUrl.",
+                        )
+                    }
+
+                    if (campaign.coverImageFileKey) {
+                        oldFileKeyToDelete = campaign.coverImageFileKey
+                    }
+
+                    updateData.coverImage = `${this.SPACES_CDN_ENDPOINT}/${newFileKey}`
+                    updateData.coverImageFileKey = newFileKey
                 }
-
-                updateData.coverImage = `${this.SPACES_CDN_ENDPOINT}/${newFileKey}`
-                updateData.coverImageFileKey = newFileKey
             }
-        }
+            if (input.fundraisingStartDate || input.fundraisingEndDate) {
+                const startDate =
+                    input.fundraisingStartDate || campaign.fundraisingStartDate
+                const endDate =
+                    input.fundraisingEndDate || campaign.fundraisingEndDate
+                this.validateCampaignDates(startDate, endDate)
+            }
+            let targetAmountBigInt: bigint | undefined
+            if (input.targetAmount) {
+                targetAmountBigInt = this.parseAndValidateTargetAmount(
+                    input.targetAmount,
+                )
+            }
 
-        const updatedCampaign = await this.campaignRepository.update(
-            id,
-            updateData,
-        )
-
-        await this.cacheService.setCampaign(id, updatedCampaign)
-
-        await this.cacheService.invalidateAll(
-            id,
-            userContext.userId,
-            campaign.categoryId || input.categoryId,
-        )
-
-        if (oldFileKeyToDelete) {
-            await this.spacesUploadService.deleteResourceImage(
-                oldFileKeyToDelete,
+            if (
+                input.ingredientBudgetPercentage ||
+                input.cookingBudgetPercentage ||
+                input.deliveryBudgetPercentage
+            ) {
+                this.validateBudgetPercentages(
+                    input.ingredientBudgetPercentage ||
+                        campaign.ingredientBudgetPercentage,
+                    input.cookingBudgetPercentage ||
+                        campaign.cookingBudgetPercentage,
+                    input.deliveryBudgetPercentage ||
+                        campaign.deliveryBudgetPercentage,
+                )
+            }
+            if (input.title) updateData.title = input.title
+            if (input.description) updateData.description = input.description
+            if (targetAmountBigInt !== undefined)
+                updateData.targetAmount = targetAmountBigInt
+            if (input.ingredientBudgetPercentage)
+                updateData.ingredientBudgetPercentage = parseFloat(
+                    input.ingredientBudgetPercentage,
+                )
+            if (input.cookingBudgetPercentage)
+                updateData.cookingBudgetPercentage = parseFloat(
+                    input.cookingBudgetPercentage,
+                )
+            if (input.deliveryBudgetPercentage)
+                updateData.deliveryBudgetPercentage = parseFloat(
+                    input.deliveryBudgetPercentage,
+                )
+            if (input.fundraisingStartDate)
+                updateData.fundraisingStartDate = input.fundraisingStartDate
+            if (input.fundraisingEndDate)
+                updateData.fundraisingEndDate = input.fundraisingEndDate
+            if (input.categoryId !== undefined)
+                updateData.categoryId = input.categoryId
+            if (campaign.status === CampaignStatus.APPROVED) {
+                updateData.status = CampaignStatus.PENDING
+                updateData.changedStatusAt = null
+            }
+            const updatedCampaign = await this.campaignRepository.update(
+                id,
+                updateData,
             )
+            await this.cacheService.setCampaign(id, updatedCampaign)
+
+            await this.cacheService.invalidateAll(
+                id,
+                userContext.userId,
+                campaign.categoryId || input.categoryId,
+            )
+            if (oldFileKeyToDelete) {
+                await this.spacesUploadService.deleteResourceImage(
+                    oldFileKeyToDelete,
+                )
+            }
+            this.sentryService.addBreadcrumb("Campaign updated", "campaign", {
+                campaignId: id,
+                user: {
+                    id: userContext.userId,
+                    username: userContext.username,
+                    role: userContext.role,
+                },
+                updatedFields: Object.keys(input),
+                coverImageReplaced: !!oldFileKeyToDelete,
+                cacheInvalidated: true,
+            })
+            return updatedCampaign
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "updateCampaign",
+                campaignId: id,
+                user: {
+                    id: userContext.userId,
+                    username: userContext.username,
+                },
+            })
+            throw error
         }
-
-        this.sentryService.addBreadcrumb("Campaign updated", "campaign", {
-            campaignId: id,
-            user: {
-                id: userContext.userId,
-                username: userContext.username,
-                role: userContext.role,
-            },
-            updatedFields: Object.keys(input),
-            coverImageReplaced: !!oldFileKeyToDelete,
-            cacheInvalidated: true,
-        })
-
-        return updatedCampaign
     }
 
     async changeStatus(
@@ -521,6 +547,96 @@ export class CampaignService {
         }
     }
 
+    async extendCampaign(
+        id: string,
+        input: ExtendCampaignInput,
+        userContext: UserContext,
+    ): Promise<Campaign> {
+        try {
+            this.authorizationService.requireAuthentication(
+                userContext,
+                "extend campaign",
+            )
+
+            const campaign = await this.findCampaignById(id)
+
+            if (campaign.createdBy !== userContext.userId) {
+                throw new ForbiddenException(
+                    "You can only extend campaigns you created",
+                )
+            }
+
+            if (campaign.status !== CampaignStatus.ACTIVE) {
+                throw new BadRequestException(
+                    `Only ACTIVE campaigns can be extended. Current status: ${campaign.status}`,
+                )
+            }
+
+            if (campaign.extensionCount >= 1) {
+                throw new BadRequestException(
+                    "Campaign can only be extended once",
+                )
+            }
+
+            const now = new Date()
+            const endDate = new Date(campaign.fundraisingEndDate)
+            const daysToEnd =
+                (endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+
+            if (daysToEnd > 7) {
+                throw new BadRequestException(
+                    `Can only extend campaign within 7 days of end date. Currently ${Math.ceil(daysToEnd)} days remaining.`,
+                )
+            }
+
+            if (daysToEnd < 0) {
+                throw new BadRequestException(
+                    "Campaign has already ended. Cannot extend.",
+                )
+            }
+
+            const newEndDate = new Date(endDate)
+            newEndDate.setDate(newEndDate.getDate() + input.extensionDays)
+
+            const updatedCampaign = await this.campaignRepository.update(id, {
+                fundraisingEndDate: newEndDate,
+                extensionCount: 1,
+                extensionDays: input.extensionDays,
+            })
+
+            await this.cacheService.deleteCampaign(id)
+            await this.cacheService.invalidateAll(
+                id,
+                userContext.userId,
+                campaign.categoryId,
+            )
+
+            this.sentryService.addBreadcrumb("Campaign extended", "campaign", {
+                campaignId: id,
+                extensionDays: input.extensionDays,
+                oldEndDate: campaign.fundraisingEndDate,
+                newEndDate: newEndDate,
+                user: {
+                    id: userContext.userId,
+                    username: userContext.username,
+                },
+            })
+
+            return updatedCampaign
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "extendCampaign",
+                campaignId: id,
+                extensionDays: input.extensionDays,
+                user: {
+                    id: userContext.userId,
+                    username: userContext.username,
+                },
+            })
+            throw error
+        }
+    }
+
     async deleteCampaign(
         id: string,
         userContext: UserContext,
@@ -542,6 +658,7 @@ export class CampaignService {
 
             const deletableStatuses = [
                 CampaignStatus.PENDING,
+                CampaignStatus.APPROVED,
                 CampaignStatus.REJECTED,
             ]
 
@@ -689,8 +806,8 @@ export class CampaignService {
         }
     }
 
-    private parseAndValidateTargetAmount(targetAmountStr: string): number {
-        const trimmed = targetAmountStr.trim()
+    private parseAndValidateTargetAmount(targetAmount: string): bigint {
+        const trimmed = targetAmount.trim()
 
         if (!trimmed || isNaN(Number(trimmed))) {
             throw new BadRequestException(
@@ -698,17 +815,11 @@ export class CampaignService {
             )
         }
 
-        const amount = Number(trimmed)
+        const amount = BigInt(targetAmount)
 
-        if (amount <= 0) {
+        if (amount <= 0n) {
             throw new BadRequestException(
                 "Target amount must be greater than 0",
-            )
-        }
-
-        if (amount > Number.MAX_SAFE_INTEGER) {
-            throw new BadRequestException(
-                `Target amount cannot exceed ${Number.MAX_SAFE_INTEGER}`,
             )
         }
 
@@ -778,18 +889,13 @@ export class CampaignService {
                 CampaignStatus.CANCELLED,
             ],
             [CampaignStatus.ACTIVE]: [
-                CampaignStatus.AWAITING_DISBURSEMENT,
+                CampaignStatus.PROCESSING,
                 CampaignStatus.CANCELLED,
             ],
-            [CampaignStatus.AWAITING_DISBURSEMENT]: [
-                CampaignStatus.FUNDS_DISBURSED,
+            [CampaignStatus.PROCESSING]: [
+                CampaignStatus.COMPLETED,
+                CampaignStatus.CANCELLED,
             ],
-            [CampaignStatus.FUNDS_DISBURSED]: [
-                CampaignStatus.INGREDIENT_PURCHASE,
-            ],
-            [CampaignStatus.INGREDIENT_PURCHASE]: [CampaignStatus.COOKING],
-            [CampaignStatus.COOKING]: [CampaignStatus.DELIVERY],
-            [CampaignStatus.DELIVERY]: [CampaignStatus.COMPLETED],
             [CampaignStatus.REJECTED]: [],
             [CampaignStatus.COMPLETED]: [],
             [CampaignStatus.CANCELLED]: [],
@@ -808,11 +914,6 @@ export class CampaignService {
         const nonEditableStatuses = [
             CampaignStatus.APPROVED,
             CampaignStatus.ACTIVE,
-            CampaignStatus.AWAITING_DISBURSEMENT,
-            CampaignStatus.FUNDS_DISBURSED,
-            CampaignStatus.INGREDIENT_PURCHASE,
-            CampaignStatus.COOKING,
-            CampaignStatus.DELIVERY,
             CampaignStatus.REJECTED,
             CampaignStatus.COMPLETED,
             CampaignStatus.CANCELLED,
@@ -849,20 +950,28 @@ export class CampaignService {
         }
     }
 
-    async checkDatabaseHealth(): Promise<{
-        status: string
-        timestamp: string
-    }> {
-        try {
-            const healthResult = await this.campaignRepository.healthCheck()
-            return healthResult
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "checkDatabaseHealth",
-                service: "campaign-service",
-            })
-            throw error
-        }
+    async revertToPending(
+        campaignId: string,
+        reason: string,
+    ): Promise<Campaign> {
+        const campaign = await this.campaignRepository.update(campaignId, {
+            status: CampaignStatus.PENDING,
+            changedStatusAt: null,
+        })
+
+        await this.cacheService.deleteCampaign(campaignId)
+        await this.cacheService.invalidateAll()
+
+        this.sentryService.addBreadcrumb(
+            "Campaign reverted to PENDING",
+            "campaign",
+            {
+                campaignId,
+                reason,
+            },
+        )
+
+        return campaign
     }
 
     getHealth() {

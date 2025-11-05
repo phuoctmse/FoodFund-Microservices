@@ -15,6 +15,7 @@ import { RedisModule } from "@libs/redis"
 import { GrpcModule } from "@libs/grpc"
 import { VietQRModule } from "@libs/vietqr"
 import { QueueWorkerService } from "./workers/queue-worker.service"
+import { CampaignPhaseModule } from "./campaign-phase"
 
 @Module({
     imports: [
@@ -45,6 +46,7 @@ import { QueueWorkerService } from "./workers/queue-worker.service"
         OpenSearchModule,
         RedisModule.registerAsync(),
         VietQRModule,
+        CampaignPhaseModule,
     ],
     controllers: [],
     providers: [QueueWorkerService],

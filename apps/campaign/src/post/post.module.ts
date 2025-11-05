@@ -2,8 +2,6 @@ import { SentryModule } from "@libs/observability/sentry.module"
 import { Module } from "@nestjs/common"
 import {
     CampaignModule,
-    CampaignRepository,
-    CampaignService,
     PrismaCampaignService,
 } from "../campaign"
 import { PrismaClient } from "../generated/campaign-client"
@@ -43,11 +41,9 @@ import { PostLikeDataLoader } from "./dataloaders/post-like.dataloader"
         PostRepository,
         PostLikeRepository,
         PostCommentRepository,
-        CampaignRepository,
         PostService,
         PostLikeService,
         PostCommentService,
-        CampaignService,
         SpacesUploadService,
         AuthorizationService,
         PostQueryResolver,

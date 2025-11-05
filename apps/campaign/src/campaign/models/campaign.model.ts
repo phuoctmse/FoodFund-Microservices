@@ -1,9 +1,9 @@
 import { Directive, Field, Int, ObjectType } from "@nestjs/graphql"
-import { Donation } from "../../donation/models/donation.model"
 import { CampaignStatus } from "../enum/campaign.enum"
 import { CampaignCategory } from "../../campaign-category/models/campaign-category.model"
 import { BaseSchema } from "../../shared"
 import { User } from "../../shared/model/user.model"
+import { CampaignPhase } from "../../campaign-phase"
 
 @ObjectType("Campaign")
 @Directive("@key(fields: \"id\")")
@@ -21,9 +21,6 @@ export class Campaign extends BaseSchema {
         nullable: true,
     })
         coverImageFileKey?: string
-
-    @Field(() => String)
-        location: string
 
     @Field(() => String)
         targetAmount: string
@@ -52,15 +49,6 @@ export class Campaign extends BaseSchema {
     @Field(() => Date)
         fundraisingEndDate: Date
 
-    @Field(() => Date)
-        ingredientPurchaseDate: Date
-
-    @Field(() => Date)
-        cookingDate: Date
-
-    @Field(() => Date)
-        deliveryDate: Date
-
     @Field(() => String, {
         nullable: true,
     })
@@ -76,11 +64,11 @@ export class Campaign extends BaseSchema {
     })
         deliveryFundsAmount?: string
 
-    @Field(() => Date, {
-        nullable: true,
-        description: "Timestamp when funds were disbursed",
-    })
-        fundsDisbursedAt?: Date
+    @Field(() => Int)
+        extensionCount: number
+
+    @Field(() => Int)
+        extensionDays: number
 
     @Field(() => Boolean)
         isActive: boolean
@@ -96,7 +84,7 @@ export class Campaign extends BaseSchema {
     @Field(() => Date, {
         nullable: true,
     })
-        approvedAt?: Date
+        changedStatusAt?: Date
 
     @Field(() => Date, {
         nullable: true,
@@ -114,10 +102,11 @@ export class Campaign extends BaseSchema {
     })
         category?: CampaignCategory
 
-    @Field(() => [Donation], {
+    @Field(() => [CampaignPhase], {
         defaultValue: [],
+        description: "Execution phases for this campaign",
     })
-        donations?: Donation[]
+        phases?: CampaignPhase[]
 
     constructor() {
         super()
