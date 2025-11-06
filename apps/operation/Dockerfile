@@ -26,7 +26,10 @@ COPY --from=build /usr/src/app/package.json ./package.json
 COPY --from=build /usr/src/app/package-lock.json ./package-lock.json
 COPY --from=build /usr/src/app/apps/operation/prisma ./apps/operation/prisma
 COPY --from=build /usr/src/app/libs/grpc/proto ./libs/grpc/proto
-RUN npm ci --omit=dev && npm cache clean --force
+
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev --ignore-scripts && npm cache clean --force
+
 RUN cd apps/operation && npx prisma generate
 
 RUN addgroup -g 1001 -S nodejs && \
