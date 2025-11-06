@@ -615,7 +615,7 @@ export class OrganizationService {
 
     async cancelJoinRequest(cognitoId: string) {
         // Get user by cognito ID
-        const user = await this.userRepository.findUserById(cognitoId)
+        const user = await this.userRepository.findUserByCognitoId(cognitoId)
         if (!user) {
             UserErrorHelper.throwUserNotFound(cognitoId)
         }

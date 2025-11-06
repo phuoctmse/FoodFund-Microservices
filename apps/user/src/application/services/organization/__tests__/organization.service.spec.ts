@@ -405,7 +405,7 @@ describe("OrganizationService", () => {
         } as any
 
         it("should cancel join request successfully", async () => {
-            userRepository.findUserById.mockResolvedValue(mockUser)
+            userRepository.findUserByCognitoId.mockResolvedValue(mockUser)
             organizationRepository.findPendingJoinRequest.mockResolvedValue(
                 mockPendingRequest,
             )
@@ -422,7 +422,7 @@ describe("OrganizationService", () => {
         })
 
         it("should throw error if no pending request found", async () => {
-            userRepository.findUserById.mockResolvedValue(mockUser)
+            userRepository.findUserByCognitoId.mockResolvedValue(mockUser)
             organizationRepository.findPendingJoinRequest.mockResolvedValue(
                 null,
             )

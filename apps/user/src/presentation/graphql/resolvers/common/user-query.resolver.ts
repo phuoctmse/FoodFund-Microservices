@@ -56,7 +56,7 @@ export class UserQueryResolver {
         }
 
         // Try multiple sources for cognito_id
-        const cognito_id = user.cognito_id || user.sub || user.id
+        const cognito_id = user.cognitoId || user.sub || user.id
 
         if (!cognito_id) {
             throw new Error("User cognito_id not found")
