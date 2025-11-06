@@ -3,7 +3,7 @@ module.exports = {
     rootDir: ".",
     testRegex: ".*\\.spec\\.ts$",
     transform: {
-        "^.+\\.(t|j)s$": "ts-jest",
+        "^.+\\.ts$": "ts-jest",
     },
     collectCoverageFrom: ["apps/**/*.(t|j)s", "libs/**/*.(t|j)s"],
     coverageDirectory: "./coverage",
@@ -12,7 +12,7 @@ module.exports = {
     moduleNameMapper: {
         "^@app/campaign/(.*)$": "<rootDir>/apps/campaign/src/$1",
         "^@app/auth/(.*)$": "<rootDir>/apps/auth/src/$1",
-        "^@app/user/(.*)$": "<rootDir>/apps/user/src/$1",
+        "^@app/user/(.*)$": "<rootDir>/apps/user/$1",
         "^@libs/aws-cognito$": "<rootDir>/libs/aws-cognito/index.ts",
         "^@libs/aws-cognito/(.*)$": "<rootDir>/libs/aws-cognito/$1",
         "^@libs/observability$": "<rootDir>/libs/observability/index.ts",
@@ -48,7 +48,7 @@ module.exports = {
         "^libs/grpc/(.*)$": "<rootDir>/libs/grpc/$1",
         "^libs/validation$": "<rootDir>/libs/validation/index.ts",
         "^libs/validation/(.*)$": "<rootDir>/libs/validation/$1",
-    },
+        "^@libs/databases$": "<rootDir>/libs/databases/index.ts",
         "^@libs/databases/(.*)$": "<rootDir>/libs/databases/$1",
         "^@libs/env$": "<rootDir>/libs/env/index.ts",
         "^@libs/env/(.*)$": "<rootDir>/libs/env/$1",
@@ -64,6 +64,13 @@ module.exports = {
         "/node_modules/",
         "/dist/",
         "/apps/campaign/src/generated/",
+        "/apps/user/src/generated/",
+        "/apps/operation/src/generated/",
+    ],
+    transformIgnorePatterns: [
+        "/node_modules/",
+        "\\.js$",
+        "/apps/.*/src/generated/",
     ],
     moduleDirectories: ["node_modules", "<rootDir>"],
 }
