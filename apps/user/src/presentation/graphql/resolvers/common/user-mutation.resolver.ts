@@ -4,7 +4,11 @@ import { UseGuards, ValidationPipe, Logger } from "@nestjs/common"
 import { CognitoGraphQLGuard, AwsCognitoService } from "@libs/aws-cognito"
 import { CurrentUser, CurrentUserType, RequireRole } from "libs/auth"
 import { UpdateMyProfileInput } from "@app/user/src/application/dtos"
-import { UserMutationService, UserQueryService, OrganizationService } from "@app/user/src/application/services"
+import {
+    UserMutationService,
+    UserQueryService,
+    OrganizationService,
+} from "@app/user/src/application/services"
 import { UserProfileSchema } from "@app/user/src/domain/entities"
 import { LeaveOrganizationResponse } from "@app/user/src/shared/types"
 import { Role } from "@libs/databases"

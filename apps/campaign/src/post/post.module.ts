@@ -1,9 +1,6 @@
 import { SentryModule } from "@libs/observability/sentry.module"
 import { Module } from "@nestjs/common"
-import {
-    CampaignModule,
-    PrismaCampaignService,
-} from "../campaign"
+import { CampaignModule, PrismaCampaignService } from "../campaign"
 import { PrismaClient } from "../generated/campaign-client"
 import { PostRepository } from "./repositories/post.repository"
 import { PostService } from "./services/post.service"
