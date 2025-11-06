@@ -15,7 +15,6 @@ export class AdminMutationResolver {
     @Mutation(() => ApproveDonationResponse, {
         description: "Manually approve a failed donation",
     })
-    @UseGuards(CognitoGraphQLGuard)
     @RequireRole(Role.ADMIN)
     async approveManualDonation(
         @Args("input") input: ApproveManualDonationInput,

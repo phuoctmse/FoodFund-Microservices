@@ -98,14 +98,14 @@ model Wallet {
   balance            BigInt              @default(0)
   created_at         DateTime            @default(now())
   updated_at         DateTime            @updatedAt
-  Wallet_Transaction Wallet_Transaction?
+  Wallet_Transaction Wallet_Transaction[]
 
   @@map("wallets")
 }
 
 model Wallet_Transaction {
   id          String   @id @default(uuid())
-  wallet_id   String   @unique
+  wallet_id   String
   wallet      Wallet   @relation(fields: [wallet_id], references: [id], onDelete: Cascade)
   campaign_id String
   amount      BigInt

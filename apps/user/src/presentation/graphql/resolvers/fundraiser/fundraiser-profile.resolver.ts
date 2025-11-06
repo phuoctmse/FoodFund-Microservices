@@ -31,7 +31,7 @@ export class FundraiserProfileResolver {
     @RequireRole(Role.FUNDRAISER)
     async myOrganization(@CurrentUser() user: CurrentUserType) {
         return this.organizationService.getFundraiserOrganization(
-            user.cognito_id,
+            user.cognitoId,
         )
     }
 
@@ -65,7 +65,7 @@ export class FundraiserProfileResolver {
 
         const result =
             await this.organizationService.getMyOrganizationJoinRequests(
-                user.cognito_id,
+                user.cognitoId,
                 {
                     offset: safeOffset,
                     limit: safeLimit,
@@ -92,7 +92,7 @@ export class FundraiserProfileResolver {
     ) {
         const result = await this.organizationService.approveJoinRequest(
             requestId,
-            user.cognito_id,
+            user.cognitoId,
         )
         return {
             success: true,
@@ -110,7 +110,7 @@ export class FundraiserProfileResolver {
     ) {
         const result = await this.organizationService.rejectJoinRequest(
             requestId,
-            user.cognito_id,
+            user.cognitoId,
         )
         return {
             success: true,
@@ -134,7 +134,7 @@ export class FundraiserProfileResolver {
     ) {
         return this.organizationService.removeStaffMember(
             memberId,
-            user.cognito_id,
+            user.cognitoId,
         )
     }
 }

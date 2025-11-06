@@ -92,6 +92,6 @@ export class UserMutationResolver {
     })
     @RequireRole(Role.KITCHEN_STAFF, Role.DELIVERY_STAFF)
     async leaveOrganization(@CurrentUser() user: CurrentUserType) {
-        return this.organizationService.leaveOrganization(user.cognito_id)
+        return this.organizationService.leaveOrganization(user.cognitoId)
     }
 }

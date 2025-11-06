@@ -4,7 +4,7 @@ export interface CurrentUserType {
         role: string
     }
     id: string
-    cognito_id: string
+    cognitoId: string
     email: string
     username: string
     name: string

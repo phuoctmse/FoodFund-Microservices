@@ -20,7 +20,7 @@ export class CreateDonationInput {
     @Field(() => Number, { description: "Donation amount" })
     @IsNotEmpty({ message: "Amount is required" })
     @Min(1000, { message: "Minimum donation amount is 1,000 VND" })
-    @Max(5000000000, { message: "Maximum donation amount is 500,000,000 VND" })
+    @Max(500000000, { message: "Maximum donation amount is 500,000,000 VND" })
         amount: number
 
     @Field(() => Boolean, {

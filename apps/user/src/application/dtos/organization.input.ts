@@ -7,6 +7,7 @@ import {
     IsUrl,
     IsOptional,
     IsEnum,
+    IsUUID,
 } from "class-validator"
 import { JoinOrganizationRole } from "./join-organization-role.enum"
 
@@ -60,8 +61,8 @@ export class CreateOrganizationInput {
 @InputType()
 export class JoinOrganizationInput {
     @Field()
-    @IsNotEmpty()
-    @IsString()
+    @IsNotEmpty({ message: "Organization ID is required" })
+    @IsUUID("4", { message: "Organization ID must be a valid UUID" })
         organization_id: string
 
     @Field(() => JoinOrganizationRole, {
