@@ -14,6 +14,7 @@ jobs:
       auth: ${{ steps.changes.outputs.auth }}
       user: ${{ steps.changes.outputs.user }}
       campaign: ${{ steps.changes.outputs.campaign }}
+      operation: ${{ steps.changes.outputs.operation }}
       gateway: ${{ steps.changes.outputs.gateway }}
       shared: ${{ steps.changes.outputs.shared }}
       any-service: ${{ steps.changes.outputs.auth == 'true' || steps.changes.outputs.user == 'true' || steps.changes.outputs.campaign == 'true' || steps.changes.outputs.gateway == 'true' }}
@@ -21,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
-      
+
       - uses: dorny/paths-filter@v3
         id: changes
         with:
@@ -36,6 +37,10 @@ jobs:
               - 'package*.json'
             campaign:
               - 'apps/campaign/**'
+              - 'libs/**'
+              - 'package*.json'
+            operation:
+              - 'apps/operation/**'
               - 'libs/**'
               - 'package*.json'
             gateway:
@@ -55,7 +60,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [auth, user, campaign, gateway]
+        service: [auth, user, campaign, operation, gateway]
         include:
           - service: auth
             build-script: "build:auth"
@@ -68,6 +73,10 @@ jobs:
             build-script: "build:campaign"
             prisma-generate: true
             prisma-path: "apps/campaign"
+          - service: operation
+            build-script: "build:operation"
+            prisma-generate: true
+            prisma-path: "apps/operation"
           - service: gateway
             build-script: "build:gateway"
             prisma-generate: false
@@ -94,6 +103,7 @@ jobs:
         env:
           USERS_DATABASE_URL: ${{ secrets.USERS_DATABASE_URL }}
           CAMPAIGN_DATABASE_URL: ${{ secrets.CAMPAIGN_DATABASE_URL }}
+          OPERATIONS_DATABASE_URL: ${{ secrets.OPERATIONS_DATABASE_URL }}
 
       - name: Lint ${{ matrix.service }}
         if: needs.detect-changes.outputs[matrix.service] == 'true'
@@ -115,7 +125,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [auth, user, campaign, gateway]
+        service: [auth, user, campaign, operation, gateway]
         include:
           - service: auth
             dockerfile: apps/auth/Dockerfile
@@ -126,10 +136,13 @@ jobs:
           - service: campaign
             dockerfile: apps/campaign/Dockerfile
             image: foodfund-campaign
+          - service: operation
+            dockerfile: apps/operation/Dockerfile
+            image: foodfund-operation
           - service: gateway
             dockerfile: apps/graphql-gateway/Dockerfile
             image: foodfund-graphql-gateway
-    
+
     steps:
       - uses: actions/checkout@v4
         if: needs.detect-changes.outputs[matrix.service] == 'true'
@@ -185,6 +198,7 @@ jobs:
           echo "| Auth | ${{ needs.detect-changes.outputs.auth }} | ${{ needs.detect-changes.outputs.auth == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| User | ${{ needs.detect-changes.outputs.user }} | ${{ needs.detect-changes.outputs.user == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Campaign | ${{ needs.detect-changes.outputs.campaign }} | ${{ needs.detect-changes.outputs.campaign == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Operation | ${{ needs.detect-changes.outputs.operation }} | ${{ needs.detect-changes.outputs.operation == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Gateway | ${{ needs.detect-changes.outputs.gateway }} | ${{ needs.detect-changes.outputs.gateway == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
 
   # ================= DEPLOY =================
@@ -251,6 +265,10 @@ jobs:
           if [ "${{ needs.detect-changes.outputs.campaign }}" = "true" ]; then
             kubectl delete pods -l app.kubernetes.io/name=campaign-service -n foodfund-k8s --ignore-not-found=true || true
           fi
+
+          if [ "${{ needs.detect-changes.outputs.operation }}" = "true" ]; then
+            kubectl delete pods -l app.kubernetes.io/name=operation-service -n foodfund-k8s --ignore-not-found=true || true
+          fi
           
           if [ "${{ needs.detect-changes.outputs.gateway }}" = "true" ]; then
             kubectl delete pods -l app.kubernetes.io/name=graphql-gateway -n foodfund-k8s --ignore-not-found=true || true
@@ -284,6 +302,15 @@ jobs:
               --namespace foodfund-k8s \
               --set image.tag=$UNIQUE_TAG \
               --set image.repository=${DOCKERHUB_USERNAME}/foodfund-campaign \
+              --timeout 3m
+          fi
+
+          if [ "${{ needs.detect-changes.outputs.operation }}" = "true" ]; then
+            echo "Deploying/updating operation-service..."
+            helm upgrade --install operation-service k8s/charts/operation-service \
+              --namespace foodfund-k8s \
+              --set image.tag=$UNIQUE_TAG \
+              --set image.repository=${DOCKERHUB_USERNAME}/foodfund-operation \
               --timeout 3m
           fi
           
