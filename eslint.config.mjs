@@ -6,7 +6,7 @@ export default [
     {
         ignores: [
             "**/generated/**/*",
-            "**/node_modules/**/*", 
+            "**/node_modules/**/*",
             "**/dist/**/*",
             "**/*.d.ts",
             "**/prisma/migrations/**/*"

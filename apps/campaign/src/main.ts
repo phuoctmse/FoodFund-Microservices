@@ -43,22 +43,6 @@ async function bootstrap() {
             next()
         })
 
-        // app.enableCors({
-        //     origin:
-        //         process.env.NODE_ENV === "production"
-        //             ? ["http://localhost:8000"].filter(Boolean)
-        //             : true,
-        //     credentials: true,
-        //     methods: ["GET", "POST", "OPTIONS"],
-        //     allowedHeaders: [
-        //         "Content-Type",
-        //         "Authorization",
-        //         "Accept",
-        //         "X-Requested-With",
-        //         "Apollo-Require-Preflight",
-        //     ],
-        // })
-
         // Initialize and start gRPC server
         await grpcServer.initialize({
             serviceName: "CampaignService",
@@ -68,7 +52,7 @@ async function bootstrap() {
             implementation: campaignGrpcService.getImplementation(),
         })
 
-        const port = process.env.PORT ?? 8004
+        const port = process.env.CAMPAIGNS_SUBGRAPH_PORT ?? 8004
 
         // Start both HTTP and gRPC servers
         await Promise.all([app.listen(port), grpcServer.start()])

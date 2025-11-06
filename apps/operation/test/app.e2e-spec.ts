@@ -1,7 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing"
 import { INestApplication } from "@nestjs/common"
 import * as request from "supertest"
-import { OperationModule } from "./../src/operation.module"
+import { OperationModule } from "../src/app.module"
 
 describe("OperationController (e2e)", () => {
     let app: INestApplication

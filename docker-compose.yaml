@@ -14,6 +14,8 @@ services:
         condition: service_healthy
       campaign-service:
         condition: service_healthy
+      operation-service:
+        condition: service_healthy
     networks:
       - foodfund-network
     healthcheck:
@@ -72,6 +74,24 @@ services:
       - foodfund-network
     healthcheck:
       test: ["CMD", "wget", "--spider", "--server-response", "http://localhost:8004/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  operation-service:
+    build:
+      context: .
+      dockerfile: apps/operation/Dockerfile
+    ports:
+      - "8005:8005"
+    env_file:
+      - .env.docker
+    networks:
+      - foodfund-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--server-response", "http://localhost:8005/health"]
       interval: 60s
       timeout: 10s
       retries: 3

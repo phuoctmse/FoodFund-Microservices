@@ -52,6 +52,17 @@ export const envConfig = (): EnvironmentConfig => ({
                 )
                 : DEFAULT_HEALTH_PORT + 3,
         },
+        [Container.OperationSubgraph]: {
+            host: process.env.OPERATION_SUBGRAPH_HOST ?? LOCALHOST,
+            port: process.env.OPERATION_SUBGRAPH_PORT
+                ? Number.parseInt(process.env.OPERATION_SUBGRAPH_PORT)
+                : 8005,
+            healthCheckPort: process.env.OPERATION_SUBGRAPH_HEALTH_CHECK_PORT
+                ? Number.parseInt(
+                    process.env.OPERATION_SUBGRAPH_HEALTH_CHECK_PORT,
+                )
+                : DEFAULT_HEALTH_PORT + 4,
+        },
     },
 
     // Database configurations
@@ -63,7 +74,10 @@ export const envConfig = (): EnvironmentConfig => ({
             url: process.env.USERS_DATABASE_URL as string,
         },
         campaigns: {
-            url: process.env.CAMPAIGNS_DATABASE_URL as string,
+            url: process.env.CAMPAIGN_DATABASE_URL as string,
+        },
+        operations: {
+            url: process.env.OPERATIONS_DATABASE_URL as string,
         },
     },
 

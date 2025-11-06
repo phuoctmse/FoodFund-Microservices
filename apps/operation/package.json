@@ -6,9 +6,9 @@
         "build": "nest build operation"
     },
     "dependencies": {
-        "@prisma/client": "^6.17.1"
+        "@prisma/client": "^6.19.0"
     },
     "devDependencies": {
-        "prisma": "^6.17.1"
+        "prisma": "^6.19.0"
     }
 }

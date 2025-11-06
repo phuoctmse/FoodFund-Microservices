@@ -10,6 +10,7 @@ export enum Container {
     GraphQLGateway = "graphql-gateway",
     UsersSubgraph = "users-subgraph",
     CampaignsSubgraph = "campaigns-subgraph",
+    OperationSubgraph = "operation-subgraph",
 }
 
 export enum GrpcService {
@@ -96,6 +97,7 @@ export interface EnvironmentConfig {
         // main: DatabaseConfig;
         users: DatabaseConfig
         campaigns: DatabaseConfig
+        operations: DatabaseConfig
     }
 
     // Authentication & Security

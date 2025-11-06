@@ -31,6 +31,13 @@ import { EnvModule } from "@libs/env/env.module"
                 const campaignPort =
                     parseInt(process.env.CAMPAIGNS_SUBGRAPH_PORT || "8004") ||
                     envConfig().containers[Container.CampaignsSubgraph]?.port
+                const operationHost =
+                    process.env.OPERATION_SUBGRAPH_HOST ||
+                    envConfig().containers[Container.OperationSubgraph]?.host ||
+                    "operation-service"
+                const operationPort =
+                    parseInt(process.env.OPERATION_SUBGRAPH_PORT || "8005") ||
+                    envConfig().containers[Container.OperationSubgraph]?.port
 
                 const authUrl = getHttpUrl({
                     host: authHost,
@@ -47,6 +54,11 @@ import { EnvModule } from "@libs/env/env.module"
                     port: campaignPort,
                     path: "/graphql",
                 })
+                const operationUrl = getHttpUrl({
+                    host: operationHost,
+                    port: operationPort,
+                    path: "/graphql",
+                })
 
                 return [
                     {
@@ -60,6 +72,10 @@ import { EnvModule } from "@libs/env/env.module"
                     {
                         name: "campaign",
                         url: campaignUrl,
+                    },
+                    {
+                        name: "operation",
+                        url: operationUrl,
                     },
                 ]
             })(),
