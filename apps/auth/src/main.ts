@@ -1,11 +1,3 @@
-// Initialize Datadog APM tracing FIRST (must be before any other imports)
-import tracer from 'dd-trace';
-tracer.init({
-  service: 'auth-service',
-  env: process.env.NODE_ENV || 'development',
-  version: process.env.SERVICE_VERSION || '1.0.0',
-});
-
 import { NestFactory } from "@nestjs/core"
 import { MicroserviceOptions, Transport } from "@nestjs/microservices"
 import { AppModule } from "./app.module"
