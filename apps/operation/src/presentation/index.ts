@@ -1,2 +1,5 @@
+export * from "./graphql/mutations/expense-proof-mutation.resolver"
 export * from "./graphql/mutations/ingredient-request-mutation.resolver"
+export * from "./graphql/queries/expense-proof-query.resolver"
 export * from "./graphql/queries/ingredient-request-query.resolver"
+export * from "./http/controllers/health.controller"

@@ -4,12 +4,14 @@ import { IngredientRequestStatus } from "../../domain/enums"
 import { PrismaClient } from "../../generated/operation-client"
 import { SentryService } from "@libs/observability"
 import { CreateIngredientRequestInput } from "../dtos"
+import { GrpcClientService } from "@libs/grpc"
 
 @Injectable()
 export class IngredientRequestRepository {
     constructor(
         private readonly prisma: PrismaClient,
         private readonly sentryService: SentryService,
+        private readonly grpcClient: GrpcClientService,
     ) {}
 
     async create(
@@ -104,6 +106,88 @@ export class IngredientRequestRepository {
         }
     }
 
+    async findByKitchenStaffOrganization(
+        kitchenStaffId: string,
+    ): Promise<IngredientRequest[]> {
+        try {
+            const response = await this.grpcClient.callUserService<
+                { userId: string },
+                {
+                    success: boolean
+                    members: Array<{
+                        userId: string
+                        role: string
+                        fullName: string
+                        email: string
+                    }>
+                    error?: string
+                }
+            >(
+                "GetOrganizationMembers",
+                { userId: kitchenStaffId },
+                {
+                    timeout: 5000,
+                    retries: 2,
+                },
+            )
+
+            if (!response.success || !response.members) {
+                this.sentryService.addBreadcrumb(
+                    "Failed to get organization members from User service",
+                    "warning",
+                    {
+                        kitchenStaffId,
+                        error: response.error,
+                    },
+                )
+
+                return this.findByKitchenStaffId(kitchenStaffId, 100, 0)
+            }
+
+            const kitchenStaffIds = response.members
+                .filter((member) => member.role === "KITCHEN_STAFF")
+                .map((member) => member.userId)
+
+            if (kitchenStaffIds.length === 0) {
+                return this.findByKitchenStaffId(kitchenStaffId, 100, 0)
+            }
+
+            const requests = await this.prisma.ingredient_Request.findMany({
+                where: {
+                    kitchen_staff_id: {
+                        in: kitchenStaffIds,
+                    },
+                },
+                include: {
+                    items: true,
+                },
+                orderBy: {
+                    created_at: "desc",
+                },
+            })
+
+            return requests.map((r) => this.mapToGraphQLModel(r))
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "findIngredientRequestsByKitchenStaffOrganization",
+                kitchenStaffId,
+                errorType: error.name,
+                errorMessage: error.message,
+            })
+
+            this.sentryService.addBreadcrumb(
+                "User service call failed, returning only kitchen staff's own requests",
+                "warning",
+                {
+                    kitchenStaffId,
+                    error: error.message,
+                },
+            )
+
+            return this.findByKitchenStaffId(kitchenStaffId, 100, 0)
+        }
+    }
+
     async findByKitchenStaffId(
         kitchenStaffId: string,
         limit: number = 10,
@@ -157,6 +241,45 @@ export class IngredientRequestRepository {
                 campaignPhaseId,
             })
             throw error
+        }
+    }
+
+    async getCampaignIdFromPhaseId(
+        campaignPhaseId: string,
+    ): Promise<string | null> {
+        try {
+            const response = await this.grpcClient.callCampaignService<
+                { phaseId: string },
+                {
+                    success: boolean
+                    campaignId?: string
+                    error?: string
+                }
+            >(
+                "GetCampaignIdByPhaseId",
+                { phaseId: campaignPhaseId },
+                { timeout: 5000, retries: 2 },
+            )
+
+            if (!response.success || !response.campaignId) {
+                this.sentryService.addBreadcrumb(
+                    "Failed to get campaign ID from Campaign service",
+                    "warning",
+                    {
+                        campaignPhaseId,
+                        error: response.error,
+                    },
+                )
+                return null
+            }
+
+            return response.campaignId
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "getCampaignIdFromPhaseId",
+                campaignPhaseId,
+            })
+            return null
         }
     }
 
@@ -229,6 +352,14 @@ export class IngredientRequestRepository {
                 estimatedTotalPrice: item.estimated_total_price,
                 supplier: item.supplier,
             })),
+            kitchenStaff: {
+                __typename: "User",
+                id: request.kitchen_staff_id,
+            },
+            campaignPhase: {
+                __typename: "CampaignPhase",
+                id: request.campaign_phase_id,
+            },
         } as IngredientRequest
     }
 }

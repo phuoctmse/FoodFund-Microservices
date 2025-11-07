@@ -1,2 +1,5 @@
+export * from "./expense-proof/request/create-expense-proof.input"
+export * from "./expense-proof/request/generate-proof-upload-urls.input"
+export * from "./expense-proof/request/update-expense-proof-status.input"
 export * from "./ingredient-request-item/ingredient-request-item.input"
 export * from "./ingredient-request/ingredient-request.input"

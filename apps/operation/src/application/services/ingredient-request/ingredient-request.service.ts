@@ -4,16 +4,22 @@ import {
     Injectable,
     NotFoundException,
 } from "@nestjs/common"
-import { IngredientRequestRepository } from "../repositories"
-import { AuthorizationService, Role, UserContext } from "../../shared"
 import { SentryService } from "@libs/observability"
+import { IngredientRequestRepository } from "../../repositories"
+import {
+    AuthorizationService,
+    Role,
+    UserContext,
+} from "@app/operation/src/shared"
 import {
     CreateIngredientRequestInput,
     IngredientRequestFilterInput,
     UpdateIngredientRequestStatusInput,
-} from "../dtos"
-import { IngredientRequest } from "../../domain/entities"
-import { IngredientRequestStatus } from "../../domain/enums"
+} from "../../dtos"
+import {
+    IngredientRequest,
+    IngredientRequestStatus,
+} from "@app/operation/src/domain"
 
 @Injectable()
 export class IngredientRequestService {

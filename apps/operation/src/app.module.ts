@@ -1,13 +1,13 @@
 import { Module } from "@nestjs/common"
 import {
+    ExpenseProofMutationResolver,
+    ExpenseProofQueryResolver,
     IngredientRequestMutationResolver,
     IngredientRequestQueryResolver,
 } from "./presentation"
 import {
     IngredientRequestItemRepository,
-    IngredientRequestItemService,
     IngredientRequestRepository,
-    IngredientRequestService,
 } from "./application"
 import {
     AuthorizationService,
@@ -25,6 +25,13 @@ import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 import { EnvModule } from "@libs/env/env.module"
 import { HealthController } from "./presentation/http"
 import { GrpcModule } from "@libs/grpc"
+import {
+    ExpenseProofService,
+    IngredientRequestItemService,
+    IngredientRequestService,
+} from "./application/services"
+import { SpacesUploadService } from "@libs/s3-storage"
+import { ExpenseProofRepository } from "./application/repositories"
 
 @Module({
     imports: [
@@ -67,15 +74,20 @@ import { GrpcModule } from "@libs/grpc"
 
         IngredientRequestRepository,
         IngredientRequestItemRepository,
+        ExpenseProofRepository,
 
         AuthorizationService,
+        SpacesUploadService,
         IngredientRequestService,
         IngredientRequestItemService,
+        ExpenseProofService,
 
         UserResolver,
         CampaignPhaseResolver,
         IngredientRequestMutationResolver,
         IngredientRequestQueryResolver,
+        ExpenseProofMutationResolver,
+        ExpenseProofQueryResolver,
     ],
 })
 export class AppModule {}

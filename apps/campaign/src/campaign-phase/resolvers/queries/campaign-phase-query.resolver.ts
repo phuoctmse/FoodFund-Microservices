@@ -1,4 +1,4 @@
-import { Args, Query, Resolver } from "@nestjs/graphql"
+import { Args, Query, Resolver, ResolveReference } from "@nestjs/graphql"
 import { CampaignPhase } from "../../models"
 import { CampaignPhaseService } from "../../services"
 
@@ -25,5 +25,13 @@ export class CampaignPhaseQueryResolver {
             id: string,
     ): Promise<CampaignPhase | null> {
         return this.campaignPhaseService.getPhaseById(id)
+    }
+
+    @ResolveReference()
+    async resolveReference(reference: {
+        __typename: string
+        id: string
+    }): Promise<CampaignPhase | null> {
+        return this.campaignPhaseService.getPhaseById(reference.id)
     }
 }

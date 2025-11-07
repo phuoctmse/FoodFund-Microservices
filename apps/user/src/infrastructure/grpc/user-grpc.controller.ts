@@ -138,8 +138,6 @@ export class UserGrpcController {
         try {
             const { cognitoId, email, fullName, cognitoAttributes } = data
 
-            this.logger.debug("CreateUser called:", JSON.stringify(data))
-
             if (!cognitoId || !email) {
                 return {
                     success: false,
@@ -187,7 +185,6 @@ export class UserGrpcController {
                 error: null,
             }
         } catch (error) {
-            this.logger.error("Create user failed:", error)
             return {
                 success: false,
                 user: null,
@@ -239,7 +236,6 @@ export class UserGrpcController {
                 error: null,
             }
         } catch (error) {
-            this.logger.error("Get user failed:", error)
             return {
                 success: false,
                 user: null,
@@ -291,7 +287,6 @@ export class UserGrpcController {
                 error: null,
             }
         } catch (error) {
-            this.logger.error("Update user failed:", error)
             return {
                 success: false,
                 user: null,
@@ -322,7 +317,6 @@ export class UserGrpcController {
                 error: null,
             }
         } catch (error) {
-            this.logger.error("User exists check failed:", error)
             return {
                 exists: false,
                 userId: "",
@@ -375,7 +369,6 @@ export class UserGrpcController {
                 error: null,
             }
         } catch (error) {
-            this.logger.error("Get user by email failed:", error)
             return {
                 success: false,
                 user: null,

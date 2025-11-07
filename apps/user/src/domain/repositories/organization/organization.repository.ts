@@ -452,4 +452,23 @@ export class OrganizationRepository {
             },
         })
     }
+
+    async findMembersByOrganizationId(organizationId: string) {
+        return await this.prisma.organization_Member.findMany({
+            where: {
+                organization_id: organizationId,
+            },
+            include: {
+                member: {
+                    select: {
+                        id: true,
+                        cognito_id: true,
+                        email: true,
+                        full_name: true,
+                        role: true,
+                    },
+                },
+            },
+        })
+    }
 }

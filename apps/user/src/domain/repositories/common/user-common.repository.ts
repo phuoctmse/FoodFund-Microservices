@@ -7,7 +7,6 @@ import { CreateUserInput } from "@app/user/src/application/dtos"
 export class UserCommonRepository {
     constructor(private readonly prisma: PrismaClient) {}
 
-    // Common user operations
     async createUser(data: CreateUserInput) {
         return this.prisma.user.create({
             data: {
@@ -20,7 +19,7 @@ export class UserCommonRepository {
 
     async findUserById(id: string) {
         return this.prisma.user.findUnique({
-            where: { id },
+            where: { id, is_active: true },
             include: {
                 Organizations: true,
             },

@@ -9,6 +9,7 @@ service CampaignService {
   
   // Get campaign by ID
   rpc GetCampaign(GetCampaignRequest) returns (GetCampaignResponse);
+  rpc GetCampaignIdByPhaseId(GetCampaignIdByPhaseIdRequest) returns (GetCampaignIdByPhaseIdResponse);
 }
 
 // Messages
@@ -46,5 +47,15 @@ message GetCampaignRequest {
 message GetCampaignResponse {
   bool success = 1;
   Campaign campaign = 2;
+  string error = 3;
+}
+
+message GetCampaignIdByPhaseIdRequest {
+  string phase_id = 1;
+}
+
+message GetCampaignIdByPhaseIdResponse {
+  bool success = 1;
+  string campaign_id = 2;
   string error = 3;
 }

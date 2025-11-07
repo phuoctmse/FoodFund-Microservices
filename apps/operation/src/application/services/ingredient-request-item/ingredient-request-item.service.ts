@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common"
-import { IngredientRequestItem } from "../../domain/entities"
-import { IngredientRequestItemRepository } from "../repositories"
 import { SentryService } from "@libs/observability"
+import { IngredientRequestItemRepository } from "../../repositories"
+import { IngredientRequestItem } from "@app/operation/src/domain"
 
 @Injectable()
 export class IngredientRequestItemService {

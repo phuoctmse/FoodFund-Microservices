@@ -447,7 +447,10 @@ export class CampaignService {
             this.validateStatusTransition(campaign.status, newStatus)
 
             let finalStatus = newStatus
-            const updateData: any = { status: newStatus }
+            const updateData: any = {
+                status: newStatus,
+                changedStatusAt: new Date(),
+            }
 
             if (
                 campaign.status === CampaignStatus.PENDING &&
@@ -472,7 +475,7 @@ export class CampaignService {
                 ) {
                     finalStatus = CampaignStatus.ACTIVE
                     updateData.status = CampaignStatus.ACTIVE
-                    updateData.approvedAt = new Date()
+                    updateData.changedStatusAt = new Date()
 
                     this.sentryService.addBreadcrumb(
                         "Campaign auto-activated on approval",
@@ -493,10 +496,10 @@ export class CampaignService {
                         },
                     )
                 } else {
-                    updateData.approvedAt = new Date()
+                    updateData.changedStatusAt = new Date()
                 }
             } else if (newStatus === CampaignStatus.APPROVED) {
-                updateData.approvedAt = new Date()
+                updateData.changedStatusAt = new Date()
             } else if (newStatus === CampaignStatus.COMPLETED) {
                 updateData.completedAt = new Date()
             }
