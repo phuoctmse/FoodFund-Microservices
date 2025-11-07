@@ -24,6 +24,12 @@ service UserService {
   
   // Get user by email
   rpc GetUserByEmail(GetUserByEmailRequest) returns (GetUserResponse);
+  
+  // Credit Fundraiser Wallet (PayOS flow)
+  rpc CreditFundraiserWallet(CreditFundraiserWalletRequest) returns (CreditWalletResponse);
+  
+  // Credit Admin Wallet (Sepay flow)
+  rpc CreditAdminWallet(CreditAdminWalletRequest) returns (CreditWalletResponse);
 }
 
 // Messages
@@ -129,5 +135,32 @@ message CreateStaffUserRequest {
 message CreateStaffUserResponse {
   bool success = 1;
   User user = 2;
+  string error = 3;
+}
+
+// Credit Fundraiser Wallet (PayOS flow)
+message CreditFundraiserWalletRequest {
+  string fundraiser_id = 1;
+  string campaign_id = 2;
+  string payment_transaction_id = 3;
+  string amount = 4; // BigInt as string
+  string gateway = 5; // "PAYOS"
+  string description = 6;
+}
+
+// Credit Admin Wallet (Sepay flow)
+message CreditAdminWalletRequest {
+  string admin_id = 1;
+  string campaign_id = 2; // NULL for unknown campaigns
+  string payment_transaction_id = 3; // NULL for Sepay
+  string amount = 4; // BigInt as string
+  string gateway = 5; // "SEPAY"
+  string description = 6;
+  string sepay_metadata = 7; // JSON string
+}
+
+message CreditWalletResponse {
+  bool success = 1;
+  string wallet_transaction_id = 2;
   string error = 3;
 }

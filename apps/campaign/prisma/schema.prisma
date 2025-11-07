@@ -34,9 +34,9 @@ model Campaign {
   created_at                   DateTime        @default(now())
   updated_at                   DateTime        @updatedAt
 
-  donations Donation[]
-  category  Campaign_Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
-  posts     Post[]
+  donations       Donation[]
+  category        Campaign_Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  posts           Post[]
   campaign_phases Campaign_Phase[]
 
   @@index([status])
@@ -52,17 +52,17 @@ model Campaign {
 }
 
 model Campaign_Phase {
-  id                       String                  @id @default(uuid())
+  id                       String                @id @default(uuid())
   campaign_id              String
-  phase_name               String                  @db.VarChar(100)
-  location                 String                  @db.Text()
+  phase_name               String                @db.VarChar(100)
+  location                 String                @db.Text()
   ingredient_purchase_date DateTime
   cooking_date             DateTime
   delivery_date            DateTime
-  status                   Campaign_Phase_Status   @default(PLANNING)
-  is_active Boolean @default(true)
-  created_at               DateTime                @default(now())
-  updated_at               DateTime                @updatedAt
+  status                   Campaign_Phase_Status @default(PLANNING)
+  is_active                Boolean               @default(true)
+  created_at               DateTime              @default(now())
+  updated_at               DateTime              @updatedAt
 
   campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
 
@@ -111,26 +111,35 @@ model Donation {
 }
 
 model Payment_Transaction {
-  id          String   @id @default(uuid())
+  id          String         @id @default(uuid())
   donation_id String
-  order_code  BigInt?  @unique
-  amount      BigInt   @default(0)
-  description String?  @db.Text()
+  order_code  BigInt?        @unique
+  amount      BigInt         @default(0)
+  description String?        @db.Text()
   status      Payment_Status @default(PENDING)
   currency    String         @default("VND") @db.VarChar(10)
 
+  // Gateway tracking
+  gateway              String? @db.VarChar(50) // "PAYOS" or "SEPAY"
+  processed_by_webhook Boolean @default(false) // Prevent duplicate processing
+
   // PayOS payment link info
-  checkout_url            String? @db.Text()
-  qr_code                 String? @db.Text()
-  payment_link_id         String? @db.VarChar(255)
-  counter_account_bank_id String? @db.VarChar(50)
-  counter_account_bank_name String? @db.VarChar(255)
-  counter_account_name    String? @db.VarChar(255)
-  counter_account_number  String? @db.VarChar(50)
-  virtual_account_name    String? @db.VarChar(255)
-  virtual_account_number  String? @db.VarChar(50)
-  reference               String? @db.VarChar(255)
-  transaction_datetime    DateTime? @db.Timestamp()
+  checkout_url              String?   @db.Text()
+  qr_code                   String?   @db.Text()
+  payment_link_id           String?   @db.VarChar(255)
+  counter_account_bank_id   String?   @db.VarChar(50)
+  counter_account_bank_name String?   @db.VarChar(255)
+  counter_account_name      String?   @db.VarChar(255)
+  counter_account_number    String?   @db.VarChar(50)
+  virtual_account_name      String?   @db.VarChar(255)
+  virtual_account_number    String?   @db.VarChar(50)
+  reference                 String?   @db.VarChar(255)
+  transaction_datetime      DateTime? @db.Timestamp()
+
+  // Sepay webhook tracking (for reference only - Sepay transactions go to Admin Wallet)
+  sepay_reference_number String? @db.VarChar(255) // Bank reference code (MBVCB.xxx)
+  sepay_transaction_id   Int? // Sepay webhook payload ID
+  is_matched             Boolean @default(false) // Did payment match donation?
 
   error_code        String? @db.VarChar(50)
   error_description String? @db.Text()
@@ -147,6 +156,11 @@ model Payment_Transaction {
   @@index([order_code])
   @@index([payment_link_id])
   @@index([reference])
+  @@index([gateway])
+  @@index([processed_by_webhook])
+  @@index([sepay_transaction_id])
+  @@index([is_matched])
+  @@index([status, gateway])
   @@map("payment_transactions")
 }
 

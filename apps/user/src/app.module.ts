@@ -27,6 +27,7 @@ import {
     KitchenStaffRepository,
     FundraiserRepository,
     DeliveryStaffRepository,
+    WalletRepository,
 } from "./domain/repositories"
 import { PrismaUserService } from "./infrastructure/database"
 import { UserGrpcController } from "./infrastructure/grpc/user-grpc.controller"
@@ -87,6 +88,7 @@ import { HealthController } from "./presentation/http/controllers"
         KitchenStaffRepository,
         FundraiserRepository,
         DeliveryStaffRepository,
+        WalletRepository,
 
         // Application - Use Cases
         UserAdminService,

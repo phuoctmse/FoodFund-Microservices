@@ -56,15 +56,13 @@ export class DonationWebhookService {
     }
 
     async handlePaymentWebhook(webhookData: PayOSWebhookData): Promise<void> {
-        const { orderCode, code, desc } = webhookData
+        const { orderCode, code, desc, amount } = webhookData
 
         this.logger.log(`[PayOS] Received webhook for order ${orderCode}`, {
             code,
             desc,
+            amount,
         })
-
-        // Verify webhook signature (PayOS provides verification method)
-        // Note: You need to implement signature verification based on PayOS docs
 
         // Find payment transaction by order_code
         const paymentTransaction =
@@ -79,19 +77,45 @@ export class DonationWebhookService {
             return
         }
 
-        // Check if already processed
-        if (paymentTransaction.status === PaymentStatus.SUCCESS) {
+        // Idempotency check: Already processed by webhook?
+        if (paymentTransaction.processed_by_webhook) {
             this.logger.log(
-                `[PayOS] Payment already processed for order ${orderCode}`,
+                `[PayOS] Webhook already processed for order ${orderCode}`,
             )
             return
         }
 
         // Update payment status based on webhook code
         if (code === "00") {
-            // Payment successful
+            // ✅ Payment successful
+            await this.processSuccessfulPayment(
+                paymentTransaction,
+                webhookData,
+            )
+        } else {
+            // ❌ Payment failed
+            await this.processFailedPayment(paymentTransaction, code, desc)
+        }
+    }
+
+    /**
+     * Process successful PayOS payment
+     * 1. Update payment_transaction (SUCCESS, gateway=PAYOS, processed_by_webhook=true)
+     * 2. Credit Fundraiser Wallet via gRPC
+     */
+    private async processSuccessfulPayment(
+        paymentTransaction: any,
+        webhookData: PayOSWebhookData,
+    ): Promise<void> {
+        const { orderCode } = webhookData
+
+        try {
+            // Step 1: Update payment transaction with PayOS data
             await this.donorRepository.updatePaymentTransactionSuccess({
                 order_code: BigInt(orderCode),
+                gateway: "PAYOS",
+                processed_by_webhook: true,
+                is_matched: true,
                 reference: webhookData.reference,
                 transaction_datetime: new Date(webhookData.transactionDateTime),
                 counter_account_bank_id: webhookData.counterAccountBankId,
@@ -102,19 +126,85 @@ export class DonationWebhookService {
                 virtual_account_number: webhookData.virtualAccountNumber,
             })
 
-            this.logger.log(`[PayOS] Payment successful for order ${orderCode}`)
-        } else {
-            // Payment failed
-            await this.donorRepository.updatePaymentTransactionFailed({
-                order_code: BigInt(orderCode),
-                error_code: code,
-                error_description: desc,
+            this.logger.log(
+                `[PayOS] ✅ Payment transaction updated - Order ${orderCode}`,
+            )
+
+            // Step 2: Get donation and campaign info
+            const donation = paymentTransaction.donation
+            if (!donation) {
+                this.logger.error(
+                    `[PayOS] Donation not found for payment ${paymentTransaction.id}`,
+                )
+                return
+            }
+
+            const campaignId = donation.campaign_id
+            const fundraiserId = donation.campaign?.created_by
+
+            if (!fundraiserId) {
+                this.logger.error(
+                    `[PayOS] Fundraiser not found for campaign ${campaignId}`,
+                )
+                return
+            }
+
+            // Step 3: Credit Fundraiser Wallet via gRPC
+            await this.userClientService.creditFundraiserWallet({
+                fundraiser_id: fundraiserId,
+                campaign_id: campaignId,
+                payment_transaction_id: paymentTransaction.id,
+                amount: paymentTransaction.amount,
+                gateway: "PAYOS",
+                description: `Donation from ${donation.donor_name || "Anonymous"} - Order ${orderCode}`,
             })
 
-            this.logger.warn(`[PayOS] Payment failed for order ${orderCode}`, {
-                code,
-                desc,
+            this.logger.log(
+                `[PayOS] ✅ Fundraiser wallet credited - Order ${orderCode}, Amount: ${paymentTransaction.amount}`,
+            )
+        } catch (error) {
+            this.logger.error(
+                `[PayOS] ❌ Failed to process successful payment for order ${orderCode}`,
+                error.stack,
+            )
+            throw error
+        }
+    }
+
+    /**
+     * Process failed PayOS payment
+     * Update payment_transaction with error details
+     */
+    private async processFailedPayment(
+        paymentTransaction: any,
+        errorCode: string,
+        errorDescription: string,
+    ): Promise<void> {
+        const orderCode = paymentTransaction.order_code
+
+        try {
+            await this.donorRepository.updatePaymentTransactionFailed({
+                order_code: orderCode,
+                gateway: "PAYOS",
+                processed_by_webhook: true,
+                is_matched: false,
+                error_code: errorCode,
+                error_description: errorDescription,
             })
+
+            this.logger.warn(
+                `[PayOS] ⚠️ Payment failed - Order ${orderCode}`,
+                {
+                    errorCode,
+                    errorDescription,
+                },
+            )
+        } catch (error) {
+            this.logger.error(
+                `[PayOS] ❌ Failed to update payment failure for order ${orderCode}`,
+                error.stack,
+            )
+            throw error
         }
     }
 }

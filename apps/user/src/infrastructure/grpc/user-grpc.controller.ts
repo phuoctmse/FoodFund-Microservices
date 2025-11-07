@@ -3,9 +3,11 @@ import { GrpcMethod } from "@nestjs/microservices"
 import {
     UserCommonRepository,
     UserAdminRepository,
+    WalletRepository,
 } from "../../domain/repositories"
 import { Role } from "@libs/databases"
 import { generateUniqueUsername } from "libs/common"
+import { Wallet_Type, Transaction_Type } from "../../generated/user-client"
 
 // Request/Response interfaces matching proto definitions
 interface CreateUserRequest {
@@ -78,6 +80,31 @@ interface HealthResponse {
     uptime: number
 }
 
+interface CreditFundraiserWalletRequest {
+    fundraiserId: string
+    campaignId: string
+    paymentTransactionId: string
+    amount: string
+    gateway: string
+    description?: string
+}
+
+interface CreditAdminWalletRequest {
+    adminId: string
+    campaignId: string | null
+    paymentTransactionId: string | null
+    amount: string
+    gateway: string
+    description?: string
+    sepayMetadata?: string
+}
+
+interface CreditWalletResponse {
+    success: boolean
+    walletTransactionId?: string
+    error?: string
+}
+
 const ROLE_MAP = {
     DONOR: 0,
     FUNDRAISER: 1,
@@ -93,6 +120,7 @@ export class UserGrpcController {
     constructor(
         private readonly userCommonRepository: UserCommonRepository,
         private readonly userAdminRepository: UserAdminRepository,
+        private readonly walletRepository: WalletRepository,
     ) {}
 
     @GrpcMethod("UserService", "Health")
@@ -351,6 +379,155 @@ export class UserGrpcController {
             return {
                 success: false,
                 user: null,
+                error: error.message,
+            }
+        }
+    }
+
+    @GrpcMethod("UserService", "CreditFundraiserWallet")
+    async creditFundraiserWallet(
+        data: CreditFundraiserWalletRequest,
+    ): Promise<CreditWalletResponse> {
+        try {
+            const {
+                fundraiserId,
+                campaignId,
+                paymentTransactionId,
+                amount,
+                gateway,
+                description,
+            } = data
+
+            this.logger.log(
+                `[CreditFundraiserWallet] Processing for fundraiser ${fundraiserId}, campaign ${campaignId}, amount ${amount}`,
+            )
+
+            if (!fundraiserId || !campaignId || !paymentTransactionId) {
+                return {
+                    success: false,
+                    error: "fundraiserId, campaignId, and paymentTransactionId are required",
+                }
+            }
+
+            // Verify user exists
+            const user = await this.userCommonRepository.findUserById(
+                fundraiserId,
+            )
+            if (!user) {
+                return {
+                    success: false,
+                    error: `Fundraiser ${fundraiserId} not found`,
+                }
+            }
+
+            // Credit wallet
+            const transaction = await this.walletRepository.creditWallet({
+                userId: fundraiserId,
+                walletType: Wallet_Type.FUNDRAISER,
+                amount: BigInt(amount),
+                transactionType: Transaction_Type.DONATION_RECEIVED,
+                campaignId,
+                paymentTransactionId,
+                gateway,
+                description: description || `Donation received via ${gateway}`,
+            })
+
+            this.logger.log(
+                `[CreditFundraiserWallet] ✅ Success - Transaction ID: ${transaction.id}`,
+            )
+
+            return {
+                success: true,
+                walletTransactionId: transaction.id,
+            }
+        } catch (error) {
+            this.logger.error(
+                "[CreditFundraiserWallet] Failed:",
+                error.stack || error,
+            )
+            return {
+                success: false,
+                error: error.message,
+            }
+        }
+    }
+
+    @GrpcMethod("UserService", "CreditAdminWallet")
+    async creditAdminWallet(
+        data: CreditAdminWalletRequest,
+    ): Promise<CreditWalletResponse> {
+        try {
+            const {
+                adminId,
+                campaignId,
+                paymentTransactionId,
+                amount,
+                gateway,
+                description,
+                sepayMetadata,
+            } = data
+
+            this.logger.log(
+                `[CreditAdminWallet] Processing for admin ${adminId}, campaign ${campaignId || "UNKNOWN"}, amount ${amount}`,
+            )
+
+            if (!adminId) {
+                return {
+                    success: false,
+                    error: "adminId is required",
+                }
+            }
+
+            // Verify admin user exists
+            const user = await this.userCommonRepository.findUserById(adminId)
+            if (!user) {
+                return {
+                    success: false,
+                    error: `Admin ${adminId} not found`,
+                }
+            }
+
+            // Parse sepay metadata if provided
+            let parsedSepayMetadata = null
+            if (sepayMetadata) {
+                try {
+                    parsedSepayMetadata = JSON.parse(sepayMetadata)
+                } catch (e) {
+                    this.logger.warn(
+                        "[CreditAdminWallet] Failed to parse sepayMetadata, storing as null",
+                    )
+                }
+            }
+
+            // Credit wallet
+            const transaction = await this.walletRepository.creditWallet({
+                userId: adminId,
+                walletType: Wallet_Type.ADMIN,
+                amount: BigInt(amount),
+                transactionType: Transaction_Type.INCOMING_TRANSFER,
+                campaignId: campaignId || null,
+                paymentTransactionId: paymentTransactionId || null,
+                gateway,
+                description:
+                    description || `Incoming transfer via ${gateway}`,
+                sepayMetadata: parsedSepayMetadata,
+            })
+
+            this.logger.log(
+                `[CreditAdminWallet] ✅ Success - Transaction ID: ${transaction.id}`,
+            )
+
+            return {
+                success: true,
+                walletTransactionId: transaction.id,
+            }
+        } catch (error) {
+            this.logger.error(
+                "[CreditAdminWallet] Failed:",
+                error.stack || error,
+            )
+            return {
+                success: false,
                 error: error.message,
             }
         }
