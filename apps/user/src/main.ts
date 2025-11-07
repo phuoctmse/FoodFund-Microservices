@@ -4,6 +4,7 @@ import { AppModule } from "./app.module"
 import { CustomValidationPipe } from "libs/validation"
 import { GraphQLExceptionFilter } from "libs/exceptions"
 import { SentryService } from "libs/observability/sentry.service"
+import { PrometheusInterceptor } from "@libs/observability/prometheus"
 import { envConfig } from "@libs/env"
 import { join } from "path"
 
@@ -14,12 +15,16 @@ async function bootstrap() {
 
     // Get services for setup
     const sentryService = app.get(SentryService)
+    const prometheusInterceptor = app.get(PrometheusInterceptor)
 
     // Enable validation with class-validator using custom pipe
     app.useGlobalPipes(new CustomValidationPipe())
 
     // Enable GraphQL exception filter (better for GraphQL APIs)
     app.useGlobalFilters(new GraphQLExceptionFilter(sentryService))
+
+    // Enable Prometheus metrics interceptor
+    app.useGlobalInterceptors(prometheusInterceptor)
 
     // Setup gRPC microservice
     const env = envConfig()
@@ -42,5 +47,6 @@ async function bootstrap() {
     console.log(`🚀 User Service is running on port ${port}`)
     console.log(`🔌 gRPC server is listening on 0.0.0.0:${grpcPort}`)
     console.log(`🔗 gRPC clients should connect to: ${grpcUrl}`)
+    console.log(`📊 Prometheus metrics available at http://localhost:${port}/metrics`)
 }
 bootstrap()

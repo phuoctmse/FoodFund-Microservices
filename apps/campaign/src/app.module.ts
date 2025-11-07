@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common"
 import { envConfig } from "libs/env"
 import { CampaignModule } from "./campaign/campaign.module"
 import { SentryModule } from "@libs/observability/sentry.module"
+import { PrometheusModule } from "@libs/observability/prometheus"
 import { CampaignCategoryModule } from "./campaign-category/campaign-category.module"
 import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 import { ScheduleModule } from "@nestjs/schedule"
@@ -36,6 +37,7 @@ import { CampaignPhaseModule } from "./campaign-phase"
             release: envConfig().sentry.release,
             enableTracing: true,
         }),
+        PrometheusModule,
         ScheduleModule.forRoot(),
         GrpcModule,
         CampaignModule,

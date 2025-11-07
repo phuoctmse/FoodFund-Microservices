@@ -20,7 +20,7 @@ import { PrismaOperationService } from "./infrastructure"
 import { PrismaClient } from "./generated/operation-client"
 import { AwsCognitoModule } from "@libs/aws-cognito"
 import { envConfig } from "@libs/env"
-import { SentryModule } from "@libs/observability"
+import { SentryModule, PrometheusModule } from "@libs/observability"
 import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 import { EnvModule } from "@libs/env/env.module"
 import { HealthController } from "./presentation/http"
@@ -45,6 +45,7 @@ import { GrpcModule } from "@libs/grpc"
             release: envConfig().sentry.release,
             enableTracing: true,
         }),
+        PrometheusModule,
         AwsCognitoModule.forRoot({
             isGlobal: false,
             mockMode: false,

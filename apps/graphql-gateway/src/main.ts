@@ -2,11 +2,15 @@ import { NestFactory } from "@nestjs/core"
 import { ApiGatewayModule } from "./app.module"
 import * as compression from "compression"
 import { envConfig } from "@libs/env"
+import { PrometheusInterceptor } from "@libs/observability/prometheus"
 
 async function bootstrap() {
     const app = await NestFactory.create(ApiGatewayModule, {
         bufferLogs: true,
     })
+
+    const prometheusInterceptor = app.get(PrometheusInterceptor)
+    app.useGlobalInterceptors(prometheusInterceptor)
 
     const envOrigins = envConfig().cors_origin
 
@@ -59,5 +63,6 @@ async function bootstrap() {
 
     console.log(`🚀 GraphQL Gateway is running on: ${serverUrl}`)
     console.log("📡 Webhook proxy available at: /webhooks/*")
+    console.log(`📊 Prometheus metrics available at http://localhost:${port}/metrics`)
 }
 bootstrap()
