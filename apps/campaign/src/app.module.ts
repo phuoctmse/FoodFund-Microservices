@@ -2,7 +2,6 @@ import { Module } from "@nestjs/common"
 import { envConfig } from "libs/env"
 import { CampaignModule } from "./campaign/campaign.module"
 import { SentryModule } from "@libs/observability/sentry.module"
-import { PrometheusModule } from "@libs/observability/prometheus"
 import { CampaignCategoryModule } from "./campaign-category/campaign-category.module"
 import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 import { ScheduleModule } from "@nestjs/schedule"
@@ -17,6 +16,7 @@ import { GrpcModule } from "@libs/grpc"
 import { VietQRModule } from "@libs/vietqr"
 import { QueueWorkerService } from "./workers/queue-worker.service"
 import { CampaignPhaseModule } from "./campaign-phase"
+import { DatadogModule } from "@libs/observability"
 
 @Module({
     imports: [
@@ -37,7 +37,11 @@ import { CampaignPhaseModule } from "./campaign-phase"
             release: envConfig().sentry.release,
             enableTracing: true,
         }),
-        PrometheusModule,
+        DatadogModule.forRoot({
+            serviceName: 'campaign-service',
+            env: envConfig().nodeEnv,
+            version: process.env.SERVICE_VERSION || '1.0.0',
+        }),
         ScheduleModule.forRoot(),
         GrpcModule,
         CampaignModule,

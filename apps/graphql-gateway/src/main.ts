@@ -2,15 +2,15 @@ import { NestFactory } from "@nestjs/core"
 import { ApiGatewayModule } from "./app.module"
 import * as compression from "compression"
 import { envConfig } from "@libs/env"
-import { PrometheusInterceptor } from "@libs/observability/prometheus"
+import { DatadogInterceptor } from "@libs/observability"
 
 async function bootstrap() {
     const app = await NestFactory.create(ApiGatewayModule, {
         bufferLogs: true,
     })
 
-    const prometheusInterceptor = app.get(PrometheusInterceptor)
-    app.useGlobalInterceptors(prometheusInterceptor)
+    const datadogInterceptor = app.get(DatadogInterceptor)
+    app.useGlobalInterceptors(datadogInterceptor)
 
     const envOrigins = envConfig().cors_origin
 

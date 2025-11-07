@@ -2,11 +2,11 @@ import { NestFactory } from "@nestjs/core"
 import { AppModule } from "./app.module"
 import { ValidationPipe } from "@nestjs/common"
 import { envConfig } from "@libs/env"
-import { PrometheusInterceptor } from "@libs/observability/prometheus"
+import { DatadogInterceptor } from "@libs/observability"
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule)
-    const prometheusInterceptor = app.get(PrometheusInterceptor)
+    const datadogInterceptor = app.get(DatadogInterceptor)
 
     app.useGlobalPipes(
         new ValidationPipe({
@@ -23,7 +23,7 @@ async function bootstrap() {
             forbidUnknownValues: false,
         }),
     )
-    app.useGlobalInterceptors(prometheusInterceptor)
+    app.useGlobalInterceptors(datadogInterceptor)
 
     const port = envConfig().containers["operation-subgraph"]?.port ?? 8005
     await app.listen(port)

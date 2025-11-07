@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common"
 import { envConfig } from "libs/env"
 import { SentryModule } from "libs/observability/sentry.module"
-import { PrometheusModule } from "@libs/observability/prometheus"
+import { DatadogModule } from "@libs/observability/datadog"
 import { EnvModule } from "@libs/env/env.module"
 import { AwsCognitoModule } from "@libs/aws-cognito"
 import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
@@ -52,7 +52,11 @@ import { HealthController } from "./presentation/http/controllers"
             release: envConfig().sentry.release,
             enableTracing: true,
         }),
-        PrometheusModule,
+        DatadogModule.forRoot({
+            serviceName: 'user-service',
+            env: envConfig().nodeEnv,
+            version: process.env.SERVICE_VERSION || '1.0.0',
+        }),
         GrpcModule,
         GraphQLSubgraphModule.forRoot({
             debug: true,

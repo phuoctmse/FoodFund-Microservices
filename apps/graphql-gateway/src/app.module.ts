@@ -2,14 +2,18 @@ import { Module } from "@nestjs/common"
 import { getHttpUrl } from "libs/common"
 import { Container, envConfig } from "libs/env"
 import { GraphQLGatewayModule } from "libs/graphql/gateway"
-import { PrometheusModule } from "@libs/observability/prometheus"
 import { HealthController } from "./health.controller"
 import { WebhookProxyController } from "./webhook-proxy.controller"
 import { EnvModule } from "@libs/env/env.module"
+import { DatadogModule } from "@libs/observability"
 
 @Module({
     imports: [
-        PrometheusModule,
+        DatadogModule.forRoot({
+            serviceName: 'graphql-gateway',
+            env: envConfig().nodeEnv,
+            version: process.env.SERVICE_VERSION || '1.0.0',
+        }),
         GraphQLGatewayModule.forRoot({
             subgraphs: (() => {
                 const authHost =

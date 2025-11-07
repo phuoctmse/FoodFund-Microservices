@@ -1,10 +1,18 @@
+// Initialize Datadog APM tracing FIRST (must be before any other imports)
+import tracer from 'dd-trace';
+tracer.init({
+  service: 'auth-service',
+  env: process.env.NODE_ENV || 'development',
+  version: process.env.SERVICE_VERSION || '1.0.0',
+});
+
 import { NestFactory } from "@nestjs/core"
 import { MicroserviceOptions, Transport } from "@nestjs/microservices"
 import { AppModule } from "./app.module"
 import { CustomValidationPipe } from "libs/validation"
 import { GraphQLExceptionFilter } from "libs/exceptions"
 import { SentryService } from "libs/observability/sentry.service"
-import { PrometheusInterceptor } from "@libs/observability/prometheus"
+import { DatadogInterceptor } from "@libs/observability/datadog"
 import { envConfig } from "libs/env"
 import { join } from "path"
 
@@ -12,11 +20,11 @@ async function bootstrap() {
     const app = await NestFactory.create(AppModule)
 
     const sentryService = app.get(SentryService)
-    const prometheusInterceptor = app.get(PrometheusInterceptor)
+    const datadogInterceptor = app.get(DatadogInterceptor)
 
     app.useGlobalPipes(new CustomValidationPipe())
     app.useGlobalFilters(new GraphQLExceptionFilter(sentryService))
-    app.useGlobalInterceptors(prometheusInterceptor)
+    app.useGlobalInterceptors(datadogInterceptor)
 
     // Setup gRPC microservice
     const env = envConfig()
@@ -39,6 +47,7 @@ async function bootstrap() {
     console.log(`🚀 Auth Service is running on port ${port}`)
     console.log(`🔌 gRPC server is listening on 0.0.0.0:${grpcPort}`)
     console.log(`🔗 gRPC clients should connect to: ${grpcUrl}`)
-    console.log(`📊 Prometheus metrics available at http://localhost:${port}/metrics`)
+    console.log(`📊 Datadog APM traces available at https://us5.datadoghq.com/apm/services`)
+    console.log(`📈 Datadog metrics available at https://us5.datadoghq.com/infrastructure`)
 }
 bootstrap()

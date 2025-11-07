@@ -1,10 +1,18 @@
+// Initialize Datadog APM tracing FIRST (must be before any other imports)
+import tracer from 'dd-trace';
+tracer.init({
+  service: 'user-service',
+  env: process.env.NODE_ENV || 'development',
+  version: process.env.SERVICE_VERSION || '1.0.0',
+});
+
 import { NestFactory } from "@nestjs/core"
 import { MicroserviceOptions, Transport } from "@nestjs/microservices"
 import { AppModule } from "./app.module"
 import { CustomValidationPipe } from "libs/validation"
 import { GraphQLExceptionFilter } from "libs/exceptions"
 import { SentryService } from "libs/observability/sentry.service"
-import { PrometheusInterceptor } from "@libs/observability/prometheus"
+import { DatadogInterceptor } from "@libs/observability/datadog"
 import { envConfig } from "@libs/env"
 import { join } from "path"
 
@@ -15,7 +23,7 @@ async function bootstrap() {
 
     // Get services for setup
     const sentryService = app.get(SentryService)
-    const prometheusInterceptor = app.get(PrometheusInterceptor)
+    const datadogInterceptor = app.get(DatadogInterceptor)
 
     // Enable validation with class-validator using custom pipe
     app.useGlobalPipes(new CustomValidationPipe())
@@ -24,7 +32,7 @@ async function bootstrap() {
     app.useGlobalFilters(new GraphQLExceptionFilter(sentryService))
 
     // Enable Prometheus metrics interceptor
-    app.useGlobalInterceptors(prometheusInterceptor)
+    app.useGlobalInterceptors(datadogInterceptor)
 
     // Setup gRPC microservice
     const env = envConfig()
