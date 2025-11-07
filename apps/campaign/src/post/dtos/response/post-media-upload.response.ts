@@ -1,6 +1,6 @@
 import { Field, ObjectType } from "@nestjs/graphql"
 
-@ObjectType()
+@ObjectType("PostMedia")
 export class MediaUploadUrl {
     @Field(() => String, {
         description: "Presigned URL for uploading this file",
