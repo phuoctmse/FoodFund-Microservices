@@ -25,14 +25,15 @@ async function bootstrap() {
         options: {
             package: "foodfund.auth",
             protoPath: join(__dirname, "../../../libs/grpc/proto/auth.proto"),
-            url: grpcUrl,
+            url: `0.0.0.0:${grpcPort}`,
         },
     })
 
     await app.startAllMicroservices()
     await app.listen(port)
 
-    console.log(`🚀 Auth Service is running on port ${grpcPort}`)
-    console.log(`🔌 gRPC server is running on port ${grpcUrl}`)
+    console.log(`🚀 Auth Service is running on port ${port}`)
+    console.log(`🔌 gRPC server is listening on 0.0.0.0:${grpcPort}`)
+    console.log(`🔗 gRPC clients should connect to: ${grpcUrl}`)
 }
 bootstrap()

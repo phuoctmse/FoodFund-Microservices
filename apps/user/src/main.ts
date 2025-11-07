@@ -32,7 +32,7 @@ async function bootstrap() {
         options: {
             package: "foodfund.user",
             protoPath: join(__dirname, "../../../libs/grpc/proto/user.proto"),
-            url: grpcUrl,
+            url: `0.0.0.0:${grpcPort}`,
         },
     })
 
@@ -40,6 +40,7 @@ async function bootstrap() {
     await app.listen(port)
 
     console.log(`🚀 User Service is running on port ${port}`)
-    console.log(`🔌 gRPC server is running on url ${grpcUrl}`)
+    console.log(`🔌 gRPC server is listening on 0.0.0.0:${grpcPort}`)
+    console.log(`🔗 gRPC clients should connect to: ${grpcUrl}`)
 }
 bootstrap()

@@ -1,6 +1,7 @@
 import { NestFactory } from "@nestjs/core"
 import { AppModule } from "./app.module"
 import { ValidationPipe } from "@nestjs/common"
+import { envConfig } from "@libs/env"
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule)
@@ -19,8 +20,8 @@ async function bootstrap() {
             forbidUnknownValues: false,
         }),
     )
-    const port = process.env.OPERATION_SUBGRAPH_PORT ?? 8005
+    const port = envConfig().containers["operation-subgraph"]?.port ?? 8005
     await app.listen(port)
-    console.log(`🚀 Operation Service is running on: http://localhost:${port}`)
+    console.log(`🚀 Operation Service is running on: ${port}`)
 }
 bootstrap()
