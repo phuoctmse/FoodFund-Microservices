@@ -328,7 +328,9 @@ export class DonorService {
         const donation = await this.donorRepository.findByOrderCode(orderCode)
 
         if (!donation) {
-            throw new NotFoundException("Donation not found with this order code")
+            throw new NotFoundException(
+                "Donation not found with this order code",
+            )
         }
 
         // Get all payment transactions
@@ -370,7 +372,7 @@ export class DonorService {
             transactions,
             // Banking info - only for PENDING/UNPAID
             qrCode: shouldShowBankingInfo
-                ? latestTx?.qr_code ?? undefined
+                ? (latestTx?.qr_code ?? undefined)
                 : undefined,
             bankNumber: shouldShowBankingInfo
                 ? config.payosBankNumber
@@ -384,7 +386,7 @@ export class DonorService {
             bankName: shouldShowBankingInfo ? config.payosBankName : undefined,
             bankLogo: shouldShowBankingInfo ? config.payosBankLogo : undefined,
             description: shouldShowBankingInfo
-                ? latestTx?.description ?? undefined
+                ? (latestTx?.description ?? undefined)
                 : undefined,
         }
     }
@@ -406,7 +408,7 @@ export class DonorService {
         this.logger.log(`options: ${JSON.stringify(options, null, 2)}`)
         this.logger.log(`filter: ${JSON.stringify(options?.filter, null, 2)}`)
         this.logger.log("===========================================")
-        
+
         const donations = await this.donorRepository.findByCampaignId(
             campaignId,
             options,

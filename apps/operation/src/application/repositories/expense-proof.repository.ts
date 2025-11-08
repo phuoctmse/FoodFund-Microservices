@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common"
 import { PrismaClient } from "../../generated/operation-client"
 import { SentryService } from "@libs/observability"
-import { ExpenseProofStatus } from "../../domain"
 import { ExpenseProofFilterInput } from "../dtos/expense-proof"
+import { ExpenseProofStatus } from "../../domain/enums"
 
 @Injectable()
 export class ExpenseProofRepository {

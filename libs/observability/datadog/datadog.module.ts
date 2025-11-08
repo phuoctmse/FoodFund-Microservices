@@ -3,16 +3,16 @@ import { DatadogService } from "./datadog.service"
 import { DatadogInterceptor } from "./datadog.interceptor"
 
 export interface DatadogModuleOptions {
-  serviceName: string;
-  env?: string;
-  version?: string;
+    serviceName: string
+    env?: string
+    version?: string
 }
 
 /**
  * Datadog Observability Module
- * 
+ *
  * Replaces Prometheus module with Datadog APM, Metrics, and Logging
- * 
+ *
  * Features:
  * - Automatic APM tracing for HTTP requests
  * - Custom metrics via DogStatsD
@@ -31,8 +31,14 @@ export class DatadogModule {
                     provide: "DATADOG_OPTIONS",
                     useValue: {
                         serviceName: options.serviceName,
-                        env: options.env || process.env.NODE_ENV || "development",
-                        version: options.version || process.env.SERVICE_VERSION || "1.0.0",
+                        env:
+                            options.env ||
+                            process.env.NODE_ENV ||
+                            "development",
+                        version:
+                            options.version ||
+                            process.env.SERVICE_VERSION ||
+                            "1.0.0",
                     },
                 },
                 DatadogService,

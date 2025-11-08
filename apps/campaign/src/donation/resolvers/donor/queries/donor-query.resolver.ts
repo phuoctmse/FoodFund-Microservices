@@ -58,8 +58,7 @@ export class DonorQueryResolver {
     }
 
     @Query(() => DonationPaymentLinkResponse, {
-        description:
-            "Get donation payment link info by order code",
+        description: "Get donation payment link info by order code",
     })
     @UseGuards(CognitoGraphQLGuard)
     async getMyDonationPaymentLink(

@@ -1,6 +1,6 @@
+import { ExpenseProofStatus } from "@app/operation/src/domain/enums"
 import { Field, InputType } from "@nestjs/graphql"
 import { IsEnum, IsOptional, IsString, ValidateIf } from "class-validator"
-import { ExpenseProofStatus } from "../../../../domain/enums/expense-proof-status.enum"
 
 @InputType()
 export class UpdateExpenseProofStatusInput {

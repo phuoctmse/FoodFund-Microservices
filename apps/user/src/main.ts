@@ -4,7 +4,10 @@ import { AppModule } from "./app.module"
 import { CustomValidationPipe } from "libs/validation"
 import { GraphQLExceptionFilter } from "libs/exceptions"
 import { SentryService } from "libs/observability/sentry.service"
-import { DatadogInterceptor, initDatadogTracer } from "@libs/observability/datadog"
+import {
+    DatadogInterceptor,
+    initDatadogTracer,
+} from "@libs/observability/datadog"
 import { envConfig } from "@libs/env"
 import { join } from "path"
 

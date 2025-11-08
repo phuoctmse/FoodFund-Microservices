@@ -1,7 +1,7 @@
 import { Directive, Field, ObjectType } from "@nestjs/graphql"
-import { ExpenseProofStatus } from "../enums/expense-proof-status.enum"
 import { IngredientRequest } from "./ingredient-request.model"
 import { BaseSchema } from "../../shared"
+import { ExpenseProofStatus } from "../enums"
 
 @ObjectType("ExpenseProof")
 @Directive("@key(fields: \"id\")")

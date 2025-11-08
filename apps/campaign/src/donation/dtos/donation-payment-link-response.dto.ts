@@ -2,7 +2,10 @@ import { Field, ObjectType, Int } from "@nestjs/graphql"
 
 @ObjectType()
 export class DonationTransactionInfo {
-    @Field(() => String, { nullable: true, description: "Transaction reference" })
+    @Field(() => String, {
+        nullable: true,
+        description: "Transaction reference",
+    })
         reference?: string
 
     @Field(() => String, { description: "Transaction amount" })

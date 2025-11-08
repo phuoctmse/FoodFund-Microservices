@@ -12,10 +12,10 @@ import { DatadogService } from "./datadog.service"
 
 /**
  * Datadog HTTP Interceptor
- * 
+ *
  * Automatically tracks HTTP and GraphQL requests
  * Replaces PrometheusInterceptor functionality
- * 
+ *
  * Features:
  * - HTTP request metrics (count, duration, errors)
  * - GraphQL operation metrics
@@ -70,7 +70,12 @@ export class DatadogInterceptor implements NestInterceptor {
                 const statusCode = response.statusCode || 200
 
                 // Record HTTP metrics
-                this.datadogService.recordHttpRequest(method, path, statusCode, duration)
+                this.datadogService.recordHttpRequest(
+                    method,
+                    path,
+                    statusCode,
+                    duration,
+                )
 
                 // Log slow requests
                 if (duration > 1000) {
@@ -90,19 +95,21 @@ export class DatadogInterceptor implements NestInterceptor {
                 const statusCode = error.status || 500
 
                 // Record error metrics
-                this.datadogService.recordHttpRequest(method, path, statusCode, duration)
+                this.datadogService.recordHttpRequest(
+                    method,
+                    path,
+                    statusCode,
+                    duration,
+                )
 
                 // Log error
-                this.logger.error(
-                    `HTTP request error: ${method} ${path}`,
-                    {
-                        method,
-                        path,
-                        duration,
-                        statusCode,
-                        error: error.message,
-                    },
-                )
+                this.logger.error(`HTTP request error: ${method} ${path}`, {
+                    method,
+                    path,
+                    duration,
+                    statusCode,
+                    error: error.message,
+                })
 
                 throw error
             }),
@@ -116,7 +123,7 @@ export class DatadogInterceptor implements NestInterceptor {
     ): Observable<any> {
         const gqlContext = GqlExecutionContext.create(context)
         const info = gqlContext.getInfo()
-    
+
         const operationName = info?.operation?.name?.value || "anonymous"
         const operationType = info?.operation?.operation || "query"
 
@@ -174,9 +181,9 @@ export class DatadogInterceptor implements NestInterceptor {
     }
 
     /**
-   * Normalize path for consistent metrics
-   * Replace dynamic segments with placeholders
-   */
+     * Normalize path for consistent metrics
+     * Replace dynamic segments with placeholders
+     */
     private normalizePathForMetrics(path: string): string {
         return path
             .replace(/\/\d+/g, "/:id") // Replace numeric IDs
@@ -186,8 +193,8 @@ export class DatadogInterceptor implements NestInterceptor {
     }
 
     /**
-   * Skip certain paths from metrics collection
-   */
+     * Skip certain paths from metrics collection
+     */
     private shouldSkipPath(path: string): boolean {
         const skipPaths = [
             "/health",

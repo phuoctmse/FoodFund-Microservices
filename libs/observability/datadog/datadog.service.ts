@@ -3,14 +3,14 @@ import { StatsD } from "hot-shots"
 import { envConfig } from "@libs/env"
 
 export interface DatadogOptions {
-  serviceName: string;
-  env: string;
-  version: string;
+    serviceName: string
+    env: string
+    version: string
 }
 
 /**
  * Datadog Service
- * 
+ *
  * Provides methods to send custom metrics to Datadog
  * Replaces PrometheusService functionality
  */
@@ -20,7 +20,7 @@ export class DatadogService {
     private statsD: StatsD
 
     constructor(
-    @Inject("DATADOG_OPTIONS") private readonly options: DatadogOptions,
+        @Inject("DATADOG_OPTIONS") private readonly options: DatadogOptions,
     ) {
         // Initialize DogStatsD client
         // Support both local and Kubernetes environments
@@ -43,23 +43,31 @@ export class DatadogService {
                     // Silently ignore errors when tracing is disabled
                     return
                 }
-                this.logger.warn(`⚠️  DogStatsD connection error: ${error.message}`)
+                this.logger.warn(
+                    `⚠️  DogStatsD connection error: ${error.message}`,
+                )
             },
         })
 
-        this.logger.log(`✅ Datadog service initialized for ${this.options.serviceName}`)
-        
+        this.logger.log(
+            `✅ Datadog service initialized for ${this.options.serviceName}`,
+        )
+
         if (isTracingEnabled) {
-            this.logger.log(`📡 DogStatsD connecting to ${datadogHost}:${datadogPort}`)
+            this.logger.log(
+                `📡 DogStatsD connecting to ${datadogHost}:${datadogPort}`,
+            )
         } else {
-            this.logger.log("⚠️  DataDog tracing is disabled (DD_TRACE_ENABLED=false)")
+            this.logger.log(
+                "⚠️  DataDog tracing is disabled (DD_TRACE_ENABLED=false)",
+            )
         }
     }
 
     /**
-   * Record HTTP request metrics
-   * Replaces PrometheusService.recordHttpRequest()
-   */
+     * Record HTTP request metrics
+     * Replaces PrometheusService.recordHttpRequest()
+     */
     recordHttpRequest(
         method: string,
         path: string,
@@ -77,7 +85,8 @@ export class DatadogService {
 
         // Error counter
         if (statusCode >= 400) {
-            const errorType = statusCode >= 500 ? "server_error" : "client_error"
+            const errorType =
+                statusCode >= 500 ? "server_error" : "client_error"
             this.statsD.increment("foodfund.http.request.errors.total", 1, {
                 ...tags,
                 error_type: errorType,
@@ -86,9 +95,9 @@ export class DatadogService {
     }
 
     /**
-   * Record gRPC request metrics
-   * Replaces PrometheusService.recordGrpcRequest()
-   */
+     * Record gRPC request metrics
+     * Replaces PrometheusService.recordGrpcRequest()
+     */
     recordGrpcRequest(
         method: string,
         status: string,
@@ -113,9 +122,9 @@ export class DatadogService {
     }
 
     /**
-   * Record database query metrics
-   * Replaces PrometheusService.recordDbQuery()
-   */
+     * Record database query metrics
+     * Replaces PrometheusService.recordDbQuery()
+     */
     recordDbQuery(operation: string, model: string, duration: number) {
         const tags = { operation, model }
 
@@ -124,63 +133,82 @@ export class DatadogService {
     }
 
     /**
-   * Record database connection metrics
-   * Replaces PrometheusService.recordDbConnections()
-   */
+     * Record database connection metrics
+     * Replaces PrometheusService.recordDbConnections()
+     */
     recordDbConnections(count: number, database: string) {
         this.statsD.gauge("foodfund.db.connections.active", count, { database })
     }
 
     /**
-   * Record GraphQL operation metrics
-   */
+     * Record GraphQL operation metrics
+     */
     recordGraphqlOperation(
         operationName: string,
         operationType: string,
         duration: number,
         hasErrors: boolean,
     ) {
-        const tags = { 
-            operation_name: operationName, 
-            operation_type: operationType 
+        const tags = {
+            operation_name: operationName,
+            operation_type: operationType,
         }
 
         // GraphQL operations counter
         this.statsD.increment("foodfund.graphql.operations.total", 1, tags)
 
         // GraphQL operation duration
-        this.statsD.histogram("foodfund.graphql.operation.duration", duration, tags)
+        this.statsD.histogram(
+            "foodfund.graphql.operation.duration",
+            duration,
+            tags,
+        )
 
         // GraphQL errors
         if (hasErrors) {
-            this.statsD.increment("foodfund.graphql.operation.errors.total", 1, tags)
+            this.statsD.increment(
+                "foodfund.graphql.operation.errors.total",
+                1,
+                tags,
+            )
         }
     }
 
     /**
-   * Record business metrics
-   */
-    recordBusinessMetric(metricName: string, value: number, tags?: Record<string, string>) {
+     * Record business metrics
+     */
+    recordBusinessMetric(
+        metricName: string,
+        value: number,
+        tags?: Record<string, string>,
+    ) {
         this.statsD.histogram(`foodfund.business.${metricName}`, value, tags)
     }
 
     /**
-   * Increment business counter
-   */
-    incrementBusinessCounter(metricName: string, tags?: Record<string, string>) {
+     * Increment business counter
+     */
+    incrementBusinessCounter(
+        metricName: string,
+        tags?: Record<string, string>,
+    ) {
         this.statsD.increment(`foodfund.business.${metricName}`, 1, tags)
     }
 
     /**
-   * Record business gauge
-   */
-    recordBusinessGauge(metricName: string, value: number, tags?: Record<string, string>) {
+     * Record business gauge
+     */
+    recordBusinessGauge(
+        metricName: string,
+        value: number,
+        tags?: Record<string, string>,
+    ) {
         this.statsD.gauge(`foodfund.business.${metricName}`, value, tags)
     }
 
     /**
-   * Custom metric for any use case
-   */
+     * Custom metric for any use case
+     */
     recordCustomMetric(
         metricName: string,
         value: number,
@@ -203,8 +231,8 @@ export class DatadogService {
     }
 
     /**
-   * Close StatsD connection (for graceful shutdown)
-   */
+     * Close StatsD connection (for graceful shutdown)
+     */
     async close(): Promise<void> {
         return new Promise((resolve) => {
             this.statsD.close(() => {

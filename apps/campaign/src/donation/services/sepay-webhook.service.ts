@@ -42,9 +42,7 @@ export class SepayWebhookService {
 
         // Only process incoming transfers
         if (payload.transferType !== "in") {
-            this.logger.log(
-                `[Sepay] Ignoring outgoing transfer: ${payload.id}`,
-            )
+            this.logger.log(`[Sepay] Ignoring outgoing transfer: ${payload.id}`)
             return
         }
 

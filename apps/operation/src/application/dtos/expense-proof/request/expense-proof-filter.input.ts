@@ -1,4 +1,4 @@
-import { ExpenseProofStatus } from "@app/operation/src/domain"
+import { ExpenseProofStatus } from "@app/operation/src/domain/enums"
 import { Field, InputType } from "@nestjs/graphql"
 import { IsEnum, IsOptional, IsString } from "class-validator"
 

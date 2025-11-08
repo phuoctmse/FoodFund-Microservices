@@ -16,10 +16,8 @@ import {
     IngredientRequestFilterInput,
     UpdateIngredientRequestStatusInput,
 } from "../../dtos"
-import {
-    IngredientRequest,
-    IngredientRequestStatus,
-} from "@app/operation/src/domain"
+import { IngredientRequest } from "@app/operation/src/domain"
+import { IngredientRequestStatus } from "@app/operation/src/domain/enums"
 
 @Injectable()
 export class IngredientRequestService {

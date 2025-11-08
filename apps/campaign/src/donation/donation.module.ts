@@ -21,7 +21,13 @@ import { UserDataLoader } from "../shared/dataloaders/user.dataloader"
 import { PayosCleanupService } from "./services/payos-cleanup.service"
 
 @Module({
-    imports: [CampaignModule, AuthLibModule, SqsModule, GrpcModule, RedisModule],
+    imports: [
+        CampaignModule,
+        AuthLibModule,
+        SqsModule,
+        GrpcModule,
+        RedisModule,
+    ],
     controllers: [DonationWebhookController, SepayWebhookController],
     providers: [
         DonorService,

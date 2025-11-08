@@ -172,8 +172,10 @@ export const envConfig = (): EnvironmentConfig => ({
         logsInjection: (process.env.DD_LOGS_INJECTION ?? "true") === "true",
         traceEnabled: (process.env.DD_LOGS_INJECTION ?? "true") === "true",
         site: process.env.DD_SITE || "us5.datadoghq.com",
-        traceSampleRate: Number.parseFloat(process.env.DD_TRACE_SAMPLE_RATE || "1.0"),
-    }
+        traceSampleRate: Number.parseFloat(
+            process.env.DD_TRACE_SAMPLE_RATE || "1.0",
+        ),
+    },
 })
 
 // Utility functions

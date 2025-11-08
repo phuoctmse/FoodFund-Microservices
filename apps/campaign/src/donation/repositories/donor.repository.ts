@@ -46,7 +46,10 @@ export class DonorRepository {
                 created_at: {
                     lt: before,
                 },
-                OR: [{ payment_link_id: { not: null } }, { order_code: { not: null } }],
+                OR: [
+                    { payment_link_id: { not: null } },
+                    { order_code: { not: null } },
+                ],
             },
             select: {
                 id: true,
@@ -398,20 +401,21 @@ export class DonorRepository {
     async findByOrderCode(orderCode: string) {
         const orderCodeBigInt = BigInt(orderCode)
 
-        const paymentTransaction = await this.prisma.payment_Transaction.findUnique({
-            where: { order_code: orderCodeBigInt },
-            include: {
-                donation: {
-                    include: {
-                        payment_transactions: {
-                            orderBy: {
-                                created_at: "desc",
+        const paymentTransaction =
+            await this.prisma.payment_Transaction.findUnique({
+                where: { order_code: orderCodeBigInt },
+                include: {
+                    donation: {
+                        include: {
+                            payment_transactions: {
+                                orderBy: {
+                                    created_at: "desc",
+                                },
                             },
                         },
                     },
                 },
-            },
-        })
+            })
 
         return paymentTransaction?.donation || null
     }

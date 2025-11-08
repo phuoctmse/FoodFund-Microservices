@@ -9,14 +9,13 @@ import {
 } from "@nestjs/common"
 import { SepayWebhookService } from "../services/sepay-webhook.service"
 
-
 interface SepayWebhookPayload {
-    id: number 
+    id: number
     gateway: string
     transactionDate: string
     accountNumber: string
     code: string | null
-    content: string 
+    content: string
     transferType: string
     transferAmount: number
     accumulated: number

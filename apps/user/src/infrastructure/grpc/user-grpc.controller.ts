@@ -403,9 +403,8 @@ export class UserGrpcController {
             }
 
             // Verify user exists
-            const user = await this.userCommonRepository.findUserById(
-                fundraiserId,
-            )
+            const user =
+                await this.userCommonRepository.findUserById(fundraiserId)
             if (!user) {
                 return {
                     success: false,
@@ -501,8 +500,7 @@ export class UserGrpcController {
                 campaignId: campaignId || null,
                 paymentTransactionId: paymentTransactionId || null,
                 gateway,
-                description:
-                    description || `Incoming transfer via ${gateway}`,
+                description: description || `Incoming transfer via ${gateway}`,
                 sepayMetadata: parsedSepayMetadata,
             })
 
