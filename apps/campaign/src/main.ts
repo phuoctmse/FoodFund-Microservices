@@ -1,3 +1,11 @@
+import { initDatadogTracer } from "@libs/observability/datadog"
+
+initDatadogTracer({
+    serviceName: "campaign-service",
+    serviceType: "backend",
+    microservice: "campaign",
+})
+
 import { NestFactory } from "@nestjs/core"
 import { AppModule } from "./app.module"
 import { ValidationPipe } from "@nestjs/common"
@@ -64,7 +72,6 @@ async function bootstrap() {
         console.log(
             `🔗 Campaign Service gRPC running on port: ${envConfig().grpc.campaign?.port || 50003}`,
         )
-        console.log(`📊 Prometheus metrics available at http://localhost:${port}/metrics`)
     } catch (error) {
         console.error("❌ Failed to start Campaign Service:", error)
         process.exit(1)

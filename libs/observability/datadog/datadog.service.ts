@@ -1,5 +1,6 @@
 import { Injectable, Inject, Logger } from "@nestjs/common"
 import { StatsD } from "hot-shots"
+import { envConfig } from "@libs/env"
 
 export interface DatadogOptions {
   serviceName: string;
@@ -21,18 +22,38 @@ export class DatadogService {
     constructor(
     @Inject("DATADOG_OPTIONS") private readonly options: DatadogOptions,
     ) {
-    // Initialize DogStatsD client
+        // Initialize DogStatsD client
+        // Support both local and Kubernetes environments
+        const config = envConfig()
+        const datadogHost = config.datadog.agentHost
+        const datadogPort = config.datadog.agentPort
+        const isTracingEnabled = config.datadog.traceEnabled
+
         this.statsD = new StatsD({
-            host: "datadog-agent.default.svc.cluster.local",
-            port: 8125,
+            host: datadogHost,
+            port: datadogPort,
             globalTags: {
                 service: this.options.serviceName,
                 env: this.options.env,
                 version: this.options.version,
             },
+            // Gracefully handle connection errors
+            errorHandler: (error) => {
+                if (!isTracingEnabled) {
+                    // Silently ignore errors when tracing is disabled
+                    return
+                }
+                this.logger.warn(`⚠️  DogStatsD connection error: ${error.message}`)
+            },
         })
 
         this.logger.log(`✅ Datadog service initialized for ${this.options.serviceName}`)
+        
+        if (isTracingEnabled) {
+            this.logger.log(`📡 DogStatsD connecting to ${datadogHost}:${datadogPort}`)
+        } else {
+            this.logger.log("⚠️  DataDog tracing is disabled (DD_TRACE_ENABLED=false)")
+        }
     }
 
     /**

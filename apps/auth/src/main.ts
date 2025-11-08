@@ -1,3 +1,11 @@
+import { initDatadogTracer } from "@libs/observability/datadog"
+
+initDatadogTracer({
+    serviceName: "auth-service",
+    serviceType: "backend",
+    microservice: "auth",
+})
+
 import { NestFactory } from "@nestjs/core"
 import { MicroserviceOptions, Transport } from "@nestjs/microservices"
 import { AppModule } from "./app.module"

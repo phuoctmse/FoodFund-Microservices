@@ -1,3 +1,11 @@
+import { initDatadogTracer } from "@libs/observability/datadog"
+
+initDatadogTracer({
+    serviceName: "graphql-gateway",
+    serviceType: "gateway",
+    microservice: "graphql-gateway",
+})
+
 import { NestFactory } from "@nestjs/core"
 import { ApiGatewayModule } from "./app.module"
 import * as compression from "compression"
@@ -63,6 +71,5 @@ async function bootstrap() {
 
     console.log(`🚀 GraphQL Gateway is running on: ${serverUrl}`)
     console.log("📡 Webhook proxy available at: /webhooks/*")
-    console.log(`📊 Prometheus metrics available at http://localhost:${port}/metrics`)
 }
 bootstrap()

@@ -1,3 +1,11 @@
+import { initDatadogTracer } from "@libs/observability/datadog"
+
+initDatadogTracer({
+    serviceName: "operation-service",
+    serviceType: "backend",
+    microservice: "operation",
+})
+
 import { NestFactory } from "@nestjs/core"
 import { AppModule } from "./app.module"
 import { ValidationPipe } from "@nestjs/common"
@@ -28,6 +36,5 @@ async function bootstrap() {
     const port = envConfig().containers["operation-subgraph"]?.port ?? 8005
     await app.listen(port)
     console.log(`🚀 Operation Service is running on: ${port}`)
-    console.log(`📊 Prometheus metrics available at http://localhost:${port}/metrics`)
 }
 bootstrap()

@@ -1,3 +1,11 @@
+import { initDatadogTracer } from "@libs/observability/datadog"
+
+initDatadogTracer({
+    serviceName: "user-service",
+    serviceType: "backend",
+    microservice: "user",
+})
+
 import { NestFactory } from "@nestjs/core"
 import { MicroserviceOptions, Transport } from "@nestjs/microservices"
 import { AppModule } from "./app.module"
@@ -47,6 +55,5 @@ async function bootstrap() {
     console.log(`🚀 User Service is running on port ${port}`)
     console.log(`🔌 gRPC server is listening on 0.0.0.0:${grpcPort}`)
     console.log(`🔗 gRPC clients should connect to: ${grpcUrl}`)
-    console.log(`📊 Prometheus metrics available at http://localhost:${port}/metrics`)
 }
 bootstrap()
