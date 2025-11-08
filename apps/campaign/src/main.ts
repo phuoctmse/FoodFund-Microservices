@@ -6,6 +6,13 @@ import { GraphQLExceptionFilter } from "@libs/exceptions"
 import { GrpcServerService } from "@libs/grpc"
 import { CampaignGrpcService } from "./campaign/grpc"
 import { envConfig } from "@libs/env"
+import { DatadogInterceptor, initDatadogTracer } from "@libs/observability"
+
+initDatadogTracer({
+    serviceName: "campaign-service",
+    serviceType: "backend",
+    microservice: "campaign",
+})
 
 async function bootstrap() {
     try {
@@ -14,6 +21,7 @@ async function bootstrap() {
         })
 
         const sentryService = app.get(SentryService)
+        const datadogInterceptor = app.get(DatadogInterceptor)
         const grpcServer = app.get(GrpcServerService)
         const campaignGrpcService = app.get(CampaignGrpcService)
 
@@ -33,6 +41,7 @@ async function bootstrap() {
             }),
         )
         app.useGlobalFilters(new GraphQLExceptionFilter(sentryService))
+        app.useGlobalInterceptors(datadogInterceptor)
 
         app.use((req, res, next) => {
             res.header("X-Content-Type-Options", "nosniff")

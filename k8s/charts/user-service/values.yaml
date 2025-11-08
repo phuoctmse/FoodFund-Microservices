@@ -141,7 +141,9 @@ affinity: {}
 
 # Environment variables - only non-sensitive service-specific configs  
 # Most env vars are now loaded from ConfigMap/Secret via envFrom
-env: []
+env:
+  - name: SERVICE_NAME
+    value: "user-service"
   # Add any service-specific env vars that are not in ConfigMap/Secret here
   # Example:
   # - name: SERVICE_SPECIFIC_CONFIG

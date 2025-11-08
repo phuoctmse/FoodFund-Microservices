@@ -16,6 +16,7 @@ import { GrpcModule } from "@libs/grpc"
 import { VietQRModule } from "@libs/vietqr"
 import { QueueWorkerService } from "./workers/queue-worker.service"
 import { CampaignPhaseModule } from "./campaign-phase"
+import { DatadogModule } from "@libs/observability"
 
 @Module({
     imports: [
@@ -35,6 +36,11 @@ import { CampaignPhaseModule } from "./campaign-phase"
             environment: envConfig().sentry.environment,
             release: envConfig().sentry.release,
             enableTracing: true,
+        }),
+        DatadogModule.forRoot({
+            serviceName: "campaign-service",
+            env: envConfig().nodeEnv,
+            version: process.env.SERVICE_VERSION || "1.0.0",
         }),
         ScheduleModule.forRoot(),
         GrpcModule,

@@ -24,8 +24,6 @@ service UserService {
   
   // Get user by email
   rpc GetUserByEmail(GetUserByEmailRequest) returns (GetUserResponse);
-
-  rpc GetOrganizationMembers(GetOrganizationMembersRequest) returns (GetOrganizationMembersResponse);
 }
 
 // Messages
@@ -131,22 +129,5 @@ message CreateStaffUserRequest {
 message CreateStaffUserResponse {
   bool success = 1;
   User user = 2;
-  string error = 3;
-}
-
-message GetOrganizationMembersRequest {
-  string user_id = 1;
-}
-
-message OrganizationMember {
-  string user_id = 1;
-  string role = 2;
-  string full_name = 3;
-  string email = 4;
-}
-
-message GetOrganizationMembersResponse {
-  bool success = 1;
-  repeated OrganizationMember members = 2;
   string error = 3;
 }

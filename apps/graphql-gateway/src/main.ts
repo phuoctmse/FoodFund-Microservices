@@ -2,11 +2,21 @@ import { NestFactory } from "@nestjs/core"
 import { ApiGatewayModule } from "./app.module"
 import * as compression from "compression"
 import { envConfig } from "@libs/env"
+import { DatadogInterceptor, initDatadogTracer } from "@libs/observability"
+
+initDatadogTracer({
+    serviceName: "graphql-gateway",
+    serviceType: "gateway",
+    microservice: "graphql-gateway",
+})
 
 async function bootstrap() {
     const app = await NestFactory.create(ApiGatewayModule, {
         bufferLogs: true,
     })
+
+    const datadogInterceptor = app.get(DatadogInterceptor)
+    app.useGlobalInterceptors(datadogInterceptor)
 
     const envOrigins = envConfig().cors_origin
 

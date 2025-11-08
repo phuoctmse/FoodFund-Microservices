@@ -25,6 +25,42 @@ export class DonorRepository {
         })
     }
 
+    /**
+     * Find PENDING PayOS payment links created before a given threshold
+     * Only transactions with a stored payment_link_id OR order_code will be returned
+     */
+    async findPendingPayosLinksBefore(
+        before: Date,
+        take = 500,
+    ): Promise<
+        Array<{
+            id: string
+            order_code: bigint | null
+            payment_link_id: string | null
+            created_at: Date
+        }>
+    > {
+        const items = await this.prisma.payment_Transaction.findMany({
+            where: {
+                status: PaymentStatus.PENDING,
+                created_at: {
+                    lt: before,
+                },
+                OR: [{ payment_link_id: { not: null } }, { order_code: { not: null } }],
+            },
+            select: {
+                id: true,
+                order_code: true,
+                payment_link_id: true,
+                created_at: true,
+            },
+            orderBy: { created_at: "asc" },
+            take,
+        })
+
+        return items
+    }
+
     async createPaymentTransaction(data: {
         donation_id: string
         order_code: bigint
@@ -278,6 +314,9 @@ export class DonorRepository {
      */
     async updatePaymentTransactionSuccess(data: {
         order_code: bigint
+        gateway: string
+        processed_by_webhook: boolean
+        is_matched: boolean
         reference: string
         transaction_datetime: Date
         counter_account_bank_id?: string
@@ -293,6 +332,9 @@ export class DonorRepository {
                 where: { order_code: data.order_code },
                 data: {
                     status: PaymentStatus.SUCCESS,
+                    gateway: data.gateway,
+                    processed_by_webhook: data.processed_by_webhook,
+                    is_matched: data.is_matched,
                     reference: data.reference,
                     transaction_datetime: data.transaction_datetime,
                     counter_account_bank_id: data.counter_account_bank_id,
@@ -304,7 +346,11 @@ export class DonorRepository {
                     updated_at: new Date(),
                 },
                 include: {
-                    donation: true,
+                    donation: {
+                        include: {
+                            campaign: true,
+                        },
+                    },
                 },
             })
 
@@ -330,6 +376,9 @@ export class DonorRepository {
      */
     async updatePaymentTransactionFailed(data: {
         order_code: bigint
+        gateway: string
+        processed_by_webhook: boolean
+        is_matched: boolean
         error_code: string
         error_description: string
     }) {
@@ -337,10 +386,33 @@ export class DonorRepository {
             where: { order_code: data.order_code },
             data: {
                 status: PaymentStatus.FAILED,
+                gateway: data.gateway,
+                processed_by_webhook: data.processed_by_webhook,
+                is_matched: data.is_matched,
                 error_code: data.error_code,
                 error_description: data.error_description,
                 updated_at: new Date(),
             },
         })
+    }
+    async findByOrderCode(orderCode: string) {
+        const orderCodeBigInt = BigInt(orderCode)
+
+        const paymentTransaction = await this.prisma.payment_Transaction.findUnique({
+            where: { order_code: orderCodeBigInt },
+            include: {
+                donation: {
+                    include: {
+                        payment_transactions: {
+                            orderBy: {
+                                created_at: "desc",
+                            },
+                        },
+                    },
+                },
+            },
+        })
+
+        return paymentTransaction?.donation || null
     }
 }

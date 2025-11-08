@@ -141,10 +141,21 @@ affinity: {}
 
 # Environment variables - only non-sensitive service-specific configs
 # Most env vars are now loaded from ConfigMap/Secret via envFrom
-env: []
+env:
+  - name: SERVICE_NAME
+    value: "auth-service"
   # Add any service-specific env vars that are not in ConfigMap/Secret here
   # Example:
   # - name: SERVICE_SPECIFIC_CONFIG
   #   value: "some-value"
 # Sensitive environment variables are set via ConfigMap/Secret
 # See k8s/config/ for templates
+
+# ServiceMonitor for Prometheus metrics scraping
+serviceMonitor:
+  enabled: false  # Set to true to enable Prometheus metrics collection
+  interval: 15s
+  scrapeTimeout: 10s
+  labels:
+    release: prometheus  # Must match Prometheus operator selector
+  metricRelabelings: []

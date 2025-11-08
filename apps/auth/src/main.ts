@@ -4,15 +4,25 @@ import { AppModule } from "./app.module"
 import { CustomValidationPipe } from "libs/validation"
 import { GraphQLExceptionFilter } from "libs/exceptions"
 import { SentryService } from "libs/observability/sentry.service"
+import { DatadogInterceptor, initDatadogTracer } from "@libs/observability/datadog"
 import { envConfig } from "libs/env"
 import { join } from "path"
+
+initDatadogTracer({
+    serviceName: "auth-service",
+    serviceType: "backend",
+    microservice: "auth",
+})
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule)
 
     const sentryService = app.get(SentryService)
+    const datadogInterceptor = app.get(DatadogInterceptor)
+
     app.useGlobalPipes(new CustomValidationPipe())
     app.useGlobalFilters(new GraphQLExceptionFilter(sentryService))
+    app.useGlobalInterceptors(datadogInterceptor)
 
     // Setup gRPC microservice
     const env = envConfig()
@@ -35,5 +45,7 @@ async function bootstrap() {
     console.log(`🚀 Auth Service is running on port ${port}`)
     console.log(`🔌 gRPC server is listening on 0.0.0.0:${grpcPort}`)
     console.log(`🔗 gRPC clients should connect to: ${grpcUrl}`)
+    console.log("📊 Datadog APM traces available at https://us5.datadoghq.com/apm/services")
+    console.log("📈 Datadog metrics available at https://us5.datadoghq.com/infrastructure")
 }
 bootstrap()

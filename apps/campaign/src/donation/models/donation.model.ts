@@ -24,6 +24,18 @@ export class Donation extends BaseSchema {
     @Field(() => Boolean, { description: "Whether donation is anonymous" })
         isAnonymous: boolean
 
+    @Field(() => String, {
+        nullable: true,
+        description: "Payment status (PENDING, SUCCESS, FAILED, CANCELLED)",
+    })
+        status?: string
+
+    @Field(() => String, {
+        nullable: true,
+        description: "Order code from payment gateway",
+    })
+        orderCode?: string
+
     @Field(() => Date, {
         nullable: true,
         description: "Transaction datetime from payment gateway",

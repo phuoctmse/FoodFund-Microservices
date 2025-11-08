@@ -8,6 +8,11 @@ import { DonorRepository } from "../repositories/donor.repository"
 import { CreateDonationInput } from "../dtos/create-donation.input"
 import { DonationResponse } from "../dtos/donation-response.dto"
 import { CampaignDonationInfo } from "../dtos/campaign-donation-info.dto"
+import { MyDonationsResponse } from "../dtos/my-donations-response.dto"
+import {
+    DonationPaymentLinkResponse,
+    DonationTransactionInfo,
+} from "../dtos/donation-payment-link-response.dto"
 import { CampaignStatus } from "../../campaign/enum/campaign.enum"
 import { Donation } from "../models/donation.model"
 import { SqsService } from "@libs/aws-sqs"
@@ -293,6 +298,97 @@ export class DonorService {
         return donations.map(this.mapDonationToGraphQLModel)
     }
 
+    async getMyDonationsWithTotal(
+        donorId: string,
+        options?: {
+            skip?: number
+            take?: number
+        },
+    ): Promise<MyDonationsResponse> {
+        // Get paginated donations
+        const donations = await this.donorRepository.findByDonorId(
+            donorId,
+            options,
+        )
+
+        // Get donation stats
+        const stats = await this.donorRepository.getDonationStats(donorId)
+
+        return {
+            donations: donations.map(this.mapDonationToGraphQLModel),
+            totalAmount: stats.totalDonated.toString(),
+            totalSuccessDonations: stats.donationCount,
+            totalDonatedCampaigns: stats.campaignCount,
+        }
+    }
+
+    async getMyDonationPaymentLink(
+        orderCode: string,
+    ): Promise<DonationPaymentLinkResponse> {
+        const donation = await this.donorRepository.findByOrderCode(orderCode)
+
+        if (!donation) {
+            throw new NotFoundException("Donation not found with this order code")
+        }
+
+        // Get all payment transactions
+        const transactions: DonationTransactionInfo[] =
+            donation.payment_transactions.map((tx: any) => ({
+                reference: tx.reference,
+                amount: tx.amount.toString(),
+                accountNumber: tx.counter_account_number,
+                description: tx.description,
+                transactionDateTime: tx.transaction_datetime,
+            }))
+
+        // Calculate total paid and remaining
+        const totalPaid = donation.payment_transactions
+            .filter((tx: any) => tx.status === "SUCCESS")
+            .reduce((sum: bigint, tx: any) => sum + tx.amount, BigInt(0))
+
+        const amountRemaining = donation.amount - totalPaid
+
+        // Get latest payment transaction for status
+        const latestTx = donation.payment_transactions[0]
+        const status = latestTx?.status || "PENDING"
+
+        // Only include banking info if status is PENDING or UNPAID
+        const shouldShowBankingInfo =
+            status === "PENDING" ||
+            (status === "SUCCESS" && amountRemaining > BigInt(0))
+
+        const config = envConfig().payos
+
+        return {
+            id: donation.id,
+            orderCode: latestTx?.order_code?.toString() ?? undefined,
+            amount: donation.amount.toString(),
+            amountPaid: totalPaid.toString(),
+            amountRemaining: amountRemaining.toString(),
+            status,
+            createdAt: donation.created_at,
+            transactions,
+            // Banking info - only for PENDING/UNPAID
+            qrCode: shouldShowBankingInfo
+                ? latestTx?.qr_code ?? undefined
+                : undefined,
+            bankNumber: shouldShowBankingInfo
+                ? config.payosBankNumber
+                : undefined,
+            bankAccountName: shouldShowBankingInfo
+                ? config.payosBankAccountName
+                : undefined,
+            bankFullName: shouldShowBankingInfo
+                ? config.payosBankFullName
+                : undefined,
+            bankName: shouldShowBankingInfo ? config.payosBankName : undefined,
+            bankLogo: shouldShowBankingInfo ? config.payosBankLogo : undefined,
+            description: shouldShowBankingInfo
+                ? latestTx?.description ?? undefined
+                : undefined,
+        }
+    }
+
     async getDonationsByCampaign(
         campaignId: string,
         options?: {
@@ -305,6 +401,12 @@ export class DonorService {
             }
         },
     ): Promise<Donation[]> {
+        this.logger.log("=== getDonationsByCampaign SERVICE DEBUG ===")
+        this.logger.log(`campaignId: ${campaignId}`)
+        this.logger.log(`options: ${JSON.stringify(options, null, 2)}`)
+        this.logger.log(`filter: ${JSON.stringify(options?.filter, null, 2)}`)
+        this.logger.log("===========================================")
+        
         const donations = await this.donorRepository.findByCampaignId(
             campaignId,
             options,
@@ -386,17 +488,17 @@ export class DonorService {
         }
 
         // Apply sorting
-        const sortBy = options?.filter?.sortBy || "transactionDate"
-        const sortOrder = options?.filter?.sortOrder || "desc"
+        const sortBy = options?.filter?.sortBy || "TRANSACTION_DATE"
+        const sortOrder = options?.filter?.sortOrder || "DESC"
 
         donationsWithNames.sort((a: any, b: any) => {
             let compareValue = 0
 
             switch (sortBy) {
-            case "amount":
+            case "AMOUNT":
                 compareValue = Number(a.amount) - Number(b.amount)
                 break
-            case "transactionDate": {
+            case "TRANSACTION_DATE": {
                 const aDate =
                         a.payment_transactions?.find(
                             (tx: any) => tx.status === "SUCCESS",
@@ -409,7 +511,7 @@ export class DonorService {
                         new Date(aDate).getTime() - new Date(bDate).getTime()
                 break
             }
-            case "createdAt":
+            case "CREATED_AT":
                 compareValue =
                         new Date(a.created_at).getTime() -
                         new Date(b.created_at).getTime()
@@ -418,7 +520,7 @@ export class DonorService {
                 compareValue = 0
             }
 
-            return sortOrder === "asc" ? compareValue : -compareValue
+            return sortOrder === "ASC" ? compareValue : -compareValue
         })
 
         return donationsWithNames.map(this.mapDonationToGraphQLModel)
@@ -455,6 +557,9 @@ export class DonorService {
             (tx: any) => tx.status === "SUCCESS",
         )
 
+        // Get latest payment transaction for status and orderCode
+        const latestTx = donation.payment_transactions?.[0]
+
         return {
             id: donation.id,
             donorId: donation.donor_id,
@@ -462,6 +567,8 @@ export class DonorService {
             campaignId: donation.campaign_id,
             amount: donation.amount.toString(),
             isAnonymous: donation.is_anonymous ?? false,
+            status: latestTx?.status || "PENDING",
+            orderCode: latestTx?.order_code?.toString() || null,
             transactionDatetime: successfulTx?.transaction_datetime || null,
             created_at: donation.created_at,
             updated_at: donation.updated_at,

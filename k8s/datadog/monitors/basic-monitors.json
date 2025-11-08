@@ -1,0 +1,60 @@
+[
+  {
+    "name": "FoodFund Services - Request Rate Drop",
+    "type": "metric alert",
+    "query": "avg(last_10m):sum:trace.http.request.hits{*}.as_rate() < 0.1",
+    "message": "📉 **Low Request Rate Alert**\n\n**Request Rate:** {{value}} req/s\n**Threshold:** 0.1 req/s\n\n**Possible Issues:**\n- Service down\n- Load balancer issues\n- DNS problems\n\n**Dashboard:** https://us5.datadoghq.com/dashboard/8qj-sbi-mv8\n\n@slack-alerts",
+    "tags": ["service:foodfund", "component:availability", "severity:warning"],
+    "options": {
+      "thresholds": {
+        "critical": 0.05,
+        "warning": 0.1
+      },
+      "notify_audit": false,
+      "require_full_window": true,
+      "notify_no_data": false,
+      "renotify_interval": 240,
+      "timeout_h": 24,
+      "include_tags": true
+    }
+  },
+  {
+    "name": "FoodFund Kubernetes - Pod Not Running",
+    "type": "metric alert",
+    "query": "avg(last_5m):sum:kubernetes.pods.running{kube_namespace:foodfund-k8s} < 5",
+    "message": "🔴 **Pod Not Running Alert**\n\n**Running Pods:** {{value}}\n**Expected:** 5 pods\n\n**Action Required:**\n```\nkubectl get pods -n foodfund-k8s\nkubectl describe pods -n foodfund-k8s\n```\n\n**Dashboard:** https://us5.datadoghq.com/dashboard/96x-dwt-auk\n\n@slack-infrastructure @oncall-engineer",
+    "tags": ["service:foodfund", "component:kubernetes", "severity:critical"],
+    "options": {
+      "thresholds": {
+        "critical": 4,
+        "warning": 5
+      },
+      "notify_audit": false,
+      "require_full_window": false,
+      "notify_no_data": true,
+      "no_data_timeframe": 10,
+      "renotify_interval": 30,
+      "timeout_h": 24,
+      "include_tags": true
+    }
+  },
+  {
+    "name": "FoodFund APM - High Response Time",
+    "type": "metric alert",
+    "query": "avg(last_5m):p95:trace.http.request.duration{*} > 2000000",
+    "message": "⏱️ **High Response Time Alert**\n\n**P95 Response Time:** {{value}}ns\n**Threshold:** 2000ms\n\n**Impact:** Slow user experience\n\n**Investigation:**\n- Check APM traces\n- Review database queries\n- Check service resources\n\n**APM:** https://us5.datadoghq.com/apm/traces\n**Dashboard:** https://us5.datadoghq.com/dashboard/8qj-sbi-mv8\n\n@slack-performance",
+    "tags": ["service:foodfund", "component:performance", "severity:warning"],
+    "options": {
+      "thresholds": {
+        "critical": 5000000,
+        "warning": 2000000
+      },
+      "notify_audit": false,
+      "require_full_window": false,
+      "notify_no_data": false,
+      "renotify_interval": 120,
+      "timeout_h": 24,
+      "include_tags": true
+    }
+  }
+]

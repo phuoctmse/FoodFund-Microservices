@@ -1,0 +1,37 @@
+# Minimal Datadog Configuration for Quick Setup
+
+datadog:
+  apiKeyExistingSecret: datadog-secret
+  clusterName: foodfund-k8s
+  site: us5.datadoghq.com
+  
+  # Basic monitoring only (fixed deprecated warning)
+  apm:
+    portEnabled: true
+    socketEnabled: true
+  logs:
+    enabled: true
+    containerCollectAll: true
+  
+  # Disable problematic auto-discovery
+  env:
+    - name: DD_IGNORE_AUTOCONF
+      value: "cilium"
+  
+  # Minimal resources
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 200m
+
+# High Availability cluster agent (fixed warning)
+clusterAgent:
+  enabled: true
+  replicas: 2
+  # Enable Pod Disruption Budget for HA
+  pdb:
+    create: true
+    minAvailable: 1

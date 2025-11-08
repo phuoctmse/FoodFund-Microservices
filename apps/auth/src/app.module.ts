@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common"
 import { envConfig } from "libs/env"
 import { SentryModule } from "libs/observability/sentry.module"
+import { DatadogModule } from "@libs/observability/datadog"
 import { EnvModule } from "@libs/env/env.module"
 import { AuthLibModule } from "@libs/auth"
 import { AwsCognitoModule } from "@libs/aws-cognito"
@@ -30,6 +31,11 @@ import { HealthController } from "./presentation/http/controllers"
             environment: envConfig().sentry.environment,
             release: envConfig().sentry.release,
             enableTracing: true,
+        }),
+        DatadogModule.forRoot({
+            serviceName: "auth-service",
+            env: envConfig().nodeEnv,
+            version: process.env.SERVICE_VERSION || "1.0.0",
         }),
         GrpcModule,
         AuthLibModule,

@@ -134,4 +134,142 @@ export class UserClientService {
 
         return userNameMap
     }
+
+    /**
+     * Credit Fundraiser Wallet after successful PayOS payment
+     * Calls User service via gRPC to create wallet transaction
+     */
+    async creditFundraiserWallet(data: {
+        fundraiser_id: string
+        campaign_id: string
+        payment_transaction_id: string
+        amount: bigint
+        gateway: string
+        description?: string
+    }): Promise<void> {
+        try {
+            this.logger.log(
+                `[gRPC] Calling CreditFundraiserWallet for fundraiser ${data.fundraiser_id}`,
+            )
+
+            const response = await this.grpcClient.callUserService<
+                {
+                    fundraiserId: string
+                    campaignId: string
+                    paymentTransactionId: string
+                    amount: string // gRPC uses string for bigint
+                    gateway: string
+                    description?: string
+                },
+                {
+                    success: boolean
+                    walletTransactionId?: string
+                    error?: string
+                }
+            >(
+                "CreditFundraiserWallet",
+                {
+                    fundraiserId: data.fundraiser_id,
+                    campaignId: data.campaign_id,
+                    paymentTransactionId: data.payment_transaction_id,
+                    amount: data.amount.toString(), // Convert bigint to string for gRPC
+                    gateway: data.gateway,
+                    description: data.description,
+                },
+                { timeout: 5000, retries: 3 }, // Higher timeout for wallet operations
+            )
+
+            if (!response.success) {
+                throw new Error(
+                    response.error || "Failed to credit fundraiser wallet",
+                )
+            }
+
+            this.logger.log(
+                `[gRPC] ✅ Fundraiser wallet credited - Transaction ID: ${response.walletTransactionId}`,
+            )
+        } catch (error) {
+            this.logger.error(
+                `[gRPC] ❌ Failed to credit fundraiser wallet for ${data.fundraiser_id}:`,
+                error,
+            )
+            throw error
+        }
+    }
+
+    /**
+     * Credit Admin Wallet for Sepay incoming transfers (catch-all)
+     * Calls User service via gRPC to create wallet transaction for Admin
+     */
+    async creditAdminWallet(data: {
+        admin_id: string
+        campaign_id: string | null
+        payment_transaction_id: string | null
+        amount: bigint
+        gateway: string
+        description?: string
+        sepay_metadata?: {
+            sepay_id: number
+            reference_code: string
+            content: string
+            bank_name: string
+            transaction_date: string
+            accumulated: number
+            sub_account: string | null
+            description: string
+        }
+    }): Promise<void> {
+        try {
+            this.logger.log(
+                `[gRPC] Calling CreditAdminWallet for admin ${data.admin_id}`,
+            )
+
+            const response = await this.grpcClient.callUserService<
+                {
+                    adminId: string
+                    campaignId: string | null
+                    paymentTransactionId: string | null
+                    amount: string // gRPC uses string for bigint
+                    gateway: string
+                    description?: string
+                    sepayMetadata?: string // JSONB as string
+                },
+                {
+                    success: boolean
+                    walletTransactionId?: string
+                    error?: string
+                }
+            >(
+                "CreditAdminWallet",
+                {
+                    adminId: data.admin_id,
+                    campaignId: data.campaign_id,
+                    paymentTransactionId: data.payment_transaction_id,
+                    amount: data.amount.toString(), // Convert bigint to string for gRPC
+                    gateway: data.gateway,
+                    description: data.description,
+                    sepayMetadata: data.sepay_metadata
+                        ? JSON.stringify(data.sepay_metadata)
+                        : undefined, // Serialize JSONB to string
+                },
+                { timeout: 5000, retries: 3 }, // Higher timeout for wallet operations
+            )
+
+            if (!response.success) {
+                throw new Error(
+                    response.error || "Failed to credit admin wallet",
+                )
+            }
+
+            this.logger.log(
+                `[gRPC] ✅ Admin wallet credited - Transaction ID: ${response.walletTransactionId}`,
+            )
+        } catch (error) {
+            this.logger.error(
+                `[gRPC] ❌ Failed to credit admin wallet for ${data.admin_id}:`,
+                error,
+            )
+            throw error
+        }
+    }
 }

@@ -76,6 +76,17 @@ export interface PayOSConfig {
     payosBankLogo: string
 }
 
+export interface DataDogConfig {
+    agentHost: string
+    agentPort: number
+    env: string
+    version: string
+    logsInjection: boolean
+    traceEnabled: boolean
+    site: string
+    traceSampleRate: number
+}
+
 // Main environment configuration interface
 export interface EnvironmentConfig {
     nodeEnv: NodeEnv
@@ -121,6 +132,9 @@ export interface EnvironmentConfig {
 
     //Payos Configuration
     payos: PayOSConfig
+
+    //DataDog Configuration
+    datadog: DataDogConfig
 }
 
 export interface EnvModuleOptions {

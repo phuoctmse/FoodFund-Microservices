@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common"
 import { envConfig } from "libs/env"
 import { SentryModule } from "libs/observability/sentry.module"
+import { DatadogModule } from "@libs/observability/datadog"
 import { EnvModule } from "@libs/env/env.module"
 import { AwsCognitoModule } from "@libs/aws-cognito"
 import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
@@ -26,6 +27,7 @@ import {
     KitchenStaffRepository,
     FundraiserRepository,
     DeliveryStaffRepository,
+    WalletRepository,
 } from "./domain/repositories"
 import { PrismaUserService } from "./infrastructure/database"
 import { UserGrpcController } from "./infrastructure/grpc/user-grpc.controller"
@@ -49,6 +51,11 @@ import { HealthController } from "./presentation/http/controllers"
             environment: envConfig().sentry.environment,
             release: envConfig().sentry.release,
             enableTracing: true,
+        }),
+        DatadogModule.forRoot({
+            serviceName: "user-service",
+            env: envConfig().nodeEnv,
+            version: process.env.SERVICE_VERSION || "1.0.0",
         }),
         GrpcModule,
         GraphQLSubgraphModule.forRoot({
@@ -85,6 +92,7 @@ import { HealthController } from "./presentation/http/controllers"
         KitchenStaffRepository,
         FundraiserRepository,
         DeliveryStaffRepository,
+        WalletRepository,
 
         // Application - Use Cases
         UserAdminService,

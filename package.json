@@ -87,6 +87,8 @@
     "class-validator": "^0.14.2",
     "compression": "^1.8.1",
     "dataloader": "^2.2.3",
+    "dd-trace": "^5.23.0",
+    "hot-shots": "^10.2.0",
     "graphql": "^16.11.0",
     "http-proxy-middleware": "^3.0.5",
     "ioredis": "^5.8.1",

@@ -4,8 +4,15 @@ import { AppModule } from "./app.module"
 import { CustomValidationPipe } from "libs/validation"
 import { GraphQLExceptionFilter } from "libs/exceptions"
 import { SentryService } from "libs/observability/sentry.service"
+import { DatadogInterceptor, initDatadogTracer } from "@libs/observability/datadog"
 import { envConfig } from "@libs/env"
 import { join } from "path"
+
+initDatadogTracer({
+    serviceName: "user-service",
+    serviceType: "backend",
+    microservice: "user",
+})
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule, {
@@ -14,12 +21,16 @@ async function bootstrap() {
 
     // Get services for setup
     const sentryService = app.get(SentryService)
+    const datadogInterceptor = app.get(DatadogInterceptor)
 
     // Enable validation with class-validator using custom pipe
     app.useGlobalPipes(new CustomValidationPipe())
 
     // Enable GraphQL exception filter (better for GraphQL APIs)
     app.useGlobalFilters(new GraphQLExceptionFilter(sentryService))
+
+    // Enable Prometheus metrics interceptor
+    app.useGlobalInterceptors(datadogInterceptor)
 
     // Setup gRPC microservice
     const env = envConfig()

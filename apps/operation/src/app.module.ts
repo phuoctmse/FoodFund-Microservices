@@ -20,7 +20,7 @@ import { PrismaOperationService } from "./infrastructure"
 import { PrismaClient } from "./generated/operation-client"
 import { AwsCognitoModule } from "@libs/aws-cognito"
 import { envConfig } from "@libs/env"
-import { SentryModule } from "@libs/observability"
+import { SentryModule, DatadogModule } from "@libs/observability"
 import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 import { EnvModule } from "@libs/env/env.module"
 import { HealthController } from "./presentation/http"
@@ -51,6 +51,11 @@ import { ExpenseProofRepository } from "./application/repositories"
             environment: envConfig().sentry.environment,
             release: envConfig().sentry.release,
             enableTracing: true,
+        }),
+        DatadogModule.forRoot({
+            serviceName: "operation-service",
+            env: envConfig().nodeEnv,
+            version: process.env.SERVICE_VERSION || "1.0.0",
         }),
         AwsCognitoModule.forRoot({
             isGlobal: false,

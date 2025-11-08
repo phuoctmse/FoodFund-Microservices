@@ -92,25 +92,41 @@ model User_Badge {
 }
 
 model Wallet {
-  id                 String              @id @default(uuid())
-  user_id            String              @unique
-  user               User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  balance            BigInt              @default(0)
-  created_at         DateTime            @default(now())
-  updated_at         DateTime            @updatedAt
+  id                 String               @id @default(uuid())
+  user_id            String               @unique
+  user               User                 @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  wallet_type        Wallet_Type          @default(FUNDRAISER)
+  balance            BigInt               @default(0)
+  created_at         DateTime             @default(now())
+  updated_at         DateTime             @updatedAt
   Wallet_Transaction Wallet_Transaction[]
 
+  @@index([wallet_type])
+  @@index([user_id, wallet_type])
   @@map("wallets")
 }
 
 model Wallet_Transaction {
-  id          String   @id @default(uuid())
-  wallet_id   String
-  wallet      Wallet   @relation(fields: [wallet_id], references: [id], onDelete: Cascade)
-  campaign_id String
-  amount      BigInt
-  created_at  DateTime @default(now())
+  id                     String           @id @default(uuid())
+  wallet_id              String
+  wallet                 Wallet           @relation(fields: [wallet_id], references: [id], onDelete: Cascade)
+  campaign_id            String? // NULL for Sepay incoming transfers
+  payment_transaction_id String?          @unique // NULL for Sepay incoming transfers
+  amount                 BigInt
+  transaction_type       Transaction_Type
+  description            String?          @db.Text()
+  gateway                String?          @db.VarChar(50) // "PAYOS" or "SEPAY"
+  sepay_metadata         Json? // Store Sepay payload for audit/debugging
+  created_at             DateTime         @default(now())
 
+  @@index([wallet_id])
+  @@index([campaign_id])
+  @@index([payment_transaction_id])
+  @@index([transaction_type])
+  @@index([created_at])
+  @@index([wallet_id, transaction_type])
+  @@index([campaign_id, created_at])
+  @@index([gateway])
   @@map("wallet_transactions")
 }
 
@@ -132,4 +148,16 @@ enum Verification_Status {
 enum Availability_Status {
   AVAILABLE
   UNAVAILABLE
+}
+
+enum Wallet_Type {
+  FUNDRAISER
+  ADMIN
+}
+
+enum Transaction_Type {
+  DONATION_RECEIVED
+  INCOMING_TRANSFER
+  WITHDRAWAL
+  ADMIN_ADJUSTMENT
 }

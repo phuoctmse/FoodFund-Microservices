@@ -1,0 +1,339 @@
+{
+  "title": "FoodFund Microservices Overview",
+  "description": "Main dashboard for FoodFund microservices monitoring - migrated from Grafana with AI enhancements",
+  "template_variables": [
+    {
+      "name": "service",
+      "prefix": "service",
+      "available_values": [
+        "graphql-gateway",
+        "auth-service", 
+        "user-service",
+        "campaign-service",
+        "operation-service"
+      ],
+      "default": "*"
+    },
+    {
+      "name": "env",
+      "prefix": "env",
+      "available_values": ["production", "development", "staging"],
+      "default": "production"
+    }
+  ],
+  "layout_type": "ordered",
+  "widgets": [
+    {
+      "id": 1,
+      "definition": {
+        "type": "note",
+        "content": "# 🚀 FoodFund Microservices Dashboard\n\n**Services:** GraphQL Gateway, Auth, User, Campaign, Operation\n\n**Key Metrics:** Request Rate, Response Time, Error Rate, Resource Usage\n\n**AI Features:** Anomaly Detection, Forecasting, Intelligent Alerts",
+        "background_color": "blue",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": true,
+        "tick_pos": "50%",
+        "tick_edge": "bottom",
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "width": 12,
+        "height": 2
+      }
+    },
+    {
+      "id": 2,
+      "definition": {
+        "type": "timeseries",
+        "title": "📈 Request Rate by Service (req/sec)",
+        "requests": [
+          {
+            "q": "sum:trace.http.request.hits{service:$service,env:$env} by {service}.as_rate()",
+            "display_type": "line",
+            "style": {
+              "palette": "dog_classic",
+              "line_type": "solid",
+              "line_width": "normal"
+            }
+          }
+        ],
+        "yaxis": {
+          "scale": "linear",
+          "label": "Requests/sec",
+          "include_zero": true
+        },
+        "show_legend": true,
+        "legend_columns": ["avg", "min", "max", "value"],
+        "legend_layout": "auto"
+      },
+      "layout": {
+        "x": 0,
+        "y": 2,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 3,
+      "definition": {
+        "type": "timeseries",
+        "title": "⏱️ Response Time P95 by Service (ms)",
+        "requests": [
+          {
+            "q": "p95:trace.http.request.duration{service:$service,env:$env} by {service}",
+            "display_type": "line",
+            "style": {
+              "palette": "warm",
+              "line_type": "solid",
+              "line_width": "normal"
+            }
+          }
+        ],
+        "yaxis": {
+          "scale": "linear",
+          "label": "Milliseconds",
+          "include_zero": true
+        },
+        "markers": [
+          {
+            "value": "y = 1000",
+            "display_type": "error dashed"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 2,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 4,
+      "definition": {
+        "type": "query_value",
+        "title": "🚨 Overall Error Rate",
+        "requests": [
+          {
+            "q": "sum:trace.http.request.errors{service:$service,env:$env}.as_rate() / sum:trace.http.request.hits{service:$service,env:$env}.as_rate() * 100",
+            "aggregator": "avg",
+            "conditional_formats": [
+              {
+                "comparator": ">",
+                "value": 5,
+                "palette": "red_on_white"
+              },
+              {
+                "comparator": ">",
+                "value": 1,
+                "palette": "yellow_on_white"
+              },
+              {
+                "comparator": "<=",
+                "value": 1,
+                "palette": "green_on_white"
+              }
+            ]
+          }
+        ],
+        "autoscale": true,
+        "precision": 2,
+        "text_align": "center"
+      },
+      "layout": {
+        "x": 0,
+        "y": 5,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 5,
+      "definition": {
+        "type": "query_value",
+        "title": "📊 Total Requests/min",
+        "requests": [
+          {
+            "q": "sum:trace.http.request.hits{service:$service,env:$env}.as_rate() * 60",
+            "aggregator": "avg"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0,
+        "text_align": "center"
+      },
+      "layout": {
+        "x": 3,
+        "y": 5,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 6,
+      "definition": {
+        "type": "query_value",
+        "title": "⚡ Avg Response Time",
+        "requests": [
+          {
+            "q": "avg:trace.http.request.duration{service:$service,env:$env}",
+            "aggregator": "avg",
+            "conditional_formats": [
+              {
+                "comparator": ">",
+                "value": 2000,
+                "palette": "red_on_white"
+              },
+              {
+                "comparator": ">",
+                "value": 1000,
+                "palette": "yellow_on_white"
+              },
+              {
+                "comparator": "<=",
+                "value": 1000,
+                "palette": "green_on_white"
+              }
+            ]
+          }
+        ],
+        "autoscale": true,
+        "precision": 0,
+        "text_align": "center"
+      },
+      "layout": {
+        "x": 6,
+        "y": 5,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 7,
+      "definition": {
+        "type": "query_value",
+        "title": "🔄 Active Services",
+        "requests": [
+          {
+            "q": "count_nonzero(sum:trace.http.request.hits{service:$service,env:$env} by {service})",
+            "aggregator": "last"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0,
+        "text_align": "center"
+      },
+      "layout": {
+        "x": 9,
+        "y": 5,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 8,
+      "definition": {
+        "type": "heatmap",
+        "title": "🌡️ Response Time Distribution",
+        "requests": [
+          {
+            "q": "trace.http.request.duration{service:$service,env:$env} by {service}"
+          }
+        ],
+        "yaxis": {
+          "scale": "linear",
+          "label": "Response Time (ms)"
+        }
+      },
+      "layout": {
+        "x": 0,
+        "y": 7,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 9,
+      "definition": {
+        "type": "toplist",
+        "title": "🔝 Top Endpoints by Request Count",
+        "requests": [
+          {
+            "q": "top(sum:trace.http.request.hits{service:$service,env:$env} by {resource_name}, 10, 'mean', 'desc')",
+            "conditional_formats": [
+              {
+                "comparator": ">",
+                "value": 1000,
+                "palette": "green_on_white"
+              }
+            ]
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 7,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 10,
+      "definition": {
+        "type": "timeseries",
+        "title": "💾 Memory Usage by Service",
+        "requests": [
+          {
+            "q": "avg:system.mem.used{service:$service} by {service}",
+            "display_type": "area",
+            "style": {
+              "palette": "purple"
+            }
+          }
+        ],
+        "yaxis": {
+          "scale": "linear",
+          "label": "Memory (MB)"
+        }
+      },
+      "layout": {
+        "x": 0,
+        "y": 10,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 11,
+      "definition": {
+        "type": "timeseries",
+        "title": "🖥️ CPU Usage by Service",
+        "requests": [
+          {
+            "q": "avg:system.cpu.user{service:$service} by {service}",
+            "display_type": "line",
+            "style": {
+              "palette": "orange"
+            }
+          }
+        ],
+        "yaxis": {
+          "scale": "linear",
+          "label": "CPU %",
+          "max": "100"
+        }
+      },
+      "layout": {
+        "x": 6,
+        "y": 10,
+        "width": 6,
+        "height": 3
+      }
+    }
+  ],
+  "notify_list": [],
+  "reflow_type": "fixed"
+}

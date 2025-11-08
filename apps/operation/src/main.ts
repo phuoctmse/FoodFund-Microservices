@@ -2,9 +2,18 @@ import { NestFactory } from "@nestjs/core"
 import { AppModule } from "./app.module"
 import { ValidationPipe } from "@nestjs/common"
 import { envConfig } from "@libs/env"
+import { DatadogInterceptor, initDatadogTracer } from "@libs/observability"
+
+initDatadogTracer({
+    serviceName: "operation-service",
+    serviceType: "backend",
+    microservice: "operation",
+})
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule)
+    const datadogInterceptor = app.get(DatadogInterceptor)
+
     app.useGlobalPipes(
         new ValidationPipe({
             transform: true,
@@ -20,6 +29,8 @@ async function bootstrap() {
             forbidUnknownValues: false,
         }),
     )
+    app.useGlobalInterceptors(datadogInterceptor)
+
     const port = envConfig().containers["operation-subgraph"]?.port ?? 8005
     await app.listen(port)
     console.log(`🚀 Operation Service is running on: ${port}`)
