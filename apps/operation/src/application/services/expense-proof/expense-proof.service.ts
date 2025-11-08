@@ -1,4 +1,4 @@
-import { ExpenseProof, ExpenseProofStatus } from "@app/operation/src/domain"
+import { ExpenseProof } from "@app/operation/src/domain"
 import {
     AuthorizationService,
     Role,
@@ -23,6 +23,7 @@ import { SpacesUploadService } from "@libs/s3-storage"
 import { SentryService } from "@libs/observability"
 import { ExpenseProofFilterInput } from "../../dtos/expense-proof"
 import { GrpcClientService } from "@libs/grpc"
+import { ExpenseProofStatus } from "@app/operation/src/domain/enums"
 
 @Injectable()
 export class ExpenseProofService {
@@ -260,10 +261,7 @@ export class ExpenseProofService {
         }
     }
 
-    async getExpenseProof(
-        id: string,
-        userContext: UserContext,
-    ): Promise<ExpenseProof> {
+    async getExpenseProof(id: string): Promise<ExpenseProof> {
         try {
             const proof = await this.expenseProofRepository.findById(id)
 
@@ -271,13 +269,10 @@ export class ExpenseProofService {
                 throw new NotFoundException(`Expense proof not found: ${id}`)
             }
 
-            await this.validateProofAccess(proof, userContext)
-
             return this.mapToGraphQLModel(proof)
         } catch (error) {
             this.sentryService.captureError(error as Error, {
                 operation: "ExpenseProofService.getExpenseProof",
-                userId: userContext.userId,
                 proofId: id,
             })
             throw error
@@ -383,48 +378,6 @@ export class ExpenseProofService {
             })
             throw error
         }
-    }
-
-    private async validateProofAccess(
-        proof: any,
-        userContext: UserContext,
-    ): Promise<void> {
-        if (userContext.role === Role.ADMIN) {
-            return
-        }
-
-        if (userContext.role === Role.KITCHEN_STAFF) {
-            const requests =
-                await this.ingredientRequestRepository.findByKitchenStaffOrganization(
-                    userContext.userId,
-                )
-            const requestIds = requests.map((r) => r.id)
-
-            if (!requestIds.includes(proof.request_id)) {
-                throw new ForbiddenException(
-                    "Bạn chỉ có thể xem expense proofs từ tổ chức của mình",
-                )
-            }
-            return
-        }
-
-        if (userContext.role === Role.FUNDRAISER) {
-            const hasAccess = await this.checkFundraiserCampaignOwnership(
-                proof.request_id,
-                userContext.userId,
-            )
-
-            if (!hasAccess) {
-                throw new ForbiddenException(
-                    "Bạn chỉ có thể xem expense proofs từ các chiến dịch của mình",
-                )
-            }
-            return
-        }
-
-        throw new ForbiddenException(
-            "You don't have permission to view this expense proof",
-        )
     }
 
     private async checkFundraiserCampaignOwnership(

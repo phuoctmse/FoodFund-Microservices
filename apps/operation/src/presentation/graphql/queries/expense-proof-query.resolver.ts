@@ -21,10 +21,8 @@ export class ExpenseProofQueryResolver {
     @UseGuards(CognitoGraphQLGuard)
     async getExpenseProof(
         @Args("id", { type: () => String }) id: string,
-        @CurrentUser("decodedToken") decodedToken: any,
     ): Promise<ExpenseProof | null> {
-        const userContext = createUserContextFromToken(decodedToken)
-        return await this.expenseProofService.getExpenseProof(id, userContext)
+        return await this.expenseProofService.getExpenseProof(id)
     }
 
     @Query(() => [ExpenseProof], {
