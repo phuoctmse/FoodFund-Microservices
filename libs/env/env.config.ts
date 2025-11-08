@@ -169,8 +169,8 @@ export const envConfig = (): EnvironmentConfig => ({
         agentPort: Number.parseInt(process.env.DD_AGENT_PORT || "8125"),
         env: process.env.DD_ENV || process.env.NODE_ENV || "development",
         version: process.env.DD_VERSION || "1.0.0",
-        logsInjection: true,
-        traceEnabled: true,
+        logsInjection: (process.env.DD_LOGS_INJECTION ?? "true") === "true",
+        traceEnabled: (process.env.DD_LOGS_INJECTION ?? "true") === "true",
         site: process.env.DD_SITE || "us5.datadoghq.com",
         traceSampleRate: Number.parseFloat(process.env.DD_TRACE_SAMPLE_RATE || "1.0"),
     }
