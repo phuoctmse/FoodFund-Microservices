@@ -11,7 +11,7 @@ import { CampaignCategoryRepository } from "../../campaign-category"
 import { CampaignRepository } from "../repository"
 import { CampaignCacheService } from "./campaign-cache.service"
 import { CampaignStatus } from "../enum"
-import { AuthorizationService, UserContext } from "../../shared"
+import { AuthorizationService, Role, UserContext } from "../../shared"
 import {
     CampaignFilterInput,
     CampaignSortOrder,
@@ -101,6 +101,12 @@ export class CampaignService {
         try {
             this.authorizationService.requireAuthentication(
                 userContext,
+                "create campaign",
+            )
+
+            this.authorizationService.requireRole(
+                userContext,
+                Role.FUNDRAISER,
                 "create campaign",
             )
 

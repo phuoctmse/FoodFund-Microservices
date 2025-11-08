@@ -114,7 +114,8 @@ export class CampaignGrpcService implements OnModuleInit {
             }
         }
 
-        const phases = await this.campaignPhaseRepository.findByCampaignId(campaignId)
+        const phases =
+            await this.campaignPhaseRepository.findByCampaignId(campaignId)
 
         if (!phases || phases.length === 0) {
             return {
