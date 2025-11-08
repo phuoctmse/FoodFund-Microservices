@@ -1,16 +1,14 @@
-import { initDatadogTracer } from "@libs/observability/datadog"
+import { NestFactory } from "@nestjs/core"
+import { ApiGatewayModule } from "./app.module"
+import * as compression from "compression"
+import { envConfig } from "@libs/env"
+import { DatadogInterceptor, initDatadogTracer } from "@libs/observability"
 
 initDatadogTracer({
     serviceName: "graphql-gateway",
     serviceType: "gateway",
     microservice: "graphql-gateway",
 })
-
-import { NestFactory } from "@nestjs/core"
-import { ApiGatewayModule } from "./app.module"
-import * as compression from "compression"
-import { envConfig } from "@libs/env"
-import { DatadogInterceptor } from "@libs/observability"
 
 async function bootstrap() {
     const app = await NestFactory.create(ApiGatewayModule, {

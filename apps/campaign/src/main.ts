@@ -1,11 +1,3 @@
-import { initDatadogTracer } from "@libs/observability/datadog"
-
-initDatadogTracer({
-    serviceName: "campaign-service",
-    serviceType: "backend",
-    microservice: "campaign",
-})
-
 import { NestFactory } from "@nestjs/core"
 import { AppModule } from "./app.module"
 import { ValidationPipe } from "@nestjs/common"
@@ -14,7 +6,13 @@ import { GraphQLExceptionFilter } from "@libs/exceptions"
 import { GrpcServerService } from "@libs/grpc"
 import { CampaignGrpcService } from "./campaign/grpc"
 import { envConfig } from "@libs/env"
-import { DatadogInterceptor } from "@libs/observability"
+import { DatadogInterceptor, initDatadogTracer } from "@libs/observability"
+
+initDatadogTracer({
+    serviceName: "campaign-service",
+    serviceType: "backend",
+    microservice: "campaign",
+})
 
 async function bootstrap() {
     try {

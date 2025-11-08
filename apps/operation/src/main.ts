@@ -1,16 +1,14 @@
-import { initDatadogTracer } from "@libs/observability/datadog"
+import { NestFactory } from "@nestjs/core"
+import { AppModule } from "./app.module"
+import { ValidationPipe } from "@nestjs/common"
+import { envConfig } from "@libs/env"
+import { DatadogInterceptor, initDatadogTracer } from "@libs/observability"
 
 initDatadogTracer({
     serviceName: "operation-service",
     serviceType: "backend",
     microservice: "operation",
 })
-
-import { NestFactory } from "@nestjs/core"
-import { AppModule } from "./app.module"
-import { ValidationPipe } from "@nestjs/common"
-import { envConfig } from "@libs/env"
-import { DatadogInterceptor } from "@libs/observability"
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule)
