@@ -6,7 +6,13 @@ import { GraphQLExceptionFilter } from "@libs/exceptions"
 import { GrpcServerService } from "@libs/grpc"
 import { CampaignGrpcService } from "./campaign/grpc"
 import { envConfig } from "@libs/env"
-import { DatadogInterceptor } from "@libs/observability"
+import { DatadogInterceptor, initDatadogTracer } from "@libs/observability"
+
+initDatadogTracer({
+    serviceName: "campaign-service",
+    serviceType: "backend",
+    microservice: "campaign",
+})
 
 async function bootstrap() {
     try {
@@ -64,7 +70,6 @@ async function bootstrap() {
         console.log(
             `🔗 Campaign Service gRPC running on port: ${envConfig().grpc.campaign?.port || 50003}`,
         )
-        console.log(`📊 Prometheus metrics available at http://localhost:${port}/metrics`)
     } catch (error) {
         console.error("❌ Failed to start Campaign Service:", error)
         process.exit(1)

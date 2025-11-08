@@ -4,9 +4,15 @@ import { AppModule } from "./app.module"
 import { CustomValidationPipe } from "libs/validation"
 import { GraphQLExceptionFilter } from "libs/exceptions"
 import { SentryService } from "libs/observability/sentry.service"
-import { DatadogInterceptor } from "@libs/observability/datadog"
+import { DatadogInterceptor, initDatadogTracer } from "@libs/observability/datadog"
 import { envConfig } from "libs/env"
 import { join } from "path"
+
+initDatadogTracer({
+    serviceName: "auth-service",
+    serviceType: "backend",
+    microservice: "auth",
+})
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule)
