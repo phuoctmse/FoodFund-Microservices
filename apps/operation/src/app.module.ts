@@ -6,6 +6,8 @@ import {
     IngredientRequestQueryResolver,
     MealBatchMutationResolver,
     MealBatchQueryResolver,
+    OperationRequestMutationResolver,
+    OperationRequestQueryResolver,
 } from "./presentation"
 import {
     IngredientRequestItemRepository,
@@ -31,11 +33,13 @@ import {
     ExpenseProofService,
     IngredientRequestItemService,
     IngredientRequestService,
+    OperationRequestService,
 } from "./application/services"
 import { SpacesUploadService } from "@libs/s3-storage"
 import {
     ExpenseProofRepository,
     MealBatchRepository,
+    OperationRequestRepository,
 } from "./application/repositories"
 import { MealBatchService } from "./application/services/meal-batch/meal-batch.service"
 
@@ -82,6 +86,7 @@ import { MealBatchService } from "./application/services/meal-batch/meal-batch.s
         IngredientRequestItemRepository,
         ExpenseProofRepository,
         MealBatchRepository,
+        OperationRequestRepository,
 
         AuthorizationService,
         SpacesUploadService,
@@ -89,6 +94,7 @@ import { MealBatchService } from "./application/services/meal-batch/meal-batch.s
         IngredientRequestItemService,
         ExpenseProofService,
         MealBatchService,
+        OperationRequestService,
 
         UserResolver,
         CampaignPhaseResolver,
@@ -98,6 +104,8 @@ import { MealBatchService } from "./application/services/meal-batch/meal-batch.s
         ExpenseProofQueryResolver,
         MealBatchMutationResolver,
         MealBatchQueryResolver,
+        OperationRequestMutationResolver,
+        OperationRequestQueryResolver,
     ],
 })
 export class AppModule {}
