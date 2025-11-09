@@ -1,3 +1,5 @@
 export * from "./expense-proof/expense-proof-status.enum"
 export * from "./ingredient-request/ingredient-request.status"
 export * from "./meal-batch/meal-batch-status.enum"
+export * from "./operation-request/operation-expense-type.enum"
+export * from "./operation-request/operation-request-status.enum"

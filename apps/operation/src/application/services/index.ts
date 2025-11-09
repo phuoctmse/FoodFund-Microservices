@@ -1,3 +1,5 @@
 export * from "./expense-proof/expense-proof.service"
 export * from "./ingredient-request-item/ingredient-request-item.service"
 export * from "./ingredient-request/ingredient-request.service"
+export * from "./meal-batch/meal-batch.service"
+export * from "./operation-request/operation-request.service"
