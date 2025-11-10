@@ -24,6 +24,9 @@ service UserService {
   
   // Get user by email
   rpc GetUserByEmail(GetUserByEmailRequest) returns (GetUserResponse);
+  
+  // Credit admin wallet (for donation payments)
+  rpc CreditAdminWallet(CreditAdminWalletRequest) returns (CreditAdminWalletResponse);
 }
 
 // Messages
@@ -64,6 +67,23 @@ message CreateUserRequest {
 message CreateUserResponse {
   bool success = 1;
   User user = 2;
+  string error = 3;
+}
+
+// Credit Admin Wallet (for donation payments)
+message CreditAdminWalletRequest {
+  string admin_id = 1; // Admin user ID
+  string campaign_id = 2; // Campaign reference (nullable)
+  string payment_transaction_id = 3; // For idempotency check (nullable)
+  string amount = 4; // Amount to credit (as string for BigInt)
+  string gateway = 5; // Payment gateway (e.g., "PAYOS", "SEPAY")
+  string description = 6; // Transaction description (optional)
+  string sepay_metadata = 7; // Sepay metadata JSON string (optional)
+}
+
+message CreditAdminWalletResponse {
+  bool success = 1;
+  string wallet_transaction_id = 2; // Wallet transaction ID
   string error = 3;
 }
 

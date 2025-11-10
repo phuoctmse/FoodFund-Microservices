@@ -5,7 +5,7 @@ import {
     NotFoundException,
 } from "@nestjs/common"
 
-import { PrismaClient, Role } from "../../../generated/user-client"
+import { PrismaClient } from "../../../generated/user-client"
 import { AwsCognitoService } from "@libs/aws-cognito"
 import { DataLoaderService } from "../common"
 
@@ -19,8 +19,9 @@ import {
 import {
     OrganizationRepository,
     UserRepository,
+    WalletRepository,
 } from "../../../domain/repositories"
-import { VerificationStatus } from "@libs/databases"
+import { Role, VerificationStatus } from "@libs/databases"
 import {
     JoinOrganizationRole,
     CreateOrganizationInput,
@@ -56,6 +57,7 @@ export class OrganizationService {
         private readonly awsCognitoService: AwsCognitoService,
         private readonly organizationDataLoader: DataLoaderService,
         private readonly prisma: PrismaClient,
+        private readonly walletRepository: WalletRepository,
     ) {}
 
     /**
@@ -72,6 +74,24 @@ export class OrganizationService {
         }
     }
 
+    /**
+     * Normalize Vietnamese string for comparison
+     * - Converts to uppercase
+     * - Removes accents/diacritics
+     * - Trims whitespace
+     */
+    private normalizeVietnameseName(name: string): string {
+        if (!name) return ""
+        
+        return name
+            .trim()
+            .toUpperCase()
+            .normalize("NFD") // Decompose accented characters
+            .replace(/[\u0300-\u036f]/g, "") // Remove diacritics
+            .replace(/Đ/g, "D") // Replace Đ
+            .replace(/đ/g, "D") // Replace đ
+    }
+
     async requestCreateOrganization(
         cognitoId: string,
         data: CreateOrganizationInput,
@@ -84,16 +104,38 @@ export class OrganizationService {
             UserErrorHelper.throwUserNotFound(cognitoId)
         }
 
+        // Validate bank account name matches representative name if bank account is provided
+        // Normalize both names to handle Vietnamese accents and case differences
+        if (data.bank_account_name && data.bank_account_name.trim() !== "") {
+            const normalizedBankName = this.normalizeVietnameseName(data.bank_account_name)
+            const normalizedRepName = this.normalizeVietnameseName(data.representative_name)
+            
+            if (normalizedBankName !== normalizedRepName) {
+                DonorErrorHelper.throwOrganizationBankAccountMismatch()
+            }
+        }
+
         if (user.role !== Role.DONOR) {
             DonorErrorHelper.throwCannotCreateOrganizationAsNonDonor(user.role)
         }
 
-        // Check if user already has an organization request
-        const existingOrg = await this.userRepository.findUserOrganization(
+        // Check if user already has an organization (any status)
+        const existingOrg = await this.userRepository.findUserOrganizationAnyStatus(
             user.id,
         )
-        if (existingOrg && existingOrg.status === VerificationStatus.PENDING) {
-            UserErrorHelper.throwPendingOrganizationRequest(cognitoId)
+        
+        if (existingOrg) {
+            if (existingOrg.status === VerificationStatus.VERIFIED) {
+                throw new BadRequestException(
+                    "You already have a verified organization. Each user can only create one organization.",
+                )
+            }
+            
+            if (existingOrg.status === VerificationStatus.PENDING) {
+                throw new BadRequestException(
+                    "You already have a pending organization request. Please wait for admin approval or cancel the existing request.",
+                )
+            }
         }
 
         try {
@@ -186,7 +228,7 @@ export class OrganizationService {
 
         try {
             // ========================================
-            // DATABASE TRANSACTION (Steps 1-3)
+            // DATABASE TRANSACTION (Steps 1-4)
             // ========================================
             this.logger.log(
                 `[TRANSACTION] Starting approval for organization: ${organizationId}`,
@@ -229,6 +271,18 @@ export class OrganizationService {
                         },
                     })
 
+                    // Step 4: Create FUNDRAISER wallet for the representative
+                    this.logger.debug(
+                        "[TRANSACTION] Step 4: Creating FUNDRAISER wallet",
+                    )
+                    await tx.wallet.create({
+                        data: {
+                            user_id: organization.representative_id,
+                            wallet_type: "FUNDRAISER",
+                            balance: BigInt(0),
+                        },
+                    })
+
                     this.logger.log(
                         "[TRANSACTION] Database operations completed successfully",
                     )
@@ -238,11 +292,11 @@ export class OrganizationService {
             )
 
             // ========================================
-            // EXTERNAL SERVICE (Step 4) - Outside transaction
+            // EXTERNAL SERVICE (Step 5) - Outside transaction
             // ========================================
             if (organization.user.cognito_id) {
                 this.logger.debug(
-                    "[SAGA] Step 4: Updating Cognito custom:role attribute",
+                    "[SAGA] Step 5: Updating Cognito custom:role attribute",
                 )
 
                 await this.updateCognitoRoleWithRetry(
@@ -321,7 +375,7 @@ export class OrganizationService {
         return new Promise((resolve) => setTimeout(resolve, ms))
     }
 
-    async rejectOrganizationRequest(organizationId: string) {
+    async rejectOrganizationRequest(organizationId: string, reason: string) {
         const organization =
             await this.organizationRepository.findOrganizationById(
                 organizationId,
@@ -339,6 +393,7 @@ export class OrganizationService {
         return this.organizationRepository.updateOrganizationStatus(
             organizationId,
             VerificationStatus.REJECTED,
+            reason,
         )
     }
 
@@ -648,6 +703,71 @@ export class OrganizationService {
         }
     }
 
+    /**
+     * Cancel organization creation request
+     * Only allows cancelling PENDING or REJECTED requests
+     * Updates status to CANCELLED instead of deleting
+     */
+    async cancelOrganizationRequest(cognitoId: string, reason?: string) {
+        // Get user by cognito ID
+        const user = await this.userRepository.findUserByCognitoId(cognitoId)
+        if (!user) {
+            UserErrorHelper.throwUserNotFound(cognitoId)
+        }
+
+        if (user.role !== Role.DONOR) {
+            throw new BadRequestException(
+                "Only DONOR role can cancel organization requests.",
+            )
+        }
+
+        // Find user's organization request (any status)
+        const organizationRequest =
+            await this.userRepository.findUserOrganizationAnyStatus(user.id)
+
+        if (!organizationRequest) {
+            throw new NotFoundException(
+                "No organization request found to cancel.",
+            )
+        }
+
+        // Only allow cancelling PENDING or REJECTED requests
+        if (organizationRequest.status === VerificationStatus.VERIFIED) {
+            throw new BadRequestException(
+                "Cannot cancel a verified organization. Please contact support if you need to deactivate your organization.",
+            )
+        }
+
+        if (organizationRequest.status === VerificationStatus.CANCELLED) {
+            throw new BadRequestException(
+                "Organization request is already cancelled.",
+            )
+        }
+
+        if (
+            organizationRequest.status !== VerificationStatus.PENDING &&
+            organizationRequest.status !== VerificationStatus.REJECTED
+        ) {
+            throw new BadRequestException(
+                `Organization request with status ${organizationRequest.status} cannot be cancelled.`,
+            )
+        }
+
+        // Update organization status to CANCELLED with reason
+        const cancelledOrg = await this.organizationRepository.cancelOrganizationRequest(
+            organizationRequest.id,
+            reason,
+        )
+
+        return {
+            success: true,
+            message: `Organization request "${organizationRequest.name}" has been cancelled successfully.`,
+            cancelledOrganizationId: cancelledOrg.id,
+            previousStatus: organizationRequest.status,
+            reason: cancelledOrg.reason,
+        }
+    }
+
     async getProfile(cognito_id: string) {
         const user = await this.userRepository.findUserByCognitoId(cognito_id)
         if (!user) {
@@ -757,10 +877,6 @@ export class OrganizationService {
         }
     }
 
-    /**
-     * Staff member leaves organization voluntarily (self-leave)
-     * Uses Prisma Transaction for database operations + Saga pattern for Cognito sync
-     */
     async leaveOrganization(cognitoId: string): Promise<{
         success: boolean
         message: string
@@ -780,7 +896,7 @@ export class OrganizationService {
 
         // Only staff members can leave (KITCHEN_STAFF, DELIVERY_STAFF)
         const staffRoles: Role[] = [Role.KITCHEN_STAFF, Role.DELIVERY_STAFF]
-        if (!staffRoles.includes(user.role)) {
+        if (!staffRoles.includes(user.role as Role)) {
             throw new BadRequestException(
                 "Only staff members (KITCHEN_STAFF, DELIVERY_STAFF) can leave organization. Fundraisers must transfer ownership first.",
             )

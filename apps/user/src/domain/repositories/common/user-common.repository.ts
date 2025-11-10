@@ -20,9 +20,6 @@ export class UserCommonRepository {
     async findUserById(id: string) {
         return this.prisma.user.findUnique({
             where: { id, is_active: true },
-            include: {
-                Organizations: true,
-            },
         })
     }
 

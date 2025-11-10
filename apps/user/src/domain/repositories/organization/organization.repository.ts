@@ -1,10 +1,9 @@
 import { Injectable } from "@nestjs/common"
 import {
     PrismaClient,
-    Verification_Status,
-    Role,
 } from "../../../generated/user-client"
 import { CreateOrganizationInput } from "@app/user/src/application/dtos"
+import { Role, VerificationStatus } from "../../enums"
 
 @Injectable()
 export class OrganizationRepository {
@@ -17,7 +16,7 @@ export class OrganizationRepository {
                 ...organizationData,
                 website: website || "",
                 representative_id: cognitoId,
-                status: Verification_Status.PENDING,
+                status: VerificationStatus.PENDING,
             },
             include: {
                 user: true,
@@ -28,7 +27,7 @@ export class OrganizationRepository {
     async findPendingOrganizations() {
         return this.prisma.organization.findMany({
             where: {
-                status: Verification_Status.PENDING,
+                status: VerificationStatus.PENDING,
             },
             include: {
                 user: true,
@@ -53,7 +52,7 @@ export class OrganizationRepository {
         // Build where clause
         const where: any = {}
         if (status && ["PENDING", "VERIFIED", "REJECTED"].includes(status)) {
-            where.status = status as Verification_Status
+            where.status = status as VerificationStatus
         }
 
         // Build orderBy clause
@@ -78,10 +77,17 @@ export class OrganizationRepository {
         })
     }
 
-    async updateOrganizationStatus(id: string, status: Verification_Status) {
+    async updateOrganizationStatus(
+        id: string,
+        status: VerificationStatus,
+        reason?: string,
+    ) {
         return this.prisma.organization.update({
             where: { id },
-            data: { status },
+            data: {
+                status,
+                reason: reason || null,
+            },
             include: {
                 user: true,
             },
@@ -118,13 +124,13 @@ export class OrganizationRepository {
         return this.prisma.organization.findFirst({
             where: {
                 representative_id: representativeId,
-                status: Verification_Status.VERIFIED, // Only get active organization
+                status: VerificationStatus.VERIFIED, // Only get active organization
             },
             include: {
                 user: true,
                 Organization_Member: {
                     where: {
-                        status: Verification_Status.VERIFIED, // Only get verified members
+                        status: VerificationStatus.VERIFIED, // Only get verified members
                     },
                     include: {
                         member: true,
@@ -147,7 +153,7 @@ export class OrganizationRepository {
                 member_id: userId,
                 organization_id: organizationId,
                 member_role: requestedRole,
-                status: Verification_Status.PENDING,
+                status: VerificationStatus.PENDING,
             },
             include: {
                 member: true,
@@ -166,7 +172,7 @@ export class OrganizationRepository {
                 member_id: userId,
                 organization_id: organizationId,
                 member_role: memberRole,
-                status: Verification_Status.VERIFIED,
+                status: VerificationStatus.VERIFIED,
             },
             include: {
                 member: true,
@@ -179,7 +185,7 @@ export class OrganizationRepository {
         return this.prisma.organization_Member.findMany({
             where: {
                 organization_id: organizationId,
-                status: Verification_Status.PENDING,
+                status: VerificationStatus.PENDING,
             },
             include: {
                 member: true,
@@ -230,7 +236,7 @@ export class OrganizationRepository {
         return this.prisma.organization_Member.findFirst({
             where: {
                 member_id: userId,
-                status: Verification_Status.PENDING,
+                status: VerificationStatus.PENDING,
             },
             include: {
                 member: true,
@@ -251,7 +257,7 @@ export class OrganizationRepository {
 
     async updateJoinRequestStatus(
         requestId: string,
-        status: Verification_Status,
+        status: VerificationStatus,
     ) {
         return this.prisma.organization_Member.update({
             where: { id: requestId },
@@ -288,8 +294,8 @@ export class OrganizationRepository {
                 member_id: userId,
                 // Check for both pending requests and active memberships
                 OR: [
-                    { status: Verification_Status.PENDING },
-                    { status: Verification_Status.VERIFIED },
+                    { status: VerificationStatus.PENDING },
+                    { status: VerificationStatus.VERIFIED },
                 ],
             },
             include: {
@@ -302,7 +308,7 @@ export class OrganizationRepository {
         return this.prisma.organization_Member.findFirst({
             where: {
                 member_id: userId,
-                status: Verification_Status.VERIFIED,
+                status: VerificationStatus.VERIFIED,
             },
             include: {
                 organization: true,
@@ -336,7 +342,7 @@ export class OrganizationRepository {
         const members = await this.prisma.organization_Member.findMany({
             where: {
                 member_id: { in: userIds },
-                status: Verification_Status.VERIFIED,
+                status: VerificationStatus.VERIFIED,
             },
             include: {
                 organization: true,
@@ -360,13 +366,13 @@ export class OrganizationRepository {
         const organizations = await this.prisma.organization.findMany({
             where: {
                 representative_id: { in: userIds },
-                status: Verification_Status.VERIFIED,
+                status: VerificationStatus.VERIFIED,
             },
             include: {
                 user: true,
                 Organization_Member: {
                     where: {
-                        status: Verification_Status.VERIFIED,
+                        status: VerificationStatus.VERIFIED,
                     },
                     include: {
                         member: true,
@@ -390,19 +396,19 @@ export class OrganizationRepository {
     }) {
         const total = await this.prisma.organization.count({
             where: {
-                status: Verification_Status.VERIFIED,
+                status: VerificationStatus.VERIFIED,
             },
         })
 
         const organizations = await this.prisma.organization.findMany({
             where: {
-                status: Verification_Status.VERIFIED,
+                status: VerificationStatus.VERIFIED,
             },
             include: {
                 user: true,
                 Organization_Member: {
                     where: {
-                        status: Verification_Status.VERIFIED,
+                        status: VerificationStatus.VERIFIED,
                     },
                     include: {
                         member: true,
@@ -444,7 +450,7 @@ export class OrganizationRepository {
         return this.prisma.organization_Member.findFirst({
             where: {
                 member_id: userId,
-                status: Verification_Status.VERIFIED,
+                status: VerificationStatus.VERIFIED,
             },
             include: {
                 member: true,
@@ -468,6 +474,23 @@ export class OrganizationRepository {
                         role: true,
                     },
                 },
+            },
+        })
+    }
+
+    /**
+     * Cancel organization request by updating status to CANCELLED
+     * Used when user wants to cancel their organization creation request
+     */
+    async cancelOrganizationRequest(organizationId: string, reason?: string) {
+        return this.prisma.organization.update({
+            where: { id: organizationId },
+            data: { 
+                status: VerificationStatus.CANCELLED,
+                reason: reason || "Cancelled by user",
+            },
+            include: {
+                user: true,
             },
         })
     }

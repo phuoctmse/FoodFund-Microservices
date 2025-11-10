@@ -20,6 +20,7 @@ import {
     OrganizationActionResponse,
     JoinRequestResponse,
     CancelJoinRequestResponse,
+    CancelOrganizationRequestResponse,
 } from "@app/user/src/shared/types"
 import { Role } from "@libs/databases"
 
@@ -124,5 +125,17 @@ export class DonorProfileResolver {
     @RequireRole(Role.DONOR)
     async cancelJoinRequestOrganization(@CurrentUser() user: CurrentUserType) {
         return this.organizationService.cancelJoinRequest(user.cognitoId)
+    }
+
+    @Mutation(() => CancelOrganizationRequestResponse)
+    @RequireRole(Role.DONOR)
+    async cancelMyCreateOrganizationRequest(
+        @CurrentUser() user: CurrentUserType,
+        @Args("reason", { type: () => String, nullable: true }) reason?: string,
+    ) {
+        return this.organizationService.cancelOrganizationRequest(
+            user.cognitoId,
+            reason,
+        )
     }
 }

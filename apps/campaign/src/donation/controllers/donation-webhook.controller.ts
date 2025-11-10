@@ -11,7 +11,8 @@ import { DonationWebhookService } from "../services/donation-webhook.service"
 interface PayOSWebhookPayload {
     data: {
         orderCode: number
-        amount: number
+        amount: number // Payment link amount (original request)
+        amountPaid?: number // Actual amount paid by user (may differ from amount)
         description: string
         accountNumber: string
         reference: string

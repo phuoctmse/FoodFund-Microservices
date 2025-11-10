@@ -10,6 +10,8 @@ import {
 export const envConfig = (): EnvironmentConfig => ({
     nodeEnv: (process.env.NODE_ENV ?? NodeEnv.Development) as NodeEnv,
 
+    systemAdminId: process.env.SYSTEM_ADMIN_ID as string,
+
     cors_origin: process.env.CORS_ORIGIN ?? "",
 
     // Container configurations

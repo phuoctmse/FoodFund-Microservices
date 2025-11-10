@@ -1,29 +1,61 @@
 import { registerEnumType } from "@nestjs/graphql"
 
-export enum PaymentStatus {
+// Webhook processing result
+export enum TransactionStatus {
     PENDING = "PENDING",
     SUCCESS = "SUCCESS",
     FAILED = "FAILED",
     REFUNDED = "REFUNDED",
 }
 
-registerEnumType(PaymentStatus, {
-    name: "PaymentStatus",
-    description: "Trạng thái giao dịch thanh toán trong hệ thống",
+registerEnumType(TransactionStatus, {
+    name: "TransactionStatus",
+    description: "Trạng thái xử lý webhook của giao dịch thanh toán",
     valuesMap: {
         PENDING: {
             description:
-                "Giao dịch đang chờ xác nhận thanh toán (ví dụ: chờ chuyển khoản, chờ xác nhận từ cổng thanh toán)",
+                "Chưa nhận webhook hoặc đang chờ xử lý từ cổng thanh toán",
         },
         SUCCESS: {
-            description: "Giao dịch đã được thanh toán và xác nhận thành công",
+            description: "Webhook đã xử lý thành công, giao dịch hoàn tất",
         },
         FAILED: {
             description:
-                "Giao dịch thất bại (ví dụ: lỗi thẻ, hủy bỏ giao dịch, hết hạn)",
+                "Webhook báo lỗi hoặc giao dịch thất bại",
         },
         REFUNDED: {
-            description: "Giao dịch đã được hoàn tiền thành công",
+            description: "Giao dịch đã được hoàn tiền",
         },
     },
 })
+
+// Amount received tracking
+export enum PaymentAmountStatus {
+    PENDING = "PENDING",
+    PARTIAL = "PARTIAL",
+    COMPLETED = "COMPLETED",
+    OVERPAID = "OVERPAID",
+}
+
+registerEnumType(PaymentAmountStatus, {
+    name: "PaymentAmountStatus",
+    description: "Trạng thái số tiền thực tế nhận được so với số tiền yêu cầu",
+    valuesMap: {
+        PENDING: {
+            description: "Chưa nhận tiền (received_amount = 0)",
+        },
+        PARTIAL: {
+            description: "Nhận thiếu (received_amount < amount)",
+        },
+        COMPLETED: {
+            description: "Nhận đủ (received_amount = amount)",
+        },
+        OVERPAID: {
+            description: "Nhận thừa (received_amount > amount)",
+        },
+    },
+})
+
+// Deprecated - For backward compatibility
+export const PaymentStatus = TransactionStatus
+

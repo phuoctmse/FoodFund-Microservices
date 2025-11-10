@@ -4,6 +4,7 @@ import {
     DonorAlreadyHasOrganizationRequestException,
     CannotCreateOrganizationAsNonDonorException,
     OrganizationRequestPendingException,
+    OrganizationBankAccountMismatchException,
     DonorAlreadyHasJoinRequestException,
     CannotJoinOwnOrganizationException,
     CannotJoinAsNonDonorException,
@@ -144,5 +145,13 @@ export class DonorErrorHelper {
 
     static throwInvalidDateRange(startDate: string, endDate: string): never {
         throw new InvalidDateRangeException(startDate, endDate)
+    }
+
+    static throwPendingOrganizationRequest(cognitoId: string): never {
+        throw new OrganizationRequestPendingException(cognitoId)
+    }
+
+    static throwOrganizationBankAccountMismatch(): never {
+        throw new OrganizationBankAccountMismatchException()
     }
 }

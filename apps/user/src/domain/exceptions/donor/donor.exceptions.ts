@@ -75,6 +75,22 @@ export class OrganizationRequestPendingException extends BaseException {
     }
 }
 
+export class OrganizationBankAccountMismatchException extends BaseException {
+    readonly errorCode = "DONOR_204"
+    readonly errorType = "BUSINESS" as const
+    readonly service = "user-service"
+
+    constructor() {
+        super(
+            "Bank account name must match the organization representative name for verification purposes",
+            HttpStatus.BAD_REQUEST,
+            { 
+                message: "The bank account holder name must be the same as the representative name to ensure proper fund management and accountability"
+            },
+        )
+    }
+}
+
 // Join organization errors
 export class DonorAlreadyHasJoinRequestException extends BaseException {
     readonly errorCode = "DONOR_301"

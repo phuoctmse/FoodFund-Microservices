@@ -12,6 +12,8 @@ export enum VerificationStatus {
     PENDING = "PENDING",
     VERIFIED = "VERIFIED",
     REJECTED = "REJECTED",
+    INACTIVE = "INACTIVE",
+    CANCELLED = "CANCELLED",
 }
 
 export enum AvailabilityStatus {

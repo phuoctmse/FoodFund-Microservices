@@ -134,6 +134,21 @@ export class UserRepository {
         })
     }
 
+    async findUserOrganizationAnyStatus(userId: string) {
+        return this.prisma.organization.findFirst({
+            where: {
+                representative_id: userId,
+            },
+            include: {
+                Organization_Member: true,
+                user: true,
+            },
+            orderBy: {
+                created_at: "desc",
+            },
+        })
+    }
+
     async findUserOrganizations(userId: string) {
         return this.prisma.organization.findMany({
             where: {

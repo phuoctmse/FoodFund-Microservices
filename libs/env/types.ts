@@ -91,6 +91,8 @@ export interface DataDogConfig {
 export interface EnvironmentConfig {
     nodeEnv: NodeEnv
 
+    systemAdminId: string
+
     cors_origin: string
 
     // Container configurations

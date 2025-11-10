@@ -402,10 +402,12 @@ export class UserGrpcController {
                 }
             }
 
-            // Verify user exists
             const user =
                 await this.userCommonRepository.findUserById(fundraiserId)
             if (!user) {
+                this.logger.error(
+                    `[CreditFundraiserWallet] ❌ Fundraiser ${fundraiserId} not found`,
+                )
                 return {
                     success: false,
                     error: `Fundraiser ${fundraiserId} not found`,
@@ -433,13 +435,15 @@ export class UserGrpcController {
                 walletTransactionId: transaction.id,
             }
         } catch (error) {
+            const errorMessage =
+                error?.message || error?.toString() || "Unknown error"
             this.logger.error(
-                "[CreditFundraiserWallet] Failed:",
-                error.stack || error,
+                `[CreditFundraiserWallet] ❌ Failed for fundraiser ${data.fundraiserId}:`,
+                error?.stack || errorMessage,
             )
             return {
                 success: false,
-                error: error.message,
+                error: errorMessage,
             }
         }
     }
@@ -515,6 +519,76 @@ export class UserGrpcController {
         } catch (error) {
             this.logger.error(
                 "[CreditAdminWallet] Failed:",
+                error.stack || error,
+            )
+            return {
+                success: false,
+                error: error.message,
+            }
+        }
+    }
+
+    @GrpcMethod("UserService", "GetWalletTransactionsByPaymentId")
+    async getWalletTransactionsByPaymentId(data: {
+        paymentTransactionId: string
+    }): Promise<{
+        success: boolean
+        transactions?: Array<{
+            id: string
+            amount: string
+            transactionType: string
+            gateway: string | null
+            reference: string | null
+            description: string | null
+            createdAt: string
+        }>
+        error?: string
+    }> {
+        try {
+            const { paymentTransactionId } = data
+
+            this.logger.log(
+                `[GetWalletTransactionsByPaymentId] Fetching transactions for payment ${paymentTransactionId}`,
+            )
+
+            // Query wallet transactions by payment_transaction_id
+            const transactions =
+                await this.walletRepository.findByPaymentTransactionId(
+                    paymentTransactionId,
+                )
+
+            if (!transactions || transactions.length === 0) {
+                this.logger.warn(
+                    `[GetWalletTransactionsByPaymentId] No transactions found for payment ${paymentTransactionId}`,
+                )
+                return {
+                    success: true,
+                    transactions: [],
+                }
+            }
+
+            // Map to response format
+            const mappedTransactions = transactions.map((tx) => ({
+                id: tx.id,
+                amount: tx.amount.toString(),
+                transactionType: tx.transaction_type,
+                gateway: tx.gateway || null,
+                reference: null as string | null, // Not available in schema
+                description: tx.description || null,
+                createdAt: tx.created_at.toISOString(),
+            }))
+
+            this.logger.log(
+                `[GetWalletTransactionsByPaymentId] Found ${transactions.length} transactions`,
+            )
+
+            return {
+                success: true,
+                transactions: mappedTransactions,
+            }
+        } catch (error) {
+            this.logger.error(
+                "[GetWalletTransactionsByPaymentId] Failed:",
                 error.stack || error,
             )
             return {

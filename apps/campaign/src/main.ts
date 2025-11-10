@@ -1,12 +1,12 @@
 import { NestFactory } from "@nestjs/core"
+import { MicroserviceOptions, Transport } from "@nestjs/microservices"
 import { AppModule } from "./app.module"
-import { ValidationPipe } from "@nestjs/common"
+import { CustomValidationPipe } from "libs/validation"
 import { SentryService } from "@libs/observability/sentry.service"
 import { GraphQLExceptionFilter } from "@libs/exceptions"
-import { GrpcServerService } from "@libs/grpc"
-import { CampaignGrpcService } from "./campaign/grpc"
 import { envConfig } from "@libs/env"
 import { DatadogInterceptor, initDatadogTracer } from "@libs/observability"
+import { join } from "path"
 
 initDatadogTracer({
     serviceName: "campaign-service",
@@ -15,68 +15,43 @@ initDatadogTracer({
 })
 
 async function bootstrap() {
-    try {
-        const app = await NestFactory.create(AppModule, {
-            bufferLogs: true,
-        })
+    const app = await NestFactory.create(AppModule, {
+        bufferLogs: true,
+    })
 
-        const sentryService = app.get(SentryService)
-        const datadogInterceptor = app.get(DatadogInterceptor)
-        const grpcServer = app.get(GrpcServerService)
-        const campaignGrpcService = app.get(CampaignGrpcService)
+    // Get services for setup
+    const sentryService = app.get(SentryService)
+    const datadogInterceptor = app.get(DatadogInterceptor)
 
-        app.useGlobalPipes(
-            new ValidationPipe({
-                transform: true,
-                transformOptions: {
-                    enableImplicitConversion: true,
-                    exposeDefaultValues: true,
-                },
-                whitelist: true,
-                forbidNonWhitelisted: false,
-                validateCustomDecorators: true,
-                disableErrorMessages: process.env.NODE_ENV === "production",
-                stopAtFirstError: false,
-                forbidUnknownValues: false,
-            }),
-        )
-        app.useGlobalFilters(new GraphQLExceptionFilter(sentryService))
-        app.useGlobalInterceptors(datadogInterceptor)
+    // Enable validation with class-validator using custom pipe
+    app.useGlobalPipes(new CustomValidationPipe())
 
-        app.use((req, res, next) => {
-            res.header("X-Content-Type-Options", "nosniff")
-            res.header("X-Frame-Options", "deny")
-            res.header("Content-Security-Policy", "default-src 'none'")
-            res.header("X-XSS-Protection", "1; mode=block")
-            res.removeHeader("X-Powered-By")
-            next()
-        })
+    // Enable GraphQL exception filter (better for GraphQL APIs)
+    app.useGlobalFilters(new GraphQLExceptionFilter(sentryService))
 
-        // Initialize and start gRPC server
-        await grpcServer.initialize({
-            serviceName: "CampaignService",
-            protoPath: "campaign.proto",
-            packageName: "foodfund.campaign",
-            port: envConfig().grpc.campaign?.port || 50003,
-            implementation: campaignGrpcService.getImplementation(),
-        })
+    // Enable Datadog interceptor
+    app.useGlobalInterceptors(datadogInterceptor)
 
-        const port = process.env.CAMPAIGNS_SUBGRAPH_PORT ?? 8004
+    // Setup gRPC microservice
+    const env = envConfig()
+    const grpcPort = env.grpc.campaign?.port || 50003
+    const grpcUrl = env.grpc.campaign?.url || "localhost:50003"
+    const port = env.containers["campaigns-subgraph"]?.port || 8004
 
-        // Start both HTTP and gRPC servers
-        await Promise.all([app.listen(port), grpcServer.start()])
+    app.connectMicroservice<MicroserviceOptions>({
+        transport: Transport.GRPC,
+        options: {
+            package: "foodfund.campaign",
+            protoPath: join(__dirname, "../../../libs/grpc/proto/campaign.proto"),
+            url: `0.0.0.0:${grpcPort}`,
+        },
+    })
 
-        console.log(`🚀 Campaign Service HTTP running on port: ${port}`)
-        console.log(
-            `🔗 Campaign Service gRPC running on port: ${envConfig().grpc.campaign?.port || 50003}`,
-        )
-    } catch (error) {
-        console.error("❌ Failed to start Campaign Service:", error)
-        process.exit(1)
-    }
+    await app.startAllMicroservices()
+    await app.listen(port)
+
+    console.log(`🚀 Campaign Service is running on port ${port}`)
+    console.log(`🔌 gRPC server is listening on 0.0.0.0:${grpcPort}`)
+    console.log(`🔗 gRPC clients should connect to: ${grpcUrl}`)
 }
-
-bootstrap().catch((error) => {
-    console.error("Bootstrap failed:", error)
-    process.exit(1)
-})
+bootstrap()
