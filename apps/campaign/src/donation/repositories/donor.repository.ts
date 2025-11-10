@@ -171,6 +171,48 @@ export class DonorRepository {
             orderBy: options?.orderBy ?? { created_at: "desc" },
         })
     }
+    async findPaymentTransactionsByCampaignId(
+        campaignId: string,
+        options?: {
+            skip?: number
+            take?: number
+            searchDonorName?: string
+        },
+    ) {
+        const whereClause: any = {
+            donation: {
+                campaign_id: campaignId,
+            },
+            status: TransactionStatus.SUCCESS,
+        }
+
+        // If search by donor name, add filter
+        if (options?.searchDonorName) {
+            whereClause.donation = {
+                ...whereClause.donation,
+                donor_name: {
+                    contains: options.searchDonorName,
+                    mode: "insensitive",
+                },
+            }
+        }
+
+        return this.prisma.payment_Transaction.findMany({
+            where: whereClause,
+            include: {
+                donation: {
+                    select: {
+                        donor_name: true,
+                        is_anonymous: true,
+                        donor_id: true,
+                    },
+                },
+            },
+            skip: options?.skip,
+            take: options?.take,
+            orderBy: { created_at: "desc" },
+        })
+    }
 
     async getTotalDonationsByCampaign(campaignId: string): Promise<{
         totalAmount: bigint
@@ -242,7 +284,7 @@ export class DonorRepository {
                         increment: amount,
                     },
                     donation_count: {
-                        increment: 1,
+                        increment: 1, // Count manual approved payments
                     },
                 },
             })
@@ -324,7 +366,7 @@ export class DonorRepository {
      */
     async updatePaymentTransactionSuccess(data: {
         order_code: bigint
-        amount_paid: bigint // Actual amount received
+        amount_paid: bigint
         gateway: string
         processed_by_webhook: boolean
         payos_metadata?: {
@@ -405,7 +447,7 @@ export class DonorRepository {
                 where: { id: payment.donation.campaign_id },
                 data: {
                     received_amount: {
-                        increment: data.amount_paid, // Use actual paid amount
+                        increment: data.amount_paid,
                     },
                     donation_count: {
                         increment: 1,
@@ -481,5 +523,103 @@ export class DonorRepository {
         })
 
         return paymentTransaction?.donation || null
+    }
+
+    /**
+     * Create supplementary payment transaction (for additional transfers with same description)
+     * Used when user transfers money multiple times for the same donation
+     */
+    async createSupplementaryPayment(data: {
+        donation_id: string
+        amount: bigint // Amount of this supplementary payment
+        gateway: string
+        description?: string
+        payos_metadata?: any
+        sepay_metadata?: any
+    }) {
+        return this.prisma.$transaction(async (tx) => {
+            // Create new payment transaction (WITHOUT order_code)
+            const payment = await tx.payment_Transaction.create({
+                data: {
+                    donation_id: data.donation_id,
+                    order_code: null, // Supplementary payment has NO orderCode
+                    amount: data.amount,
+                    received_amount: data.amount, // Same as amount for supplementary
+                    description: data.description,
+                    status: TransactionStatus.SUCCESS,
+                    payment_status: "COMPLETED", // Supplementary is always COMPLETED
+                    gateway: data.gateway,
+                    processed_by_webhook: true,
+                    payos_metadata: data.payos_metadata,
+                    sepay_metadata: data.sepay_metadata,
+                },
+                include: {
+                    donation: {
+                        include: {
+                            campaign: true,
+                        },
+                    },
+                },
+            })
+
+            // Update campaign with supplementary amount
+            await tx.campaign.update({
+                where: { id: payment.donation.campaign_id },
+                data: {
+                    received_amount: {
+                        increment: data.amount,
+                    },
+                    donation_count: {
+                        increment: 1, // Count each Payment_Transaction (including supplementary)
+                    },
+                },
+            })
+
+            return payment
+        })
+    }
+
+    /**
+     * Check if a Sepay transfer already processed (by sepayId)
+     * Used to prevent duplicate supplementary payments
+     */
+    async findPaymentBySepayId(sepayId: number) {
+        return this.prisma.payment_Transaction.findFirst({
+            where: {
+                sepay_metadata: {
+                    path: ["sepayId"],
+                    equals: sepayId,
+                },
+            },
+            include: {
+                donation: {
+                    include: {
+                        campaign: true,
+                    },
+                },
+            },
+        })
+    }
+
+    /**
+     * Check if a PayOS transaction already processed (by reference)
+     * Used to prevent duplicate supplementary payments
+     */
+    async findPaymentByPayOSReference(reference: string) {
+        return this.prisma.payment_Transaction.findFirst({
+            where: {
+                payos_metadata: {
+                    path: ["reference"],
+                    equals: reference,
+                },
+            },
+            include: {
+                donation: {
+                    include: {
+                        campaign: true,
+                    },
+                },
+            },
+        })
     }
 }

@@ -12,7 +12,6 @@ import { MyDonationsResponse, DonationWithStatus } from "../dtos/my-donations-re
 import {
     MyDonationDetailsResponse,
     PaymentTransactionDetail,
-    WalletTransactionDetail,
 } from "../dtos/my-donation-details-response.dto"
 import {
     DonationPaymentLinkResponse,
@@ -279,12 +278,16 @@ export class DonorService {
             throw new BadRequestException("Fundraising period has ended")
         }
 
-        // Check if campaign has already reached its target amount
-        if (campaign.receivedAmount >= campaign.targetAmount) {
-            throw new BadRequestException(
-                "Campaign has already reached its fundraising goal. No more donations are accepted.",
-            )
-        }
+        // // Check if campaign has already reached its target amount
+        // if (campaign.receivedAmount >= campaign.targetAmount) {
+        //     console.debug("Campaign target reached:", {
+        //         receivedAmount: campaign.receivedAmount,
+        //         targetAmount: campaign.targetAmount,
+        //     })
+        //     throw new BadRequestException(
+        //         "Campaign has already reached its fundraising goal. No more donations are accepted.",
+        //     )
+        // }
 
         return campaign
     }
@@ -401,32 +404,8 @@ export class DonorService {
             updatedAt: latestTx.updated_at,
         }
 
-        // Fetch wallet transactions from User service via gRPC
-        let walletTransactions: WalletTransactionDetail[] = []
-        try {
-            const walletTxs =
-                await this.userClientService.getWalletTransactionsByPaymentId(
-                    latestTx.id,
-                )
-            walletTransactions = walletTxs.map((tx) => ({
-                id: tx.id,
-                amount: tx.amount,
-                transactionType: tx.transactionType,
-                gateway: tx.gateway || "",
-                reference: tx.reference || "",
-                description: tx.description || "",
-                createdAt: tx.createdAt,
-            }))
-        } catch (error) {
-            this.logger.warn(
-                `Failed to fetch wallet transactions for payment ${latestTx.id}: ${error.message}`,
-            )
-            // Continue without wallet transactions (non-critical)
-        }
-
         return {
             paymentTransaction,
-            walletTransactions,
             donationId: donation.id,
             campaignId: donation.campaign_id,
             isAnonymous: donation.is_anonymous,
@@ -519,114 +498,56 @@ export class DonorService {
         this.logger.log(`filter: ${JSON.stringify(options?.filter, null, 2)}`)
         this.logger.log("===========================================")
         
-        const donations = await this.donorRepository.findByCampaignId(
-            campaignId,
-            options,
-        )
-
-        // Filter and validate donations
-        const validDonations = donations.filter((donation: any) => {
-            // Must have at least one successful payment transaction
-            const successfulTx = donation.payment_transactions?.find(
-                (tx: any) => tx.status === "SUCCESS",
+        // Query Payment_Transaction directly for transparency
+        // Shows all individual payments (initial + supplementary)
+        const paymentTransactions =
+            await this.donorRepository.findPaymentTransactionsByCampaignId(
+                campaignId,
+                {
+                    skip: options?.skip,
+                    take: options?.take,
+                    searchDonorName: options?.filter?.searchDonorName,
+                },
             )
-            if (!successfulTx) return false
 
-            // Validate amount matches between donation and transaction
-            if (donation.amount !== successfulTx.amount) {
-                this.logger.warn(
-                    `Donation ${donation.id} amount mismatch: donation=${donation.amount}, transaction=${successfulTx.amount}`,
-                )
-                return false
-            }
-
-            return true
-        })
-
-        // Use DataLoader to batch fetch donor names (automatic batching & caching)
-        // Collect donor IDs that need to be fetched
-        const donorIdsToFetch = validDonations
-            .filter(
-                (d: any) =>
-                    !d.donor_name &&
-                    !d.is_anonymous &&
-                    d.donor_id !== "anonymous",
-            )
-            .map((d: any) => d.donor_id)
-
-        // Get unique donor IDs
-        const uniqueDonorIds = [...new Set(donorIdsToFetch)]
-
-        // Batch fetch using DataLoader (automatically batches and caches)
-        const users =
-            uniqueDonorIds.length > 0
-                ? await this.userDataLoader.loadMany(uniqueDonorIds)
-                : []
-
-        // Build map for quick lookup
-        const userNameMap = new Map<string, string>()
-        users.forEach((user, index) => {
-            if (user) {
-                const userName =
-                    user.fullName || user.username || "Unknown Donor"
-                userNameMap.set(uniqueDonorIds[index], userName)
-            }
-        })
-
-        // Populate donor_name for all donations
-        let donationsWithNames = validDonations.map((donation: any) => {
-            if (!donation.donor_name) {
-                // Anonymous donations
+        // Map to summary DTO with donor name from donation
+        const summaries = paymentTransactions.map((payment: any) => {
+            // Get donor name from donation
+            let donorName = "Unknown Donor"
+            if (payment.donation) {
                 if (
-                    donation.is_anonymous ||
-                    donation.donor_id === "anonymous"
+                    payment.donation.is_anonymous ||
+                    payment.donation.donor_id === "anonymous"
                 ) {
-                    donation.donor_name = "Người dùng ẩn danh"
-                } else {
-                    // Get from DataLoader fetched map
-                    donation.donor_name =
-                        userNameMap.get(donation.donor_id) || "Unknown Donor"
+                    donorName = "Người dùng ẩn danh"
+                } else if (payment.donation.donor_name) {
+                    donorName = payment.donation.donor_name
                 }
             }
-            return donation
-        })
 
-        // Apply search filter
-        if (options?.filter?.searchDonorName) {
-            const searchTerm = options.filter.searchDonorName.toLowerCase()
-            donationsWithNames = donationsWithNames.filter((donation: any) =>
-                donation.donor_name?.toLowerCase().includes(searchTerm),
-            )
-        }
+            return {
+                amount: payment.received_amount.toString(),
+                donorName: donorName,
+                transactionDatetime: payment.transaction_datetime || payment.created_at,
+            }
+        })
 
         // Apply sorting
         const sortBy = options?.filter?.sortBy || "TRANSACTION_DATE"
         const sortOrder = options?.filter?.sortOrder || "DESC"
 
-        donationsWithNames.sort((a: any, b: any) => {
+        summaries.sort((a: any, b: any) => {
             let compareValue = 0
 
             switch (sortBy) {
             case "AMOUNT":
                 compareValue = Number(a.amount) - Number(b.amount)
                 break
-            case "TRANSACTION_DATE": {
-                const aDate =
-                        a.payment_transactions?.find(
-                            (tx: any) => tx.status === "SUCCESS",
-                        )?.transaction_datetime || a.created_at
-                const bDate =
-                        b.payment_transactions?.find(
-                            (tx: any) => tx.status === "SUCCESS",
-                        )?.transaction_datetime || b.created_at
-                compareValue =
-                        new Date(aDate).getTime() - new Date(bDate).getTime()
-                break
-            }
+            case "TRANSACTION_DATE":
             case "CREATED_AT":
                 compareValue =
-                        new Date(a.created_at).getTime() -
-                        new Date(b.created_at).getTime()
+                        new Date(a.transactionDatetime).getTime() -
+                        new Date(b.transactionDatetime).getTime()
                 break
             default:
                 compareValue = 0
@@ -635,18 +556,7 @@ export class DonorService {
             return sortOrder === "ASC" ? compareValue : -compareValue
         })
 
-        // Map to summary DTO (only 3 fields)
-        return donationsWithNames.map((donation: any) => {
-            const successfulTx = donation.payment_transactions?.find(
-                (tx: any) => tx.status === "SUCCESS",
-            )
-
-            return {
-                amount: donation.amount.toString(),
-                donorName: donation.donor_name || "Unknown Donor",
-                transactionDatetime: successfulTx?.transaction_datetime || null,
-            }
-        })
+        return summaries
     }
 
     async getDonationStats(donorId: string): Promise<{

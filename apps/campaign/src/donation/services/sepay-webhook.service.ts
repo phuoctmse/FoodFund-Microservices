@@ -31,8 +31,13 @@ export class SepayWebhookService {
     ) {}
 
     /**
-     * Handle Sepay webhook - Route transfers based on content
-     * NEW LOGIC: Check for orderCode in content to route correctly
+     * Handle Sepay webhook - Route ALL transfers to Admin Wallet
+     * NEW LOGIC: All Sepay transfers now go to Admin Wallet
+     * 
+     * DUPLICATE PREVENTION:
+     * - If orderCode exists AND amount >= original: Skip (PayOS will handle)
+     * - If orderCode exists AND amount < original: Process PARTIAL payment
+     * - If no orderCode: Process as regular transfer
      */
     async handleSepayWebhook(payload: SepayWebhookPayload): Promise<void> {
         this.logger.log("[Sepay] Received webhook:", {
@@ -62,21 +67,239 @@ export class SepayWebhookService {
             return
         }
 
-        // CRITICAL: Extract orderCode from content to determine routing
+        // Extract orderCode to check for PayOS payment
         const orderCode = this.extractOrderCodeFromContent(payload.content)
 
         if (orderCode) {
-            // PayOS payment detected → Route to Fundraiser Wallet (supports supplements)
-            this.logger.log(
-                `[Sepay] Detected PayOS payment - orderCode=${orderCode}`,
-            )
-            await this.routeToFundraiserWallet(payload, orderCode)
+            // OrderCode found - check if PayOS will handle this
+            await this.handlePayOSRelatedTransfer(payload, orderCode)
         } else {
-            // No orderCode → Route to Admin Wallet (catch-all)
+            // No orderCode - regular Sepay transfer
             this.logger.log(
                 "[Sepay] No orderCode detected - routing to Admin Wallet",
             )
             await this.routeToAdminWallet(payload)
+        }
+    }
+
+    /**
+     * Handle Sepay transfer that has orderCode (PayOS-related)
+     * LOGIC:
+     * 1. Check if this sepayId already processed → skip (idempotency)
+     * 2. Find original payment by orderCode
+     * 3. If payment NOT processed yet (PENDING) → process as initial payment
+     * 4. If payment already SUCCESS → create supplementary payment (new Payment_Transaction)
+     * 5. If amount >= original → skip (PayOS will handle to avoid duplicate)
+     */
+    private async handlePayOSRelatedTransfer(
+        payload: SepayWebhookPayload,
+        orderCode: string,
+    ): Promise<void> {
+        try {
+            this.logger.log(
+                `[Sepay] Detected orderCode=${orderCode}, checking payment status`,
+            )
+
+            // IDEMPOTENCY: Check if this sepayId already processed
+            const existingPayment = await this.donorRepository.findPaymentBySepayId(payload.id)
+            if (existingPayment) {
+                this.logger.log(
+                    `[Sepay] ⚠️ Skipping - sepayId ${payload.id} already processed (Payment: ${existingPayment.id})`,
+                )
+                return
+            }
+
+            // Find ORIGINAL payment by orderCode
+            const paymentTransaction =
+                await this.donorRepository.findPaymentTransactionByOrderCode(
+                    BigInt(orderCode),
+                )
+
+            if (!paymentTransaction) {
+                this.logger.warn(
+                    `[Sepay] Payment transaction not found for orderCode=${orderCode} - routing to Admin as regular transfer`,
+                )
+                await this.routeToAdminWallet(payload)
+                return
+            }
+
+            const sepayAmount = BigInt(payload.transferAmount)
+            const originalAmount = paymentTransaction.amount
+
+            // Case 1: Sepay amount >= original amount
+            // → Skip, let PayOS handle (to avoid duplicate between PayOS + Sepay)
+            if (sepayAmount >= originalAmount) {
+                this.logger.log(
+                    `[Sepay] ⚠️ Skipping - Sepay amount (${sepayAmount}) >= original (${originalAmount}). PayOS webhook will handle this to avoid duplicate.`,
+                )
+                return
+            }
+
+            // Case 2: Original payment NOT processed yet (PENDING)
+            // → Process as initial PARTIAL payment (update original Payment_Transaction)
+            if (!paymentTransaction.processed_by_webhook) {
+                this.logger.log(
+                    `[Sepay] 💰 Processing initial PARTIAL payment - ${sepayAmount}/${originalAmount}`,
+                )
+                await this.processPartialPaymentToAdmin(payload, paymentTransaction, orderCode)
+                return
+            }
+
+            // Case 3: Original payment already processed (SUCCESS)
+            // → This is a SUPPLEMENTARY payment (create NEW Payment_Transaction)
+            this.logger.log(
+                `[Sepay] 💰 Processing SUPPLEMENTARY payment - amount=${sepayAmount} (original already processed)`,
+            )
+            await this.processSupplementaryPayment(payload, paymentTransaction)
+
+        } catch (error) {
+            this.logger.error(
+                `[Sepay] ❌ Failed to handle PayOS-related transfer - orderCode=${orderCode}`,
+                error.stack,
+            )
+            // Fallback to Admin Wallet on error
+            this.logger.log(
+                "[Sepay] Fallback: Routing to Admin Wallet instead",
+            )
+            await this.routeToAdminWallet(payload)
+        }
+    }
+
+    /**
+     * Process PARTIAL payment to Admin Wallet
+     * Update payment_transaction and credit Admin Wallet
+     */
+    private async processPartialPaymentToAdmin(
+        payload: SepayWebhookPayload,
+        paymentTransaction: any,
+        orderCode: string,
+    ): Promise<void> {
+        try {
+            const donation = paymentTransaction.donation
+            if (!donation || !donation.campaign) {
+                this.logger.error(
+                    `[Sepay→Admin] Donation or campaign not found for payment ${paymentTransaction.id}`,
+                )
+                await this.routeToAdminWallet(payload)
+                return
+            }
+
+            const campaignId = donation.campaign_id
+
+            // Step 1: Update payment_transaction to SUCCESS with PARTIAL status
+            await this.donorRepository.updatePaymentTransactionSuccess({
+                order_code: BigInt(orderCode),
+                amount_paid: BigInt(payload.transferAmount), // Actual amount (< original)
+                gateway: "SEPAY",
+                processed_by_webhook: true,
+                sepay_metadata: {
+                    sepay_id: payload.id,
+                    reference_code: payload.referenceCode,
+                    content: payload.content,
+                    bank_name: payload.gateway,
+                    transaction_date: payload.transactionDate,
+                    accumulated: payload.accumulated,
+                    sub_account: payload.subAccount,
+                    description: payload.description,
+                },
+            })
+
+            this.logger.log(
+                `[Sepay→Admin] ✅ Payment updated to SUCCESS with PARTIAL status - orderCode=${orderCode}, amount=${payload.transferAmount}/${paymentTransaction.amount}`,
+            )
+
+            // Step 2: Get system admin ID
+            const adminUserId = this.getSystemAdminId()
+
+            // Step 3: Credit Admin Wallet with actual amount
+            // NOTE: gateway and sepay_metadata are stored in Payment_Transaction, NOT Wallet_Transaction
+            // Wallet_Transaction links to Payment_Transaction via payment_transaction_id
+            await this.userClientService.creditAdminWallet({
+                adminId: adminUserId,
+                campaignId: campaignId,
+                paymentTransactionId: paymentTransaction.id,
+                amount: BigInt(payload.transferAmount),
+                gateway: "SEPAY", // For logging/description only, NOT stored in Wallet_Transaction
+                description: `Partial payment via Sepay - Order ${orderCode} | Ref: ${payload.referenceCode}`,
+            })
+
+            this.logger.log(
+                `[Sepay→Admin] ✅ Admin wallet credited - orderCode=${orderCode}, amount=${payload.transferAmount}`,
+            )
+        } catch (error) {
+            this.logger.error(
+                `[Sepay→Admin] ❌ Failed to process partial payment - orderCode=${orderCode}`,
+                error.stack,
+            )
+            throw error
+        }
+    }
+
+    /**
+     * Process SUPPLEMENTARY payment (additional transfer for same donation)
+     * Creates NEW Payment_Transaction record (without order_code)
+     */
+    private async processSupplementaryPayment(
+        payload: SepayWebhookPayload,
+        originalPayment: any,
+    ): Promise<void> {
+        try {
+            const donation = originalPayment.donation
+            if (!donation || !donation.campaign) {
+                this.logger.error(
+                    `[Sepay→Admin] Donation or campaign not found for original payment ${originalPayment.id}`,
+                )
+                await this.routeToAdminWallet(payload)
+                return
+            }
+
+            const campaignId = donation.campaign_id
+            const donationId = donation.id
+
+            // Step 1: Create NEW Payment_Transaction (supplementary payment)
+            const supplementaryPayment = await this.donorRepository.createSupplementaryPayment({
+                donation_id: donationId,
+                amount: BigInt(payload.transferAmount),
+                gateway: "SEPAY",
+                description: `Supplementary payment via Sepay | Ref: ${payload.referenceCode}`,
+                sepay_metadata: {
+                    sepayId: payload.id,
+                    referenceCode: payload.referenceCode,
+                    content: payload.content,
+                    bankName: payload.gateway,
+                    transactionDate: payload.transactionDate,
+                    accumulated: payload.accumulated,
+                    subAccount: payload.subAccount,
+                    description: payload.description,
+                },
+            })
+
+            this.logger.log(
+                `[Sepay→Admin] ✅ Supplementary payment created - Payment ID: ${supplementaryPayment.id}, amount=${payload.transferAmount}`,
+            )
+
+            // Step 2: Get system admin ID
+            const adminUserId = this.getSystemAdminId()
+
+            // Step 3: Credit Admin Wallet
+            await this.userClientService.creditAdminWallet({
+                adminId: adminUserId,
+                campaignId: campaignId,
+                paymentTransactionId: supplementaryPayment.id,
+                amount: BigInt(payload.transferAmount),
+                gateway: "SEPAY", // For logging only
+                description: `Supplementary payment via Sepay | Ref: ${payload.referenceCode}`,
+            })
+
+            this.logger.log(
+                `[Sepay→Admin] ✅ Admin wallet credited for supplementary payment - amount=${payload.transferAmount}`,
+            )
+        } catch (error) {
+            this.logger.error(
+                "[Sepay→Admin] ❌ Failed to process supplementary payment",
+                error.stack,
+            )
+            throw error
         }
     }
 
@@ -92,18 +315,20 @@ export class SepayWebhookService {
             const adminUserId = this.getSystemAdminId()
 
             this.logger.log(
-                `[Sepay→Admin] Routing to Admin Wallet - Admin ID: ${adminUserId}`,
+                `[Sepay→Admin] Routing non-donation transfer to Admin Wallet - Admin ID: ${adminUserId}`,
             )
 
             // Credit Admin Wallet via gRPC
+            // NOTE: This is a NON-DONATION transfer (no payment_transaction_id)
+            // Gateway and sepay_metadata WILL BE stored in Wallet_Transaction
             await this.userClientService.creditAdminWallet({
                 adminId: adminUserId,
-                campaignId: null, // UNKNOWN - cannot determine from Sepay webhook
-                paymentTransactionId: null, // UNKNOWN - no payment_transaction created
+                campaignId: null, // No campaign (non-donation transfer)
+                paymentTransactionId: null, // No payment_transaction (non-donation transfer)
                 amount: BigInt(payload.transferAmount),
-                gateway: "SEPAY",
+                gateway: "SEPAY", // Will be stored in Wallet_Transaction
                 description: this.buildDescription(payload),
-                // Store full Sepay metadata for audit/debugging
+                // Store full Sepay metadata in Wallet_Transaction (for audit/debugging)
                 sepayMetadata: {
                     sepayId: payload.id,
                     referenceCode: payload.referenceCode,
@@ -117,7 +342,7 @@ export class SepayWebhookService {
             })
 
             this.logger.log(
-                `[Sepay→Admin] ✅ Admin Wallet credited - ID: ${payload.id}, Amount: ${payload.transferAmount}`,
+                `[Sepay→Admin] ✅ Admin Wallet credited (non-donation) - Sepay ID: ${payload.id}, Amount: ${payload.transferAmount}`,
             )
         } catch (error) {
             // If admin wallet doesn't exist, log warning but don't crash
@@ -138,136 +363,6 @@ export class SepayWebhookService {
                 error.stack,
             )
             throw error
-        }
-    }
-
-    /**
-     * SCENARIO 2: Route Sepay transfer to Fundraiser Wallet (ONLY for PARTIAL payments)
-     * This handles ONLY when user transfers LESS than required amount (1 time only, no supplements)
-     */
-    private async routeToFundraiserWallet(
-        payload: SepayWebhookPayload,
-        orderCode: string,
-    ): Promise<void> {
-        try {
-            this.logger.log(
-                `[Sepay→Fundraiser] Processing orderCode=${orderCode}, amount=${payload.transferAmount}`,
-            )
-
-            // Step 1: Find payment_transaction by orderCode
-            const paymentTransaction =
-                await this.donorRepository.findPaymentTransactionByOrderCode(
-                    BigInt(orderCode),
-                )
-
-            if (!paymentTransaction) {
-                this.logger.warn(
-                    `[Sepay→Fundraiser] Payment transaction not found for orderCode=${orderCode} - routing to Admin instead`,
-                )
-                await this.routeToAdminWallet(payload)
-                return
-            }
-
-            // Step 2: CRITICAL - Sepay ONLY handles PARTIAL payments (< amount)
-            // PayOS handles COMPLETED/OVERPAID (>= amount)
-            
-            // Check 1: If Sepay amount >= original, this belongs to PayOS
-            if (BigInt(payload.transferAmount) >= paymentTransaction.amount) {
-                this.logger.log(
-                    `[Sepay→Fundraiser] ⚠️ Skipping - Sepay amount (${payload.transferAmount}) >= original (${paymentTransaction.amount}). PayOS will handle this (Scenario 1: Chuyển đủ/dư).`,
-                )
-                return
-            }
-
-            // Check 2: If payment already processed (SUCCESS), this is a DUPLICATE or SUPPLEMENT attempt
-            // Route to Admin Wallet for manual review (user might have copied old orderCode)
-            if (paymentTransaction.status === TransactionStatus.SUCCESS) {
-                this.logger.warn(
-                    `[Sepay→Fundraiser] ⚠️ Payment already processed with status SUCCESS (orderCode=${orderCode}). User may have copied old description. Routing to Admin Wallet for manual review.`,
-                )
-                await this.routeToAdminWallet(payload)
-                return
-            }
-
-            // Step 3: This is a PARTIAL payment (< amount) - Process it (1 time only)
-            this.logger.log(
-                `[Sepay→Fundraiser] 💰 PARTIAL payment detected - amount=${payload.transferAmount}/${paymentTransaction.amount}`,
-            )
-
-            // Step 4: Get donation and campaign info
-            const donation = paymentTransaction.donation
-            if (!donation || !donation.campaign) {
-                this.logger.error(
-                    `[Sepay→Fundraiser] Donation or campaign not found for payment ${paymentTransaction.id}`,
-                )
-                await this.routeToAdminWallet(payload)
-                return
-            }
-
-            const campaignId = donation.campaign_id
-            const fundraiserCognitoId = donation.campaign.created_by
-
-            // Step 5: Get fundraiser user_id from cognito_id
-            const fundraiserUser =
-                await this.userClientService.getUserByCognitoId(
-                    fundraiserCognitoId,
-                )
-
-            if (!fundraiserUser || !fundraiserUser.id) {
-                this.logger.error(
-                    `[Sepay→Fundraiser] Fundraiser user not found for cognito_id ${fundraiserCognitoId}`,
-                )
-                await this.routeToAdminWallet(payload)
-                return
-            }
-
-            const fundraiserId = fundraiserUser.id
-
-            // Step 6: Update payment_transaction to SUCCESS with PARTIAL status
-            await this.donorRepository.updatePaymentTransactionSuccess({
-                order_code: BigInt(orderCode),
-                amount_paid: BigInt(payload.transferAmount), // Actual amount (< original)
-                gateway: "SEPAY",
-                processed_by_webhook: true,
-                sepay_metadata: {
-                    sepay_id: payload.id,
-                    reference_code: payload.referenceCode,
-                    content: payload.content,
-                    bank_name: payload.gateway, // gateway field contains bank name
-                    transaction_date: payload.transactionDate,
-                    accumulated: payload.accumulated,
-                    sub_account: payload.subAccount,
-                    description: payload.description,
-                },
-            })
-
-            this.logger.log(
-                `[Sepay→Fundraiser] ✅ Payment updated to SUCCESS with PARTIAL status - orderCode=${orderCode}, amount=${payload.transferAmount}/${paymentTransaction.amount}`,
-            )
-
-            // Step 7: Credit Fundraiser Wallet with actual amount
-            await this.userClientService.creditFundraiserWallet({
-                fundraiserId: fundraiserId,
-                campaignId: campaignId,
-                paymentTransactionId: paymentTransaction.id,
-                amount: BigInt(payload.transferAmount),
-                gateway: "SEPAY",
-                description: `Partial payment via Sepay - Order ${orderCode} | Ref: ${payload.referenceCode}`,
-            })
-
-            this.logger.log(
-                `[Sepay→Fundraiser] ✅ Fundraiser wallet credited - orderCode=${orderCode}, amount=${payload.transferAmount}`,
-            )
-        } catch (error) {
-            this.logger.error(
-                `[Sepay→Fundraiser] ❌ Failed to route to Fundraiser - orderCode=${orderCode}`,
-                error.stack,
-            )
-            // Fallback to Admin Wallet on error
-            this.logger.log(
-                "[Sepay→Fundraiser] Fallback: Routing to Admin Wallet instead",
-            )
-            await this.routeToAdminWallet(payload)
         }
     }
 

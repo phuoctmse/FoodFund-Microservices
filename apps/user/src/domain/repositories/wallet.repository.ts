@@ -85,21 +85,47 @@ export class WalletRepository {
     }): Promise<Wallet_Transaction> {
         const wallet = await this.getWallet(data.userId, data.walletType)
 
-        // IDEMPOTENCY CHECK: Prevent duplicate wallet_transaction for same payment+gateway
-        // This handles race condition when PayOS and Sepay webhooks arrive simultaneously
-        if (data.paymentTransactionId && data.gateway) {
+        // IDEMPOTENCY CHECK:
+        // Case 1: Donation payment (has payment_transaction_id)
+        //   - Gateway/metadata stored in Payment_Transaction (apps/campaign DB)
+        //   - Wallet_Transaction should NOT have gateway/sepay_metadata (avoid duplicate)
+        //   - Check by payment_transaction_id only
+        // Case 2: Non-donation transfer (no payment_transaction_id, has gateway+sepay_metadata)
+        //   - Gateway/metadata stored in Wallet_Transaction (apps/user DB)
+        //   - Check by sepay_metadata.sepayId to prevent duplicates
+        
+        if (data.paymentTransactionId) {
+            // Case 1: Donation payment - check by payment_transaction_id
             const existing = await this.prisma.wallet_Transaction.findFirst({
                 where: {
                     wallet_id: wallet.id,
                     payment_transaction_id: data.paymentTransactionId,
-                    gateway: data.gateway,
-                    amount: data.amount, // Same amount from same gateway = duplicate
                 },
             })
 
             if (existing) {
                 this.logger.warn(
-                    `[Idempotency] Skipping duplicate credit - Transaction already exists: ${existing.id} (gateway=${data.gateway}, payment=${data.paymentTransactionId}, amount=${data.amount})`,
+                    `[Idempotency] Skipping duplicate donation credit - Transaction already exists: ${existing.id} (payment=${data.paymentTransactionId})`,
+                )
+                return existing
+            }
+        } else if (data.sepayMetadata?.sepayId) {
+            // Case 2: Non-donation Sepay transfer - check by sepayId
+            const existing = await this.prisma.wallet_Transaction.findFirst({
+                where: {
+                    wallet_id: wallet.id,
+                    payment_transaction_id: null, // Ensure it's a non-donation transfer
+                    gateway: "SEPAY",
+                    sepay_metadata: {
+                        path: ["sepayId"],
+                        equals: data.sepayMetadata.sepayId,
+                    },
+                },
+            })
+
+            if (existing) {
+                this.logger.warn(
+                    `[Idempotency] Skipping duplicate Sepay transfer - Transaction already exists: ${existing.id} (sepayId=${data.sepayMetadata.sepayId})`,
                 )
                 return existing
             }
@@ -109,17 +135,21 @@ export class WalletRepository {
         const walletTransaction = await this.prisma.$transaction(
             async (tx) => {
                 // Create wallet transaction
+                // NOTE: For donation payments (has payment_transaction_id):
+                //   - gateway and sepay_metadata should be NULL (stored in Payment_Transaction)
+                // For non-donation transfers (no payment_transaction_id):
+                //   - gateway and sepay_metadata are stored here
                 const transaction = await tx.wallet_Transaction.create({
                     data: {
                         wallet_id: wallet.id,
                         campaign_id: data.campaignId || null,
-                        payment_transaction_id:
-                            data.paymentTransactionId || null,
+                        payment_transaction_id: data.paymentTransactionId || null,
                         amount: data.amount,
                         transaction_type: data.transactionType,
                         description: data.description || null,
-                        gateway: data.gateway || null,
-                        sepay_metadata: data.sepayMetadata || null,
+                        // Only store gateway/sepay_metadata if NO payment_transaction_id (non-donation transfer)
+                        gateway: data.paymentTransactionId ? null : (data.gateway || null),
+                        sepay_metadata: data.paymentTransactionId ? null : (data.sepayMetadata || null),
                     },
                 })
 

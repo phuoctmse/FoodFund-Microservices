@@ -118,7 +118,7 @@ export class DonationWebhookService {
      * PARTIAL payments (< amount) are handled by Sepay webhook
      * 
      * 1. Update payment_transaction (SUCCESS, gateway=PAYOS, processed_by_webhook=true)
-     * 2. Credit Fundraiser Wallet with ACTUAL amount paid
+     * 2. Credit Admin Wallet with ACTUAL amount paid
      */
     private async processSuccessfulPayment(
         paymentTransaction: any,
@@ -176,43 +176,24 @@ export class DonationWebhookService {
             }
 
             const campaignId = donation.campaign_id
-            const fundraiserCognitoId = donation.campaign?.created_by
 
-            if (!fundraiserCognitoId) {
-                this.logger.error(
-                    `[PayOS] Fundraiser cognito_id not found for campaign ${campaignId}`,
-                )
-                return
-            }
+            // Step 3: Get system admin ID from environment
+            const adminUserId = this.getSystemAdminId()
 
-            // Step 2.5: Get fundraiser user_id from cognito_id
-            const fundraiserUser =
-                await this.userClientService.getUserByCognitoId(
-                    fundraiserCognitoId,
-                )
-
-            if (!fundraiserUser || !fundraiserUser.id) {
-                this.logger.error(
-                    `[PayOS] Fundraiser user not found for cognito_id ${fundraiserCognitoId}`,
-                )
-                return
-            }
-
-            const fundraiserId = fundraiserUser.id
-
-            // Step 3: Credit Fundraiser Wallet with ACTUAL amount received (not payment link amount)
-            // This handles both exact payment, underpaid, and overpaid scenarios
-            await this.userClientService.creditFundraiserWallet({
-                fundraiserId: fundraiserId,
+            // Step 4: Credit Admin Wallet with ACTUAL amount received
+            // NOTE: gateway and metadata are stored in Payment_Transaction, NOT Wallet_Transaction
+            // Wallet_Transaction links to Payment_Transaction via payment_transaction_id
+            await this.userClientService.creditAdminWallet({
+                adminId: adminUserId,
                 campaignId: campaignId,
                 paymentTransactionId: paymentTransaction.id,
-                amount: actualAmountReceived, // Use actual amount from PayOS (supports overpayment)
-                gateway: "PAYOS",
+                amount: actualAmountReceived,
+                gateway: "PAYOS", // For logging/description only, NOT stored in Wallet_Transaction
                 description: `Donation from ${donation.donor_name || "Anonymous"} - Order ${orderCode}`,
             })
 
             this.logger.log(
-                `[PayOS] ✅ Fundraiser wallet credited - Order ${orderCode}, Amount: ${actualAmountReceived} (Original: ${paymentTransaction.amount})`,
+                `[PayOS] ✅ Admin wallet credited - Order ${orderCode}, Amount: ${actualAmountReceived} (Original: ${paymentTransaction.amount})`,
             )
         } catch (error) {
             this.logger.error(
@@ -257,5 +238,13 @@ export class DonationWebhookService {
             )
             throw error
         }
+    }
+
+    /**
+     * Get system admin user ID from environment
+     */
+    private getSystemAdminId(): string {
+        const adminId = envConfig().systemAdminId || "admin-system-001"
+        return adminId
     }
 }

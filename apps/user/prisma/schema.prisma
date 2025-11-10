@@ -42,9 +42,14 @@ model Organization {
   user                           User                  @relation(fields: [representative_id], references: [id], onDelete: Cascade)
   representative_name            String                @db.Text()
   representative_identity_number String                @db.Text()
+  bank_account_name              String?               @db.VarChar(255)
+  bank_account_number            String?               @db.VarChar(255)
+  bank_name                      String?               @db.VarChar(50)
+  bank_short_name                String?               @db.VarChar(50)
   email                          String                @db.VarChar(100)
   phone_number                   String                @db.VarChar(20)
   status                         Verification_Status   @default(PENDING)
+  reason                         String?               @db.Text()
   created_at                     DateTime              @default(now())
   updated_at                     DateTime              @updatedAt
   Organization_Member            Organization_Member[]
@@ -110,13 +115,13 @@ model Wallet_Transaction {
   id                     String           @id @default(uuid())
   wallet_id              String
   wallet                 Wallet           @relation(fields: [wallet_id], references: [id], onDelete: Cascade)
-  campaign_id            String? // NULL for non-campaign transactions
-  payment_transaction_id String? // Original payment link ID
+  campaign_id            String? 
+  payment_transaction_id String? // Link to Payment_Transaction (apps/campaign DB)
   amount                 BigInt
   transaction_type       Transaction_Type
   description            String?          @db.Text()
-  gateway                String?          @db.VarChar(50) // "PAYOS" or "SEPAY"
-  sepay_metadata         Json? // Store Sepay payload for audit/debugging
+  gateway                String?          @db.VarChar(50) // "SEPAY" only for unknown transfers
+  sepay_metadata         Json?            // Sepay webhook payload for non-donation transfers (audit trail)
   created_at             DateTime         @default(now())
 
   @@index([wallet_id])
@@ -142,6 +147,7 @@ enum Verification_Status {
   PENDING
   VERIFIED
   REJECTED
+  CANCELLED
   INACTIVE
 }
 

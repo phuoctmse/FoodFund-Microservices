@@ -31,30 +31,6 @@ export class PaymentTransactionDetail {
 }
 
 @ObjectType()
-export class WalletTransactionDetail {
-    @Field(() => String, { description: "Transaction ID" })
-        id: string
-
-    @Field(() => String, { description: "Amount credited to wallet" })
-        amount: string
-
-    @Field(() => String, { description: "Transaction type" })
-        transactionType: string
-
-    @Field(() => String, { nullable: true, description: "Gateway (PAYOS/SEPAY)" })
-        gateway?: string
-
-    @Field(() => String, { nullable: true, description: "Reference" })
-        reference?: string
-
-    @Field(() => String, { nullable: true, description: "Description" })
-        description?: string
-
-    @Field(() => Date, { description: "Created at" })
-        createdAt: Date
-}
-
-@ObjectType()
 export class MyDonationDetailsResponse {
     @Field(() => String, { description: "Donation ID" })
         donationId: string
@@ -72,10 +48,4 @@ export class MyDonationDetailsResponse {
         description: "Payment transaction details",
     })
         paymentTransaction: PaymentTransactionDetail
-
-    @Field(() => [WalletTransactionDetail], {
-        description: "Wallet transaction details (from User service)",
-        nullable: true,
-    })
-        walletTransactions?: WalletTransactionDetail[]
 }
