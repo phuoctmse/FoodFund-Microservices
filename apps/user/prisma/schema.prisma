@@ -116,7 +116,7 @@ model Wallet_Transaction {
   wallet_id              String
   wallet                 Wallet           @relation(fields: [wallet_id], references: [id], onDelete: Cascade)
   campaign_id            String? 
-  payment_transaction_id String? // Link to Payment_Transaction (apps/campaign DB)
+  payment_transaction_id String?
   amount                 BigInt
   transaction_type       Transaction_Type
   description            String?          @db.Text()
