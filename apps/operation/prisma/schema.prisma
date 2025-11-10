@@ -129,7 +129,6 @@ model Delivery_Task {
   id                String   @id @default(uuid())
   delivery_staff_id String
   meal_batch_id     String
-  recipient_count   Int      @default(0)
   status            Delivery_Task_Status @default(PENDING)
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
@@ -149,6 +148,8 @@ model Delivery_Status_Log {
   id               String   @id @default(uuid())
   delivery_task_id String
   status           Delivery_Task_Status
+  changed_by       String
+  note             String?  @db.Text()
   created_at       DateTime @default(now())
 
   delivery_task Delivery_Task @relation(fields: [delivery_task_id], references: [id], onDelete: Cascade)
@@ -156,6 +157,7 @@ model Delivery_Status_Log {
   @@index([delivery_task_id])
   @@index([status])
   @@index([created_at])
+  @@index([changed_by])
   @@index([delivery_task_id, created_at])
   @@map("delivery_status_logs")
 }
