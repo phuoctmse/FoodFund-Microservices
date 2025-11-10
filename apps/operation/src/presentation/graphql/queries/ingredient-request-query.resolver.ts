@@ -7,7 +7,12 @@ import {
     CurrentUser,
 } from "@app/operation/src/shared"
 import { UseGuards } from "@nestjs/common"
-import { Args, Int, Query, Resolver } from "@nestjs/graphql"
+import {
+    Args,
+    Int,
+    Query,
+    Resolver,
+} from "@nestjs/graphql"
 
 @Resolver(() => IngredientRequest)
 export class IngredientRequestQueryResolver {
@@ -19,7 +24,6 @@ export class IngredientRequestQueryResolver {
         description: "Get ingredient request by ID",
         nullable: true,
     })
-    @UseGuards(CognitoGraphQLGuard)
     async getIngredientRequest(
         @Args("id", { type: () => String, description: "Request ID" })
             id: string,
@@ -51,16 +55,11 @@ export class IngredientRequestQueryResolver {
             description: "Number of requests to skip (default: 0)",
         })
             offset: number = 0,
-        @CurrentUser("decodedToken") decodedToken?: any,
     ): Promise<IngredientRequest[]> {
-        const userContext = decodedToken
-            ? createUserContextFromToken(decodedToken)
-            : undefined
         return this.ingredientRequestService.getRequests(
             filter,
             limit,
             offset,
-            userContext,
         )
     }
 

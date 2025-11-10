@@ -29,7 +29,7 @@ export class CampaignPhase extends BaseSchema {
     @Field(() => CampaignPhaseStatus, { description: "Phase execution status" })
         status: CampaignPhaseStatus
 
-    @Field(() => Campaign, { nullable: true, description: "Parent campaign" })
+    @Field(() => Campaign, { nullable: true })
         campaign?: Campaign
 
     constructor() {

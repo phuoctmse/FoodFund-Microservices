@@ -130,7 +130,6 @@ export class IngredientRequestService {
         filter?: IngredientRequestFilterInput,
         limit: number = 10,
         offset: number = 0,
-        userContext?: UserContext,
     ): Promise<IngredientRequest[]> {
         try {
             return await this.repository.findMany(filter, limit, offset)

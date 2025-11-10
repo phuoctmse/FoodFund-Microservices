@@ -12,13 +12,14 @@ import { Args, Int, Query, Resolver } from "@nestjs/graphql"
 
 @Resolver(() => ExpenseProof)
 export class ExpenseProofQueryResolver {
-    constructor(private readonly expenseProofService: ExpenseProofService) {}
+    constructor(
+        private readonly expenseProofService: ExpenseProofService,
+    ) {}
 
     @Query(() => ExpenseProof, {
         nullable: true,
         description: "Get expense proof by ID",
     })
-    @UseGuards(CognitoGraphQLGuard)
     async getExpenseProof(
         @Args("id", { type: () => String }) id: string,
     ): Promise<ExpenseProof | null> {
@@ -26,7 +27,7 @@ export class ExpenseProofQueryResolver {
     }
 
     @Query(() => [ExpenseProof], {
-        description: "Get expense proofs with filters (Fundraiser/Admin only)",
+        description: "Get expense proofs",
     })
     @UseGuards(CognitoGraphQLGuard)
     async getExpenseProofs(

@@ -1,10 +1,24 @@
-import { Args, Query, Resolver, ResolveReference } from "@nestjs/graphql"
+import {
+    Args,
+    Parent,
+    Query,
+    ResolveField,
+    Resolver,
+    ResolveReference,
+} from "@nestjs/graphql"
 import { CampaignPhase } from "../../models"
 import { CampaignPhaseService } from "../../services"
+import { Campaign } from "@app/campaign/src/campaign/models"
+import { CampaignService } from "@app/campaign/src/campaign/services"
+import { forwardRef, Inject } from "@nestjs/common"
 
 @Resolver(() => CampaignPhase)
 export class CampaignPhaseQueryResolver {
-    constructor(private readonly campaignPhaseService: CampaignPhaseService) {}
+    constructor(
+        private readonly campaignPhaseService: CampaignPhaseService,
+        @Inject(forwardRef(() => CampaignService))
+        private readonly campaignService: CampaignService,
+    ) {}
 
     @Query(() => [CampaignPhase], {
         description: "Get all phases for a campaign",
@@ -32,6 +46,22 @@ export class CampaignPhaseQueryResolver {
         __typename: string
         id: string
     }): Promise<CampaignPhase | null> {
-        return this.campaignPhaseService.getPhaseById(reference.id)
+        const phase = await this.campaignPhaseService.getPhaseById(reference.id)
+        if (!phase) {
+            return null
+        }
+
+        if (phase.campaignId) {
+            try {
+                const campaign = await this.campaignService.findCampaignById(
+                    phase.campaignId,
+                )
+                phase.campaign = campaign
+            } catch (error) {
+                phase.campaign = undefined
+            }
+        }
+
+        return phase
     }
 }
