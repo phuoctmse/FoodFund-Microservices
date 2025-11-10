@@ -5,7 +5,9 @@ import { DonorService } from "../../../services/donor.service"
 import { Donation } from "../../../models/donation.model"
 import {
     MyDonationsResponse,
-    DonationPaymentLinkResponse,
+    MyDonationDetailsResponse,
+    CampaignDonationSummary,
+    CampaignDonationStatementResponse,
     DonationSortField,
     SortOrder,
 } from "../../../dtos"
@@ -57,19 +59,20 @@ export class DonorQueryResolver {
         return this.donorService.getMyDonationsWithTotal(userId, { skip, take })
     }
 
-    @Query(() => DonationPaymentLinkResponse, {
-        description:
-            "Get donation payment link info by order code",
+    @Query(() => MyDonationDetailsResponse, {
+        description: "Get detailed payment information for a donation by order code",
     })
     @UseGuards(CognitoGraphQLGuard)
-    async getMyDonationPaymentLink(
+    async getMyDonationDetails(
+        @CurrentUser("sub") userId: string,
         @Args("orderCode", { type: () => String }) orderCode: string,
-    ): Promise<DonationPaymentLinkResponse> {
-        return this.donorService.getMyDonationPaymentLink(orderCode)
+    ): Promise<MyDonationDetailsResponse> {
+        return this.donorService.getMyDonationDetails(orderCode, userId)
     }
 
-    @Query(() => [Donation], {
-        description: "Get donations for a specific campaign",
+
+    @Query(() => [CampaignDonationSummary], {
+        description: "Get donation summaries for a specific campaign (public view)",
     })
     async getCampaignDonations(
         @Args("campaignId", { type: () => String }) campaignId: string,
@@ -81,15 +84,7 @@ export class DonorQueryResolver {
             sortOrder?: SortOrder,
         @Args("searchDonorName", { type: () => String, nullable: true })
             searchDonorName?: string,
-    ): Promise<Donation[]> {
-        console.log("=== getCampaignDonations DEBUG ===")
-        console.log("campaignId:", campaignId)
-        console.log("skip:", skip)
-        console.log("take:", take)
-        console.log("sortBy:", sortBy)
-        console.log("sortOrder:", sortOrder)
-        console.log("searchDonorName:", searchDonorName)
-        console.log("===================================")
+    ): Promise<CampaignDonationSummary[]> {
 
         return this.donorService.getDonationsByCampaign(campaignId, {
             skip,
@@ -100,5 +95,15 @@ export class DonorQueryResolver {
                 searchDonorName,
             },
         })
+    }
+
+    @Query(() => CampaignDonationStatementResponse, {
+        description:
+            "Get detailed donation statement for a campaign (for CSV export and public transparency)",
+    })
+    async getCampaignDonationStatement(
+        @Args("campaignId", { type: () => String }) campaignId: string,
+    ): Promise<CampaignDonationStatementResponse> {
+        return this.donorService.getCampaignDonationStatement(campaignId)
     }
 }

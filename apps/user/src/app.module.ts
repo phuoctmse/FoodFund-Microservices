@@ -18,6 +18,7 @@ import {
     DeliveryStaffService,
     UserQueryService,
     UserMutationService,
+    WalletService,
 } from "./application/services"
 import {
     UserRepository,
@@ -35,10 +36,14 @@ import {
     UserQueryResolver,
     UserMutationResolver,
     UserAdminResolver,
+    AdminWalletResolver,
     DonorProfileResolver,
     KitchenStaffProfileResolver,
     FundraiserProfileResolver,
+    FundraiserWalletResolver,
     DeliveryStaffProfileResolver,
+    WalletQueryResolver,
+    WalletFieldResolver,
 } from "./presentation/graphql/resolvers"
 import { HealthController } from "./presentation/http/controllers"
 
@@ -105,15 +110,20 @@ import { HealthController } from "./presentation/http/controllers"
         DeliveryStaffService,
         UserQueryService,
         UserMutationService,
+        WalletService,
 
         // Presentation - Resolvers
         UserQueryResolver,
         UserMutationResolver,
         UserAdminResolver,
+        AdminWalletResolver,
         DonorProfileResolver,
         KitchenStaffProfileResolver,
         FundraiserProfileResolver,
+        FundraiserWalletResolver,
         DeliveryStaffProfileResolver,
+        WalletQueryResolver,
+        WalletFieldResolver,
     ],
     exports: [UserRepository],
 })

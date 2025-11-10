@@ -229,10 +229,15 @@ export class SepayWebhookService {
                 amount_paid: BigInt(payload.transferAmount), // Actual amount (< original)
                 gateway: "SEPAY",
                 processed_by_webhook: true,
-                payos_metadata: {
-                    // Store Sepay metadata in payos_metadata for consistency
-                    reference: payload.referenceCode,
-                    transaction_datetime: new Date(payload.transactionDate),
+                sepay_metadata: {
+                    sepay_id: payload.id,
+                    reference_code: payload.referenceCode,
+                    content: payload.content,
+                    bank_name: payload.gateway, // gateway field contains bank name
+                    transaction_date: payload.transactionDate,
+                    accumulated: payload.accumulated,
+                    sub_account: payload.subAccount,
+                    description: payload.description,
                 },
             })
 

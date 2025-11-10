@@ -320,14 +320,14 @@ export class DonorRepository {
     }
 
     /**
-     * Update payment transaction to SUCCESS status (used by PayOS webhook)
+     * Update payment transaction to SUCCESS status (used by PayOS/Sepay webhooks)
      */
     async updatePaymentTransactionSuccess(data: {
         order_code: bigint
-        amount_paid: bigint // Actual amount received from PayOS
+        amount_paid: bigint // Actual amount received
         gateway: string
         processed_by_webhook: boolean
-        payos_metadata: {
+        payos_metadata?: {
             payment_link_id?: string
             reference?: string
             transaction_datetime?: Date
@@ -337,6 +337,16 @@ export class DonorRepository {
             counter_account_number?: string
             virtual_account_name?: string
             virtual_account_number?: string
+        }
+        sepay_metadata?: {
+            sepay_id: number
+            reference_code: string
+            content: string
+            bank_name: string
+            transaction_date: string
+            accumulated: number
+            sub_account: string | null
+            description: string
         }
     }) {
         return this.prisma.$transaction(async (tx) => {
@@ -378,6 +388,7 @@ export class DonorRepository {
                     gateway: data.gateway,
                     processed_by_webhook: data.processed_by_webhook,
                     payos_metadata: data.payos_metadata,
+                    sepay_metadata: data.sepay_metadata,
                     updated_at: new Date(),
                 },
                 include: {

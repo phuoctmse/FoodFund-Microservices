@@ -163,10 +163,12 @@ export class WalletRepository {
 
     /**
      * Get wallet transactions
+     * Uses getTransactionsByWalletId internally to avoid duplicate logic
      */
     async getWalletTransactions(
         userId: string,
         walletType: Wallet_Type,
+        skip = 0,
         limit = 50,
     ): Promise<Wallet_Transaction[]> {
         const wallet = await this.prisma.wallet.findFirst({
@@ -180,14 +182,230 @@ export class WalletRepository {
             return []
         }
 
+        // Reuse getTransactionsByWalletId to avoid duplicate query logic
+        return this.getTransactionsByWalletId(wallet.id, skip, limit)
+    }
+
+    /**
+     * Find wallet transactions by payment_transaction_id
+     * Used to fetch wallet credits linked to a specific payment
+     */
+    async findByPaymentTransactionId(
+        paymentTransactionId: string,
+    ): Promise<Wallet_Transaction[]> {
         return this.prisma.wallet_Transaction.findMany({
             where: {
-                wallet_id: wallet.id,
+                payment_transaction_id: paymentTransactionId,
             },
             orderBy: {
                 created_at: "desc",
             },
+        })
+    }
+
+    /**
+     * Find all wallets by type with pagination
+     */
+    async findAllByType(
+        walletType: Wallet_Type,
+        skip = 0,
+        take = 50,
+    ): Promise<{ wallets: Wallet[]; total: number }> {
+        const [wallets, total] = await Promise.all([
+            this.prisma.wallet.findMany({
+                where: {
+                    wallet_type: walletType,
+                },
+                skip,
+                take,
+                orderBy: {
+                    created_at: "desc",
+                },
+            }),
+            this.prisma.wallet.count({
+                where: {
+                    wallet_type: walletType,
+                },
+            }),
+        ])
+
+        return { wallets, total }
+    }
+
+    /**
+     * Get transactions by wallet ID
+     */
+    async getTransactionsByWalletId(
+        walletId: string,
+        skip = 0,
+        limit = 50,
+    ): Promise<Wallet_Transaction[]> {
+        return this.prisma.wallet_Transaction.findMany({
+            where: {
+                wallet_id: walletId,
+            },
+            orderBy: {
+                created_at: "desc",
+            },
+            skip,
             take: limit,
         })
+    }
+
+    /**
+     * Get wallet statistics for a user
+     */
+    async getWalletStats(
+        userId: string,
+        walletType: Wallet_Type,
+    ): Promise<{
+        totalReceived: bigint
+        totalWithdrawn: bigint
+        totalDonations: number
+        thisMonthReceived: bigint
+    }> {
+        const wallet = await this.prisma.wallet.findFirst({
+            where: {
+                user_id: userId,
+                wallet_type: walletType,
+            },
+        })
+
+        if (!wallet) {
+            return {
+                totalReceived: BigInt(0),
+                totalWithdrawn: BigInt(0),
+                totalDonations: 0,
+                thisMonthReceived: BigInt(0),
+            }
+        }
+
+        // Get start of current month
+        const startOfMonth = new Date()
+        startOfMonth.setDate(1)
+        startOfMonth.setHours(0, 0, 0, 0)
+
+        // Get total received (CREDIT transactions)
+        const creditTransactions = await this.prisma.wallet_Transaction.aggregate(
+            {
+                where: {
+                    wallet_id: wallet.id,
+                    transaction_type: {
+                        in: [
+                            Transaction_Type.DONATION_RECEIVED,
+                            Transaction_Type.INCOMING_TRANSFER,
+                            Transaction_Type.ADMIN_ADJUSTMENT,
+                        ],
+                    },
+                },
+                _sum: {
+                    amount: true,
+                },
+                _count: true,
+            },
+        )
+
+        // Get total withdrawn (DEBIT transactions)
+        const debitTransactions = await this.prisma.wallet_Transaction.aggregate(
+            {
+                where: {
+                    wallet_id: wallet.id,
+                    transaction_type: Transaction_Type.WITHDRAWAL,
+                },
+                _sum: {
+                    amount: true,
+                },
+            },
+        )
+
+        // Get this month received
+        const thisMonthTransactions =
+            await this.prisma.wallet_Transaction.aggregate({
+                where: {
+                    wallet_id: wallet.id,
+                    transaction_type: {
+                        in: [
+                            Transaction_Type.DONATION_RECEIVED,
+                            Transaction_Type.INCOMING_TRANSFER,
+                        ],
+                    },
+                    created_at: {
+                        gte: startOfMonth,
+                    },
+                },
+                _sum: {
+                    amount: true,
+                },
+            })
+
+        return {
+            totalReceived: creditTransactions._sum.amount || BigInt(0),
+            totalWithdrawn: debitTransactions._sum.amount || BigInt(0),
+            totalDonations: creditTransactions._count || 0,
+            thisMonthReceived: thisMonthTransactions._sum.amount || BigInt(0),
+        }
+    }
+
+    /**
+     * Get platform-wide statistics
+     */
+    async getPlatformStats(): Promise<{
+        totalFundraiserBalance: bigint
+        totalFundraisers: number
+        totalTransactionsToday: number
+        totalTransactionsThisMonth: number
+    }> {
+        // Get all fundraiser wallets
+        const fundraiserWallets = await this.prisma.wallet.findMany({
+            where: {
+                wallet_type: Wallet_Type.FUNDRAISER,
+            },
+            select: {
+                balance: true,
+            },
+        })
+
+        // Calculate total balance
+        const totalFundraiserBalance = fundraiserWallets.reduce(
+            (sum, wallet) => sum + wallet.balance,
+            BigInt(0),
+        )
+
+        // Get start of today
+        const startOfToday = new Date()
+        startOfToday.setHours(0, 0, 0, 0)
+
+        // Get start of current month
+        const startOfMonth = new Date()
+        startOfMonth.setDate(1)
+        startOfMonth.setHours(0, 0, 0, 0)
+
+        // Count transactions today
+        const totalTransactionsToday = await this.prisma.wallet_Transaction.count(
+            {
+                where: {
+                    created_at: {
+                        gte: startOfToday,
+                    },
+                },
+            },
+        )
+
+        // Count transactions this month
+        const totalTransactionsThisMonth =
+            await this.prisma.wallet_Transaction.count({
+                where: {
+                    created_at: {
+                        gte: startOfMonth,
+                    },
+                },
+            })
+
+        return {
+            totalFundraiserBalance,
+            totalFundraisers: fundraiserWallets.length,
+            totalTransactionsToday,
+            totalTransactionsThisMonth,
+        }
     }
 }

@@ -275,4 +275,67 @@ export class UserClientService {
             throw error
         }
     }
+
+    /**
+     * Get wallet transactions by payment transaction ID
+     * Fetches all wallet credit transactions linked to a specific payment
+     */
+    async getWalletTransactionsByPaymentId(
+        paymentTransactionId: string,
+    ): Promise<
+        Array<{
+            id: string
+            amount: string
+            transactionType: string
+            gateway: string | null
+            reference: string | null
+            description: string | null
+            createdAt: Date
+        }>
+    > {
+        try {
+            this.logger.log(
+                `[gRPC] Fetching wallet transactions for payment ${paymentTransactionId}`,
+            )
+
+            const response = await this.grpcClient.callUserService<
+                { paymentTransactionId: string },
+                {
+                    success: boolean
+                    transactions?: Array<{
+                        id: string
+                        amount: string
+                        transactionType: string
+                        gateway: string | null
+                        reference: string | null
+                        description: string | null
+                        createdAt: string // ISO date string
+                    }>
+                    error?: string
+                }
+            >(
+                "GetWalletTransactionsByPaymentId",
+                { paymentTransactionId },
+                { timeout: 3000, retries: 2 },
+            )
+
+            if (!response.success || !response.transactions) {
+                this.logger.warn(
+                    `No wallet transactions found for payment ${paymentTransactionId}`,
+                )
+                return []
+            }
+
+            return response.transactions.map((tx) => ({
+                ...tx,
+                createdAt: new Date(tx.createdAt),
+            }))
+        } catch (error) {
+            this.logger.error(
+                `[gRPC] Failed to fetch wallet transactions for payment ${paymentTransactionId}:`,
+                error,
+            )
+            return [] // Return empty array on error (non-critical)
+        }
+    }
 }
