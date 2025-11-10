@@ -23,7 +23,7 @@ import { SpacesUploadService } from "@libs/s3-storage"
 import { SentryService } from "@libs/observability"
 import { ExpenseProofFilterInput } from "../../dtos/expense-proof"
 import { GrpcClientService } from "@libs/grpc"
-import { ExpenseProofStatus } from "@app/operation/src/domain/enums"
+import { ExpenseProofStatus, IngredientRequestStatus } from "@app/operation/src/domain/enums"
 
 @Injectable()
 export class ExpenseProofService {
@@ -460,6 +460,33 @@ export class ExpenseProofService {
             changedStatusAt: proof.changed_status_at,
             created_at: proof.created_at,
             updated_at: proof.updated_at,
+            request: proof.request ? {
+                id: proof.request.id,
+                campaignPhaseId: proof.request.campaign_phase_id,
+                kitchenStaffId: proof.request.kitchen_staff_id,
+                totalCost: proof.request.total_cost.toString(),
+                status: proof.request.status as IngredientRequestStatus,
+                changedStatusAt: proof.request.changed_status_at,
+                created_at: proof.request.created_at,
+                updated_at: proof.request.updated_at,
+                items: proof.request.items?.map((item: any) => ({
+                    id: item.id,
+                    requestId: item.request_id,
+                    ingredientName: item.ingredient_name,
+                    quantity: item.quantity,
+                    estimatedUnitPrice: item.estimated_unit_price,
+                    estimatedTotalPrice: item.estimated_total_price,
+                    supplier: item.supplier,
+                })) || [],
+                kitchenStaff: {
+                    __typename: "User",
+                    id: proof.request.kitchen_staff_id,
+                },
+                campaignPhase: {
+                    __typename: "CampaignPhase",
+                    id: proof.request.campaign_phase_id,
+                },
+            } : undefined,
         }
     }
 }
