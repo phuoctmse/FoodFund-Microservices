@@ -1,7 +1,31 @@
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common"
-import { CampaignCommonGrpcService } from "./common"
+import { Controller, Injectable } from "@nestjs/common"
 import { CampaignPhaseRepository } from "../../campaign-phase"
 import { GrpcMethod } from "@nestjs/microservices"
+import { CampaignService } from "../services"
+
+interface GetCampaignRequest {
+    id: string
+}
+
+interface GetCampaignResponse {
+    success: boolean
+    campaign?: {
+        id: string
+        title: string
+        description: string
+        coverImage: string
+        targetAmount: string
+        receivedAmount: string
+        donationCount: number
+        status: string
+        fundraisingStartDate: string
+        fundraisingEndDate: string
+        createdBy: string
+        createdAt: string
+        updatedAt: string
+    }
+    error?: string
+}
 
 interface GetCampaignIdByPhaseIdRequest {
     phaseId: string
@@ -31,42 +55,67 @@ interface GetCampaignPhasesResponse {
     error: string | null
 }
 
-@Injectable()
-export class CampaignGrpcService implements OnModuleInit {
-    private readonly logger = new Logger(CampaignGrpcService.name)
+interface HealthRequest {}
 
+interface HealthResponse {
+    healthy: boolean
+    message: string
+}
+@Controller()
+@Injectable()
+export class CampaignGrpcService {
     constructor(
-        private readonly campaignCommonGrpcService: CampaignCommonGrpcService,
+        private readonly campaignService: CampaignService,
         private readonly campaignPhaseRepository: CampaignPhaseRepository,
     ) {}
 
-    async onModuleInit() {
-        this.logger.log("Campaign gRPC service implementation ready")
-        this.logger.log(
-            `Will listen on port: ${process.env.CAMPAIGN_GRPC_PORT || "50003"}`,
-        )
-    }
-
-    public getImplementation() {
+    @GrpcMethod("CampaignService", "Health")
+    async health(data: HealthRequest): Promise<HealthResponse> {
         return {
-            Health: this.health.bind(this),
-            GetCampaign: this.getCampaign.bind(this),
-            GetCampaignIdByPhaseId: this.getCampaignIdByPhaseId.bind(this),
-            GetCampaignPhases: this.getCampaignPhases.bind(this),
-        }
-    }
-
-    private async health(call: any, callback: any) {
-        const response = {
             healthy: true,
             message: "Campaign service is healthy",
         }
-
-        callback(null, response)
     }
 
-    private async getCampaign(call: any, callback: any) {
-        return this.campaignCommonGrpcService.getCampaign(call, callback)
+    @GrpcMethod("CampaignService", "GetCampaign")
+    async getCampaign(data: GetCampaignRequest): Promise<GetCampaignResponse> {
+        const { id } = data
+
+        if (!id) {
+            return {
+                success: false,
+                error: "Campaign ID is required",
+            }
+        }
+
+        const campaign = await this.campaignService.findCampaignById(id)
+
+        if (!campaign) {
+            return {
+                success: false,
+                error: "Campaign not found",
+            }
+        }
+
+        return {
+            success: true,
+            campaign: {
+                id: campaign.id,
+                title: campaign.title,
+                description: campaign.description || "",
+                coverImage: campaign.coverImage || "",
+                targetAmount: campaign.targetAmount.toString(),
+                receivedAmount: campaign.receivedAmount?.toString() || "0",
+                donationCount: campaign.donationCount || 0,
+                status: campaign.status,
+                fundraisingStartDate:
+                    campaign.fundraisingStartDate.toISOString(),
+                fundraisingEndDate: campaign.fundraisingEndDate.toISOString(),
+                createdBy: campaign.createdBy,
+                createdAt: campaign.created_at.toISOString(),
+                updatedAt: campaign.updated_at.toISOString(),
+            },
+        }
     }
 
     @GrpcMethod("CampaignService", "GetCampaignIdByPhaseId")
@@ -132,8 +181,7 @@ export class CampaignGrpcService implements OnModuleInit {
                 campaignId: phase.campaignId,
                 phaseName: phase.phaseName,
                 location: phase.location,
-                ingredientPurchaseDate:
-                    phase.ingredientPurchaseDate.toISOString(),
+                ingredientPurchaseDate: phase.ingredientPurchaseDate.toISOString(),
                 cookingDate: phase.cookingDate.toISOString(),
                 deliveryDate: phase.deliveryDate.toISOString(),
             })),
