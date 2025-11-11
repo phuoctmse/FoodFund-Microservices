@@ -50,7 +50,6 @@ export class SepayWebhookController {
             //     throw new UnauthorizedException('Invalid webhook signature');
             // }
 
-            // Process webhook (async - will not block response)
             await this.sepayWebhookService.handleSepayWebhook(payload)
 
             return {
@@ -63,8 +62,6 @@ export class SepayWebhookController {
                 error.stack,
             )
 
-            // Return 200 OK to prevent Sepay from retrying
-            // Log the error for manual investigation
             return {
                 success: false,
                 message: "Webhook processing failed, logged for review",

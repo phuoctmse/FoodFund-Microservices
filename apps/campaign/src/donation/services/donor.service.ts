@@ -8,11 +8,20 @@ import { DonorRepository } from "../repositories/donor.repository"
 import { CreateDonationInput } from "../dtos/create-donation.input"
 import { DonationResponse } from "../dtos/donation-response.dto"
 import { CampaignDonationInfo } from "../dtos/campaign-donation-info.dto"
-import { MyDonationsResponse } from "../dtos/my-donations-response.dto"
+import { MyDonationsResponse, DonationWithStatus } from "../dtos/my-donations-response.dto"
+import {
+    MyDonationDetailsResponse,
+    PaymentTransactionDetail,
+} from "../dtos/my-donation-details-response.dto"
 import {
     DonationPaymentLinkResponse,
     DonationTransactionInfo,
 } from "../dtos/donation-payment-link-response.dto"
+import { CampaignDonationSummary } from "../dtos/campaign-donation-summary.dto"
+import {
+    CampaignDonationStatementResponse,
+    DonationTransactionStatement,
+} from "../dtos/campaign-donation-statement.dto"
 import { CampaignStatus } from "../../campaign/enum/campaign.enum"
 import { Donation } from "../models/donation.model"
 import { SqsService } from "@libs/aws-sqs"
@@ -157,8 +166,14 @@ export class DonorService {
             is_anonymous: isAnonymous,
         })
 
-        // Generate unique order code (timestamp-based)
-        const orderCode = Number(Date.now())
+        // Generate unique order code (timestamp-based with random suffix)
+        // Format: {timestamp}{randomSuffix} to prevent collision in concurrent requests
+        // Example: 1762613543567123 (13 digits timestamp + 3 digits random)
+        const timestamp = Date.now()
+        const randomSuffix = Math.floor(Math.random() * 1000)
+            .toString()
+            .padStart(3, "0") // 000-999
+        const orderCode = Number(`${timestamp}${randomSuffix}`)
 
         // Create PayOS payment link
         // Note: returnUrl and cancelUrl are required by PayOS but not used in our flow
@@ -263,6 +278,17 @@ export class DonorService {
             throw new BadRequestException("Fundraising period has ended")
         }
 
+        // // Check if campaign has already reached its target amount
+        // if (campaign.receivedAmount >= campaign.targetAmount) {
+        //     console.debug("Campaign target reached:", {
+        //         receivedAmount: campaign.receivedAmount,
+        //         targetAmount: campaign.targetAmount,
+        //     })
+        //     throw new BadRequestException(
+        //         "Campaign has already reached its fundraising goal. No more donations are accepted.",
+        //     )
+        // }
+
         return campaign
     }
 
@@ -305,7 +331,7 @@ export class DonorService {
             take?: number
         },
     ): Promise<MyDonationsResponse> {
-        // Get paginated donations
+        // Get paginated donations with payment transactions
         const donations = await this.donorRepository.findByDonorId(
             donorId,
             options,
@@ -314,11 +340,76 @@ export class DonorService {
         // Get donation stats
         const stats = await this.donorRepository.getDonationStats(donorId)
 
+        // Map donations with payment status
+        const donationsWithStatus: DonationWithStatus[] = donations.map(
+            (donation: any) => {
+                // Get latest payment transaction
+                const latestTx = donation.payment_transactions?.[0]
+
+                return {
+                    donation: this.mapDonationToGraphQLModel(donation),
+                    transactionStatus: latestTx?.status || "PENDING",
+                    paymentAmountStatus: latestTx?.payment_status || "PENDING",
+                    amount: latestTx?.amount?.toString() || "0",
+                    receivedAmount: latestTx?.received_amount?.toString() || "0",
+                    orderCode: latestTx?.order_code?.toString() || "",
+                }
+            },
+        )
+
         return {
-            donations: donations.map(this.mapDonationToGraphQLModel),
+            donations: donationsWithStatus,
             totalAmount: stats.totalDonated.toString(),
             totalSuccessDonations: stats.donationCount,
             totalDonatedCampaigns: stats.campaignCount,
+        }
+    }
+
+    async getMyDonationDetails(
+        orderCode: string,
+        userId: string,
+    ): Promise<MyDonationDetailsResponse> {
+        // Find donation with payment_transactions
+        const donation = await this.donorRepository.findByOrderCode(orderCode)
+
+        if (!donation) {
+            throw new NotFoundException(
+                "Donation not found with this order code",
+            )
+        }
+
+        // Verify ownership
+        if (donation.donor_id !== userId) {
+            throw new NotFoundException(
+                "Donation not found with this order code",
+            )
+        }
+
+        // Get payment transaction details (latest one)
+        const latestTx = donation.payment_transactions?.[0]
+
+        if (!latestTx) {
+            throw new NotFoundException("Payment transaction not found")
+        }
+
+        const paymentTransaction: PaymentTransactionDetail = {
+            id: latestTx.id,
+            orderCode: latestTx.order_code?.toString() || "",
+            amount: latestTx.amount.toString(),
+            receivedAmount: latestTx.received_amount?.toString() || "0",
+            transactionStatus: latestTx.status,
+            paymentAmountStatus: latestTx.payment_status,
+            description: latestTx.description || "",
+            createdAt: latestTx.created_at,
+            updatedAt: latestTx.updated_at,
+        }
+
+        return {
+            paymentTransaction,
+            donationId: donation.id,
+            campaignId: donation.campaign_id,
+            isAnonymous: donation.is_anonymous,
+            createdAt: donation.created_at,
         }
     }
 
@@ -372,7 +463,7 @@ export class DonorService {
             transactions,
             // Banking info - only for PENDING/UNPAID
             qrCode: shouldShowBankingInfo
-                ? (latestTx?.qr_code ?? undefined)
+                ? (latestTx?.payos_metadata as any)?.qr_code ?? undefined
                 : undefined,
             bankNumber: shouldShowBankingInfo
                 ? config.payosBankNumber
@@ -402,121 +493,63 @@ export class DonorService {
                 sortOrder?: string
             }
         },
-    ): Promise<Donation[]> {
+    ): Promise<CampaignDonationSummary[]> {
         this.logger.log("=== getDonationsByCampaign SERVICE DEBUG ===")
         this.logger.log(`campaignId: ${campaignId}`)
         this.logger.log(`options: ${JSON.stringify(options, null, 2)}`)
         this.logger.log(`filter: ${JSON.stringify(options?.filter, null, 2)}`)
         this.logger.log("===========================================")
-
-        const donations = await this.donorRepository.findByCampaignId(
-            campaignId,
-            options,
-        )
-
-        // Filter and validate donations
-        const validDonations = donations.filter((donation: any) => {
-            // Must have at least one successful payment transaction
-            const successfulTx = donation.payment_transactions?.find(
-                (tx: any) => tx.status === "SUCCESS",
+        
+        // Query Payment_Transaction directly for transparency
+        // Shows all individual payments (initial + supplementary)
+        const paymentTransactions =
+            await this.donorRepository.findPaymentTransactionsByCampaignId(
+                campaignId,
+                {
+                    skip: options?.skip,
+                    take: options?.take,
+                    searchDonorName: options?.filter?.searchDonorName,
+                },
             )
-            if (!successfulTx) return false
 
-            // Validate amount matches between donation and transaction
-            if (donation.amount !== successfulTx.amount) {
-                this.logger.warn(
-                    `Donation ${donation.id} amount mismatch: donation=${donation.amount}, transaction=${successfulTx.amount}`,
-                )
-                return false
-            }
-
-            return true
-        })
-
-        // Use DataLoader to batch fetch donor names (automatic batching & caching)
-        // Collect donor IDs that need to be fetched
-        const donorIdsToFetch = validDonations
-            .filter(
-                (d: any) =>
-                    !d.donor_name &&
-                    !d.is_anonymous &&
-                    d.donor_id !== "anonymous",
-            )
-            .map((d: any) => d.donor_id)
-
-        // Get unique donor IDs
-        const uniqueDonorIds = [...new Set(donorIdsToFetch)]
-
-        // Batch fetch using DataLoader (automatically batches and caches)
-        const users =
-            uniqueDonorIds.length > 0
-                ? await this.userDataLoader.loadMany(uniqueDonorIds)
-                : []
-
-        // Build map for quick lookup
-        const userNameMap = new Map<string, string>()
-        users.forEach((user, index) => {
-            if (user) {
-                const userName =
-                    user.fullName || user.username || "Unknown Donor"
-                userNameMap.set(uniqueDonorIds[index], userName)
-            }
-        })
-
-        // Populate donor_name for all donations
-        let donationsWithNames = validDonations.map((donation: any) => {
-            if (!donation.donor_name) {
-                // Anonymous donations
+        // Map to summary DTO with donor name from donation
+        const summaries = paymentTransactions.map((payment: any) => {
+            // Get donor name from donation
+            let donorName = "Unknown Donor"
+            if (payment.donation) {
                 if (
-                    donation.is_anonymous ||
-                    donation.donor_id === "anonymous"
+                    payment.donation.is_anonymous ||
+                    payment.donation.donor_id === "anonymous"
                 ) {
-                    donation.donor_name = "Người dùng ẩn danh"
-                } else {
-                    // Get from DataLoader fetched map
-                    donation.donor_name =
-                        userNameMap.get(donation.donor_id) || "Unknown Donor"
+                    donorName = "Người dùng ẩn danh"
+                } else if (payment.donation.donor_name) {
+                    donorName = payment.donation.donor_name
                 }
             }
-            return donation
-        })
 
-        // Apply search filter
-        if (options?.filter?.searchDonorName) {
-            const searchTerm = options.filter.searchDonorName.toLowerCase()
-            donationsWithNames = donationsWithNames.filter((donation: any) =>
-                donation.donor_name?.toLowerCase().includes(searchTerm),
-            )
-        }
+            return {
+                amount: payment.received_amount.toString(),
+                donorName: donorName,
+                transactionDatetime: payment.transaction_datetime || payment.created_at,
+            }
+        })
 
         // Apply sorting
         const sortBy = options?.filter?.sortBy || "TRANSACTION_DATE"
         const sortOrder = options?.filter?.sortOrder || "DESC"
 
-        donationsWithNames.sort((a: any, b: any) => {
+        summaries.sort((a: any, b: any) => {
             let compareValue = 0
 
             switch (sortBy) {
             case "AMOUNT":
                 compareValue = Number(a.amount) - Number(b.amount)
                 break
-            case "TRANSACTION_DATE": {
-                const aDate =
-                        a.payment_transactions?.find(
-                            (tx: any) => tx.status === "SUCCESS",
-                        )?.transaction_datetime || a.created_at
-                const bDate =
-                        b.payment_transactions?.find(
-                            (tx: any) => tx.status === "SUCCESS",
-                        )?.transaction_datetime || b.created_at
-                compareValue =
-                        new Date(aDate).getTime() - new Date(bDate).getTime()
-                break
-            }
+            case "TRANSACTION_DATE":
             case "CREATED_AT":
                 compareValue =
-                        new Date(a.created_at).getTime() -
-                        new Date(b.created_at).getTime()
+                        new Date(a.transactionDatetime).getTime() -
+                        new Date(b.transactionDatetime).getTime()
                 break
             default:
                 compareValue = 0
@@ -525,7 +558,7 @@ export class DonorService {
             return sortOrder === "ASC" ? compareValue : -compareValue
         })
 
-        return donationsWithNames.map(this.mapDonationToGraphQLModel)
+        return summaries
     }
 
     async getDonationStats(donorId: string): Promise<{
@@ -589,5 +622,142 @@ export class DonorService {
         throw new BadRequestException(
             "This endpoint is deprecated. Please use createDonation mutation to generate payment link.",
         )
+    }
+
+    /**
+     * Get campaign donation statement for CSV export
+     * Returns detailed transaction information for public transparency
+     */
+    async getCampaignDonationStatement(
+        campaignId: string,
+    ): Promise<CampaignDonationStatementResponse> {
+        // Fetch campaign info
+        const campaign = await this.campaignRepository.findById(campaignId)
+
+        if (!campaign) {
+            throw new NotFoundException("Campaign not found")
+        }
+
+        // Fetch all donations with successful payment transactions
+        const donations = await this.donorRepository.findByCampaignId(
+            campaignId,
+            {
+                skip: 0,
+                take: 10000, // Get all donations (reasonable limit)
+            },
+        )
+
+        // Filter only donations with successful payments
+        const successfulDonations = donations.filter((donation: any) => {
+            return donation.payment_transactions?.some(
+                (tx: any) => tx.status === "SUCCESS",
+            )
+        })
+
+        // Fetch donor names using DataLoader
+        const donorIdsToFetch = successfulDonations
+            .filter(
+                (d: any) =>
+                    !d.donor_name &&
+                    !d.is_anonymous &&
+                    d.donor_id !== "anonymous",
+            )
+            .map((d: any) => d.donor_id)
+
+        const uniqueDonorIds = [...new Set(donorIdsToFetch)]
+        const users =
+            uniqueDonorIds.length > 0
+                ? await this.userDataLoader.loadMany(uniqueDonorIds)
+                : []
+
+        const userNameMap = new Map<string, string>()
+        users.forEach((user, index) => {
+            if (user) {
+                const userName =
+                    user.fullName || user.username || "Unknown Donor"
+                userNameMap.set(uniqueDonorIds[index], userName)
+            }
+        })
+
+        // Map to transaction statements
+        const transactions: DonationTransactionStatement[] = []
+        let totalReceived = BigInt(0)
+
+        for (const donation of successfulDonations) {
+            const donationWithTx = donation as any // Cast to access payment_transactions
+
+            // Get donor name
+            let donorName = "Người dùng ẩn danh"
+            if (
+                !donationWithTx.is_anonymous &&
+                donationWithTx.donor_id !== "anonymous"
+            ) {
+                donorName =
+                    donationWithTx.donor_name ||
+                    userNameMap.get(donationWithTx.donor_id) ||
+                    "Unknown Donor"
+            }
+
+            // Process all successful payment transactions
+            const successfulTxs = donationWithTx.payment_transactions.filter(
+                (tx: any) => tx.status === "SUCCESS",
+            )
+
+            for (const tx of successfulTxs) {
+                totalReceived += tx.received_amount
+
+                // Extract bank info from metadata
+                let bankAccountNumber: string | undefined
+                let bankName: string | undefined
+                let description: string | undefined
+
+                if (tx.gateway === "PAYOS" && tx.payos_metadata) {
+                    const metadata = tx.payos_metadata as any
+                    bankAccountNumber = metadata.counter_account_number
+                    bankName = metadata.counter_account_bank_name
+                    description = tx.description
+                } else if (tx.gateway === "SEPAY" && tx.sepay_metadata) {
+                    const metadata = tx.sepay_metadata as any
+                    bankAccountNumber = metadata.sub_account
+                    bankName = metadata.bank_name
+                    description = metadata.content || metadata.description
+                }
+
+                transactions.push({
+                    donationId: donationWithTx.id,
+                    transactionDateTime: tx.transaction_datetime
+                        ? new Date(tx.transaction_datetime).toISOString()
+                        : new Date(tx.created_at).toISOString(),
+                    donorName,
+                    amount: tx.amount.toString(),
+                    receivedAmount: tx.received_amount.toString(),
+                    transactionStatus: tx.status,
+                    paymentStatus: tx.payment_status,
+                    gateway: tx.gateway || "UNKNOWN",
+                    orderCode: tx.order_code?.toString() || "",
+                    bankAccountNumber,
+                    bankName,
+                    description,
+                    campaignId: campaign.id,
+                    campaignTitle: campaign.title,
+                })
+            }
+        }
+
+        // Sort by transaction date (newest first)
+        transactions.sort(
+            (a, b) =>
+                new Date(b.transactionDateTime).getTime() -
+                new Date(a.transactionDateTime).getTime(),
+        )
+
+        return {
+            campaignId: campaign.id,
+            campaignTitle: campaign.title,
+            totalReceived: totalReceived.toString(),
+            totalDonations: transactions.length,
+            generatedAt: new Date().toISOString(),
+            transactions,
+        }
     }
 }

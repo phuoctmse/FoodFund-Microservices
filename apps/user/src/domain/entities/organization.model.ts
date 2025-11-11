@@ -13,28 +13,34 @@ export class OrganizationSchema extends AbstractSchema {
         name: string
 
     @Field(() => String, {
-        description: "Organization description",
-        nullable: true,
+        description: "Organization activity field",
     })
-        description?: string
+        activity_field: string
+
+    @Field(() => String, {
+        description: "Organization description",
+    })
+        description: string
 
     @Field(() => String, {
         description: "Organization address",
-        nullable: true,
     })
-        address?: string
+        address: string
 
     @Field(() => String, {
         description: "Organization phone number",
-        nullable: true,
     })
-        phone_number?: string
+        phone_number: string
+
+    @Field(() => String, {
+        description: "Organization email",
+    })
+        email: string
 
     @Field(() => String, {
         description: "Organization website URL",
-        nullable: true,
     })
-        website?: string
+        website: string
 
     @Field(() => VerificationStatus, {
         description: "Organization verification status",
@@ -42,9 +48,45 @@ export class OrganizationSchema extends AbstractSchema {
         status: VerificationStatus
 
     @Field(() => String, {
+        description: "Reason for rejection, cancellation or inactivity",
+        nullable: true,
+    })
+        reason?: string
+
+    @Field(() => String, {
         description: "Representative user ID",
     })
         representative_id: string
+
+    @Field(() => String, {
+        description: "Representative name",
+    })
+        representative_name: string
+
+    @Field(() => String, {
+        description: "Representative identity number (CCCD/CMND)",
+    })
+        representative_identity_number: string
+
+    @Field(() => String, {
+        description: "Bank account name",
+    })
+        bank_account_name: string
+
+    @Field(() => String, {
+        description: "Bank account number",
+    })
+        bank_account_number: string
+
+    @Field(() => String, {
+        description: "Bank name",
+    })
+        bank_name: string
+
+    @Field(() => String, {
+        description: "Bank short name (e.g., VCB, TCB)",
+    })
+        bank_short_name: string
 
     @Field(() => UserProfileSchema, {
         description: "Organization representative user",

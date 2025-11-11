@@ -22,7 +22,7 @@ export class UserClientService {
                     success: boolean
                     user?: {
                         id: string
-                        full_name: string
+                        fullName: string
                         username: string
                         email: string
                     }
@@ -39,7 +39,7 @@ export class UserClientService {
 
             return {
                 id: response.user.id,
-                fullName: response.user.full_name,
+                fullName: response.user.fullName,
                 username: response.user.username,
                 email: response.user.email,
             }
@@ -56,16 +56,15 @@ export class UserClientService {
 
     async getUserByCognitoId(cognitoId: string): Promise<UserProfile | null> {
         try {
-            // Use GetUser method with cognito_id parameter
-            // According to user.proto: GetUserRequest has optional cognito_id field
+            // Use GetUser method with cognitoId parameter (camelCase per gRPC convention)
             const response = await this.grpcClient.callUserService<
-                { id?: string; cognito_id?: string },
+                { id?: string; cognitoId?: string },
                 {
                     success: boolean
                     user?: {
                         id: string
-                        cognito_id: string
-                        full_name: string
+                        cognitoId: string
+                        fullName: string
                         username: string
                         email: string
                     }
@@ -73,7 +72,7 @@ export class UserClientService {
                 }
             >(
                 "GetUser",
-                { cognito_id: cognitoId },
+                { cognitoId: cognitoId },
                 { timeout: 3000, retries: 2 },
             )
 
@@ -86,7 +85,7 @@ export class UserClientService {
 
             return {
                 id: response.user.id,
-                fullName: response.user.full_name,
+                fullName: response.user.fullName,
                 username: response.user.username,
                 email: response.user.email,
             }
@@ -140,16 +139,16 @@ export class UserClientService {
      * Calls User service via gRPC to create wallet transaction
      */
     async creditFundraiserWallet(data: {
-        fundraiser_id: string
-        campaign_id: string
-        payment_transaction_id: string
+        fundraiserId: string
+        campaignId: string
+        paymentTransactionId: string
         amount: bigint
         gateway: string
         description?: string
     }): Promise<void> {
         try {
             this.logger.log(
-                `[gRPC] Calling CreditFundraiserWallet for fundraiser ${data.fundraiser_id}`,
+                `[gRPC] Calling CreditFundraiserWallet for fundraiser ${data.fundraiserId}`,
             )
 
             const response = await this.grpcClient.callUserService<
@@ -169,14 +168,18 @@ export class UserClientService {
             >(
                 "CreditFundraiserWallet",
                 {
-                    fundraiserId: data.fundraiser_id,
-                    campaignId: data.campaign_id,
-                    paymentTransactionId: data.payment_transaction_id,
+                    fundraiserId: data.fundraiserId,
+                    campaignId: data.campaignId,
+                    paymentTransactionId: data.paymentTransactionId,
                     amount: data.amount.toString(), // Convert bigint to string for gRPC
                     gateway: data.gateway,
                     description: data.description,
                 },
                 { timeout: 5000, retries: 3 }, // Higher timeout for wallet operations
+            )
+
+            this.logger.debug(
+                `[gRPC] Response received: success=${response?.success}, walletTransactionId=${response?.walletTransactionId}`,
             )
 
             if (!response.success) {
@@ -189,9 +192,9 @@ export class UserClientService {
                 `[gRPC] ✅ Fundraiser wallet credited - Transaction ID: ${response.walletTransactionId}`,
             )
         } catch (error) {
+            const errorMsg = error?.message || String(error)
             this.logger.error(
-                `[gRPC] ❌ Failed to credit fundraiser wallet for ${data.fundraiser_id}:`,
-                error,
+                `[gRPC] ❌ Failed to credit fundraiser wallet for ${data.fundraiserId}: ${errorMsg}`,
             )
             throw error
         }
@@ -202,26 +205,26 @@ export class UserClientService {
      * Calls User service via gRPC to create wallet transaction for Admin
      */
     async creditAdminWallet(data: {
-        admin_id: string
-        campaign_id: string | null
-        payment_transaction_id: string | null
+        adminId: string
+        campaignId: string | null
+        paymentTransactionId: string | null
         amount: bigint
         gateway: string
         description?: string
-        sepay_metadata?: {
-            sepay_id: number
-            reference_code: string
+        sepayMetadata?: {
+            sepayId: number
+            referenceCode: string
             content: string
-            bank_name: string
-            transaction_date: string
+            bankName: string
+            transactionDate: string
             accumulated: number
-            sub_account: string | null
+            subAccount: string | null
             description: string
         }
     }): Promise<void> {
         try {
             this.logger.log(
-                `[gRPC] Calling CreditAdminWallet for admin ${data.admin_id}`,
+                `[gRPC] Calling CreditAdminWallet for admin ${data.adminId}`,
             )
 
             const response = await this.grpcClient.callUserService<
@@ -242,14 +245,14 @@ export class UserClientService {
             >(
                 "CreditAdminWallet",
                 {
-                    adminId: data.admin_id,
-                    campaignId: data.campaign_id,
-                    paymentTransactionId: data.payment_transaction_id,
+                    adminId: data.adminId,
+                    campaignId: data.campaignId,
+                    paymentTransactionId: data.paymentTransactionId,
                     amount: data.amount.toString(), // Convert bigint to string for gRPC
                     gateway: data.gateway,
                     description: data.description,
-                    sepayMetadata: data.sepay_metadata
-                        ? JSON.stringify(data.sepay_metadata)
+                    sepayMetadata: data.sepayMetadata
+                        ? JSON.stringify(data.sepayMetadata)
                         : undefined, // Serialize JSONB to string
                 },
                 { timeout: 5000, retries: 3 }, // Higher timeout for wallet operations
@@ -266,10 +269,73 @@ export class UserClientService {
             )
         } catch (error) {
             this.logger.error(
-                `[gRPC] ❌ Failed to credit admin wallet for ${data.admin_id}:`,
+                `[gRPC] ❌ Failed to credit admin wallet for ${data.adminId}:`,
                 error,
             )
             throw error
+        }
+    }
+
+    /**
+     * Get wallet transactions by payment transaction ID
+     * Fetches all wallet credit transactions linked to a specific payment
+     */
+    async getWalletTransactionsByPaymentId(
+        paymentTransactionId: string,
+    ): Promise<
+        Array<{
+            id: string
+            amount: string
+            transactionType: string
+            gateway: string | null
+            reference: string | null
+            description: string | null
+            createdAt: Date
+        }>
+    > {
+        try {
+            this.logger.log(
+                `[gRPC] Fetching wallet transactions for payment ${paymentTransactionId}`,
+            )
+
+            const response = await this.grpcClient.callUserService<
+                { paymentTransactionId: string },
+                {
+                    success: boolean
+                    transactions?: Array<{
+                        id: string
+                        amount: string
+                        transactionType: string
+                        gateway: string | null
+                        reference: string | null
+                        description: string | null
+                        createdAt: string // ISO date string
+                    }>
+                    error?: string
+                }
+            >(
+                "GetWalletTransactionsByPaymentId",
+                { paymentTransactionId },
+                { timeout: 3000, retries: 2 },
+            )
+
+            if (!response.success || !response.transactions) {
+                this.logger.warn(
+                    `No wallet transactions found for payment ${paymentTransactionId}`,
+                )
+                return []
+            }
+
+            return response.transactions.map((tx) => ({
+                ...tx,
+                createdAt: new Date(tx.createdAt),
+            }))
+        } catch (error) {
+            this.logger.error(
+                `[gRPC] Failed to fetch wallet transactions for payment ${paymentTransactionId}:`,
+                error,
+            )
+            return [] // Return empty array on error (non-critical)
         }
     }
 }

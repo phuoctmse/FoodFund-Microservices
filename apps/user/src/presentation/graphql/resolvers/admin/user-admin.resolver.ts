@@ -111,14 +111,16 @@ export class UserAdminResolver {
     @RequireRole(Role.ADMIN)
     async rejectOrganizationRequest(
         @Args("organizationId") organizationId: string,
+        @Args("reason", { type: () => String }) reason: string,
     ) {
         const result =
             await this.organizationService.rejectOrganizationRequest(
                 organizationId,
+                reason,
             )
         return {
             organization: result,
-            message: `Organization "${result.name}" has been rejected.`,
+            message: `Organization "${result.name}" has been rejected. Reason: ${reason}`,
             success: true,
         }
     }

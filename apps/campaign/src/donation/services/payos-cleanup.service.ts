@@ -63,10 +63,13 @@ export class PayosCleanupService {
                     ? Number(tx.order_code)
                     : undefined
 
+                // Extract payment_link_id from JSONB metadata
+                const paymentLinkId = (tx.payos_metadata as any)?.payment_link_id
+
                 // Fetch latest status from PayOS
                 // SDK supports querying by paymentLinkId or orderCode
                 const info = await (payos as any).getPaymentLinkInformation({
-                    paymentLinkId: tx.payment_link_id || undefined,
+                    paymentLinkId: paymentLinkId || undefined,
                     orderCode: orderCodeNumber,
                 })
 
@@ -83,11 +86,11 @@ export class PayosCleanupService {
                     createdAt < threshold
                 ) {
                     this.logger.log(
-                        `Cancelling PayOS link - orderCode=${orderCodeNumber} paymentLinkId=${tx.payment_link_id}`,
+                        `Cancelling PayOS link - orderCode=${orderCodeNumber} paymentLinkId=${paymentLinkId}`,
                     )
 
                     await (payos as any).cancelPaymentLink({
-                        paymentLinkId: tx.payment_link_id || undefined,
+                        paymentLinkId: paymentLinkId || undefined,
                         orderCode: orderCodeNumber,
                     })
 
@@ -96,7 +99,6 @@ export class PayosCleanupService {
                         order_code: tx.order_code!,
                         gateway: "PAYOS",
                         processed_by_webhook: false,
-                        is_matched: false,
                         error_code: "CANCELLED",
                         error_description: `Auto-cancelled pending PayOS link after ${hours}h (cron)`,
                     })

@@ -49,6 +49,26 @@ export class CreateOrganizationInput {
         representative_identity_number: string
 
     @Field()
+    @IsNotEmpty()
+    @IsString()
+        bank_account_name: string
+
+    @Field()
+    @IsNotEmpty()
+    @IsString()
+        bank_account_number: string
+
+    @Field()
+    @IsNotEmpty()
+    @IsString()
+        bank_name: string
+
+    @Field()
+    @IsNotEmpty()
+    @IsString()
+        bank_short_name: string
+
+    @Field()
     @IsEmail()
         email: string
 

@@ -38,8 +38,8 @@ export class CampaignCommonGrpcService {
                     description: campaign.description || "",
                     cover_image: campaign.coverImage || "",
                     target_amount: campaign.targetAmount.toString(),
-                    donation_count: campaign.donationCount || 0,
                     received_amount: campaign.receivedAmount?.toString() || "0",
+                    donation_count: campaign.donationCount || 0,
                     status: campaign.status,
                     fundraising_start_date:
                         campaign.fundraisingStartDate?.toISOString() || "",
