@@ -10,7 +10,7 @@ import { CampaignQueryResolver } from "./resolver/queries/campaign-query.resolve
 import { CampaignMutationResolver } from "./resolver/mutations/campaign-mutation.resolver"
 import { AuthorizationService } from "../shared/services/authorization.service"
 import { UserResolver } from "../shared/resolver/users.resolver"
-import { CampaignGrpcService, CampaignCommonGrpcService } from "./grpc"
+import { CampaignGrpcService } from "./grpc"
 import { CampaignCacheService, PrismaCampaignService } from "./services"
 import { CampaignRepository } from "./repository"
 import { HealthController } from "./controller"
@@ -42,17 +42,17 @@ import { CampaignPhaseModule } from "../campaign-phase"
         CampaignStatusJob,
         UserResolver,
         AuthorizationService,
-        CampaignGrpcService,
-        CampaignCommonGrpcService,
     ],
-    controllers: [HealthController],
+    controllers: [
+        HealthController,
+        CampaignGrpcService,
+    ],
     exports: [
         CampaignService,
         CampaignRepository,
         CampaignSchedulerService,
         PrismaCampaignService,
         CampaignCacheService,
-        CampaignGrpcService,
     ],
 })
 export class CampaignModule {}

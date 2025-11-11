@@ -22,20 +22,13 @@ async function bootstrap() {
         bufferLogs: true,
     })
 
-    // Get services for setup
     const sentryService = app.get(SentryService)
     const datadogInterceptor = app.get(DatadogInterceptor)
 
-    // Enable validation with class-validator using custom pipe
     app.useGlobalPipes(new CustomValidationPipe())
-
-    // Enable GraphQL exception filter (better for GraphQL APIs)
     app.useGlobalFilters(new GraphQLExceptionFilter(sentryService))
-
-    // Enable Prometheus metrics interceptor
     app.useGlobalInterceptors(datadogInterceptor)
 
-    // Setup gRPC microservice
     const env = envConfig()
     const grpcPort = env.grpc.user?.port || 50002
     const grpcUrl = env.grpc.user?.url || "localhost:50002"
