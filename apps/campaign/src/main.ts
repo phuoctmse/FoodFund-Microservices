@@ -19,20 +19,13 @@ async function bootstrap() {
         bufferLogs: true,
     })
 
-    // Get services for setup
     const sentryService = app.get(SentryService)
     const datadogInterceptor = app.get(DatadogInterceptor)
 
-    // Enable validation with class-validator using custom pipe
     app.useGlobalPipes(new CustomValidationPipe())
-
-    // Enable GraphQL exception filter (better for GraphQL APIs)
     app.useGlobalFilters(new GraphQLExceptionFilter(sentryService))
-
-    // Enable Datadog interceptor
     app.useGlobalInterceptors(datadogInterceptor)
 
-    // Setup gRPC microservice
     const env = envConfig()
     const grpcPort = env.grpc.campaign?.port || 50003
     const grpcUrl = env.grpc.campaign?.url || "localhost:50003"
