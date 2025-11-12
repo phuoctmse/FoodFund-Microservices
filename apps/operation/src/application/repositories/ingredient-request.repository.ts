@@ -68,12 +68,54 @@ export class IngredientRequestRepository {
     ): Promise<IngredientRequest[]> {
         const where: Prisma.Ingredient_RequestWhereInput = {}
 
+        if (filter?.campaignPhaseId) {
+            where.campaign_phase_id = filter.campaignPhaseId
+        }
+
         if (filter?.status) {
             where.status = filter.status
         }
 
         const orderBy = this.buildOrderByClause(
             filter?.sortBy || IngredientRequestSortOrder.NEWEST_FIRST,
+        )
+
+        const requests = await this.prisma.ingredient_Request.findMany({
+            where,
+            include: {
+                items: true,
+            },
+            orderBy,
+            take: limit,
+            skip: offset,
+        })
+
+        return requests.map((r) => this.mapToGraphQLModel(r))
+    }
+
+    async findByMultipleCampaignPhases(
+        phaseIds: string[],
+        status?: IngredientRequestStatus,
+        sortBy?: IngredientRequestSortOrder,
+        limit: number = 10,
+        offset: number = 0,
+    ): Promise<IngredientRequest[]> {
+        if (phaseIds.length === 0) {
+            return []
+        }
+
+        const where: Prisma.Ingredient_RequestWhereInput = {
+            campaign_phase_id: {
+                in: phaseIds,
+            },
+        }
+
+        if (status) {
+            where.status = status
+        }
+
+        const orderBy = this.buildOrderByClause(
+            sortBy || IngredientRequestSortOrder.NEWEST_FIRST,
         )
 
         const requests = await this.prisma.ingredient_Request.findMany({
