@@ -319,71 +319,18 @@ export class DeliveryTaskService {
 
     async getTasks(filter: DeliveryTaskFilterInput): Promise<DeliveryTask[]> {
         try {
-            if (filter.campaignId) {
-                const campaignPhases = await this.getCampaignPhases(
-                    filter.campaignId,
-                )
+            const mealBatchIds = await this.resolveMealBatchIds(filter)
 
-                if (campaignPhases.length === 0) {
-                    this.sentryService.addBreadcrumb(
-                        "No campaign phases found for campaign",
-                        "warning",
-                        {
-                            campaignId: filter.campaignId,
-                        },
-                    )
-                    return []
-                }
-
-                const phaseIds = campaignPhases.map((phase) => phase.id)
-
-                const allMealBatches = await Promise.all(
-                    phaseIds.map((phaseId) =>
-                        this.mealBatchRepository.findWithFilters({
-                            campaignPhaseId: phaseId,
-                        }),
-                    ),
-                )
-
-                const mealBatchIds = allMealBatches.flat().map((mb) => mb.id)
-
-                if (mealBatchIds.length === 0) {
-                    return []
-                }
-
-                const tasks =
-                    await this.deliveryTaskRepository.findByMealBatchIds(
-                        mealBatchIds,
-                        filter.limit,
-                        filter.offset,
-                    )
-
-                return tasks.map((t) => this.mapToGraphQLModel(t))
+            if (mealBatchIds.length === 0) {
+                return []
             }
 
-            if (filter.campaignPhaseId) {
-                const mealBatches =
-                    await this.mealBatchRepository.findWithFilters({
-                        campaignPhaseId: filter.campaignPhaseId,
-                    })
+            const tasks = await this.deliveryTaskRepository.findByMealBatchIds(
+                mealBatchIds,
+                filter.limit,
+                filter.offset,
+            )
 
-                const mealBatchIds = mealBatches.map((mb) => mb.id)
-
-                if (mealBatchIds.length === 0) {
-                    return []
-                }
-
-                const tasks =
-                    await this.deliveryTaskRepository.findByMealBatchIds(
-                        mealBatchIds,
-                        filter.limit,
-                        filter.offset,
-                    )
-
-                return tasks.map((t) => this.mapToGraphQLModel(t))
-            }
-
-            const tasks = await this.deliveryTaskRepository.findMany(filter)
             return tasks.map((t) => this.mapToGraphQLModel(t))
         } catch (error) {
             this.sentryService.captureError(error as Error, {
@@ -525,6 +472,57 @@ export class DeliveryTaskService {
             })
             throw error
         }
+    }
+
+    private async resolveMealBatchIds(
+        filter: DeliveryTaskFilterInput,
+    ): Promise<string[]> {
+        if (filter.mealBatchId) {
+            return [filter.mealBatchId]
+        }
+
+        if (filter.campaignId) {
+            return this.getMealBatchIdsByCampaignId(filter.campaignId)
+        }
+
+        if (filter.campaignPhaseId) {
+            return this.getMealBatchIdsByCampaignPhaseId(filter.campaignPhaseId)
+        }
+
+        return []
+    }
+
+    private async getMealBatchIdsByCampaignId(
+        campaignId: string,
+    ): Promise<string[]> {
+        const campaignPhases = await this.getCampaignPhases(campaignId)
+
+        if (campaignPhases.length === 0) {
+            this.sentryService.addBreadcrumb(
+                "No campaign phases found for campaign",
+                "warning",
+                { campaignId },
+            )
+            return []
+        }
+
+        const phaseIds = campaignPhases.map((phase) => phase.id)
+
+        const mealBatches = await this.mealBatchRepository.findWithFilters({
+            campaignPhaseIds: phaseIds,
+        })
+
+        return mealBatches.map((mb) => mb.id)
+    }
+
+    private async getMealBatchIdsByCampaignPhaseId(
+        campaignPhaseId: string,
+    ): Promise<string[]> {
+        const mealBatches = await this.mealBatchRepository.findWithFilters({
+            campaignPhaseId,
+        })
+
+        return mealBatches.map((mb) => mb.id)
     }
 
     private async getCampaignPhases(campaignId: string): Promise<any[]> {

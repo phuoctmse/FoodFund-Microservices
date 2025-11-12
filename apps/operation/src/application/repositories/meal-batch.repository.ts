@@ -77,10 +77,19 @@ export class MealBatchRepository {
         return batch ? this.mapToGraphQLModel(batch) : null
     }
 
-    async findWithFilters(filter: MealBatchFilterInput): Promise<MealBatch[]> {
+    async findWithFilters(filter: {
+        campaignPhaseId?: string
+        campaignPhaseIds?: string[]
+        kitchenStaffId?: string
+        status?: string
+    }): Promise<MealBatch[]> {
         const where: any = {}
 
-        if (filter.campaignPhaseId) {
+        if (filter.campaignPhaseIds && filter.campaignPhaseIds.length > 0) {
+            where.campaign_phase_id = {
+                in: filter.campaignPhaseIds,
+            }
+        } else if (filter.campaignPhaseId) {
             where.campaign_phase_id = filter.campaignPhaseId
         }
 

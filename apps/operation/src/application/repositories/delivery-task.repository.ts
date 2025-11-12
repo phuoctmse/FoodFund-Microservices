@@ -141,7 +141,7 @@ export class DeliveryTaskRepository {
             select: { id: true },
         })
 
-        const mealBatchIds = mealBatches.map(mb => mb.id)
+        const mealBatchIds = mealBatches.map((mb) => mb.id)
 
         if (mealBatchIds.length === 0) {
             return false
@@ -172,7 +172,7 @@ export class DeliveryTaskRepository {
             select: { id: true },
         })
 
-        const mealBatchIds = mealBatches.map(mb => mb.id)
+        const mealBatchIds = mealBatches.map((mb) => mb.id)
 
         if (mealBatchIds.length === 0) {
             return 0
