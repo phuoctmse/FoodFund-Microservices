@@ -1,7 +1,5 @@
 import { Injectable } from "@nestjs/common"
-import {
-    PrismaClient,
-} from "../../../generated/user-client"
+import { PrismaClient } from "../../../generated/user-client"
 import { CreateOrganizationInput } from "@app/user/src/application/dtos"
 import { Role, VerificationStatus } from "../../enums"
 
@@ -478,6 +476,46 @@ export class OrganizationRepository {
         })
     }
 
+    async findOrganizationBasicInfoByRepresentativeId(
+        representativeId: string,
+    ): Promise<{
+        id: string
+        name: string
+    } | null> {
+        return this.prisma.organization.findFirst({
+            where: {
+                representative_id: representativeId,
+                status: VerificationStatus.VERIFIED,
+            },
+            select: {
+                id: true,
+                name: true,
+            },
+        })
+    }
+
+    async findMemberOrganizationBasicInfo(userId: string): Promise<{
+        organization: {
+            id: string
+            name: string
+        }
+    } | null> {
+        return this.prisma.organization_Member.findFirst({
+            where: {
+                member_id: userId,
+                status: VerificationStatus.VERIFIED,
+            },
+            select: {
+                organization: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
+            },
+        })
+    }
+
     /**
      * Cancel organization request by updating status to CANCELLED
      * Used when user wants to cancel their organization creation request
@@ -485,7 +523,7 @@ export class OrganizationRepository {
     async cancelOrganizationRequest(organizationId: string, reason?: string) {
         return this.prisma.organization.update({
             where: { id: organizationId },
-            data: { 
+            data: {
                 status: VerificationStatus.CANCELLED,
                 reason: reason || "Cancelled by user",
             },

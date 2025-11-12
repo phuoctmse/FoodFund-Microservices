@@ -1,0 +1,688 @@
+import {
+    DeliveryStatusLog,
+    DeliveryTask,
+    DeliveryTaskStatus,
+    MealBatchStatus,
+} from "@app/operation/src/domain"
+import {
+    CreateDeliveryStatusLogData,
+    CreateDeliveryTaskData,
+    DeliveryStatusLogRepository,
+    DeliveryTaskRepository,
+    MealBatchRepository,
+    UpdateDeliveryTaskStatusData,
+} from "../../repositories"
+import {
+    BadRequestException,
+    ForbiddenException,
+    Injectable,
+    NotFoundException,
+} from "@nestjs/common"
+import {
+    AuthorizationService,
+    Role,
+    UserContext,
+} from "@app/operation/src/shared"
+import {
+    AssignTaskToStaffInput,
+    DeliveryTaskFilterInput,
+    DeliveryTaskStatsResponse,
+    SelfAssignTaskInput,
+    UpdateDeliveryTaskStatusInput,
+} from "../../dtos/delivery-task"
+import { SentryService } from "@libs/observability"
+import { GrpcClientService } from "@libs/grpc"
+
+@Injectable()
+export class DeliveryTaskService {
+    constructor(
+        private readonly deliveryTaskRepository: DeliveryTaskRepository,
+        private readonly deliveryStatusLogRepository: DeliveryStatusLogRepository,
+        private readonly mealBatchRepository: MealBatchRepository,
+        private readonly authService: AuthorizationService,
+        private readonly grpcClient: GrpcClientService,
+        private readonly sentryService: SentryService,
+    ) {}
+
+    async assignTaskToStaff(
+        input: AssignTaskToStaffInput,
+        userContext: UserContext,
+    ): Promise<DeliveryTask[]> {
+        try {
+            this.authService.requireAuthentication(
+                userContext,
+                "assign delivery task",
+            )
+            this.authService.requireRole(
+                userContext,
+                Role.FUNDRAISER,
+                "assign delivery task",
+            )
+
+            const mealBatch = await this.mealBatchRepository.findById(
+                input.mealBatchId,
+            )
+
+            if (!mealBatch) {
+                throw new NotFoundException(
+                    `Meal batch with ID ${input.mealBatchId} not found`,
+                )
+            }
+
+            if (mealBatch.status !== MealBatchStatus.READY) {
+                throw new BadRequestException(
+                    `Meal batch must have READY status. Current status: ${mealBatch.status}`,
+                )
+            }
+
+            const fundraiserOrganization = await this.getFundraiserOrganization(
+                userContext.userId,
+            )
+
+            if (!fundraiserOrganization) {
+                throw new BadRequestException(
+                    "You must belong to an organization to assign delivery tasks",
+                )
+            }
+
+            const validationResults = await Promise.all(
+                input.deliveryStaffIds.map(async (staffId) => {
+                    const staffInfo = await this.verifyDeliveryStaff(staffId)
+
+                    if (
+                        staffInfo.organizationId !== fundraiserOrganization.id
+                    ) {
+                        throw new BadRequestException(
+                            `Cannot assign task to delivery staff ${staffId}. ` +
+                                `Staff belongs to organization "${staffInfo.organizationName}" ` +
+                                `but you manage organization "${fundraiserOrganization.name}". ` +
+                                "You can only assign tasks to staff from your own organization.",
+                        )
+                    }
+
+                    const hasActiveTask =
+                        await this.deliveryTaskRepository.hasActiveTaskInPhase(
+                            staffId,
+                            mealBatch.campaignPhaseId,
+                        )
+
+                    return {
+                        staffId,
+                        hasActiveTask,
+                        organizationId: staffInfo.organizationId,
+                    }
+                }),
+            )
+
+            const conflictingStaff = validationResults
+                .filter((r) => r.hasActiveTask)
+                .map((r) => r.staffId)
+
+            if (conflictingStaff.length > 0) {
+                throw new BadRequestException(
+                    `Cannot assign task. The following staff have active tasks (ACCEPTED or OUT_FOR_DELIVERY) in this campaign phase: ${conflictingStaff.join(", ")}`,
+                )
+            }
+
+            const createdTasks: DeliveryTask[] = []
+
+            for (const staffId of input.deliveryStaffIds) {
+                const createData: CreateDeliveryTaskData = {
+                    deliveryStaffId: staffId,
+                    mealBatchId: input.mealBatchId,
+                    status: DeliveryTaskStatus.PENDING,
+                }
+
+                const created =
+                    await this.deliveryTaskRepository.create(createData)
+
+                await this.createStatusLog({
+                    deliveryTaskId: created.id,
+                    status: DeliveryTaskStatus.PENDING,
+                    changedBy: userContext.userId,
+                    note: `Task assigned by fundraiser to delivery staff ${staffId}`,
+                })
+
+                createdTasks.push(this.mapToGraphQLModel(created))
+            }
+
+            this.sentryService.addBreadcrumb(
+                "Multiple delivery tasks assigned",
+                "delivery",
+                {
+                    fundraiserId: userContext.userId,
+                    organizationId: fundraiserOrganization.id,
+                    mealBatchId: input.mealBatchId,
+                    staffCount: input.deliveryStaffIds.length,
+                    taskIds: createdTasks.map((t) => t.id),
+                },
+            )
+
+            return createdTasks
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "assignTaskToStaff",
+                input,
+                userId: userContext.userId,
+            })
+            throw error
+        }
+    }
+
+    async selfAssignTask(
+        input: SelfAssignTaskInput,
+        userContext: UserContext,
+    ): Promise<DeliveryTask> {
+        try {
+            this.authService.requireAuthentication(
+                userContext,
+                "self-assign delivery task",
+            )
+            this.authService.requireRole(
+                userContext,
+                Role.DELIVERY_STAFF,
+                "self-assign delivery task",
+            )
+
+            const mealBatch = await this.mealBatchRepository.findById(
+                input.mealBatchId,
+            )
+
+            if (!mealBatch) {
+                throw new NotFoundException(
+                    `Meal batch with ID ${input.mealBatchId} not found`,
+                )
+            }
+
+            if (mealBatch.status !== MealBatchStatus.READY) {
+                throw new BadRequestException(
+                    `Meal batch must have READY status. Current status: ${mealBatch.status}`,
+                )
+            }
+
+            const createData: CreateDeliveryTaskData = {
+                deliveryStaffId: userContext.userId,
+                mealBatchId: input.mealBatchId,
+                status: DeliveryTaskStatus.ACCEPTED,
+            }
+
+            const created = await this.deliveryTaskRepository.create(createData)
+
+            await this.createStatusLog({
+                deliveryTaskId: created.id,
+                status: DeliveryTaskStatus.ACCEPTED,
+                changedBy: userContext.userId,
+                note: "Task self-assigned by delivery staff",
+            })
+
+            this.sentryService.addBreadcrumb(
+                "Delivery task self-assigned",
+                "delivery",
+                {
+                    taskId: created.id,
+                    deliveryStaffId: userContext.userId,
+                    mealBatchId: input.mealBatchId,
+                },
+            )
+
+            return this.mapToGraphQLModel(created)
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "selfAssignTask",
+                input,
+                userId: userContext.userId,
+            })
+            throw error
+        }
+    }
+
+    async updateTaskStatus(
+        input: UpdateDeliveryTaskStatusInput,
+        userContext: UserContext,
+    ): Promise<DeliveryTask> {
+        try {
+            this.authService.requireAuthentication(
+                userContext,
+                "update delivery task status",
+            )
+
+            const task = await this.deliveryTaskRepository.findById(
+                input.taskId,
+            )
+
+            if (!task) {
+                throw new NotFoundException(
+                    `Delivery task with ID ${input.taskId} not found`,
+                )
+            }
+
+            this.validateStatusTransition(
+                task.status as DeliveryTaskStatus,
+                input.status,
+            )
+
+            this.checkStatusChangeAuthorization(task, input.status, userContext)
+
+            if (
+                (input.status === DeliveryTaskStatus.FAILED ||
+                    input.status === DeliveryTaskStatus.REJECTED) &&
+                !input.note?.trim()
+            ) {
+                throw new BadRequestException(
+                    `Note is required when marking task as ${input.status}`,
+                )
+            }
+
+            if (input.status === DeliveryTaskStatus.OUT_FOR_DELIVERY) {
+                await this.mealBatchRepository.updateStatusToDelivered(
+                    task.meal_batch_id,
+                )
+            }
+
+            const updateData: UpdateDeliveryTaskStatusData = {
+                status: input.status,
+            }
+
+            const updated = await this.deliveryTaskRepository.updateStatus(
+                input.taskId,
+                updateData,
+            )
+
+            await this.createStatusLog({
+                deliveryTaskId: input.taskId,
+                status: input.status,
+                changedBy: userContext.userId,
+                note: input.note,
+            })
+
+            this.sentryService.addBreadcrumb(
+                "Delivery task status updated",
+                "delivery",
+                {
+                    taskId: input.taskId,
+                    oldStatus: task.status,
+                    newStatus: input.status,
+                    userId: userContext.userId,
+                },
+            )
+
+            return this.mapToGraphQLModel(updated)
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "updateDeliveryTaskStatus",
+                input,
+                userId: userContext.userId,
+            })
+            throw error
+        }
+    }
+
+    async getTasks(filter: DeliveryTaskFilterInput): Promise<DeliveryTask[]> {
+        try {
+            if (filter.campaignPhaseId) {
+                const mealBatches =
+                    await this.mealBatchRepository.findWithFilters({
+                        campaignPhaseId: filter.campaignPhaseId,
+                    })
+
+                const mealBatchIds = mealBatches.map((mb) => mb.id)
+
+                if (mealBatchIds.length === 0) {
+                    return []
+                }
+
+                const tasks =
+                    await this.deliveryTaskRepository.findByMealBatchIds(
+                        mealBatchIds,
+                        filter.limit,
+                        filter.offset,
+                    )
+
+                return tasks.map((t) => this.mapToGraphQLModel(t))
+            }
+
+            const tasks = await this.deliveryTaskRepository.findMany(filter)
+            return tasks.map((t) => this.mapToGraphQLModel(t))
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "getDeliveryTasks",
+                filter,
+            })
+            throw error
+        }
+    }
+
+    async getTaskById(id: string): Promise<DeliveryTask> {
+        try {
+            const task = await this.deliveryTaskRepository.findById(id)
+
+            if (!task) {
+                throw new NotFoundException(
+                    `Delivery task with ID ${id} not found`,
+                )
+            }
+
+            return this.mapToGraphQLModel(task)
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "getDeliveryTaskById",
+                taskId: id,
+            })
+            throw error
+        }
+    }
+
+    async getMyTasks(
+        userContext: UserContext,
+        limit = 10,
+        offset = 0,
+    ): Promise<DeliveryTask[]> {
+        try {
+            this.authService.requireAuthentication(
+                userContext,
+                "view your delivery tasks",
+            )
+
+            this.authService.requireRole(
+                userContext,
+                Role.DELIVERY_STAFF,
+                "view your delivery tasks",
+            )
+
+            const tasks =
+                await this.deliveryTaskRepository.findByDeliveryStaffId(
+                    userContext.userId,
+                    limit,
+                    offset,
+                )
+
+            return tasks.map((t) => this.mapToGraphQLModel(t))
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "getMyDeliveryTasks",
+                userId: userContext.userId,
+            })
+            throw error
+        }
+    }
+
+    async getTasksByMealBatch(
+        mealBatchId: string,
+        userContext: UserContext,
+    ): Promise<DeliveryTask[]> {
+        try {
+            this.authService.requireAuthentication(
+                userContext,
+                "view delivery tasks for meal batch",
+            )
+
+            const tasks =
+                await this.deliveryTaskRepository.findByMealBatchId(mealBatchId)
+
+            return tasks.map((t) => this.mapToGraphQLModel(t))
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "getTasksByMealBatch",
+                mealBatchId,
+            })
+            throw error
+        }
+    }
+
+    async getStatsByCampaignPhase(
+        campaignPhaseId: string,
+    ): Promise<DeliveryTaskStatsResponse> {
+        try {
+            const mealBatches = await this.mealBatchRepository.findWithFilters({
+                campaignPhaseId,
+            })
+
+            const mealBatchIds = mealBatches.map((mb) => mb.id)
+
+            if (mealBatchIds.length === 0) {
+                return {
+                    totalTasks: 0,
+                    pendingCount: 0,
+                    acceptedCount: 0,
+                    rejectedCount: 0,
+                    outForDeliveryCount: 0,
+                    completedCount: 0,
+                    failedCount: 0,
+                    completionRate: 0,
+                    failureRate: 0,
+                }
+            }
+
+            const stats =
+                await this.deliveryTaskRepository.getStatsByMealBatchIds(
+                    mealBatchIds,
+                )
+
+            return stats
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "getDeliveryTaskStats",
+                campaignPhaseId,
+            })
+            throw error
+        }
+    }
+
+    async getStatusLogs(taskId: string): Promise<DeliveryStatusLog[]> {
+        try {
+            const logs =
+                await this.deliveryStatusLogRepository.findByDeliveryTaskId(
+                    taskId,
+                )
+
+            return logs.map((log) => this.mapStatusLogToGraphQLModel(log))
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "getDeliveryTaskStatusLogs",
+                taskId,
+            })
+            throw error
+        }
+    }
+
+    private validateStatusTransition(
+        currentStatus: DeliveryTaskStatus,
+        newStatus: DeliveryTaskStatus,
+    ): void {
+        const validTransitions: Record<
+            DeliveryTaskStatus,
+            DeliveryTaskStatus[]
+        > = {
+            [DeliveryTaskStatus.PENDING]: [
+                DeliveryTaskStatus.ACCEPTED,
+                DeliveryTaskStatus.REJECTED,
+            ],
+            [DeliveryTaskStatus.ACCEPTED]: [
+                DeliveryTaskStatus.OUT_FOR_DELIVERY,
+            ],
+            [DeliveryTaskStatus.REJECTED]: [],
+            [DeliveryTaskStatus.OUT_FOR_DELIVERY]: [
+                DeliveryTaskStatus.COMPLETED,
+                DeliveryTaskStatus.FAILED,
+            ],
+            [DeliveryTaskStatus.COMPLETED]: [],
+            [DeliveryTaskStatus.FAILED]: [],
+        }
+
+        const allowed = validTransitions[currentStatus] || []
+
+        if (!allowed.includes(newStatus)) {
+            throw new BadRequestException(
+                `Cannot transition from ${currentStatus} to ${newStatus}. ` +
+                    `Allowed transitions: ${allowed.length > 0 ? allowed.join(", ") : "none"}`,
+            )
+        }
+    }
+
+    private async getFundraiserOrganization(
+        fundraiserId: string,
+    ): Promise<{ id: string; name: string } | null> {
+        const response = await this.grpcClient.callUserService<
+            { userId: string },
+            {
+                success: boolean
+                organization?: {
+                    id: string
+                    name: string
+                }
+                error?: string
+            }
+        >(
+            "GetUserOrganization",
+            { userId: fundraiserId },
+            { timeout: 5000, retries: 2 },
+        )
+
+        if (!response.success || !response.organization) {
+            return null
+        }
+
+        return response.organization
+    }
+
+    private async verifyDeliveryStaff(deliveryStaffId: string): Promise<{
+        userId: string
+        role: string
+        organizationId: string | null
+        organizationName: string | null
+    }> {
+        try {
+            const response = await this.grpcClient.callUserService<
+                { userId: string },
+                {
+                    success: boolean
+                    user?: {
+                        id: string
+                        role: string
+                        organizationId?: string | null
+                        organizationName?: string | null
+                    }
+                    error?: string
+                }
+            >(
+                "GetUserBasicInfo",
+                { userId: deliveryStaffId },
+                { timeout: 5000, retries: 2 },
+            )
+
+            if (!response.success || !response.user) {
+                throw new BadRequestException(
+                    response.error ||
+                        `Delivery staff ${deliveryStaffId} not found`,
+                )
+            }
+
+            if (response.user.role !== Role.DELIVERY_STAFF) {
+                throw new BadRequestException(
+                    `User ${deliveryStaffId} is not a delivery staff. Role: ${response.user.role}`,
+                )
+            }
+
+            if (!response.user.organizationId) {
+                throw new BadRequestException(
+                    `Delivery staff ${deliveryStaffId} does not belong to any organization`,
+                )
+            }
+
+            return {
+                userId: response.user.id,
+                role: response.user.role,
+                organizationId: response.user.organizationId,
+                organizationName:
+                    response.user.organizationName || "Unknown Organization",
+            }
+        } catch (error) {
+            if (error instanceof BadRequestException) {
+                throw error
+            }
+            this.sentryService.captureError(error as Error, {
+                operation: "DeliveryTaskService.verifyDeliveryStaff",
+                deliveryStaffId,
+            })
+            throw new BadRequestException(
+                "Failed to verify delivery staff. Please try again.",
+            )
+        }
+    }
+
+    private checkStatusChangeAuthorization(
+        task: any,
+        newStatus: DeliveryTaskStatus,
+        userContext: UserContext,
+    ): void {
+        const currentStatus = task.status as DeliveryTaskStatus
+
+        if (currentStatus === DeliveryTaskStatus.PENDING) {
+            if (task.delivery_staff_id !== userContext.userId) {
+                throw new ForbiddenException(
+                    "Only the assigned delivery staff can accept or reject this task",
+                )
+            }
+        }
+
+        if (
+            currentStatus === DeliveryTaskStatus.ACCEPTED &&
+            newStatus === DeliveryTaskStatus.OUT_FOR_DELIVERY
+        ) {
+            if (task.delivery_staff_id !== userContext.userId) {
+                throw new ForbiddenException(
+                    "Only the assigned delivery staff can start delivery",
+                )
+            }
+        }
+
+        if (currentStatus === DeliveryTaskStatus.OUT_FOR_DELIVERY) {
+            const isAssignedStaff =
+                task.delivery_staff_id === userContext.userId
+            const isFundraiser = userContext.role === Role.FUNDRAISER
+
+            if (!isAssignedStaff && !isFundraiser) {
+                throw new ForbiddenException(
+                    "Only the assigned delivery staff or fundraiser can complete or mark as failed",
+                )
+            }
+        }
+    }
+
+    private async createStatusLog(
+        data: CreateDeliveryStatusLogData,
+    ): Promise<void> {
+        await this.deliveryStatusLogRepository.create(data)
+    }
+
+    private mapToGraphQLModel(data: any): DeliveryTask {
+        return {
+            id: data.id,
+            deliveryStaffId: data.delivery_staff_id,
+            mealBatchId: data.meal_batch_id,
+            status: data.status as DeliveryTaskStatus,
+            created_at: data.created_at,
+            updated_at: data.updated_at,
+            deliveryStaff: {
+                __typename: "User",
+                id: data.delivery_staff_id,
+            },
+            mealBatch: undefined,
+        }
+    }
+
+    private mapStatusLogToGraphQLModel(data: any): DeliveryStatusLog {
+        return {
+            id: data.id,
+            deliveryTaskId: data.delivery_task_id,
+            status: data.status as DeliveryTaskStatus,
+            changedBy: data.changed_by,
+            note: data.note,
+            createdAt: data.created_at,
+            user: {
+                __typename: "User",
+                id: data.changed_by,
+            },
+        }
+    }
+}

@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common"
-import { PrismaClient } from "../../../generated/user-client"
+import { PrismaClient, Role } from "../../../generated/user-client"
 import { v7 as uuidv7 } from "uuid"
 import { CreateUserInput } from "@app/user/src/application/dtos"
 
@@ -60,6 +60,19 @@ export class UserCommonRepository {
             data,
             include: {
                 Organizations: true,
+            },
+        })
+    }
+
+    async findUserBasicInfo(cognitoId: string): Promise<{
+        id: string
+        role: Role
+    } | null> {
+        return this.prisma.user.findUnique({
+            where: { cognito_id: cognitoId },
+            select: {
+                id: true,
+                role: true,
             },
         })
     }
