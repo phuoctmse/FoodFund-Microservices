@@ -73,7 +73,48 @@ export class ExpenseProofRepository {
         return await this.prisma.expense_Proof.findMany({
             where,
             include: {
-                request: true,
+                request: {
+                    include: {
+                        items: true,
+                    },
+                },
+            },
+            orderBy: { created_at: "desc" },
+            take: limit,
+            skip: offset,
+        })
+    }
+
+    async findByMultipleCampaignPhases(
+        phaseIds: string[],
+        status?: ExpenseProofStatus,
+        limit: number = 10,
+        offset: number = 0,
+    ) {
+        if (phaseIds.length === 0) {
+            return []
+        }
+
+        const where: any = {
+            request: {
+                campaign_phase_id: {
+                    in: phaseIds,
+                },
+            },
+        }
+
+        if (status) {
+            where.status = status
+        }
+
+        return await this.prisma.expense_Proof.findMany({
+            where,
+            include: {
+                request: {
+                    include: {
+                        items: true,
+                    },
+                },
             },
             orderBy: { created_at: "desc" },
             take: limit,

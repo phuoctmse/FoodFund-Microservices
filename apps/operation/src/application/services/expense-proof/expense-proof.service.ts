@@ -286,11 +286,40 @@ export class ExpenseProofService {
         userContext: UserContext,
     ): Promise<ExpenseProof[]> {
         try {
-            const proofs = await this.expenseProofRepository.findWithFilters(
-                filter,
-                limit,
-                offset,
-            )
+            let proofs: any[]
+
+            if (filter.campaignId && !filter.campaignPhaseId) {
+                const campaignPhases = await this.getCampaignPhases(
+                    filter.campaignId,
+                )
+
+                if (campaignPhases.length === 0) {
+                    this.sentryService.addBreadcrumb(
+                        "No campaign phases found for campaign",
+                        "warning",
+                        {
+                            campaignId: filter.campaignId,
+                        },
+                    )
+                    return []
+                }
+
+                const phaseIds = campaignPhases.map((phase) => phase.id)
+
+                proofs =
+                    await this.expenseProofRepository.findByMultipleCampaignPhases(
+                        phaseIds,
+                        filter.status,
+                        limit,
+                        offset,
+                    )
+            } else {
+                proofs = await this.expenseProofRepository.findWithFilters(
+                    filter,
+                    limit,
+                    offset,
+                )
+            }
 
             if (userContext.role === Role.FUNDRAISER) {
                 const filteredProofs = await this.filterFundraiserProofs(
@@ -375,6 +404,41 @@ export class ExpenseProofService {
         } catch (error) {
             this.sentryService.captureError(error as Error, {
                 operation: "ExpenseProofService.getExpenseProofStats",
+            })
+            throw error
+        }
+    }
+
+    private async getCampaignPhases(campaignId: string): Promise<any[]> {
+        try {
+            const response = await this.grpcClient.callCampaignService<
+                { campaignId: string },
+                {
+                    success: boolean
+                    phases: Array<{
+                        id: string
+                        campaignId: string
+                        phaseName: string
+                        location: string
+                        ingredientPurchaseDate: string
+                        cookingDate: string
+                        deliveryDate: string
+                    }>
+                    error: string | null
+                }
+            >("GetCampaignPhases", { campaignId }, { timeout: 5000, retries: 2 })
+
+            if (!response.success) {
+                throw new BadRequestException(
+                    response.error || "Failed to fetch campaign phases",
+                )
+            }
+
+            return response.phases || []
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "ExpenseProofService.getCampaignPhases",
+                campaignId,
             })
             throw error
         }
