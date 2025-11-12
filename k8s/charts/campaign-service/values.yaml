@@ -88,10 +88,10 @@ startupProbe:
   httpGet:
     path: /health
     port: http
-  initialDelaySeconds: 15  # Longer for DB-heavy service
+  initialDelaySeconds: 20  # Increased for DB-heavy service
   periodSeconds: 5
   timeoutSeconds: 5
-  failureThreshold: 20  # Allow up to 100s for startup (20 * 5s)
+  failureThreshold: 30  # Allow up to 150s for startup (30 * 5s)
   successThreshold: 1
 livenessProbe:
   httpGet:
@@ -106,10 +106,10 @@ readinessProbe:
   httpGet:
     path: /health
     port: http
-  initialDelaySeconds: 25  # Increased from 10 to ensure DB connection is ready
+  initialDelaySeconds: 30  # Increased to ensure DB connection is ready
   periodSeconds: 5
-  timeoutSeconds: 3
-  failureThreshold: 5  # Increased tolerance
+  timeoutSeconds: 5  # Increased from 3s
+  failureThreshold: 6  # Increased tolerance (30s total)
   successThreshold: 1
 
 # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
