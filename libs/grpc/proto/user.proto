@@ -27,6 +27,9 @@ service UserService {
   
   // Credit admin wallet (for donation payments)
   rpc CreditAdminWallet(CreditAdminWalletRequest) returns (CreditAdminWalletResponse);
+  
+  // Credit fundraiser wallet (for surplus settlement, refunds, etc.)
+  rpc CreditFundraiserWallet(CreditFundraiserWalletRequest) returns (CreditFundraiserWalletResponse);
 }
 
 // Messages
@@ -82,6 +85,22 @@ message CreditAdminWalletRequest {
 }
 
 message CreditAdminWalletResponse {
+  bool success = 1;
+  string wallet_transaction_id = 2; // Wallet transaction ID
+  string error = 3;
+}
+
+// Credit Fundraiser Wallet (for surplus settlement, refunds, etc.)
+message CreditFundraiserWalletRequest {
+  string fundraiser_id = 1; // Fundraiser user ID
+  string campaign_id = 2; // Campaign reference (optional)
+  string payment_transaction_id = 3; // For idempotency check (optional, can be empty for surplus)
+  string amount = 4; // Amount to credit (as string for BigInt)
+  string gateway = 5; // Source gateway (e.g., "SYSTEM", "PAYOS", "SEPAY")
+  string description = 6; // Transaction description
+}
+
+message CreditFundraiserWalletResponse {
   bool success = 1;
   string wallet_transaction_id = 2; // Wallet transaction ID
   string error = 3;

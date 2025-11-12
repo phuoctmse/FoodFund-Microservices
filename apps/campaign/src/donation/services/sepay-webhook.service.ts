@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common"
+import { EventEmitter2 } from "@nestjs/event-emitter"
 import { UserClientService } from "../../shared/services/user-client.service"
 import { RedisService } from "@libs/redis"
 import { DonorRepository } from "../repositories/donor.repository"
@@ -28,6 +29,7 @@ export class SepayWebhookService {
         private readonly userClientService: UserClientService,
         private readonly redisService: RedisService,
         private readonly donorRepository: DonorRepository,
+        private readonly eventEmitter: EventEmitter2,
     ) {}
 
     /**
@@ -185,7 +187,7 @@ export class SepayWebhookService {
             const campaignId = donation.campaign_id
 
             // Step 1: Update payment_transaction to SUCCESS with PARTIAL status
-            await this.donorRepository.updatePaymentTransactionSuccess({
+            const result = await this.donorRepository.updatePaymentTransactionSuccess({
                 order_code: BigInt(orderCode),
                 amount_paid: BigInt(payload.transferAmount), // Actual amount (< original)
                 gateway: "SEPAY",
@@ -205,6 +207,19 @@ export class SepayWebhookService {
             this.logger.log(
                 `[Sepay→Admin] ✅ Payment updated to SUCCESS with PARTIAL status - orderCode=${orderCode}, amount=${payload.transferAmount}/${paymentTransaction.amount}`,
             )
+
+            // 🆕 Check for campaign surplus and emit event
+            const { campaign } = result
+            if (campaign.received_amount > campaign.target_amount && campaign.status === "ACTIVE") {
+                const surplus = campaign.received_amount - campaign.target_amount
+                this.logger.log(
+                    `[Sepay→Admin] 🎯 Surplus detected for campaign ${campaign.id} - Surplus: ${surplus.toString()} VND`,
+                )
+                this.eventEmitter.emit("campaign.surplus.detected", {
+                    campaignId: campaign.id,
+                    surplus: surplus.toString(),
+                })
+            }
 
             // Step 2: Get system admin ID
             const adminUserId = this.getSystemAdminId()
@@ -255,7 +270,7 @@ export class SepayWebhookService {
             const donationId = donation.id
 
             // Step 1: Create NEW Payment_Transaction (supplementary payment)
-            const supplementaryPayment = await this.donorRepository.createSupplementaryPayment({
+            const result = await this.donorRepository.createSupplementaryPayment({
                 donation_id: donationId,
                 amount: BigInt(payload.transferAmount),
                 gateway: "SEPAY",
@@ -273,8 +288,21 @@ export class SepayWebhookService {
             })
 
             this.logger.log(
-                `[Sepay→Admin] ✅ Supplementary payment created - Payment ID: ${supplementaryPayment.id}, amount=${payload.transferAmount}`,
+                `[Sepay→Admin] ✅ Supplementary payment created - Payment ID: ${result.payment.id}, amount=${payload.transferAmount}`,
             )
+
+            // 🆕 Check for campaign surplus and emit event
+            const { campaign } = result
+            if (campaign.received_amount > campaign.target_amount && campaign.status === "ACTIVE") {
+                const surplus = campaign.received_amount - campaign.target_amount
+                this.logger.log(
+                    `[Sepay→Admin] 🎯 Surplus detected for campaign ${campaign.id} - Surplus: ${surplus.toString()} VND`,
+                )
+                this.eventEmitter.emit("campaign.surplus.detected", {
+                    campaignId: campaign.id,
+                    surplus: surplus.toString(),
+                })
+            }
 
             // Step 2: Get system admin ID
             const adminUserId = this.getSystemAdminId()
@@ -283,7 +311,7 @@ export class SepayWebhookService {
             await this.userClientService.creditAdminWallet({
                 adminId: adminUserId,
                 campaignId: campaignId,
-                paymentTransactionId: supplementaryPayment.id,
+                paymentTransactionId: result.payment.id,
                 amount: BigInt(payload.transferAmount),
                 gateway: "SEPAY", // For logging only
                 description: `Supplementary payment via Sepay | Ref: ${payload.referenceCode}`,
