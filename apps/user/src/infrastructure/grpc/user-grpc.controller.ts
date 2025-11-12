@@ -80,15 +80,6 @@ interface HealthResponse {
     uptime: number
 }
 
-interface CreditFundraiserWalletRequest {
-    fundraiserId: string
-    campaignId: string
-    paymentTransactionId: string
-    amount: string
-    gateway: string
-    description?: string
-}
-
 interface CreditAdminWalletRequest {
     adminId: string
     campaignId: string | null
@@ -97,6 +88,15 @@ interface CreditAdminWalletRequest {
     gateway: string
     description?: string
     sepayMetadata?: string
+}
+
+interface CreditFundraiserWalletRequest {
+    fundraiserId: string
+    campaignId: string | null
+    paymentTransactionId: string | null
+    amount: string
+    gateway: string
+    description?: string
 }
 
 interface CreditWalletResponse {
@@ -392,13 +392,13 @@ export class UserGrpcController {
             } = data
 
             this.logger.log(
-                `[CreditFundraiserWallet] Processing for fundraiser ${fundraiserId}, campaign ${campaignId}, amount ${amount}`,
+                `[CreditFundraiserWallet] Processing for fundraiser ${fundraiserId}, campaign ${campaignId || "SYSTEM"}, amount ${amount}`,
             )
 
-            if (!fundraiserId || !campaignId || !paymentTransactionId) {
+            if (!fundraiserId) {
                 return {
                     success: false,
-                    error: "fundraiserId, campaignId, and paymentTransactionId are required",
+                    error: "fundraiserId is required",
                 }
             }
 
@@ -414,16 +414,23 @@ export class UserGrpcController {
                 }
             }
 
+            // Determine transaction type based on context
+            // If gateway is "SYSTEM", it's an admin adjustment (surplus settlement, refund, etc.)
+            // Otherwise, it's a donation received
+            const transactionType = gateway === "SYSTEM" 
+                ? Transaction_Type.ADMIN_ADJUSTMENT 
+                : Transaction_Type.DONATION_RECEIVED
+
             // Credit wallet
             const transaction = await this.walletRepository.creditWallet({
                 userId: fundraiserId,
                 walletType: Wallet_Type.FUNDRAISER,
                 amount: BigInt(amount),
-                transactionType: Transaction_Type.DONATION_RECEIVED,
-                campaignId,
-                paymentTransactionId,
+                transactionType,
+                campaignId: campaignId || null,
+                paymentTransactionId: paymentTransactionId || null,
                 gateway,
-                description: description || `Donation received via ${gateway}`,
+                description: description || `Wallet credit via ${gateway}`,
             })
 
             this.logger.log(

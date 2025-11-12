@@ -205,9 +205,11 @@ jobs:
   deploy:
     needs: [detect-changes, docker]
     runs-on: ubuntu-latest
+    timeout-minutes: 30  # Set job timeout to 30 minutes
     if: github.event_name == 'push' && needs.detect-changes.outputs.any-service == 'true'
     steps:
       - uses: actions/checkout@v4
+      
       - name: Install doctl
         env:
           DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
@@ -235,93 +237,27 @@ jobs:
         run: |
           kubectl create namespace foodfund-k8s --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Deploy or update services with Helm
+      - name: Deploy services with deployment script
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DEPLOY_AUTH: ${{ needs.detect-changes.outputs.auth }}
+          DEPLOY_USER: ${{ needs.detect-changes.outputs.user }}
+          DEPLOY_CAMPAIGN: ${{ needs.detect-changes.outputs.campaign }}
+          DEPLOY_OPERATION: ${{ needs.detect-changes.outputs.operation }}
+          DEPLOY_GATEWAY: ${{ needs.detect-changes.outputs.gateway }}
         run: |
-          set -e
-          
-          # Set image tag based on branch
+          # Set image tags based on branch
           if [ "${GITHUB_REF##*/}" = "main" ]; then
-            TAG="latest"
-            UNIQUE_TAG="latest"
+            export TAG="latest"
+            export UNIQUE_TAG="latest"
           else
-            TAG="develop"
-            UNIQUE_TAG="develop-${GITHUB_SHA::8}"
+            export TAG="develop"
+            export UNIQUE_TAG="develop-${GITHUB_SHA::8}"
           fi
           
-          echo "Deploying/updating services with tag: $TAG (unique: $UNIQUE_TAG)"
-          
-          # Force delete old pods to free up resources for new deployment
-          echo "🔄 Cleaning up old pods to free resources..."
-          if [ "${{ needs.detect-changes.outputs.auth }}" = "true" ]; then
-            kubectl delete pods -l app.kubernetes.io/name=auth-service -n foodfund-k8s --ignore-not-found=true || true
-          fi
-          
-          if [ "${{ needs.detect-changes.outputs.user }}" = "true" ]; then
-            kubectl delete pods -l app.kubernetes.io/name=user-service -n foodfund-k8s --ignore-not-found=true || true
-          fi
-          
-          if [ "${{ needs.detect-changes.outputs.campaign }}" = "true" ]; then
-            kubectl delete pods -l app.kubernetes.io/name=campaign-service -n foodfund-k8s --ignore-not-found=true || true
-          fi
-
-          if [ "${{ needs.detect-changes.outputs.operation }}" = "true" ]; then
-            kubectl delete pods -l app.kubernetes.io/name=operation-service -n foodfund-k8s --ignore-not-found=true || true
-          fi
-          
-          if [ "${{ needs.detect-changes.outputs.gateway }}" = "true" ]; then
-            kubectl delete pods -l app.kubernetes.io/name=graphql-gateway -n foodfund-k8s --ignore-not-found=true || true
-          fi
-          
-          # Wait a moment for pods to terminate
-          sleep 15
-          
-          # Deploy or update only changed services using Helm
-          if [ "${{ needs.detect-changes.outputs.auth }}" = "true" ]; then
-            echo "Deploying/updating auth-service..."
-            helm upgrade --install auth-service k8s/charts/auth-service \
-              --namespace foodfund-k8s \
-              --set image.tag=$UNIQUE_TAG \
-              --set image.repository=${DOCKERHUB_USERNAME}/foodfund-auth \
-              --timeout 3m
-          fi
-          
-          if [ "${{ needs.detect-changes.outputs.user }}" = "true" ]; then
-            echo "Deploying/updating user-service..."
-            helm upgrade --install user-service k8s/charts/user-service \
-              --namespace foodfund-k8s \
-              --set image.tag=$UNIQUE_TAG \
-              --set image.repository=${DOCKERHUB_USERNAME}/foodfund-user \
-              --timeout 3m
-          fi
-          
-          if [ "${{ needs.detect-changes.outputs.campaign }}" = "true" ]; then
-            echo "Deploying/updating campaign-service..."
-            helm upgrade --install campaign-service k8s/charts/campaign-service \
-              --namespace foodfund-k8s \
-              --set image.tag=$UNIQUE_TAG \
-              --set image.repository=${DOCKERHUB_USERNAME}/foodfund-campaign \
-              --timeout 3m
-          fi
-
-          if [ "${{ needs.detect-changes.outputs.operation }}" = "true" ]; then
-            echo "Deploying/updating operation-service..."
-            helm upgrade --install operation-service k8s/charts/operation-service \
-              --namespace foodfund-k8s \
-              --set image.tag=$UNIQUE_TAG \
-              --set image.repository=${DOCKERHUB_USERNAME}/foodfund-operation \
-              --timeout 3m
-          fi
-          
-          if [ "${{ needs.detect-changes.outputs.gateway }}" = "true" ]; then
-            echo "Deploying/updating graphql-gateway..."
-            helm upgrade --install graphql-gateway k8s/charts/graphql-gateway \
-              --namespace foodfund-k8s \
-              --set image.tag=$UNIQUE_TAG \
-              --set image.repository=${DOCKERHUB_USERNAME}/foodfund-graphql-gateway \
-              --timeout 3m
-          fi
+          # Make script executable and run it
+          chmod +x scripts/deploy.sh
+          ./scripts/deploy.sh
 
       - name: Final status
         run: |

@@ -443,7 +443,7 @@ export class DonorRepository {
             })
 
             // Update campaign stats with ACTUAL amount received
-            await tx.campaign.update({
+            const updatedCampaign = await tx.campaign.update({
                 where: { id: payment.donation.campaign_id },
                 data: {
                     received_amount: {
@@ -453,9 +453,16 @@ export class DonorRepository {
                         increment: 1,
                     },
                 },
+                select: {
+                    id: true,
+                    received_amount: true,
+                    target_amount: true,
+                    status: true,
+                    created_by: true,
+                },
             })
 
-            return payment
+            return { payment, campaign: updatedCampaign }
         })
     }
 
@@ -548,7 +555,7 @@ export class DonorRepository {
                     received_amount: data.amount, // Same as amount for supplementary
                     description: data.description,
                     status: TransactionStatus.SUCCESS,
-                    payment_status: "COMPLETED", // Supplementary is always COMPLETED
+                    payment_status: "COMPLETED",
                     gateway: data.gateway,
                     processed_by_webhook: true,
                     payos_metadata: data.payos_metadata,
@@ -564,7 +571,7 @@ export class DonorRepository {
             })
 
             // Update campaign with supplementary amount
-            await tx.campaign.update({
+            const updatedCampaign = await tx.campaign.update({
                 where: { id: payment.donation.campaign_id },
                 data: {
                     received_amount: {
@@ -574,9 +581,16 @@ export class DonorRepository {
                         increment: 1, // Count each Payment_Transaction (including supplementary)
                     },
                 },
+                select: {
+                    id: true,
+                    received_amount: true,
+                    target_amount: true,
+                    status: true,
+                    created_by: true,
+                },
             })
 
-            return payment
+            return { payment, campaign: updatedCampaign }
         })
     }
 

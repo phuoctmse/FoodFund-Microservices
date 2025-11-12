@@ -27,6 +27,9 @@ service UserService {
   
   // Credit admin wallet (for donation payments)
   rpc CreditAdminWallet(CreditAdminWalletRequest) returns (CreditAdminWalletResponse);
+  
+  // Credit fundraiser wallet (for surplus settlement, refunds, etc.)
+  rpc CreditFundraiserWallet(CreditFundraiserWalletRequest) returns (CreditFundraiserWalletResponse);
 }
 
 // Messages
@@ -72,13 +75,13 @@ message CreateUserResponse {
 
 // Credit Admin Wallet (for donation payments)
 message CreditAdminWalletRequest {
-  string admin_id = 1; // Admin user ID
-  string campaign_id = 2; // Campaign reference (nullable)
-  string payment_transaction_id = 3; // For idempotency check (nullable)
-  string amount = 4; // Amount to credit (as string for BigInt)
-  string gateway = 5; // Payment gateway (e.g., "PAYOS", "SEPAY")
-  string description = 6; // Transaction description (optional)
-  string sepay_metadata = 7; // Sepay metadata JSON string (optional)
+  string admin_id = 1; 
+  string campaign_id = 2; 
+  string payment_transaction_id = 3; 
+  string amount = 4; 
+  string gateway = 5; 
+  string description = 6; 
+  string sepay_metadata = 7;
 }
 
 message CreditAdminWalletResponse {
@@ -87,14 +90,30 @@ message CreditAdminWalletResponse {
   string error = 3;
 }
 
+// Credit Fundraiser Wallet (for surplus settlement, refunds, etc.)
+message CreditFundraiserWalletRequest {
+  string fundraiser_id = 1; 
+  string campaign_id = 2; 
+  string payment_transaction_id = 3; 
+  string amount = 4;
+  string gateway = 5; 
+  string description = 6;
+}
+
+message CreditFundraiserWalletResponse {
+  bool success = 1;
+  string wallet_transaction_id = 2; 
+  string error = 3;
+}
+
 // Get User by Cognito ID
 message GetUserRequest {
-  string cognito_id = 1; // Primary identifier
+  string cognito_id = 1; 
 }
 
 // Get User by Database ID
 message GetUserByIdRequest {
-  string id = 1; // Database ID
+  string id = 1; 
 }
 
 message GetUserResponse {
@@ -143,7 +162,7 @@ message CreateStaffUserRequest {
   string avatar_url = 6;
   Role role = 7;
   string bio = 8;
-  string organization_address = 9; // For FUNDRAISER
+  string organization_address = 9; 
 }
 
 message CreateStaffUserResponse {

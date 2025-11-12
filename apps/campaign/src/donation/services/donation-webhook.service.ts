@@ -1,9 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common"
+import { EventEmitter2 } from "@nestjs/event-emitter"
 import { DonorRepository } from "../repositories/donor.repository"
 import { UserClientService } from "../../shared/services/user-client.service"
 import { PayOS } from "@payos/node"
 import { envConfig } from "@libs/env"
 import { TransactionStatus } from "../../shared/enum/campaign.enum"
+import { Campaign, CampaignStatus } from "../../campaign"
 
 interface PayOSWebhookData {
     orderCode: number
@@ -33,6 +35,7 @@ export class DonationWebhookService {
     constructor(
         private readonly donorRepository: DonorRepository,
         private readonly userClientService: UserClientService,
+        private readonly eventEmitter: EventEmitter2,
     ) {}
 
     private getPayOS(): PayOS {
@@ -142,7 +145,7 @@ export class DonationWebhookService {
             )
 
             // Step 1: Update payment transaction with PayOS data and actual amount
-            await this.donorRepository.updatePaymentTransactionSuccess({
+            const result = await this.donorRepository.updatePaymentTransactionSuccess({
                 order_code: BigInt(orderCode),
                 amount_paid: actualAmountReceived,
                 gateway: "PAYOS",
@@ -162,6 +165,19 @@ export class DonationWebhookService {
             this.logger.log(
                 `[PayOS] ✅ Payment transaction updated - Order ${orderCode}, Amount Paid: ${actualAmountReceived}`,
             )
+
+            // 🆕 Check for campaign surplus and emit event
+            const { campaign } = result
+            if (campaign.received_amount > campaign.target_amount && campaign.status === CampaignStatus.ACTIVE) {
+                const surplus = campaign.received_amount - campaign.target_amount
+                this.logger.log(
+                    `[PayOS] 🎯 Surplus detected for campaign ${campaign.id} - Surplus: ${surplus.toString()} VND`,
+                )
+                this.eventEmitter.emit("campaign.surplus.detected", {
+                    campaignId: campaign.id,
+                    surplus: surplus.toString(),
+                })
+            }
 
             // Step 2: Get donation and campaign info
             const donation = paymentTransaction.donation

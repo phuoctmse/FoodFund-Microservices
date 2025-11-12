@@ -1,5 +1,6 @@
 import { DynamicModule, Module } from "@nestjs/common"
 import { PassportModule } from "@nestjs/passport"
+import { RedisModule } from "@libs/redis"
 import { AwsCognitoService } from "./aws-cognito.service"
 import { CognitoAuthStrategy } from "./strategies/cognito-auth.strategy"
 import {
@@ -19,7 +20,7 @@ export class AwsCognitoModule extends ConfigurableModuleClass {
 
         return {
             ...dynamicModule,
-            imports: [PassportModule],
+            imports: [PassportModule, RedisModule.registerAsync()],
             providers: [
                 {
                     provide: MODULE_OPTIONS_TOKEN,

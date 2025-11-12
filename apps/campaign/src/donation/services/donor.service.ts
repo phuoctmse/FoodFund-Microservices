@@ -4,6 +4,7 @@ import {
     Logger,
     NotFoundException,
 } from "@nestjs/common"
+import { EventEmitter2 } from "@nestjs/event-emitter"
 import { DonorRepository } from "../repositories/donor.repository"
 import { CreateDonationInput } from "../dtos/create-donation.input"
 import { DonationResponse } from "../dtos/donation-response.dto"
@@ -43,6 +44,7 @@ export class DonorService {
         private readonly sqsService: SqsService,
         private readonly userClientService: UserClientService,
         private readonly userDataLoader: UserDataLoader,
+        private readonly eventEmitter: EventEmitter2,
     ) {}
 
     private getPayOS(): PayOS {
