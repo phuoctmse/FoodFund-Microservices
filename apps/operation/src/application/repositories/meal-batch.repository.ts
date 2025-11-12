@@ -3,7 +3,6 @@ import { MealBatch, MealBatchIngredientUsage } from "../../domain/entities"
 import { MealBatchStatus } from "../../domain/enums"
 import { MealBatchFilterInput } from "../dtos"
 import { PrismaClient } from "../../generated/operation-client"
-import { SentryService } from "@libs/observability"
 
 interface CreateMealBatchData {
     campaignPhaseId: string
@@ -17,127 +16,99 @@ interface CreateMealBatchData {
 
 @Injectable()
 export class MealBatchRepository {
-    constructor(
-        private readonly prisma: PrismaClient,
-        private readonly sentryService: SentryService,
-    ) {}
+    constructor(private readonly prisma: PrismaClient) {}
 
     async create(data: CreateMealBatchData): Promise<MealBatch> {
-        try {
-            const mealBatch = await this.prisma.$transaction(async (tx) => {
-                const batch = await tx.meal_Batch.create({
-                    data: {
-                        campaign_phase_id: data.campaignPhaseId,
-                        kitchen_staff_id: data.kitchenStaffId,
-                        food_name: data.foodName,
-                        quantity: data.quantity,
-                        media: data.media,
-                        status: data.status,
-                        cooked_date: new Date(),
-                    },
-                })
+        const mealBatch = await this.prisma.$transaction(async (tx) => {
+            const batch = await tx.meal_Batch.create({
+                data: {
+                    campaign_phase_id: data.campaignPhaseId,
+                    kitchen_staff_id: data.kitchenStaffId,
+                    food_name: data.foodName,
+                    quantity: data.quantity,
+                    media: data.media,
+                    status: data.status,
+                    cooked_date: new Date(),
+                },
+            })
 
-                await tx.meal_Batch_Ingredient_Usage.createMany({
-                    data: data.ingredientIds.map((ingredientId) => ({
-                        meal_batch_id: batch.id,
-                        ingredient_id: ingredientId,
-                    })),
-                })
+            await tx.meal_Batch_Ingredient_Usage.createMany({
+                data: data.ingredientIds.map((ingredientId) => ({
+                    meal_batch_id: batch.id,
+                    ingredient_id: ingredientId,
+                })),
+            })
 
-                return await tx.meal_Batch.findUnique({
-                    where: { id: batch.id },
-                    include: {
-                        ingredient_usages: {
-                            include: {
-                                ingredient_item: {
-                                    include: {
-                                        request: true,
-                                    },
+            return await tx.meal_Batch.findUnique({
+                where: { id: batch.id },
+                include: {
+                    ingredient_usages: {
+                        include: {
+                            ingredient_item: {
+                                include: {
+                                    request: true,
                                 },
                             },
                         },
                     },
-                })
+                },
             })
+        })
 
-            return this.mapToGraphQLModel(mealBatch!)
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "MealBatchRepository.create",
-                campaignPhaseId: data.campaignPhaseId,
-                kitchenStaffId: data.kitchenStaffId,
-            })
-            throw error
-        }
+        return this.mapToGraphQLModel(mealBatch!)
     }
 
     async findById(id: string): Promise<MealBatch | null> {
-        try {
-            const batch = await this.prisma.meal_Batch.findUnique({
-                where: { id },
-                include: {
-                    ingredient_usages: {
-                        include: {
-                            ingredient_item: {
-                                include: {
-                                    request: true,
-                                },
+        const batch = await this.prisma.meal_Batch.findUnique({
+            where: { id },
+            include: {
+                ingredient_usages: {
+                    include: {
+                        ingredient_item: {
+                            include: {
+                                request: true,
                             },
                         },
                     },
                 },
-            })
+            },
+        })
 
-            return batch ? this.mapToGraphQLModel(batch) : null
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "MealBatchRepository.findById",
-                id,
-            })
-            throw error
-        }
+        return batch ? this.mapToGraphQLModel(batch) : null
     }
 
     async findWithFilters(filter: MealBatchFilterInput): Promise<MealBatch[]> {
-        try {
-            const where: any = {}
+        const where: any = {}
 
-            if (filter.campaignPhaseId) {
-                where.campaign_phase_id = filter.campaignPhaseId
-            }
+        if (filter.campaignPhaseId) {
+            where.campaign_phase_id = filter.campaignPhaseId
+        }
 
-            if (filter.kitchenStaffId) {
-                where.kitchen_staff_id = filter.kitchenStaffId
-            }
+        if (filter.kitchenStaffId) {
+            where.kitchen_staff_id = filter.kitchenStaffId
+        }
 
-            if (filter.status) {
-                where.status = filter.status
-            }
+        if (filter.status) {
+            where.status = filter.status
+        }
 
-            const batches = await this.prisma.meal_Batch.findMany({
-                where,
-                include: {
-                    ingredient_usages: {
-                        include: {
-                            ingredient_item: {
-                                include: {
-                                    request: true,
-                                },
+        const batches = await this.prisma.meal_Batch.findMany({
+            where,
+            include: {
+                ingredient_usages: {
+                    include: {
+                        ingredient_item: {
+                            include: {
+                                request: true,
                             },
                         },
                     },
                 },
-                orderBy: { created_at: "desc" },
-            })
+            },
+            orderBy: { created_at: "desc" },
+        })
 
-            return batches.map((batch) => this.mapToGraphQLModel(batch))
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "MealBatchRepository.findWithFilters",
-                filter,
-            })
-            throw error
-        }
+        return batches.map((batch) => this.mapToGraphQLModel(batch))
     }
 
     async updateStatus(
@@ -145,38 +116,38 @@ export class MealBatchRepository {
         status: MealBatchStatus,
         cookedDate?: Date,
     ): Promise<MealBatch> {
-        try {
-            const updateData: any = { status }
+        const updateData: any = { status }
 
-            if (cookedDate) {
-                updateData.cooked_date = cookedDate
-            }
+        if (cookedDate) {
+            updateData.cooked_date = cookedDate
+        }
 
-            const batch = await this.prisma.meal_Batch.update({
-                where: { id },
-                data: updateData,
-                include: {
-                    ingredient_usages: {
-                        include: {
-                            ingredient_item: {
-                                include: {
-                                    request: true,
-                                },
+        const batch = await this.prisma.meal_Batch.update({
+            where: { id },
+            data: updateData,
+            include: {
+                ingredient_usages: {
+                    include: {
+                        ingredient_item: {
+                            include: {
+                                request: true,
                             },
                         },
                     },
                 },
-            })
+            },
+        })
 
-            return this.mapToGraphQLModel(batch)
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "MealBatchRepository.updateStatus",
-                id,
-                status,
-            })
-            throw error
-        }
+        return this.mapToGraphQLModel(batch)
+    }
+
+    async updateStatusToDelivered(id: string) {
+        return await this.prisma.meal_Batch.update({
+            where: { id },
+            data: {
+                status: MealBatchStatus.DELIVERED,
+            },
+        })
     }
 
     private mapToGraphQLModel(batch: any): MealBatch {
@@ -212,8 +183,7 @@ export class MealBatchRepository {
                 ingredientName: usage.ingredient_item.ingredient_name,
                 quantity: usage.ingredient_item.quantity,
                 estimatedUnitPrice: usage.ingredient_item.estimated_unit_price,
-                estimatedTotalPrice:
-                    usage.ingredient_item.estimated_total_price,
+                estimatedTotalPrice: usage.ingredient_item.estimated_total_price,
                 supplier: usage.ingredient_item.supplier,
             },
         }

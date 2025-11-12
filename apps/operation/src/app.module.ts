@@ -1,5 +1,8 @@
 import { Module } from "@nestjs/common"
 import {
+    DeliveryTaskMutationResolver,
+    DeliveryTaskQueryResolver,
+    DeliveryTaskStatsQueryResolver,
     ExpenseProofMutationResolver,
     ExpenseProofQueryResolver,
     IngredientRequestMutationResolver,
@@ -30,6 +33,7 @@ import { EnvModule } from "@libs/env/env.module"
 import { HealthController } from "./presentation/http"
 import { GrpcModule } from "@libs/grpc"
 import {
+    DeliveryTaskService,
     ExpenseProofService,
     IngredientRequestItemService,
     IngredientRequestService,
@@ -37,6 +41,8 @@ import {
 } from "./application/services"
 import { SpacesUploadService } from "@libs/s3-storage"
 import {
+    DeliveryStatusLogRepository,
+    DeliveryTaskRepository,
     ExpenseProofRepository,
     MealBatchRepository,
     OperationRequestRepository,
@@ -87,6 +93,8 @@ import { MealBatchService } from "./application/services/meal-batch/meal-batch.s
         ExpenseProofRepository,
         MealBatchRepository,
         OperationRequestRepository,
+        DeliveryTaskRepository,
+        DeliveryStatusLogRepository,
 
         AuthorizationService,
         SpacesUploadService,
@@ -95,6 +103,7 @@ import { MealBatchService } from "./application/services/meal-batch/meal-batch.s
         ExpenseProofService,
         MealBatchService,
         OperationRequestService,
+        DeliveryTaskService,
 
         UserResolver,
         CampaignPhaseResolver,
@@ -106,6 +115,9 @@ import { MealBatchService } from "./application/services/meal-batch/meal-batch.s
         MealBatchQueryResolver,
         OperationRequestMutationResolver,
         OperationRequestQueryResolver,
+        DeliveryTaskMutationResolver,
+        DeliveryTaskQueryResolver,
+        DeliveryTaskStatsQueryResolver,
     ],
 })
 export class AppModule {}

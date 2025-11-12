@@ -1,9 +1,15 @@
 import { Injectable } from "@nestjs/common"
 import { IngredientRequest } from "../../domain/entities"
-import { IngredientRequestStatus } from "../../domain/enums"
-import { PrismaClient } from "../../generated/operation-client"
+import {
+    IngredientRequestSortOrder,
+    IngredientRequestStatus,
+} from "../../domain/enums"
+import { Prisma, PrismaClient } from "../../generated/operation-client"
 import { SentryService } from "@libs/observability"
-import { CreateIngredientRequestInput } from "../dtos"
+import {
+    CreateIngredientRequestInput,
+    IngredientRequestFilterInput,
+} from "../dtos"
 import { GrpcClientService } from "@libs/grpc"
 
 @Injectable()
@@ -18,174 +24,131 @@ export class IngredientRequestRepository {
         input: CreateIngredientRequestInput,
         kitchenStaffId: string,
     ): Promise<IngredientRequest> {
-        try {
-            const totalCostBigInt = BigInt(input.totalCost)
+        const totalCostBigInt = BigInt(input.totalCost)
 
-            const request = await this.prisma.ingredient_Request.create({
-                data: {
-                    campaign_phase_id: input.campaignPhaseId,
-                    kitchen_staff_id: kitchenStaffId,
-                    total_cost: totalCostBigInt,
-                    status: "PENDING",
-                    items: {
-                        create: input.items.map((item) => ({
-                            ingredient_name: item.ingredientName,
-                            quantity: item.quantity,
-                            estimated_unit_price: item.estimatedUnitPrice,
-                            estimated_total_price: item.estimatedTotalPrice,
-                            supplier: item.supplier,
-                        })),
-                    },
+        const request = await this.prisma.ingredient_Request.create({
+            data: {
+                campaign_phase_id: input.campaignPhaseId,
+                kitchen_staff_id: kitchenStaffId,
+                total_cost: totalCostBigInt,
+                status: "PENDING",
+                items: {
+                    create: input.items.map((item) => ({
+                        ingredient_name: item.ingredientName,
+                        quantity: item.quantity,
+                        estimated_unit_price: item.estimatedUnitPrice,
+                        estimated_total_price: item.estimatedTotalPrice,
+                        supplier: item.supplier,
+                    })),
                 },
-                include: {
-                    items: true,
-                },
-            })
+            },
+            include: {
+                items: true,
+            },
+        })
 
-            return this.mapToGraphQLModel(request)
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "createIngredientRequest",
-                campaignPhaseId: input.campaignPhaseId,
-                kitchenStaffId,
-            })
-            throw error
-        }
+        return this.mapToGraphQLModel(request)
     }
 
     async findById(id: string): Promise<IngredientRequest | null> {
-        try {
-            const request = await this.prisma.ingredient_Request.findUnique({
-                where: { id },
-                include: {
-                    items: true,
-                },
-            })
+        const request = await this.prisma.ingredient_Request.findUnique({
+            where: { id },
+            include: {
+                items: true,
+            },
+        })
 
-            return request ? this.mapToGraphQLModel(request) : null
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "findIngredientRequestById",
-                requestId: id,
-            })
-            throw error
-        }
+        return request ? this.mapToGraphQLModel(request) : null
     }
 
     async findMany(
-        filter?: { status?: IngredientRequestStatus },
+        filter?: IngredientRequestFilterInput,
         limit: number = 10,
         offset: number = 0,
     ): Promise<IngredientRequest[]> {
-        try {
-            const where: any = {}
+        const where: Prisma.Ingredient_RequestWhereInput = {}
 
-            if (filter?.status) {
-                where.status = filter.status
-            }
-
-            const requests = await this.prisma.ingredient_Request.findMany({
-                where,
-                include: {
-                    items: true,
-                },
-                orderBy: {
-                    created_at: "desc",
-                },
-                take: limit,
-                skip: offset,
-            })
-
-            return requests.map((r) => this.mapToGraphQLModel(r))
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "findManyIngredientRequests",
-                filter,
-            })
-            throw error
+        if (filter?.status) {
+            where.status = filter.status
         }
+
+        const orderBy = this.buildOrderByClause(
+            filter?.sortBy || IngredientRequestSortOrder.NEWEST_FIRST,
+        )
+
+        const requests = await this.prisma.ingredient_Request.findMany({
+            where,
+            include: {
+                items: true,
+            },
+            orderBy,
+            take: limit,
+            skip: offset,
+        })
+
+        return requests.map((r) => this.mapToGraphQLModel(r))
     }
 
     async findByKitchenStaffOrganization(
         kitchenStaffId: string,
     ): Promise<IngredientRequest[]> {
-        try {
-            const response = await this.grpcClient.callUserService<
-                { userId: string },
-                {
-                    success: boolean
-                    members: Array<{
-                        userId: string
-                        role: string
-                        fullName: string
-                        email: string
-                    }>
-                    error?: string
-                }
-            >(
-                "GetOrganizationMembers",
-                { userId: kitchenStaffId },
-                {
-                    timeout: 5000,
-                    retries: 2,
-                },
-            )
-
-            if (!response.success || !response.members) {
-                this.sentryService.addBreadcrumb(
-                    "Failed to get organization members from User service",
-                    "warning",
-                    {
-                        kitchenStaffId,
-                        error: response.error,
-                    },
-                )
-
-                return this.findByKitchenStaffId(kitchenStaffId, 100, 0)
+        const response = await this.grpcClient.callUserService<
+            { userId: string },
+            {
+                success: boolean
+                members: Array<{
+                    userId: string
+                    role: string
+                    fullName: string
+                    email: string
+                }>
+                error?: string
             }
+        >(
+            "GetOrganizationMembers",
+            { userId: kitchenStaffId },
+            {
+                timeout: 5000,
+                retries: 2,
+            },
+        )
 
-            const kitchenStaffIds = response.members
-                .filter((member) => member.role === "KITCHEN_STAFF")
-                .map((member) => member.userId)
-
-            if (kitchenStaffIds.length === 0) {
-                return this.findByKitchenStaffId(kitchenStaffId, 100, 0)
-            }
-
-            const requests = await this.prisma.ingredient_Request.findMany({
-                where: {
-                    kitchen_staff_id: {
-                        in: kitchenStaffIds,
-                    },
-                },
-                include: {
-                    items: true,
-                },
-                orderBy: {
-                    created_at: "desc",
-                },
-            })
-
-            return requests.map((r) => this.mapToGraphQLModel(r))
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "findIngredientRequestsByKitchenStaffOrganization",
-                kitchenStaffId,
-                errorType: error.name,
-                errorMessage: error.message,
-            })
-
+        if (!response.success || !response.members) {
             this.sentryService.addBreadcrumb(
-                "User service call failed, returning only kitchen staff's own requests",
+                "Failed to get organization members from User service",
                 "warning",
                 {
                     kitchenStaffId,
-                    error: error.message,
+                    error: response.error,
                 },
             )
 
             return this.findByKitchenStaffId(kitchenStaffId, 100, 0)
         }
+
+        const kitchenStaffIds = response.members
+            .filter((member) => member.role === "KITCHEN_STAFF")
+            .map((member) => member.userId)
+
+        if (kitchenStaffIds.length === 0) {
+            return this.findByKitchenStaffId(kitchenStaffId, 100, 0)
+        }
+
+        const requests = await this.prisma.ingredient_Request.findMany({
+            where: {
+                kitchen_staff_id: {
+                    in: kitchenStaffIds,
+                },
+            },
+            include: {
+                items: true,
+            },
+            orderBy: {
+                created_at: "desc",
+            },
+        })
+
+        return requests.map((r) => this.mapToGraphQLModel(r))
     }
 
     async findByKitchenStaffId(
@@ -193,143 +156,114 @@ export class IngredientRequestRepository {
         limit: number = 10,
         offset: number = 0,
     ): Promise<IngredientRequest[]> {
-        try {
-            const requests = await this.prisma.ingredient_Request.findMany({
-                where: {
-                    kitchen_staff_id: kitchenStaffId,
-                },
-                include: {
-                    items: true,
-                },
-                orderBy: {
-                    created_at: "desc",
-                },
-                take: limit,
-                skip: offset,
-            })
+        const requests = await this.prisma.ingredient_Request.findMany({
+            where: {
+                kitchen_staff_id: kitchenStaffId,
+            },
+            include: {
+                items: true,
+            },
+            orderBy: {
+                created_at: "desc",
+            },
+            take: limit,
+            skip: offset,
+        })
 
-            return requests.map((r) => this.mapToGraphQLModel(r))
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "findIngredientRequestsByKitchenStaff",
-                kitchenStaffId,
-            })
-            throw error
-        }
+        return requests.map((r) => this.mapToGraphQLModel(r))
     }
 
     async findByCampaignPhaseId(
         campaignPhaseId: string,
     ): Promise<IngredientRequest[]> {
-        try {
-            const requests = await this.prisma.ingredient_Request.findMany({
-                where: {
-                    campaign_phase_id: campaignPhaseId,
-                },
-                include: {
-                    items: true,
-                },
-                orderBy: {
-                    created_at: "desc",
-                },
-            })
+        const requests = await this.prisma.ingredient_Request.findMany({
+            where: {
+                campaign_phase_id: campaignPhaseId,
+            },
+            include: {
+                items: true,
+            },
+            orderBy: {
+                created_at: "desc",
+            },
+        })
 
-            return requests.map((r) => this.mapToGraphQLModel(r))
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "findIngredientRequestsByCampaignPhase",
-                campaignPhaseId,
-            })
-            throw error
-        }
+        return requests.map((r) => this.mapToGraphQLModel(r))
     }
 
     async getCampaignIdFromPhaseId(
         campaignPhaseId: string,
     ): Promise<string | null> {
-        try {
-            const response = await this.grpcClient.callCampaignService<
-                { phaseId: string },
-                {
-                    success: boolean
-                    campaignId?: string
-                    error?: string
-                }
-            >(
-                "GetCampaignIdByPhaseId",
-                { phaseId: campaignPhaseId },
-                { timeout: 5000, retries: 2 },
-            )
-
-            if (!response.success || !response.campaignId) {
-                this.sentryService.addBreadcrumb(
-                    "Failed to get campaign ID from Campaign service",
-                    "warning",
-                    {
-                        campaignPhaseId,
-                        error: response.error,
-                    },
-                )
-                return null
+        const response = await this.grpcClient.callCampaignService<
+            { phaseId: string },
+            {
+                success: boolean
+                campaignId?: string
+                error?: string
             }
+        >(
+            "GetCampaignIdByPhaseId",
+            { phaseId: campaignPhaseId },
+            { timeout: 5000, retries: 2 },
+        )
 
-            return response.campaignId
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "getCampaignIdFromPhaseId",
-                campaignPhaseId,
-            })
+        if (!response.success || !response.campaignId) {
+            this.sentryService.addBreadcrumb(
+                "Failed to get campaign ID from Campaign service",
+                "warning",
+                {
+                    campaignPhaseId,
+                    error: response.error,
+                },
+            )
             return null
         }
+
+        return response.campaignId
     }
 
     async updateStatus(
         id: string,
         status: IngredientRequestStatus,
     ): Promise<IngredientRequest> {
-        try {
-            const request = await this.prisma.ingredient_Request.update({
-                where: { id },
-                data: {
-                    status,
-                    changed_status_at: new Date(),
-                },
-                include: {
-                    items: true,
-                },
-            })
-
-            return this.mapToGraphQLModel(request)
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "updateIngredientRequestStatus",
-                requestId: id,
+        const request = await this.prisma.ingredient_Request.update({
+            where: { id },
+            data: {
                 status,
-            })
-            throw error
-        }
+                changed_status_at: new Date(),
+            },
+            include: {
+                items: true,
+            },
+        })
+
+        return this.mapToGraphQLModel(request)
     }
 
     async hasPendingOrApprovedRequest(
         campaignPhaseId: string,
     ): Promise<boolean> {
-        try {
-            const count = await this.prisma.ingredient_Request.count({
-                where: {
-                    campaign_phase_id: campaignPhaseId,
-                    status: {
-                        in: ["PENDING", "APPROVED"],
-                    },
+        const count = await this.prisma.ingredient_Request.count({
+            where: {
+                campaign_phase_id: campaignPhaseId,
+                status: {
+                    in: ["PENDING", "APPROVED"],
                 },
-            })
+            },
+        })
 
-            return count > 0
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "checkPendingOrApprovedRequest",
-                campaignPhaseId,
-            })
-            throw error
+        return count > 0
+    }
+
+    private buildOrderByClause(
+        sortBy: IngredientRequestSortOrder,
+    ): Prisma.Ingredient_RequestOrderByWithRelationInput {
+        switch (sortBy) {
+        case IngredientRequestSortOrder.OLDEST_FIRST:
+            return { created_at: "asc" }
+        case IngredientRequestSortOrder.NEWEST_FIRST:
+        default:
+            return { created_at: "desc" }
         }
     }
 

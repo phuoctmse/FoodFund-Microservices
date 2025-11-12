@@ -30,6 +30,8 @@ service UserService {
   
   // Credit fundraiser wallet (for surplus settlement, refunds, etc.)
   rpc CreditFundraiserWallet(CreditFundraiserWalletRequest) returns (CreditFundraiserWalletResponse);
+  rpc GetUserBasicInfo(GetUserBasicInfoRequest) returns (GetUserBasicInfoResponse);
+  rpc GetUserOrganization(GetUserOrganizationRequest) returns (GetUserOrganizationResponse);
 }
 
 // Messages
@@ -169,4 +171,36 @@ message CreateStaffUserResponse {
   bool success = 1;
   User user = 2;
   string error = 3;
+}
+
+message GetUserBasicInfoRequest {
+  string user_id = 1;
+}
+
+message GetUserBasicInfoResponse {
+  bool success = 1;
+  UserBasicInfo user = 2;
+  string error = 3;
+}
+
+message UserBasicInfo {
+  string id = 1;
+  string role = 2;
+  string organization_id = 3;
+  string organization_name = 4;
+}
+
+message GetUserOrganizationRequest {
+  string user_id = 1;
+}
+
+message GetUserOrganizationResponse {
+  bool success = 1;
+  OrganizationInfo organization = 2;
+  string error = 3;
+}
+
+message OrganizationInfo {
+  string id = 1;
+  string name = 2;
 }

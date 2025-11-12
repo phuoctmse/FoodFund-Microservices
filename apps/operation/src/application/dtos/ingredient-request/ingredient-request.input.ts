@@ -11,6 +11,7 @@ import {
     ValidateNested,
 } from "class-validator"
 import { CreateIngredientRequestItemInput } from "../ingredient-request-item"
+import { IngredientRequestSortOrder } from "@app/operation/src/domain/enums/ingredient-request"
 
 @InputType()
 export class CreateIngredientRequestInput {
@@ -65,4 +66,13 @@ export class IngredientRequestFilterInput {
     @IsOptional()
     @IsEnum(IngredientRequestStatus)
         status?: IngredientRequestStatus
+
+    @Field(() => IngredientRequestSortOrder, {
+        nullable: true,
+        defaultValue: IngredientRequestSortOrder.NEWEST_FIRST,
+        description: "Sort order for results",
+    })
+    @IsOptional()
+    @IsEnum(IngredientRequestSortOrder)
+        sortBy?: IngredientRequestSortOrder
 }

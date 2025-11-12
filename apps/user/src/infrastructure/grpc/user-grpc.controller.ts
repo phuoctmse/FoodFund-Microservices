@@ -4,12 +4,12 @@ import {
     UserCommonRepository,
     UserAdminRepository,
     WalletRepository,
+    OrganizationRepository,
 } from "../../domain/repositories"
 import { Role } from "@libs/databases"
 import { generateUniqueUsername } from "libs/common"
 import { Wallet_Type, Transaction_Type } from "../../generated/user-client"
 
-// Request/Response interfaces matching proto definitions
 interface CreateUserRequest {
     cognitoId: string
     email: string
@@ -113,6 +113,34 @@ const ROLE_MAP = {
     ADMIN: 4,
 }
 
+interface GetUserBasicInfoRequest {
+    userId: string
+}
+
+interface GetUserBasicInfoResponse {
+    success: boolean
+    user?: {
+        id: string
+        role: string
+        organizationId: string | null
+        organizationName: string | null
+    }
+    error?: string
+}
+
+interface GetUserOrganizationRequest {
+    userId: string
+}
+
+interface GetUserOrganizationResponse {
+    success: boolean
+    organization?: {
+        id: string
+        name: string
+    }
+    error?: string
+}
+
 @Controller()
 export class UserGrpcController {
     private readonly logger = new Logger(UserGrpcController.name)
@@ -121,6 +149,7 @@ export class UserGrpcController {
         private readonly userCommonRepository: UserCommonRepository,
         private readonly userAdminRepository: UserAdminRepository,
         private readonly walletRepository: WalletRepository,
+        private readonly organizationRepository: OrganizationRepository,
     ) {}
 
     @GrpcMethod("UserService", "Health")
@@ -532,6 +561,140 @@ export class UserGrpcController {
                 success: false,
                 error: error.message,
             }
+        }
+    }
+
+    @GrpcMethod("UserService", "GetUserBasicInfo")
+    async getUserBasicInfo(
+        data: GetUserBasicInfoRequest,
+    ): Promise<GetUserBasicInfoResponse> {
+        const { userId } = data
+
+        if (!userId) {
+            return {
+                success: false,
+                error: "User ID is required",
+            }
+        }
+
+        const user = await this.userCommonRepository.findUserBasicInfo(userId)
+
+        if (!user) {
+            return {
+                success: false,
+                error: `User ${userId} not found`,
+            }
+        }
+
+        let organizationId: string | null = null
+        let organizationName: string | null = null
+
+        if (user.role === Role.FUNDRAISER) {
+            const organization =
+                await this.organizationRepository.findOrganizationBasicInfoByRepresentativeId(
+                    user.id,
+                )
+            if (organization) {
+                organizationId = organization.id
+                organizationName = organization.name
+            }
+        } else if (
+            user.role === Role.KITCHEN_STAFF ||
+            user.role === Role.DELIVERY_STAFF
+        ) {
+            const memberRecord =
+                await this.organizationRepository.findMemberOrganizationBasicInfo(
+                    user.id,
+                )
+            if (memberRecord?.organization) {
+                organizationId = memberRecord.organization.id
+                organizationName = memberRecord.organization.name
+            }
+        }
+
+        return {
+            success: true,
+            user: {
+                id: user.id,
+                role: user.role,
+                organizationId,
+                organizationName,
+            },
+        }
+    }
+
+    @GrpcMethod("UserService", "GetUserOrganization")
+    async getUserOrganization(
+        data: GetUserOrganizationRequest,
+    ): Promise<GetUserOrganizationResponse> {
+        const { userId } = data
+
+        if (!userId) {
+            return {
+                success: false,
+                error: "User ID is required",
+            }
+        }
+
+        const user = await this.userCommonRepository.findUserBasicInfo(userId)
+
+        if (!user) {
+            return {
+                success: false,
+                error: `User ${userId} not found`,
+            }
+        }
+
+        if (user.role === Role.FUNDRAISER) {
+            const organization =
+                await this.organizationRepository.findOrganizationBasicInfoByRepresentativeId(
+                    user.id,
+                )
+
+            if (!organization) {
+                return {
+                    success: false,
+                    error: "Fundraiser does not have an organization",
+                }
+            }
+
+            return {
+                success: true,
+                organization: {
+                    id: organization.id,
+                    name: organization.name,
+                },
+            }
+        }
+
+        if (
+            user.role === Role.KITCHEN_STAFF ||
+            user.role === Role.DELIVERY_STAFF
+        ) {
+            const memberRecord =
+                await this.organizationRepository.findMemberOrganizationBasicInfo(
+                    user.id,
+                )
+
+            if (!memberRecord?.organization) {
+                return {
+                    success: false,
+                    error: "User is not a member of any organization",
+                }
+            }
+
+            return {
+                success: true,
+                organization: {
+                    id: memberRecord.organization.id,
+                    name: memberRecord.organization.name,
+                },
+            }
+        }
+
+        return {
+            success: false,
+            error: `User role ${user.role} does not have organization`,
         }
     }
 
