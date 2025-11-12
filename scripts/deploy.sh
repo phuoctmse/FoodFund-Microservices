@@ -19,8 +19,8 @@ set -e  # Exit on error
 
 # Configuration
 NAMESPACE="foodfund-k8s"
-HELM_TIMEOUT="6m"
-READINESS_TIMEOUT="120s"
+HELM_TIMEOUT="10m" 
+READINESS_TIMEOUT="180s"  
 STABILIZATION_DELAY=10
 
 echo "=================================================="
@@ -84,8 +84,18 @@ if [[ "${DEPLOY_CAMPAIGN}" = "true" ]]; then
             --wait \
             --timeout ${HELM_TIMEOUT} \
             --atomic \
+            --debug \
         && echo "✅ campaign-service deployed" \
-        || echo "❌ campaign-service deployment failed"
+        || {
+            echo "❌ campaign-service deployment failed"
+            echo "📋 Checking pod status..."
+            kubectl get pods -n ${NAMESPACE} -l app=campaign-service
+            echo "📋 Describing failed pods..."
+            kubectl describe pods -n ${NAMESPACE} -l app=campaign-service
+            echo "📋 Recent events..."
+            kubectl get events -n ${NAMESPACE} --sort-by='.lastTimestamp' | tail -20
+            exit 1
+        }
     ) &
     DEPLOY_PIDS+=($!)
 fi
