@@ -40,7 +40,7 @@ echo ""
 DEPLOY_PIDS=()
 
 # Deploy Auth Service
-if [ "${DEPLOY_AUTH}" = "true" ]; then
+if [[ "${DEPLOY_AUTH}" = "true" ]]; then
     echo "🚀 Starting auth-service deployment..."
     (
         helm upgrade --install auth-service k8s/charts/auth-service \
@@ -57,7 +57,7 @@ if [ "${DEPLOY_AUTH}" = "true" ]; then
 fi
 
 # Deploy User Service
-if [ "${DEPLOY_USER}" = "true" ]; then
+if [[ "${DEPLOY_USER}" = "true" ]]; then
     echo "🚀 Starting user-service deployment..."
     (
         helm upgrade --install user-service k8s/charts/user-service \
@@ -74,7 +74,7 @@ if [ "${DEPLOY_USER}" = "true" ]; then
 fi
 
 # Deploy Campaign Service
-if [ "${DEPLOY_CAMPAIGN}" = "true" ]; then
+if [[ "${DEPLOY_CAMPAIGN}" = "true" ]]; then
     echo "🚀 Starting campaign-service deployment..."
     (
         helm upgrade --install campaign-service k8s/charts/campaign-service \
@@ -91,7 +91,7 @@ if [ "${DEPLOY_CAMPAIGN}" = "true" ]; then
 fi
 
 # Deploy Operation Service
-if [ "${DEPLOY_OPERATION}" = "true" ]; then
+if [[ "${DEPLOY_OPERATION}" = "true" ]]; then
     echo "🚀 Starting operation-service deployment..."
     (
         helm upgrade --install operation-service k8s/charts/operation-service \
@@ -108,7 +108,7 @@ if [ "${DEPLOY_OPERATION}" = "true" ]; then
 fi
 
 # Wait for all background deployments to complete
-if [ ${#DEPLOY_PIDS[@]} -gt 0 ]; then
+if [[ ${#DEPLOY_PIDS[@]} -gt 0 ]]; then
     echo ""
     echo "⏳ Waiting for ${#DEPLOY_PIDS[@]} deployment(s) to complete..."
     FAILED=0
@@ -118,7 +118,7 @@ if [ ${#DEPLOY_PIDS[@]} -gt 0 ]; then
         fi
     done
     
-    if [ $FAILED -gt 0 ]; then
+    if [[ $FAILED -gt 0 ]]; then
         echo "❌ $FAILED deployment(s) failed!"
         exit 1
     fi
@@ -141,35 +141,31 @@ sleep ${STABILIZATION_DELAY}
 # Quick check for all existing services
 ALL_READY=true
 
-if kubectl get deployment auth-service -n ${NAMESPACE} &>/dev/null; then
-    if ! kubectl wait --for=condition=available deployment/auth-service -n ${NAMESPACE} --timeout=${READINESS_TIMEOUT} 2>/dev/null; then
-        echo "⚠️  auth-service not ready yet"
-        ALL_READY=false
-    fi
+if kubectl get deployment auth-service -n ${NAMESPACE} &>/dev/null && \
+   ! kubectl wait --for=condition=available deployment/auth-service -n ${NAMESPACE} --timeout=${READINESS_TIMEOUT} 2>/dev/null; then
+    echo "⚠️  auth-service not ready yet"
+    ALL_READY=false
 fi
 
-if kubectl get deployment user-service -n ${NAMESPACE} &>/dev/null; then
-    if ! kubectl wait --for=condition=available deployment/user-service -n ${NAMESPACE} --timeout=${READINESS_TIMEOUT} 2>/dev/null; then
-        echo "⚠️  user-service not ready yet"
-        ALL_READY=false
-    fi
+if kubectl get deployment user-service -n ${NAMESPACE} &>/dev/null && \
+   ! kubectl wait --for=condition=available deployment/user-service -n ${NAMESPACE} --timeout=${READINESS_TIMEOUT} 2>/dev/null; then
+    echo "⚠️  user-service not ready yet"
+    ALL_READY=false
 fi
 
-if kubectl get deployment campaign-service -n ${NAMESPACE} &>/dev/null; then
-    if ! kubectl wait --for=condition=available deployment/campaign-service -n ${NAMESPACE} --timeout=${READINESS_TIMEOUT} 2>/dev/null; then
-        echo "⚠️  campaign-service not ready yet"
-        ALL_READY=false
-    fi
+if kubectl get deployment campaign-service -n ${NAMESPACE} &>/dev/null && \
+   ! kubectl wait --for=condition=available deployment/campaign-service -n ${NAMESPACE} --timeout=${READINESS_TIMEOUT} 2>/dev/null; then
+    echo "⚠️  campaign-service not ready yet"
+    ALL_READY=false
 fi
 
-if kubectl get deployment operation-service -n ${NAMESPACE} &>/dev/null; then
-    if ! kubectl wait --for=condition=available deployment/operation-service -n ${NAMESPACE} --timeout=${READINESS_TIMEOUT} 2>/dev/null; then
-        echo "⚠️  operation-service not ready yet"
-        ALL_READY=false
-    fi
+if kubectl get deployment operation-service -n ${NAMESPACE} &>/dev/null && \
+   ! kubectl wait --for=condition=available deployment/operation-service -n ${NAMESPACE} --timeout=${READINESS_TIMEOUT} 2>/dev/null; then
+    echo "⚠️  operation-service not ready yet"
+    ALL_READY=false
 fi
 
-if [ "$ALL_READY" = true ]; then
+if [[ "$ALL_READY" = true ]]; then
     echo "✅ All subgraph services are ready!"
 else
     echo "⚠️  Some services may still be starting, but continuing with gateway deployment..."
@@ -179,7 +175,7 @@ echo ""
 # ============================================
 # PHASE 3: Deploy GraphQL Gateway Last
 # ============================================
-if [ "${DEPLOY_GATEWAY}" = "true" ]; then
+if [[ "${DEPLOY_GATEWAY}" = "true" ]]; then
     echo "🌐 Phase 3: Deploying GraphQL Gateway..."
     echo ""
     helm upgrade --install graphql-gateway k8s/charts/graphql-gateway \
