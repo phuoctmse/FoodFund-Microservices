@@ -333,32 +333,27 @@ export class MealBatchService {
 
     async getMealBatches(filter: MealBatchFilterInput): Promise<MealBatch[]> {
         try {
-            const finalFilter = { ...filter }
-
-            if (finalFilter.campaignId) {
+            if (filter.campaignId) {
                 const phaseIds = await this.getCampaignPhaseIds(
-                    finalFilter.campaignId,
+                    filter.campaignId,
                 )
 
-                delete finalFilter.campaignId
-
-                const allBatches: MealBatch[] = []
-
-                for (const phaseId of phaseIds) {
-                    const phaseBatches =
-                        await this.mealBatchRepository.findWithFilters({
-                            ...finalFilter,
-                            campaignPhaseId: phaseId,
-                        })
-                    allBatches.push(...phaseBatches)
+                if (phaseIds.length === 0) {
+                    return []
                 }
 
-                return allBatches.sort(
+                const batches = await this.mealBatchRepository.findWithFilters({
+                    campaignPhaseIds: phaseIds,
+                    kitchenStaffId: filter.kitchenStaffId,
+                    status: filter.status,
+                })
+
+                return batches.sort(
                     (a, b) => b.created_at.getTime() - a.created_at.getTime(),
                 )
             }
 
-            return await this.mealBatchRepository.findWithFilters(finalFilter)
+            return await this.mealBatchRepository.findWithFilters(filter)
         } catch (error) {
             this.sentryService.captureError(error as Error, {
                 operation: "getMealBatches",
