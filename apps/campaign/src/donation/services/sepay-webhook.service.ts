@@ -210,17 +210,7 @@ export class SepayWebhookService {
             )
 
             // 🆕 Check for campaign surplus and emit event
-            const { campaign } = result
-            if (campaign.received_amount > campaign.target_amount && campaign.status === CampaignStatus.ACTIVE) {
-                const surplus = campaign.received_amount - campaign.target_amount
-                this.logger.log(
-                    `[Sepay→Admin] 🎯 Surplus detected for campaign ${campaign.id} - Surplus: ${surplus.toString()} VND`,
-                )
-                this.eventEmitter.emit("campaign.surplus.detected", {
-                    campaignId: campaign.id,
-                    surplus: surplus.toString(),
-                })
-            }
+            this.checkAndEmitSurplusEvent(result.campaign)
 
             // Step 2: Get system admin ID
             const adminUserId = this.getSystemAdminId()
@@ -293,17 +283,7 @@ export class SepayWebhookService {
             )
 
             // 🆕 Check for campaign surplus and emit event
-            const { campaign } = result
-            if (campaign.received_amount > campaign.target_amount && campaign.status === CampaignStatus.ACTIVE) {
-                const surplus = campaign.received_amount - campaign.target_amount
-                this.logger.log(
-                    `[Sepay→Admin] 🎯 Surplus detected for campaign ${campaign.id} - Surplus: ${surplus.toString()} VND`,
-                )
-                this.eventEmitter.emit("campaign.surplus.detected", {
-                    campaignId: campaign.id,
-                    surplus: surplus.toString(),
-                })
-            }
+            this.checkAndEmitSurplusEvent(result.campaign)
 
             // Step 2: Get system admin ID
             const adminUserId = this.getSystemAdminId()
@@ -327,6 +307,19 @@ export class SepayWebhookService {
                 error.stack,
             )
             throw error
+        }
+    }
+
+    private checkAndEmitSurplusEvent(campaign: any): void {
+        if (campaign.received_amount > campaign.target_amount && campaign.status === CampaignStatus.ACTIVE) {
+            const surplus = campaign.received_amount - campaign.target_amount
+            this.logger.log(
+                `[Sepay→Admin] 🎯 Surplus detected for campaign ${campaign.id} - Surplus: ${surplus.toString()} VND`,
+            )
+            this.eventEmitter.emit("campaign.surplus.detected", {
+                campaignId: campaign.id,
+                surplus: surplus.toString(),
+            })
         }
     }
 
