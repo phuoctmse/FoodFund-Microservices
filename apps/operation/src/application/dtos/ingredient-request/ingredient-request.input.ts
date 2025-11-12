@@ -59,6 +59,22 @@ export class UpdateIngredientRequestStatusInput {
 
 @InputType()
 export class IngredientRequestFilterInput {
+    @Field(() => String, {
+        nullable: true,
+        description: "Filter by campaign phase ID",
+    })
+    @IsOptional()
+    @IsString()
+        campaignPhaseId?: string
+
+    @Field(() => String, {
+        nullable: true,
+        description: "Filter by campaign ID (fetches all phases for campaign)",
+    })
+    @IsOptional()
+    @IsString()
+        campaignId?: string
+
     @Field(() => IngredientRequestStatus, {
         nullable: true,
         description: "Filter by request status",

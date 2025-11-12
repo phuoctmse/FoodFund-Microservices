@@ -132,9 +132,10 @@ export class CampaignGrpcService {
             }
         }
 
-        const phase = await this.campaignPhaseRepository.findById(phaseId)
+        const campaignId =
+            await this.campaignPhaseRepository.getCampaignIdByPhaseId(phaseId)
 
-        if (!phase) {
+        if (!campaignId) {
             return {
                 success: false,
                 campaignId: null,
@@ -144,7 +145,7 @@ export class CampaignGrpcService {
 
         return {
             success: true,
-            campaignId: phase.campaignId,
+            campaignId: campaignId,
             error: null,
         }
     }

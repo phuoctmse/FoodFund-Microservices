@@ -18,6 +18,7 @@ import {
 } from "../../dtos"
 import { IngredientRequest } from "@app/operation/src/domain"
 import { IngredientRequestStatus } from "@app/operation/src/domain/enums"
+import { GrpcClientService } from "@libs/grpc"
 
 @Injectable()
 export class IngredientRequestService {
@@ -25,6 +26,7 @@ export class IngredientRequestService {
         private readonly repository: IngredientRequestRepository,
         private readonly authService: AuthorizationService,
         private readonly sentryService: SentryService,
+        private readonly grpcClient: GrpcClientService,
     ) {}
 
     async createRequest(
@@ -132,6 +134,33 @@ export class IngredientRequestService {
         offset: number = 0,
     ): Promise<IngredientRequest[]> {
         try {
+            if (filter?.campaignId && !filter?.campaignPhaseId) {
+                const campaignPhases = await this.getCampaignPhases(
+                    filter.campaignId,
+                )
+
+                if (campaignPhases.length === 0) {
+                    this.sentryService.addBreadcrumb(
+                        "No campaign phases found for campaign",
+                        "warning",
+                        {
+                            campaignId: filter.campaignId,
+                        },
+                    )
+                    return []
+                }
+
+                const phaseIds = campaignPhases.map((phase) => phase.id)
+
+                return await this.repository.findByMultipleCampaignPhases(
+                    phaseIds,
+                    filter.status,
+                    filter.sortBy,
+                    limit,
+                    offset,
+                )
+            }
+
             return await this.repository.findMany(filter, limit, offset)
         } catch (error) {
             this.sentryService.captureError(error as Error, {
@@ -214,6 +243,45 @@ export class IngredientRequestService {
                 requestId: id,
                 newStatus: input.status,
                 adminId: userContext.userId,
+            })
+            throw error
+        }
+    }
+
+    private async getCampaignPhases(campaignId: string): Promise<any[]> {
+        try {
+            const response = await this.grpcClient.callCampaignService<
+                { campaignId: string },
+                {
+                    success: boolean
+                    phases: Array<{
+                        id: string
+                        campaignId: string
+                        phaseName: string
+                        location: string
+                        ingredientPurchaseDate: string
+                        cookingDate: string
+                        deliveryDate: string
+                    }>
+                    error: string | null
+                }
+            >(
+                "GetCampaignPhases",
+                { campaignId },
+                { timeout: 5000, retries: 2 },
+            )
+
+            if (!response.success) {
+                throw new BadRequestException(
+                    response.error || "Failed to fetch campaign phases",
+                )
+            }
+
+            return response.phases || []
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "IngredientRequestService.getCampaignPhases",
+                campaignId,
             })
             throw error
         }

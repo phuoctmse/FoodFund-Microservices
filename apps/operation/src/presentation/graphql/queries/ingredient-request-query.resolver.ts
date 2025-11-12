@@ -34,7 +34,6 @@ export class IngredientRequestQueryResolver {
     @Query(() => [IngredientRequest], {
         description: "Get ingredient requests with filters and pagination",
     })
-    @UseGuards(CognitoGraphQLGuard)
     async getIngredientRequests(
         @Args("filter", {
             type: () => IngredientRequestFilterInput,

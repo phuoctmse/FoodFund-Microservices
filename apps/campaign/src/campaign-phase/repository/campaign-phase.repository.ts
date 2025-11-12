@@ -30,213 +30,165 @@ export class CampaignPhaseRepository {
     ) {}
 
     async create(data: CreatePhaseData) {
-        try {
-            const phase = await this.prisma.campaign_Phase.create({
-                data: {
-                    campaign_id: data.campaignId,
-                    phase_name: data.phaseName,
-                    location: data.location,
-                    ingredient_purchase_date: data.ingredientPurchaseDate,
-                    cooking_date: data.cookingDate,
-                    delivery_date: data.deliveryDate,
-                    status: CampaignPhaseStatus.PLANNING,
-                    is_active: true,
-                },
-            })
+        const phase = await this.prisma.campaign_Phase.create({
+            data: {
+                campaign_id: data.campaignId,
+                phase_name: data.phaseName,
+                location: data.location,
+                ingredient_purchase_date: data.ingredientPurchaseDate,
+                cooking_date: data.cookingDate,
+                delivery_date: data.deliveryDate,
+                status: CampaignPhaseStatus.PLANNING,
+                is_active: true,
+            },
+        })
 
-            return this.mapToGraphQLModel(phase)
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "createCampaignPhase",
-                campaignId: data.campaignId,
-                phaseName: data.phaseName,
-            })
-            throw error
-        }
+        return this.mapToGraphQLModel(phase)
     }
 
     async createMany(campaignId: string, phases: CreatePhaseData[]) {
-        try {
-            const createdPhases = await this.prisma.$transaction(
-                phases.map((phase) =>
-                    this.prisma.campaign_Phase.create({
-                        data: {
-                            campaign_id: campaignId,
-                            phase_name: phase.phaseName,
-                            location: phase.location,
-                            ingredient_purchase_date:
-                                phase.ingredientPurchaseDate,
-                            cooking_date: phase.cookingDate,
-                            delivery_date: phase.deliveryDate,
-                            status: CampaignPhaseStatus.PLANNING,
-                            is_active: true,
-                        },
-                    }),
-                ),
-            )
+        const createdPhases = await this.prisma.$transaction(
+            phases.map((phase) =>
+                this.prisma.campaign_Phase.create({
+                    data: {
+                        campaign_id: campaignId,
+                        phase_name: phase.phaseName,
+                        location: phase.location,
+                        ingredient_purchase_date: phase.ingredientPurchaseDate,
+                        cooking_date: phase.cookingDate,
+                        delivery_date: phase.deliveryDate,
+                        status: CampaignPhaseStatus.PLANNING,
+                        is_active: true,
+                    },
+                }),
+            ),
+        )
 
-            return createdPhases.map((phase) => this.mapToGraphQLModel(phase))
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "createManyCampaignPhases",
-                campaignId,
-                phaseCount: phases.length,
-            })
-            throw error
-        }
+        return createdPhases.map((phase) => this.mapToGraphQLModel(phase))
     }
 
     async findById(id: string) {
-        try {
-            const phase = await this.prisma.campaign_Phase.findUnique({
-                where: { id, is_active: true },
-            })
+        const phase = await this.prisma.campaign_Phase.findUnique({
+            where: { id, is_active: true },
+        })
 
-            return phase ? this.mapToGraphQLModel(phase) : null
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "findPhaseById",
-                phaseId: id,
-            })
-            throw error
-        }
+        return phase ? this.mapToGraphQLModel(phase) : null
+    }
+
+    async getCampaignIdByPhaseId(phaseId: string): Promise<string | null> {
+        const phase = await this.prisma.campaign_Phase.findUnique({
+            where: {
+                id: phaseId,
+                is_active: true,
+            },
+            select: {
+                campaign_id: true,
+            },
+        })
+
+        return phase?.campaign_id || null
     }
 
     async findByCampaignId(campaignId: string) {
-        try {
-            const phases = await this.prisma.campaign_Phase.findMany({
-                where: {
-                    campaign_id: campaignId,
-                    is_active: true,
-                },
-                select: {
-                    id: true,
-                    campaign_id: true,
-                    phase_name: true,
-                    location: true,
-                    ingredient_purchase_date: true,
-                    cooking_date: true,
-                    delivery_date: true,
-                    status: true,
-                    created_at: true,
-                    updated_at: true,
-                },
-                orderBy: { created_at: "asc" },
-            })
+        const phases = await this.prisma.campaign_Phase.findMany({
+            where: {
+                campaign_id: campaignId,
+                is_active: true,
+            },
+            select: {
+                id: true,
+                campaign_id: true,
+                phase_name: true,
+                location: true,
+                ingredient_purchase_date: true,
+                cooking_date: true,
+                delivery_date: true,
+                status: true,
+                created_at: true,
+                updated_at: true,
+            },
+            orderBy: { created_at: "asc" },
+        })
 
-            return phases.map((phase) => this.mapToGraphQLModel(phase))
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "findPhasesByCampaignId",
-                campaignId,
-            })
-            throw error
-        }
+        return phases.map((phase) => this.mapToGraphQLModel(phase))
     }
 
     async update(id: string, data: UpdatePhaseData) {
-        try {
-            const updateData: any = {}
+        const updateData: any = {}
 
-            if (data.phaseName !== undefined)
-                updateData.phase_name = data.phaseName
-            if (data.location !== undefined) updateData.location = data.location
-            if (data.ingredientPurchaseDate !== undefined)
-                updateData.ingredient_purchase_date =
-                    data.ingredientPurchaseDate
-            if (data.cookingDate !== undefined)
-                updateData.cooking_date = data.cookingDate
-            if (data.deliveryDate !== undefined)
-                updateData.delivery_date = data.deliveryDate
-            if (data.status !== undefined) updateData.status = data.status
+        if (data.phaseName !== undefined) updateData.phase_name = data.phaseName
+        if (data.location !== undefined) updateData.location = data.location
+        if (data.ingredientPurchaseDate !== undefined)
+            updateData.ingredient_purchase_date = data.ingredientPurchaseDate
+        if (data.cookingDate !== undefined)
+            updateData.cooking_date = data.cookingDate
+        if (data.deliveryDate !== undefined)
+            updateData.delivery_date = data.deliveryDate
+        if (data.status !== undefined) updateData.status = data.status
 
-            const phase = await this.prisma.campaign_Phase.update({
-                where: { id, is_active: true },
-                data: updateData,
-            })
+        const phase = await this.prisma.campaign_Phase.update({
+            where: { id, is_active: true },
+            data: updateData,
+        })
 
-            return this.mapToGraphQLModel(phase)
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "updateCampaignPhase",
-                phaseId: id,
-                updateFields: Object.keys(data),
-            })
-            throw error
-        }
+        return this.mapToGraphQLModel(phase)
     }
 
     async delete(id: string): Promise<boolean> {
-        try {
-            const phase = await this.prisma.campaign_Phase.findUnique({
-                where: { id, is_active: true },
-            })
+        const phase = await this.prisma.campaign_Phase.findUnique({
+            where: { id, is_active: true },
+        })
 
-            if (!phase) {
-                return false
-            }
-
-            await this.prisma.campaign_Phase.update({
-                where: { id },
-                data: {
-                    is_active: false,
-                    updated_at: new Date(),
-                },
-            })
-
-            this.sentryService.addBreadcrumb(
-                "Campaign phase soft deleted",
-                "campaign-phase",
-                {
-                    phaseId: id,
-                    campaignId: phase.campaign_id,
-                },
-            )
-
-            return true
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "deleteCampaignPhase",
-                phaseId: id,
-            })
-            throw error
+        if (!phase) {
+            return false
         }
+
+        await this.prisma.campaign_Phase.update({
+            where: { id },
+            data: {
+                is_active: false,
+                updated_at: new Date(),
+            },
+        })
+
+        this.sentryService.addBreadcrumb(
+            "Campaign phase soft deleted",
+            "campaign-phase",
+            {
+                phaseId: id,
+                campaignId: phase.campaign_id,
+            },
+        )
+
+        return true
     }
 
     async deleteMany(ids: string[]): Promise<number> {
-        try {
-            if (ids.length === 0) {
-                return 0
-            }
-
-            const result = await this.prisma.campaign_Phase.updateMany({
-                where: {
-                    id: { in: ids },
-                    is_active: true,
-                },
-                data: {
-                    is_active: false,
-                    updated_at: new Date(),
-                },
-            })
-
-            this.sentryService.addBreadcrumb(
-                "Campaign phases batch deleted",
-                "campaign-phase",
-                {
-                    phaseIds: ids,
-                    deletedCount: result.count,
-                },
-            )
-
-            return result.count
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "deleteManyCampaignPhases",
-                phaseIds: ids,
-            })
-            throw error
+        if (ids.length === 0) {
+            return 0
         }
+
+        const result = await this.prisma.campaign_Phase.updateMany({
+            where: {
+                id: { in: ids },
+                is_active: true,
+            },
+            data: {
+                is_active: false,
+                updated_at: new Date(),
+            },
+        })
+
+        this.sentryService.addBreadcrumb(
+            "Campaign phases batch deleted",
+            "campaign-phase",
+            {
+                phaseIds: ids,
+                deletedCount: result.count,
+            },
+        )
+
+        return result.count
     }
 
     private mapToGraphQLModel(dbPhase: any) {
