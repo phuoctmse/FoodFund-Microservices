@@ -1,16 +1,14 @@
 import { DeliveryTaskFilterInput } from "@app/operation/src/application/dtos/delivery-task"
-import { MealBatchRepository } from "@app/operation/src/application/repositories"
 import { DeliveryTaskService } from "@app/operation/src/application/services"
-import { DeliveryStatusLog, DeliveryTask, MealBatch } from "@app/operation/src/domain"
+import { DeliveryStatusLog, DeliveryTask } from "@app/operation/src/domain"
 import { CognitoGraphQLGuard, createUserContextFromToken, CurrentUser } from "@app/operation/src/shared"
 import { UseGuards, ValidationPipe } from "@nestjs/common"
-import { Args, Int, Parent, Query, ResolveField, Resolver } from "@nestjs/graphql"
+import { Args, Int, Query, Resolver } from "@nestjs/graphql"
 
 @Resolver(() => DeliveryTask)
 export class DeliveryTaskQueryResolver {
     constructor(
         private readonly deliveryTaskService: DeliveryTaskService,
-        private readonly mealBatchRepository: MealBatchRepository,
     ) {}
 
     @Query(() => [DeliveryTask], {
@@ -86,11 +84,5 @@ export class DeliveryTaskQueryResolver {
             taskId: string,
     ): Promise<DeliveryStatusLog[]> {
         return this.deliveryTaskService.getStatusLogs(taskId)
-    }
-
-    @ResolveField(() => MealBatch, { nullable: true })
-    async mealBatch(@Parent() task: DeliveryTask): Promise<MealBatch | null> {
-        if (!task.mealBatchId) return null
-        return this.mealBatchRepository.findById(task.mealBatchId)
     }
 }

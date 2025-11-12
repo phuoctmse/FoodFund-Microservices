@@ -30,6 +30,25 @@ export class DeliveryTaskRepository {
     async findById(id: string) {
         return await this.prisma.delivery_Task.findUnique({
             where: { id },
+            include: {
+                meal_batch: {
+                    select: {
+                        id: true,
+                        campaign_phase_id: true,
+                        kitchen_staff_id: true,
+                        food_name: true,
+                        quantity: true,
+                        media: true,
+                        status: true,
+                        cooked_date: true,
+                        created_at: true,
+                        updated_at: true,
+                    },
+                },
+                status_logs: {
+                    orderBy: { created_at: "desc" },
+                },
+            },
         })
     }
 
