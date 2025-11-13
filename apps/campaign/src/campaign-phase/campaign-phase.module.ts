@@ -1,4 +1,3 @@
-import { AwsCognitoModule } from "@libs/aws-cognito"
 import { SentryModule } from "@libs/observability"
 import { forwardRef, Module } from "@nestjs/common"
 import { CampaignModule } from "../campaign/campaign.module"
@@ -14,10 +13,6 @@ import {
 @Module({
     imports: [
         SentryModule,
-        AwsCognitoModule.forRoot({
-            isGlobal: false,
-            mockMode: false,
-        }),
         forwardRef(() => CampaignModule),
     ],
     providers: [

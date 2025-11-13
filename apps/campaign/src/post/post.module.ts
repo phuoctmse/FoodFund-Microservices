@@ -13,7 +13,6 @@ import { PostLikeMutationResolver } from "./resolvers/mutations/post-like-mutati
 import { PostCommentQueryResolver } from "./resolvers/queries/post-comment-query.resolver"
 import { PostCommentMutationResolver } from "./resolvers/mutations/post-comment-mutation.resolver"
 import { SpacesUploadService } from "@libs/s3-storage/spaces-upload.service"
-import { AwsCognitoModule } from "@libs/aws-cognito"
 import { CampaignCategoryModule } from "../campaign-category/campaign-category.module"
 import { AuthorizationService } from "../shared"
 import { PostLikeDataLoader } from "./dataloaders/post-like.dataloader"
@@ -21,10 +20,6 @@ import { PostLikeDataLoader } from "./dataloaders/post-like.dataloader"
 @Module({
     imports: [
         SentryModule,
-        AwsCognitoModule.forRoot({
-            isGlobal: false,
-            mockMode: false,
-        }),
         CampaignCategoryModule,
         CampaignModule,
     ],

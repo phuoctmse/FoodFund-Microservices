@@ -1,4 +1,3 @@
-import { AwsCognitoModule } from "@libs/aws-cognito"
 import { Module } from "@nestjs/common"
 import { PrismaClient } from "../generated/campaign-client"
 import {
@@ -14,12 +13,7 @@ import { AuthorizationService } from "../shared"
 import { PrismaCampaignService } from "../campaign/services"
 
 @Module({
-    imports: [
-        AwsCognitoModule.forRoot({
-            isGlobal: false,
-            mockMode: false,
-        }),
-    ],
+    imports: [],
     providers: [
         PrismaCampaignService,
         {

@@ -15,7 +15,6 @@ import { PrismaClient } from "../generated/campaign-client"
 import { AuthLibModule } from "@libs/auth"
 import { SqsModule } from "@libs/aws-sqs"
 import { GrpcModule } from "@libs/grpc"
-import { RedisModule } from "@libs/redis"
 import { UserClientService } from "../shared/services/user-client.service"
 import { UserDataLoader } from "../shared/dataloaders/user.dataloader"
 import { PayosCleanupService } from "./services/payos-cleanup.service"
@@ -26,7 +25,6 @@ import { PayosCleanupService } from "./services/payos-cleanup.service"
         AuthLibModule,
         SqsModule,
         GrpcModule,
-        RedisModule,
     ],
     controllers: [DonationWebhookController, SepayWebhookController],
     providers: [

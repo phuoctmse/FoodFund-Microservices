@@ -11,12 +11,12 @@ import { PostModule } from "./post/post.module"
 import { DonationModule } from "./donation/donation.module"
 import { OpenSearchModule } from "@libs/aws-opensearch"
 import { SqsModule } from "@libs/aws-sqs"
-import { RedisModule } from "@libs/redis"
 import { GrpcModule } from "@libs/grpc"
 import { VietQRModule } from "@libs/vietqr"
 import { QueueWorkerService } from "./workers/queue-worker.service"
 import { CampaignPhaseModule } from "./campaign-phase"
 import { DatadogModule } from "@libs/observability"
+import { AwsCognitoModule } from "@libs/aws-cognito"
 
 @Module({
     imports: [
@@ -42,6 +42,10 @@ import { DatadogModule } from "@libs/observability"
             env: envConfig().nodeEnv,
             version: process.env.SERVICE_VERSION || "1.0.0",
         }),
+        AwsCognitoModule.forRoot({
+            isGlobal: true,
+            mockMode: false,
+        }),
         ScheduleModule.forRoot(),
         GrpcModule,
         CampaignModule,
@@ -50,7 +54,6 @@ import { DatadogModule } from "@libs/observability"
         DonationModule,
         SqsModule,
         OpenSearchModule,
-        RedisModule.registerAsync(),
         VietQRModule,
         CampaignPhaseModule,
     ],
