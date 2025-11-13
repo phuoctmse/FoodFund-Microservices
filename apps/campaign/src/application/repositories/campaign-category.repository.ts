@@ -1,0 +1,338 @@
+import { SentryService } from "@libs/observability/sentry.service"
+import { Injectable } from "@nestjs/common"
+import { PrismaClient } from "../../generated/campaign-client"
+import { sanitizeSearchTerm } from "../../shared"
+import { UpdateCampaignCategoryInput } from "../dtos/campaign-category/request"
+import { CampaignCategory } from "../../domain/entities/campaign-category.model"
+
+export interface FindManyCategoriesOptions {
+    search?: string
+    limit?: number
+    offset?: number
+    includeInactive?: boolean
+}
+
+interface CreateCategoryData {
+    title: string
+    description: string
+}
+
+interface UpdateCategoryData extends Partial<UpdateCampaignCategoryInput> {}
+
+@Injectable()
+export class CampaignCategoryRepository {
+    private readonly CATEGORY_SELECT_FIELDS = {
+        id: true,
+        title: true,
+        description: true,
+        is_active: true,
+        created_at: true,
+        updated_at: true,
+    } as const
+
+    constructor(
+        private readonly prisma: PrismaClient,
+        private readonly sentryService: SentryService,
+    ) {}
+
+    async create(data: CreateCategoryData): Promise<CampaignCategory> {
+        try {
+            const category = await this.prisma.campaign_Category.create({
+                data: {
+                    title: data.title,
+                    description: data.description,
+                    is_active: true,
+                },
+                select: this.CATEGORY_SELECT_FIELDS,
+            })
+
+            return this.mapToGraphQLModel(category)
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "createCategory",
+                data: {
+                    title: data.title,
+                    hasDescription: !!data.description,
+                },
+                service: "campaign-category-repository",
+            })
+            throw error
+        }
+    }
+
+    async findById(
+        id: string,
+        includeInactive: boolean = false,
+    ): Promise<CampaignCategory | null> {
+        try {
+            const whereClause: any = { id }
+            if (!includeInactive) {
+                whereClause.is_active = true
+            }
+
+            const category = await this.prisma.campaign_Category.findUnique({
+                where: whereClause,
+                select: this.CATEGORY_SELECT_FIELDS,
+            })
+
+            return category ? this.mapToGraphQLModel(category) : null
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "findCategoryById",
+                categoryId: id,
+                includeInactive,
+                service: "campaign-category-repository",
+            })
+            throw error
+        }
+    }
+
+    async findMany(
+        options: FindManyCategoriesOptions,
+    ): Promise<CampaignCategory[]> {
+        const {
+            search,
+            limit = 50,
+            offset = 0,
+            includeInactive = false,
+        } = options
+
+        try {
+            const whereClause: any = {}
+
+            if (!includeInactive) {
+                whereClause.is_active = true
+            }
+
+            if (search) {
+                const sanitizedSearch = sanitizeSearchTerm(search)
+                if (sanitizedSearch) {
+                    whereClause.OR = [
+                        {
+                            title: {
+                                contains: sanitizedSearch,
+                                mode: "insensitive",
+                            },
+                        },
+                        {
+                            description: {
+                                contains: sanitizedSearch,
+                                mode: "insensitive",
+                            },
+                        },
+                    ]
+                }
+            }
+
+            const categories = await this.prisma.campaign_Category.findMany({
+                where: whereClause,
+                select: this.CATEGORY_SELECT_FIELDS,
+                orderBy: [{ is_active: "desc" }, { title: "asc" }],
+                take: Math.min(limit, 100),
+                skip: Math.max(offset, 0),
+            })
+
+            return categories.map((category) =>
+                this.mapToGraphQLModel(category),
+            )
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "findManyCategories",
+                options,
+                service: "campaign-category-repository",
+            })
+            throw error
+        }
+    }
+
+    async findWithCampaignCounts(): Promise<
+        Array<CampaignCategory & { campaignCount: number }>
+        > {
+        try {
+            const categories = await this.prisma.campaign_Category.findMany({
+                where: { is_active: true },
+                select: {
+                    ...this.CATEGORY_SELECT_FIELDS,
+                    _count: {
+                        select: {
+                            campaigns: {
+                                where: { is_active: true },
+                            },
+                        },
+                    },
+                },
+                orderBy: { title: "asc" },
+            })
+
+            return categories.map((category) => ({
+                ...this.mapToGraphQLModel(category),
+                campaignCount: category._count.campaigns,
+            }))
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "findCategoriesWithCampaignCounts",
+                service: "campaign-category-repository",
+            })
+            throw error
+        }
+    }
+
+    async update(
+        id: string,
+        data: UpdateCategoryData,
+    ): Promise<CampaignCategory> {
+        try {
+            const existingCategory = await this.findById(id)
+            if (!existingCategory) {
+                throw new Error(`Category with ID ${id} not found or inactive`)
+            }
+
+            const updateData: any = {}
+            if (data.title !== undefined) updateData.title = data.title
+            if (data.description !== undefined)
+                updateData.description = data.description
+
+            const category = await this.prisma.campaign_Category.update({
+                where: {
+                    id,
+                    is_active: true,
+                },
+                data: updateData,
+                select: this.CATEGORY_SELECT_FIELDS,
+            })
+
+            return this.mapToGraphQLModel(category)
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "updateCategory",
+                categoryId: id,
+                updateFields: Object.keys(data),
+                service: "campaign-category-repository",
+            })
+            throw error
+        }
+    }
+
+    async delete(id: string): Promise<boolean> {
+        try {
+            const campaignCount = await this.prisma.campaign.count({
+                where: {
+                    category_id: id,
+                    is_active: true,
+                },
+            })
+
+            if (campaignCount > 0) {
+                throw new Error(
+                    `Cannot delete category: ${campaignCount} active campaigns are using this category`,
+                )
+            }
+
+            const result = await this.prisma.campaign_Category.update({
+                where: {
+                    id,
+                    is_active: true,
+                },
+                data: {
+                    is_active: false,
+                    updated_at: new Date(),
+                },
+                select: { id: true, title: true },
+            })
+
+            this.sentryService.addBreadcrumb(
+                "Category soft deleted",
+                "category",
+                { categoryId: id, title: result.title },
+            )
+
+            return !!result
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "softDeleteCategory",
+                categoryId: id,
+                service: "campaign-category-repository",
+            })
+            throw error
+        }
+    }
+
+    async count(
+        search?: string,
+        includeInactive: boolean = false,
+    ): Promise<number> {
+        try {
+            const whereClause: any = {}
+
+            if (!includeInactive) {
+                whereClause.is_active = true
+            }
+
+            if (search) {
+                const sanitizedSearch = sanitizeSearchTerm(search)
+                if (sanitizedSearch) {
+                    whereClause.OR = [
+                        {
+                            title: {
+                                contains: sanitizedSearch,
+                                mode: "insensitive",
+                            },
+                        },
+                        {
+                            description: {
+                                contains: sanitizedSearch,
+                                mode: "insensitive",
+                            },
+                        },
+                    ]
+                }
+            }
+
+            const count = await this.prisma.campaign_Category.count({
+                where: whereClause,
+            })
+
+            return count
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "countCategories",
+                search,
+                includeInactive,
+                service: "campaign-category-repository",
+            })
+            throw error
+        }
+    }
+
+    private mapToGraphQLModel(dbCategory: any): CampaignCategory {
+        return {
+            id: dbCategory.id,
+            title: dbCategory.title,
+            description: dbCategory.description,
+            isActive: dbCategory.is_active,
+            created_at: dbCategory.created_at,
+            updated_at: dbCategory.updated_at,
+            campaigns: undefined,
+        }
+    }
+
+    async healthCheck(): Promise<{ status: string; timestamp: string }> {
+        try {
+            await this.prisma.$queryRaw`SELECT 1 as health_check`
+            return {
+                status: "healthy",
+                timestamp: new Date().toISOString(),
+            }
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "categoryRepositoryHealthCheck",
+                service: "campaign-category-repository",
+                database: "postgresql",
+            })
+
+            throw new Error(
+                `Category repository health check failed: ${error.message}`,
+            )
+        }
+    }
+}
