@@ -471,7 +471,7 @@ export class ExpenseProofService {
                     success: boolean
                     campaign?: {
                         id: string
-                        created_by: string
+                        createdBy: string
                     }
                     error?: string
                 }
@@ -481,7 +481,7 @@ export class ExpenseProofService {
                 return false
             }
 
-            return response.campaign.created_by === fundraiserId
+            return response.campaign.createdBy === fundraiserId
         } catch (error) {
             this.sentryService.captureError(error as Error, {
                 operation:
