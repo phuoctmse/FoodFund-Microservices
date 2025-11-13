@@ -1,0 +1,686 @@
+import { Injectable } from "@nestjs/common"
+import { PrismaClient } from "../../generated/campaign-client"
+import { sanitizeSearchTerm, User } from "../../shared"
+import { CampaignFilterInput, CampaignSortOrder } from "../dtos/campaign/request"
+import { CampaignStatus } from "../../domain/enums/campaign/campaign.enum"
+import { Campaign } from "../../domain/entities/campaign.model"
+
+export interface FindManyOptions {
+    filter?: CampaignFilterInput
+    search?: string
+    sortBy?: CampaignSortOrder
+    limit?: number
+    offset?: number
+}
+
+export interface CreateCampaignData {
+    title: string
+    description: string
+    coverImage: string
+    coverImageFileKey?: string
+    targetAmount: bigint
+    ingredientBudgetPercentage: number
+    cookingBudgetPercentage: number
+    deliveryBudgetPercentage: number
+    fundraisingStartDate: Date
+    fundraisingEndDate: Date
+    createdBy: string
+    categoryId?: string
+    status?: CampaignStatus
+    phases?: Array<{
+        phaseName: string
+        location: string
+        ingredientPurchaseDate: Date
+        cookingDate: Date
+        deliveryDate: Date
+    }>
+}
+
+export interface UpdateCampaignData {
+    title?: string
+    description?: string
+    coverImage?: string
+    coverImageFileKey?: string
+    targetAmount?: bigint
+    ingredientBudgetPercentage?: number
+    cookingBudgetPercentage?: number
+    deliveryBudgetPercentage?: number
+    fundraisingStartDate?: Date
+    fundraisingEndDate?: Date
+    categoryId?: string
+    status?: CampaignStatus
+    changedStatusAt?: Date | null
+    completedAt?: Date | null
+    extensionCount?: number
+    extensionDays?: number
+    donationCount?: number
+}
+
+export interface StatsDateRange {
+    dateFrom?: Date
+    dateTo?: Date
+}
+
+export interface CategoryStatsData {
+    categoryId: string
+    categoryTitle: string
+    campaignCount: number
+    totalReceivedAmount: bigint
+}
+
+export interface TrendingCampaignData {
+    id: string
+    title: string
+    coverImage: string
+    targetAmount: bigint
+    receivedAmount: bigint
+    donationCount: number
+    fundraisingEndDate: Date
+    createdBy: string
+}
+
+@Injectable()
+export class CampaignRepository {
+    private readonly CAMPAIGN_JOIN_FIELDS = {
+        category: {
+            where: { is_active: true },
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                is_active: true,
+                created_at: true,
+                updated_at: true,
+            },
+        },
+        campaign_phases: {
+            where: { is_active: true },
+            orderBy: { created_at: "asc" as const },
+        },
+    } as const
+
+    constructor(private readonly prisma: PrismaClient) {}
+
+    async create(data: CreateCampaignData): Promise<Campaign> {
+        const { phases, ...campaignData } = data
+
+        const result = await this.prisma.$transaction(async (tx) => {
+            const campaign = await tx.campaign.create({
+                data: {
+                    title: campaignData.title,
+                    description: campaignData.description,
+                    cover_image: campaignData.coverImage,
+                    cover_image_file_key: campaignData.coverImageFileKey,
+                    target_amount: campaignData.targetAmount,
+                    ingredient_budget_percentage:
+                        campaignData.ingredientBudgetPercentage,
+                    cooking_budget_percentage:
+                        campaignData.cookingBudgetPercentage,
+                    delivery_budget_percentage:
+                        campaignData.deliveryBudgetPercentage,
+                    fundraising_start_date: campaignData.fundraisingStartDate,
+                    fundraising_end_date: campaignData.fundraisingEndDate,
+                    created_by: campaignData.createdBy,
+                    category_id: campaignData.categoryId,
+                    status: campaignData.status || CampaignStatus.PENDING,
+                    is_active: true,
+                },
+                include: this.CAMPAIGN_JOIN_FIELDS,
+            })
+
+            if (phases && phases.length > 0) {
+                await tx.campaign_Phase.createMany({
+                    data: phases.map((phase) => ({
+                        campaign_id: campaign.id,
+                        phase_name: phase.phaseName,
+                        location: phase.location,
+                        ingredient_purchase_date: phase.ingredientPurchaseDate,
+                        cooking_date: phase.cookingDate,
+                        delivery_date: phase.deliveryDate,
+                        status: "PLANNING" as const,
+                        is_active: true,
+                    })),
+                })
+            }
+
+            return await tx.campaign.findUnique({
+                where: { id: campaign.id },
+                include: this.CAMPAIGN_JOIN_FIELDS,
+            })
+        })
+
+        return this.mapToGraphQLModel(result!)
+    }
+
+    async findMany(options: FindManyOptions): Promise<Campaign[]> {
+        const {
+            filter,
+            search,
+            sortBy = CampaignSortOrder.ACTIVE_FIRST,
+            limit = 10,
+            offset = 0,
+        } = options
+        const whereClause: any = {
+            AND: [{ is_active: true }],
+        }
+
+        if (filter?.status && filter.status.length > 0) {
+            whereClause.AND.push({
+                status: {
+                    in: filter.status,
+                },
+            })
+        }
+
+        if (filter?.creatorId) {
+            whereClause.AND.push({
+                created_by: filter.creatorId,
+            })
+        }
+
+        if (filter?.categoryId) {
+            whereClause.AND.push({
+                category_id: filter.categoryId,
+            })
+        }
+
+        if (search) {
+            const sanitizedSearch = sanitizeSearchTerm(search)
+            if (sanitizedSearch) {
+                whereClause.AND.push({
+                    OR: [
+                        {
+                            title: {
+                                contains: sanitizedSearch,
+                                mode: "insensitive",
+                            },
+                        },
+                        {
+                            description: {
+                                contains: sanitizedSearch,
+                                mode: "insensitive",
+                            },
+                        },
+                        {
+                            location: {
+                                contains: sanitizedSearch,
+                                mode: "insensitive",
+                            },
+                        },
+                        {
+                            category: {
+                                title: {
+                                    contains: sanitizedSearch,
+                                    mode: "insensitive",
+                                },
+                            },
+                        },
+                    ],
+                })
+            }
+        }
+
+        const campaigns = await this.prisma.campaign.findMany({
+            where: whereClause,
+            include: this.CAMPAIGN_JOIN_FIELDS,
+            take: options.limit,
+            skip: options.offset,
+            orderBy: this.buildOrderByClause(sortBy),
+        })
+
+        return campaigns.map((c) => this.mapToGraphQLModel(c))
+    }
+
+    async findById(id: string): Promise<Campaign | null> {
+        const campaign = await this.prisma.campaign.findUnique({
+            where: { id, is_active: true },
+            include: this.CAMPAIGN_JOIN_FIELDS,
+        })
+
+        return campaign ? this.mapToGraphQLModel(campaign) : null
+    }
+
+    async getTotalCampaigns(categoryId?: string): Promise<number> {
+        return await this.prisma.campaign.count({
+            where: {
+                is_active: true,
+                ...(categoryId && { category_id: categoryId }),
+            },
+        })
+    }
+
+    async getCountByStatus(
+        status: CampaignStatus,
+        categoryId?: string,
+    ): Promise<number> {
+        return await this.prisma.campaign.count({
+            where: {
+                is_active: true,
+                status,
+                ...(categoryId && { category_id: categoryId }),
+            },
+        })
+    }
+
+    async getFinancialAggregates(categoryId?: string): Promise<{
+        totalTargetAmount: bigint
+        totalReceivedAmount: bigint
+        totalDonations: number
+    }> {
+        const result = await this.prisma.campaign.aggregate({
+            where: {
+                is_active: true,
+                ...(categoryId && { category_id: categoryId }),
+            },
+            _sum: {
+                target_amount: true,
+                received_amount: true,
+                donation_count: true,
+            },
+        })
+
+        return {
+            totalTargetAmount: result._sum.target_amount || BigInt(0),
+            totalReceivedAmount: result._sum.received_amount || BigInt(0),
+            totalDonations: result._sum.donation_count || 0,
+        }
+    }
+
+    async getCategoryStats(): Promise<CategoryStatsData[]> {
+        const categories = await this.prisma.campaign_Category.findMany({
+            where: { is_active: true },
+            select: {
+                id: true,
+                title: true,
+            },
+        })
+
+        const categoryStats = await Promise.all(
+            categories.map(async (category) => {
+                const result = await this.prisma.campaign.aggregate({
+                    where: {
+                        is_active: true,
+                        category_id: category.id,
+                    },
+                    _sum: {
+                        received_amount: true,
+                    },
+                    _count: {
+                        id: true,
+                    },
+                })
+
+                return {
+                    categoryId: category.id,
+                    categoryTitle: category.title,
+                    campaignCount: result._count.id,
+                    totalReceivedAmount:
+                        result._sum.received_amount || BigInt(0),
+                }
+            }),
+        )
+
+        return categoryStats.filter((stat) => stat.campaignCount > 0)
+    }
+
+    async getMostFundedCampaign(): Promise<{ id: string; title: string } | null> {
+        const campaign = await this.prisma.campaign.findFirst({
+            where: {
+                is_active: true,
+            },
+            orderBy: {
+                received_amount: "desc",
+            },
+            select: {
+                id: true,
+                title: true,
+            },
+        })
+
+        return campaign || null
+    }
+
+    async getAverageCampaignDuration(): Promise<number | null> {
+        const campaigns = await this.prisma.campaign.findMany({
+            where: {
+                is_active: true,
+                status: {
+                    in: [CampaignStatus.COMPLETED, CampaignStatus.ACTIVE],
+                },
+            },
+            select: {
+                fundraising_start_date: true,
+                fundraising_end_date: true,
+            },
+        })
+
+        if (campaigns.length === 0) return null
+
+        const totalDays = campaigns.reduce((sum, campaign) => {
+            const startDate = new Date(campaign.fundraising_start_date)
+            const endDate = new Date(campaign.fundraising_end_date)
+            const diffMs = endDate.getTime() - startDate.getTime()
+            const diffDays = diffMs / (1000 * 60 * 60 * 24)
+            return sum + diffDays
+        }, 0)
+
+        return Math.round(totalDays / campaigns.length)
+    }
+
+    async getTimeRangeStats(
+        dateFrom: Date,
+        dateTo: Date,
+    ): Promise<{
+        campaignsCreated: number
+        campaignsCompleted: number
+        totalRaised: bigint
+        donationsMade: number
+    }> {
+        const campaignsCreated = await this.prisma.campaign.count({
+            where: {
+                is_active: true,
+                created_at: {
+                    gte: dateFrom,
+                    lte: dateTo,
+                },
+            },
+        })
+
+        const campaignsCompleted = await this.prisma.campaign.count({
+            where: {
+                is_active: true,
+                status: CampaignStatus.COMPLETED,
+                completed_at: {
+                    gte: dateFrom,
+                    lte: dateTo,
+                },
+            },
+        })
+
+        const financialData = await this.prisma.campaign.aggregate({
+            where: {
+                is_active: true,
+                created_at: {
+                    gte: dateFrom,
+                    lte: dateTo,
+                },
+            },
+            _sum: {
+                received_amount: true,
+                donation_count: true,
+            },
+        })
+
+        return {
+            campaignsCreated,
+            campaignsCompleted,
+            totalRaised: financialData._sum.received_amount || BigInt(0),
+            donationsMade: financialData._sum.donation_count || 0,
+        }
+    }
+
+    async getCampaignsByDateRange(
+        dateFrom: Date,
+        dateTo: Date,
+        statuses?: CampaignStatus[],
+    ): Promise<number> {
+        return await this.prisma.campaign.count({
+            where: {
+                is_active: true,
+                created_at: {
+                    gte: dateFrom,
+                    lte: dateTo,
+                },
+                ...(statuses && { status: { in: statuses } }),
+            },
+        })
+    }
+
+    async update(id: string, data: UpdateCampaignData): Promise<Campaign> {
+        const updateData: any = {}
+
+        if (data.title !== undefined) updateData.title = data.title
+        if (data.description !== undefined)
+            updateData.description = data.description
+        if (data.coverImage !== undefined)
+            updateData.cover_image = data.coverImage
+        if (data.coverImageFileKey !== undefined)
+            updateData.cover_image_file_key = data.coverImageFileKey
+        if (data.targetAmount !== undefined)
+            updateData.target_amount = data.targetAmount
+        if (data.ingredientBudgetPercentage !== undefined)
+            updateData.ingredient_budget_percentage =
+                data.ingredientBudgetPercentage
+        if (data.cookingBudgetPercentage !== undefined)
+            updateData.cooking_budget_percentage = data.cookingBudgetPercentage
+        if (data.deliveryBudgetPercentage !== undefined)
+            updateData.delivery_budget_percentage =
+                data.deliveryBudgetPercentage
+        if (data.fundraisingStartDate !== undefined)
+            updateData.fundraising_start_date = data.fundraisingStartDate
+        if (data.fundraisingEndDate !== undefined)
+            updateData.fundraising_end_date = data.fundraisingEndDate
+        if (data.categoryId !== undefined)
+            updateData.category_id = data.categoryId
+        if (data.status !== undefined) updateData.status = data.status
+        if (data.changedStatusAt !== undefined)
+            updateData.changed_status_at = data.changedStatusAt
+        if (data.completedAt !== undefined)
+            updateData.completed_at = data.completedAt
+        if (data.extensionCount !== undefined)
+            updateData.extension_count = data.extensionCount
+        if (data.extensionDays !== undefined)
+            updateData.extension_days = data.extensionDays
+        if (data.donationCount !== undefined)
+            updateData.donation_count = data.donationCount
+
+        const campaign = await this.prisma.campaign.update({
+            where: { id, is_active: true },
+            data: updateData,
+            include: this.CAMPAIGN_JOIN_FIELDS,
+        })
+
+        return this.mapToGraphQLModel(campaign)
+    }
+
+    async delete(id: string): Promise<boolean> {
+        await this.prisma.$transaction(async (tx) => {
+            await tx.campaign_Phase.updateMany({
+                where: { campaign_id: id },
+                data: {
+                    is_active: false,
+                    updated_at: new Date(),
+                },
+            })
+
+            await tx.campaign.update({
+                where: { id },
+                data: {
+                    is_active: false,
+                    updated_at: new Date(),
+                },
+            })
+        })
+
+        return true
+    }
+
+    async count(filter?: any): Promise<number> {
+        return await this.prisma.campaign.count({
+            where: {
+                is_active: true,
+                ...filter,
+            },
+        })
+    }
+
+    private buildOrderByClause(sortBy: CampaignSortOrder): any {
+        switch (sortBy) {
+        case CampaignSortOrder.ACTIVE_FIRST:
+            return [{ status: "asc" }, { created_at: "desc" }]
+        case CampaignSortOrder.NEWEST_FIRST:
+            return { created_at: "desc" }
+        case CampaignSortOrder.OLDEST_FIRST:
+            return { created_at: "asc" }
+        case CampaignSortOrder.TARGET_AMOUNT_ASC:
+            return { target_amount: "asc" }
+        case CampaignSortOrder.TARGET_AMOUNT_DESC:
+            return { target_amount: "desc" }
+        case CampaignSortOrder.MOST_DONATED:
+            return { donation_count: "desc" }
+        case CampaignSortOrder.LEAST_DONATED:
+            return { donation_count: "asc" }
+        default:
+            return { created_at: "desc" }
+        }
+    }
+
+    private mapToGraphQLModel(dbCampaign: any): Campaign {
+        const bigIntFields = {
+            targetAmount: dbCampaign.target_amount?.toString() ?? "0",
+            receivedAmount: dbCampaign.received_amount?.toString() ?? "0",
+        }
+
+        const budgetPercentages = {
+            ingredientBudgetPercentage:
+                dbCampaign.ingredient_budget_percentage?.toString() ?? "0",
+            cookingBudgetPercentage:
+                dbCampaign.cooking_budget_percentage?.toString() ?? "0",
+            deliveryBudgetPercentage:
+                dbCampaign.delivery_budget_percentage?.toString() ?? "0",
+        }
+
+        const disbursementFields = {
+            ingredientFundsAmount:
+                dbCampaign.ingredient_funds_amount?.toString() ?? undefined,
+            cookingFundsAmount:
+                dbCampaign.cooking_funds_amount?.toString() ?? undefined,
+            deliveryFundsAmount:
+                dbCampaign.delivery_funds_amount?.toString() ?? undefined,
+        }
+
+        const category = dbCampaign.category
+            ? {
+                id: dbCampaign.category.id,
+                title: dbCampaign.category.title,
+                description: dbCampaign.category.description,
+                isActive: dbCampaign.category.is_active,
+                created_at: dbCampaign.category.created_at,
+                updated_at: dbCampaign.category.updated_at,
+                campaigns: undefined,
+            }
+            : undefined
+
+        const creator: User | undefined = dbCampaign.created_by
+            ? {
+                __typename: "User",
+                id: dbCampaign.created_by,
+            }
+            : undefined
+
+        const phases =
+            dbCampaign.campaign_phases?.map((phase: any) => ({
+                id: phase.id,
+                campaignId: phase.campaign_id,
+                phaseName: phase.phase_name,
+                location: phase.location,
+                ingredientPurchaseDate: phase.ingredient_purchase_date,
+                cookingDate: phase.cooking_date,
+                deliveryDate: phase.delivery_date,
+                status: phase.status,
+                created_at: phase.created_at,
+                updated_at: phase.updated_at,
+            })) || []
+
+        const computedFields = this.calculateComputedFields(dbCampaign, phases)
+
+        return {
+            id: dbCampaign.id,
+            title: dbCampaign.title,
+            description: dbCampaign.description,
+            coverImage: dbCampaign.cover_image,
+            coverImageFileKey: dbCampaign.cover_image_file_key || undefined,
+            donationCount: dbCampaign.donation_count ?? 0,
+            ...bigIntFields,
+            ...budgetPercentages,
+            status: dbCampaign.status as CampaignStatus,
+            fundraisingStartDate: dbCampaign.fundraising_start_date,
+            fundraisingEndDate: dbCampaign.fundraising_end_date,
+            ...disbursementFields,
+            isActive: dbCampaign.is_active,
+            createdBy: dbCampaign.created_by,
+            categoryId: dbCampaign.category_id || undefined,
+            changedStatusAt: dbCampaign.changed_status_at || undefined,
+            completedAt: dbCampaign.completed_at || undefined,
+            extensionCount: dbCampaign.extension_count ?? 0,
+            extensionDays: dbCampaign.extension_days ?? 0,
+            created_at: dbCampaign.created_at,
+            updated_at: dbCampaign.updated_at,
+            category: category,
+            creator: creator,
+            donations: undefined,
+            phases: phases,
+            ...computedFields,
+        } as Campaign
+    }
+
+    private calculateComputedFields(
+        dbCampaign: any,
+        phases: any[],
+    ): {
+        fundingProgress: number
+        daysRemaining: number
+        daysActive: number
+        totalPhases: number
+    } {
+        const targetAmount = BigInt(dbCampaign.target_amount || 0)
+        const receivedAmount = BigInt(dbCampaign.received_amount || 0)
+
+        let fundingProgress = 0
+        if (targetAmount > 0n) {
+            fundingProgress =
+                (Number(receivedAmount) / Number(targetAmount)) * 100
+        }
+
+        const now = new Date()
+        const endDate = new Date(dbCampaign.fundraising_end_date)
+        const startDate = new Date(dbCampaign.fundraising_start_date)
+
+        const todayMidnight = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate(),
+        )
+        const endMidnight = new Date(
+            endDate.getFullYear(),
+            endDate.getMonth(),
+            endDate.getDate(),
+        )
+
+        const msPerDay = 1000 * 60 * 60 * 24
+        const daysRemaining = Math.ceil(
+            (endMidnight.getTime() - todayMidnight.getTime()) / msPerDay,
+        )
+
+        const startMidnight = new Date(
+            startDate.getFullYear(),
+            startDate.getMonth(),
+            startDate.getDate(),
+        )
+        const daysActive = Math.max(
+            0,
+            Math.floor(
+                (todayMidnight.getTime() - startMidnight.getTime()) / msPerDay,
+            ),
+        )
+
+        const totalPhases = phases.length
+
+        return {
+            fundingProgress: Math.round(fundingProgress * 100) / 100,
+            daysRemaining: Math.max(-1, daysRemaining),
+            daysActive,
+            totalPhases,
+        }
+    }
+}

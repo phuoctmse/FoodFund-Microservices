@@ -1,22 +1,64 @@
 import { Module } from "@nestjs/common"
 import { envConfig } from "libs/env"
-import { CampaignModule } from "./campaign/campaign.module"
 import { SentryModule } from "@libs/observability/sentry.module"
-import { CampaignCategoryModule } from "./campaign-category/campaign-category.module"
 import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 import { ScheduleModule } from "@nestjs/schedule"
 import { User } from "./shared/model/user.model"
 import { EnvModule } from "@libs/env/env.module"
-import { PostModule } from "./post/post.module"
-import { DonationModule } from "./donation/donation.module"
 import { OpenSearchModule } from "@libs/aws-opensearch"
 import { SqsModule } from "@libs/aws-sqs"
 import { GrpcModule } from "@libs/grpc"
 import { VietQRModule } from "@libs/vietqr"
-import { QueueWorkerService } from "./workers/queue-worker.service"
-import { CampaignPhaseModule } from "./campaign-phase"
 import { DatadogModule } from "@libs/observability"
 import { AwsCognitoModule } from "@libs/aws-cognito"
+import { EventEmitterModule } from "@nestjs/event-emitter"
+import { PrismaCampaignService } from "./infrastructure/database/prisma-campaign.service"
+import { PrismaClient } from "./generated/campaign-client"
+import { SpacesUploadService } from "@libs/s3-storage"
+import { CampaignCacheService } from "./application/services/campaign/campaign-cache.service"
+import { CampaignService } from "./application/services/campaign/campaign.service"
+import { CampaignSettlementService } from "./application/services/campaign/campaign-settlement.service"
+import { AuthorizationService, UserClientService, UserDataLoader, UserResolver } from "./shared"
+import { CampaignQueryResolver } from "./presentation/graphql/campaign/queries"
+import { CampaignStatsQueryResolver } from "./presentation/graphql/campaign/queries/campaign-stats-query.resolver"
+import { CampaignMutationResolver } from "./presentation/graphql/campaign/mutations"
+import { CampaignRepository } from "./application/repositories/campaign.repository"
+import { CampaignSchedulerService } from "./application/workers/schedulers"
+import { CampaignStatusJob } from "./application/workers/campaign-status.job"
+import { HealthController } from "./presentation/http/controllers/campaign/health.controller"
+import { CampaignGrpcService } from "./presentation/grpc/campaign/campaign-grpc.service"
+import { CampaignCategoryCacheService } from "./application/services/campaign-category/campaign-category-cache.service"
+import { CampaignCategoryService } from "./application/services/campaign-category/campaign-category.service"
+import { CampaignCategoryRepository } from "./application/repositories/campaign-category.repository"
+import { CampaignCategoryQueryResolver } from "./presentation/graphql/campaign-category/queries"
+import { CampaignCategoryMutationResolver } from "./presentation/graphql/campaign-category/mutations"
+import { CampaignPhaseService } from "./application/services/campaign-phase/campaign-phase.service"
+import { CampaignPhaseRepository } from "./application/repositories/campaign-phase.repository"
+import { CampaignPhaseQueryResolver } from "./presentation/graphql/campaign-phase/queries"
+import { CampaignPhaseMutationResolver } from "./presentation/graphql/campaign-phase/mutations"
+import { AuthLibModule } from "@libs/auth"
+import { DonationWebhookController } from "./presentation/http/controllers/donation/donation-webhook.controller"
+import { SepayWebhookController } from "./presentation/http/controllers/donation/sepay-webhook.controller"
+import { DonorService } from "./application/services/donation/donor.service"
+import { DonationProcessorService } from "./application/services/donation/donation-processor.service"
+import { DonationWebhookService } from "./application/services/donation/donation-webhook.service"
+import { SepayWebhookService } from "./application/services/donation/sepay-webhook.service"
+import { PayosCleanupService } from "./application/services/donation/payos-cleanup.service"
+import { DonationAdminService } from "./application/services/donation/admin"
+import { DonorRepository } from "./application/repositories/donor.repository"
+import { DonorMutationResolver } from "./presentation/graphql/donation/donor/mutations/donor-mutation.resolver"
+import { DonorQueryResolver } from "./presentation/graphql/donation/donor/queries/donor-query.resolver"
+import { AdminMutationResolver, AdminQueryResolver } from "./presentation/graphql/donation/admin"
+import { PostRepository } from "./application/repositories/post.repository"
+import { PostLikeRepository } from "./application/repositories/post-like.repository"
+import { PostCommentRepository } from "./application/repositories/post-comment.repository"
+import { PostService } from "./application/services/post/post.service"
+import { PostLikeService } from "./application/services/post/post-like.service"
+import { PostCommentService } from "./application/services/post/post-comment.service"
+import { PostCommentQueryResolver, PostLikeQueryResolver, PostQueryResolver } from "./presentation/graphql/post/queries"
+import { PostCommentMutationResolver, PostLikeMutationResolver, PostMutationResolver } from "./presentation/graphql/post/mutations"
+import { PostLikeDataLoader } from "./application/dataloaders"
+import { QueueWorkerService } from "./application/workers/queue-worker.service"
 
 @Module({
     imports: [
@@ -48,16 +90,77 @@ import { AwsCognitoModule } from "@libs/aws-cognito"
         }),
         ScheduleModule.forRoot(),
         GrpcModule,
-        CampaignModule,
-        CampaignCategoryModule,
-        PostModule,
-        DonationModule,
         SqsModule,
         OpenSearchModule,
         VietQRModule,
-        CampaignPhaseModule,
+        AuthLibModule,
+        EventEmitterModule.forRoot(),
     ],
-    controllers: [],
-    providers: [QueueWorkerService],
+    controllers: [
+        HealthController,
+        CampaignGrpcService,
+        DonationWebhookController,
+        SepayWebhookController
+    ],
+    providers: [
+        PrismaCampaignService,
+        {
+            provide: PrismaClient,
+            useFactory: (service: PrismaCampaignService) => service["client"],
+            inject: [PrismaCampaignService],
+        },
+        QueueWorkerService,
+        UserClientService,
+        SpacesUploadService,
+        AuthorizationService,
+        CampaignSchedulerService,
+        CampaignCacheService,
+        CampaignService,
+        CampaignSettlementService,
+        CampaignCategoryCacheService,
+        CampaignCategoryService,
+        CampaignPhaseService,
+        DonorService,
+        DonationProcessorService,
+        DonationWebhookService,
+        SepayWebhookService,
+        PayosCleanupService,
+        DonationAdminService,
+        PostService,
+        PostLikeService,
+        PostCommentService,
+
+        UserResolver,
+        CampaignQueryResolver,
+        CampaignStatsQueryResolver,
+        CampaignMutationResolver,
+        CampaignCategoryQueryResolver,
+        CampaignCategoryMutationResolver,
+        CampaignPhaseQueryResolver,
+        CampaignPhaseMutationResolver,
+        DonorMutationResolver,
+        DonorQueryResolver,
+        AdminQueryResolver,
+        AdminMutationResolver,
+        PostQueryResolver,
+        PostMutationResolver,
+        PostLikeQueryResolver,
+        PostLikeMutationResolver,
+        PostCommentQueryResolver,
+        PostCommentMutationResolver,
+
+        CampaignRepository,
+        CampaignCategoryRepository,
+        CampaignPhaseRepository,
+        DonorRepository,
+        PostRepository,
+        PostLikeRepository,
+        PostCommentRepository,
+
+        CampaignStatusJob,
+
+        UserDataLoader,
+        PostLikeDataLoader
+    ],
 })
 export class AppModule {}
