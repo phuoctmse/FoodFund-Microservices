@@ -339,7 +339,7 @@ export class CampaignSchedulerService {
             let newStatus: CampaignStatus
             let reason: string
 
-            if (fundingPercentage >= 50) {
+            if (fundingPercentage >= 50 && fundingPercentage < 100) {
                 newStatus = CampaignStatus.PROCESSING
                 reason = "PARTIAL_FUNDING_SUCCESS"
 
