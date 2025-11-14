@@ -1,6 +1,6 @@
 import { Controller, Logger } from "@nestjs/common"
 import { GrpcMethod } from "@nestjs/microservices"
-import { AuthAuthenticationService } from "../../../application/services"
+import { AuthAuthenticationService } from "../../application/services"
 import { AwsCognitoService } from "libs/aws-cognito"
 
 // Request/Response interfaces matching proto definitions

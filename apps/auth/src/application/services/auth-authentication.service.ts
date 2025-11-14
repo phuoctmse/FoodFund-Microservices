@@ -1,4 +1,4 @@
-import { Injectable, Logger, UnauthorizedException } from "@nestjs/common"
+import { Injectable, Logger, UnauthorizedException, Inject } from "@nestjs/common"
 import { AwsCognitoService } from "libs/aws-cognito"
 import { CognitoUser } from "libs/aws-cognito/aws-cognito.types"
 import { GetUserCommandOutput } from "@aws-sdk/client-cognito-identity-provider"
@@ -8,8 +8,8 @@ import {
     SignInResponse,
     RefreshTokenResponse,
 } from "../../domain/entities"
+import { IUserService, USER_SERVICE_TOKEN } from "../../domain/interfaces"
 import { AuthErrorHelper } from "../../shared/helpers"
-import { GrpcClientService } from "libs/grpc"
 
 @Injectable()
 export class AuthAuthenticationService {
@@ -17,7 +17,8 @@ export class AuthAuthenticationService {
 
     constructor(
         private readonly awsCognitoService: AwsCognitoService,
-        private readonly grpcClient: GrpcClientService,
+        @Inject(USER_SERVICE_TOKEN)
+        private readonly userService: IUserService,
     ) {}
 
     async signIn(input: SignInInput): Promise<SignInResponse> {
@@ -59,45 +60,7 @@ export class AuthAuthenticationService {
      * Throws UnauthorizedException if user is not active
      */
     private async validateUserIsActive(cognitoId: string): Promise<void> {
-        try {
-            this.logger.log(`Checking if user is active: ${cognitoId}`)
-
-            // Use camelCase because proto loader converts with keepCase=false
-            const userResponse = await this.grpcClient.callUserService(
-                "GetUser",
-                { cognitoId: cognitoId },
-            )
-
-            if (!userResponse.success) {
-                this.logger.warn(`User not found in User Service: ${cognitoId}`)
-                throw new UnauthorizedException(
-                    "User account not found. Please contact support.",
-                )
-            }
-
-            // Check if user is active (use camelCase from gRPC response)
-            if (!userResponse.user.isActive) {
-                this.logger.warn(
-                    `User account is inactive: ${cognitoId} (${userResponse.user.email})`,
-                )
-                throw new UnauthorizedException(
-                    "Your account has been deactivated. Please contact support for assistance.",
-                )
-            }
-
-            this.logger.log(`User is active: ${cognitoId}`)
-        } catch (error) {
-            // If it's already an UnauthorizedException, rethrow it
-            if (error instanceof UnauthorizedException) {
-                throw error
-            }
-
-            // Log other errors but don't block login if User Service is down
-            this.logger.error(
-                `Failed to validate user active status: ${error instanceof Error ? error.message : error}`,
-            )
-            throw new UnauthorizedException("Unable to verify account status.")
-        }
+        await this.userService.isUserActive(cognitoId)
     }
 
     async verifyToken(accessToken: string): Promise<AuthUser> {

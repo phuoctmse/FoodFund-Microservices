@@ -19,8 +19,10 @@ import {
     AuthUserResolver,
     AdminResolver,
 } from "./presentation/graphql/resolvers"
-import { AuthGrpcController } from "./infrastructure/messaging/grpc"
 import { HealthController } from "./presentation/http/controllers"
+import { AuthGrpcController } from "./presentation/grpc"
+import { USER_SERVICE_TOKEN } from "./domain/interfaces"
+import { UserServiceGrpcAdapter } from "./infrastructure/adapters"
 
 @Module({
     imports: [
@@ -64,6 +66,12 @@ import { HealthController } from "./presentation/http/controllers"
         AuthAuthenticationService,
         AuthUserService,
         AuthAdminService,
+
+        // Infrastructure Adapters (Dependency Injection)
+        {
+            provide: USER_SERVICE_TOKEN,
+            useClass: UserServiceGrpcAdapter,
+        },
     ],
 })
 export class AppModule {}
