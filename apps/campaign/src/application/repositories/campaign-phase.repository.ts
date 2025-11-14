@@ -1,6 +1,5 @@
 import { Injectable } from "@nestjs/common"
 import { PrismaClient } from "../../generated/campaign-client"
-import { SentryService } from "@libs/observability"
 import { CampaignPhaseStatus } from "../../domain/enums/campaign-phase/campaign-phase.enum"
 
 export interface CreatePhaseData {
@@ -10,6 +9,9 @@ export interface CreatePhaseData {
     ingredientPurchaseDate: Date
     cookingDate: Date
     deliveryDate: Date
+    ingredientBudgetPercentage: number
+    cookingBudgetPercentage: number
+    deliveryBudgetPercentage: number
     status?: CampaignPhaseStatus
 }
 
@@ -19,15 +21,15 @@ export interface UpdatePhaseData {
     ingredientPurchaseDate?: Date
     cookingDate?: Date
     deliveryDate?: Date
+    ingredientBudgetPercentage?: number
+    cookingBudgetPercentage?: number
+    deliveryBudgetPercentage?: number
     status?: CampaignPhaseStatus
 }
 
 @Injectable()
 export class CampaignPhaseRepository {
-    constructor(
-        private readonly prisma: PrismaClient,
-        private readonly sentryService: SentryService,
-    ) {}
+    constructor(private readonly prisma: PrismaClient) {}
 
     async create(data: CreatePhaseData) {
         const phase = await this.prisma.campaign_Phase.create({
@@ -38,6 +40,9 @@ export class CampaignPhaseRepository {
                 ingredient_purchase_date: data.ingredientPurchaseDate,
                 cooking_date: data.cookingDate,
                 delivery_date: data.deliveryDate,
+                ingredient_budget_percentage: data.ingredientBudgetPercentage,
+                cooking_budget_percentage: data.cookingBudgetPercentage,
+                delivery_budget_percentage: data.deliveryBudgetPercentage,
                 status: CampaignPhaseStatus.PLANNING,
                 is_active: true,
             },
@@ -57,6 +62,9 @@ export class CampaignPhaseRepository {
                         ingredient_purchase_date: phase.ingredientPurchaseDate,
                         cooking_date: phase.cookingDate,
                         delivery_date: phase.deliveryDate,
+                        ingredient_budget_percentage: phase.ingredientBudgetPercentage,
+                        cooking_budget_percentage: phase.cookingBudgetPercentage,
+                        delivery_budget_percentage: phase.deliveryBudgetPercentage,
                         status: CampaignPhaseStatus.PLANNING,
                         is_active: true,
                     },
@@ -124,6 +132,12 @@ export class CampaignPhaseRepository {
             updateData.cooking_date = data.cookingDate
         if (data.deliveryDate !== undefined)
             updateData.delivery_date = data.deliveryDate
+        if (data.ingredientBudgetPercentage !== undefined)
+            updateData.ingredient_budget_percentage = data.ingredientBudgetPercentage
+        if (data.cookingBudgetPercentage !== undefined)
+            updateData.cooking_budget_percentage = data.cookingBudgetPercentage
+        if (data.deliveryBudgetPercentage !== undefined)
+            updateData.delivery_budget_percentage = data.deliveryBudgetPercentage
         if (data.status !== undefined) updateData.status = data.status
 
         const phase = await this.prisma.campaign_Phase.update({
@@ -151,15 +165,6 @@ export class CampaignPhaseRepository {
             },
         })
 
-        this.sentryService.addBreadcrumb(
-            "Campaign phase soft deleted",
-            "campaign-phase",
-            {
-                phaseId: id,
-                campaignId: phase.campaign_id,
-            },
-        )
-
         return true
     }
 
@@ -179,15 +184,6 @@ export class CampaignPhaseRepository {
             },
         })
 
-        this.sentryService.addBreadcrumb(
-            "Campaign phases batch deleted",
-            "campaign-phase",
-            {
-                phaseIds: ids,
-                deletedCount: result.count,
-            },
-        )
-
         return result.count
     }
 
@@ -200,6 +196,9 @@ export class CampaignPhaseRepository {
             ingredientPurchaseDate: dbPhase.ingredient_purchase_date,
             cookingDate: dbPhase.cooking_date,
             deliveryDate: dbPhase.delivery_date,
+            ingredientBudgetPercentage: dbPhase.ingredient_budget_percentage?.toString() ?? "0",
+            cookingBudgetPercentage: dbPhase.cooking_budget_percentage?.toString() ?? "0",
+            deliveryBudgetPercentage: dbPhase.delivery_budget_percentage?.toString() ?? "0",
             status: dbPhase.status as CampaignPhaseStatus,
             created_at: dbPhase.created_at,
             updated_at: dbPhase.updated_at,

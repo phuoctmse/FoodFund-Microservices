@@ -51,6 +51,9 @@ interface GetCampaignPhasesResponse {
         ingredientPurchaseDate: string
         cookingDate: string
         deliveryDate: string
+        ingredientBudgetPercentage: string
+        cookingBudgetPercentage: string
+        deliveryBudgetPercentage: string
     }>
     error: string | null
 }
@@ -191,6 +194,9 @@ export class CampaignGrpcService {
                 ingredientPurchaseDate: phase.ingredientPurchaseDate.toISOString(),
                 cookingDate: phase.cookingDate.toISOString(),
                 deliveryDate: phase.deliveryDate.toISOString(),
+                ingredientBudgetPercentage: phase.ingredientBudgetPercentage,
+                cookingBudgetPercentage: phase.cookingBudgetPercentage,
+                deliveryBudgetPercentage: phase.deliveryBudgetPercentage,
             })),
             error: null,
         }

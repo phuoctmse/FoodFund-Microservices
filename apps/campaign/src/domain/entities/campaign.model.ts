@@ -31,15 +31,6 @@ export class Campaign extends BaseSchema {
     @Field(() => String)
         receivedAmount: string
 
-    @Field(() => String)
-        ingredientBudgetPercentage: string
-
-    @Field(() => String)
-        cookingBudgetPercentage: string
-
-    @Field(() => String)
-        deliveryBudgetPercentage: string
-
     @Field(() => CampaignStatus)
         status: CampaignStatus
 
@@ -48,21 +39,6 @@ export class Campaign extends BaseSchema {
 
     @Field(() => Date)
         fundraisingEndDate: Date
-
-    @Field(() => String, {
-        nullable: true,
-    })
-        ingredientFundsAmount?: string
-
-    @Field(() => String, {
-        nullable: true,
-    })
-        cookingFundsAmount?: string
-
-    @Field(() => String, {
-        nullable: true,
-    })
-        deliveryFundsAmount?: string
 
     @Field(() => Int)
         extensionCount: number

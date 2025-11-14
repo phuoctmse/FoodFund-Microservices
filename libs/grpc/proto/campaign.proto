@@ -69,6 +69,9 @@ message CampaignPhase {
   string ingredient_purchase_date = 5;
   string cooking_date = 6;
   string delivery_date = 7;
+  string ingredient_budget_percentage = 8;
+  string cooking_budget_percentage = 9;
+  string delivery_budget_percentage = 10;
 }
 
 message GetCampaignPhasesResponse {

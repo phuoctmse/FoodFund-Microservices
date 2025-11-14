@@ -18,6 +18,7 @@ import { CampaignStatus } from "@app/campaign/src/domain/enums/campaign/campaign
 import { CampaignCannotBeDeletedException, CampaignNotFoundException } from "@app/campaign/src/domain/exceptions/campaign/campaign.exception"
 import { CampaignStatsFilterInput } from "../../dtos/campaign/request/campaign-stats-filter.input"
 import { CampaignCategoryStats, CampaignFinancialStats, CampaignOverviewStats, CampaignPerformanceStats, CampaignStatsResponse, CampaignStatusBreakdown, CampaignTimeRangeStats } from "../../dtos/campaign/response/campaign-stats.response"
+import { CreatePhaseInput } from "../../dtos/campaign-phase/request"
 
 @Injectable()
 export class CampaignService {
@@ -134,17 +135,14 @@ export class CampaignService {
             const targetAmountBigInt = this.parseAndValidateTargetAmount(
                 input.targetAmount,
             )
-            this.validateBudgetPercentages(
-                input.ingredientBudgetPercentage,
-                input.cookingBudgetPercentage,
-                input.deliveryBudgetPercentage,
-            )
 
             if (!input.phases || input.phases.length === 0) {
                 throw new BadRequestException(
                     "At least one campaign phase is required",
                 )
             }
+
+            this.validateTotalPhaseBudgets(input.phases)
 
             this.phaseService.validatePhaseDates(
                 input.phases,
@@ -159,15 +157,6 @@ export class CampaignService {
                 coverImage: cdnUrl,
                 coverImageFileKey: fileKey,
                 targetAmount: targetAmountBigInt,
-                ingredientBudgetPercentage: parseFloat(
-                    input.ingredientBudgetPercentage,
-                ),
-                cookingBudgetPercentage: parseFloat(
-                    input.cookingBudgetPercentage,
-                ),
-                deliveryBudgetPercentage: parseFloat(
-                    input.deliveryBudgetPercentage,
-                ),
                 fundraisingStartDate: input.fundraisingStartDate,
                 fundraisingEndDate: input.fundraisingEndDate,
                 createdBy: userContext.userId,
@@ -179,6 +168,9 @@ export class CampaignService {
                     ingredientPurchaseDate: phase.ingredientPurchaseDate,
                     cookingDate: phase.cookingDate,
                     deliveryDate: phase.deliveryDate,
+                    ingredientBudgetPercentage: parseFloat(phase.ingredientBudgetPercentage),
+                    cookingBudgetPercentage: parseFloat(phase.cookingBudgetPercentage),
+                    deliveryBudgetPercentage: parseFloat(phase.deliveryBudgetPercentage),
                 })),
             })
 
@@ -345,36 +337,10 @@ export class CampaignService {
                 )
             }
 
-            if (
-                input.ingredientBudgetPercentage ||
-                input.cookingBudgetPercentage ||
-                input.deliveryBudgetPercentage
-            ) {
-                this.validateBudgetPercentages(
-                    input.ingredientBudgetPercentage ||
-                        campaign.ingredientBudgetPercentage,
-                    input.cookingBudgetPercentage ||
-                        campaign.cookingBudgetPercentage,
-                    input.deliveryBudgetPercentage ||
-                        campaign.deliveryBudgetPercentage,
-                )
-            }
             if (input.title) updateData.title = input.title
             if (input.description) updateData.description = input.description
             if (targetAmountBigInt !== undefined)
                 updateData.targetAmount = targetAmountBigInt
-            if (input.ingredientBudgetPercentage)
-                updateData.ingredientBudgetPercentage = parseFloat(
-                    input.ingredientBudgetPercentage,
-                )
-            if (input.cookingBudgetPercentage)
-                updateData.cookingBudgetPercentage = parseFloat(
-                    input.cookingBudgetPercentage,
-                )
-            if (input.deliveryBudgetPercentage)
-                updateData.deliveryBudgetPercentage = parseFloat(
-                    input.deliveryBudgetPercentage,
-                )
             if (input.fundraisingStartDate)
                 updateData.fundraisingStartDate = input.fundraisingStartDate
             if (input.fundraisingEndDate)
@@ -1251,53 +1217,58 @@ export class CampaignService {
         return amount
     }
 
-    private validateBudgetPercentages(
-        ingredient: string,
-        cooking: string,
-        delivery: string,
-    ): void {
-        try {
-            const ingredientPct = parseFloat(ingredient)
-            const cookingPct = parseFloat(cooking)
-            const deliveryPct = parseFloat(delivery)
+    private validateTotalPhaseBudgets(phases: CreatePhaseInput[]): void {
+        let totalIngredient = 0
+        let totalCooking = 0
+        let totalDelivery = 0
 
-            if (
-                isNaN(ingredientPct) ||
-                isNaN(cookingPct) ||
-                isNaN(deliveryPct)
-            ) {
+        phases.forEach((phase, index) => {
+            const ingredientPct = parseFloat(phase.ingredientBudgetPercentage)
+            const cookingPct = parseFloat(phase.cookingBudgetPercentage)
+            const deliveryPct = parseFloat(phase.deliveryBudgetPercentage)
+
+            if (isNaN(ingredientPct) || isNaN(cookingPct) || isNaN(deliveryPct)) {
                 throw new BadRequestException(
-                    "Budget percentages must be valid numbers",
+                    `Phase ${index + 1} (${phase.phaseName}): Budget percentages must be valid numbers`,
                 )
             }
 
             if (
-                ingredientPct < 0 ||
-                cookingPct < 0 ||
-                deliveryPct < 0 ||
-                ingredientPct > 100 ||
-                cookingPct > 100 ||
-                deliveryPct > 100
+                ingredientPct < 0 || cookingPct < 0 || deliveryPct < 0 ||
+                ingredientPct > 100 || cookingPct > 100 || deliveryPct > 100
             ) {
                 throw new BadRequestException(
-                    "Budget percentages must be between 0 and 100",
+                    `Phase ${index + 1} (${phase.phaseName}): Budget percentages must be between 0 and 100`,
                 )
             }
 
-            const total = ingredientPct + cookingPct + deliveryPct
-            if (Math.abs(total - 100) > 0.01) {
-                throw new BadRequestException(
-                    `Budget percentages must sum to 100%. Current total: ${total.toFixed(2)}%`,
-                )
-            }
-        } catch (error) {
-            if (error instanceof BadRequestException) {
-                throw error
-            }
+            totalIngredient += ingredientPct
+            totalCooking += cookingPct
+            totalDelivery += deliveryPct
+        })
+
+        const grandTotal = totalIngredient + totalCooking + totalDelivery
+
+        if (Math.abs(grandTotal - 100) > 0.01) {
             throw new BadRequestException(
-                "Invalid budget percentage format. Please provide valid numeric strings.",
+                "Tổng budget của tất cả phases phải bằng 100%. " +
+                `Hiện tại: Ingredient (${totalIngredient.toFixed(2)}%) + ` +
+                `Cooking (${totalCooking.toFixed(2)}%) + ` +
+                `Delivery (${totalDelivery.toFixed(2)}%) = ${grandTotal.toFixed(2)}%`,
             )
         }
+
+        this.sentryService.addBreadcrumb(
+            "Phase budgets validated",
+            "validation",
+            {
+                phaseCount: phases.length,
+                totalIngredient,
+                totalCooking,
+                totalDelivery,
+                grandTotal,
+            },
+        )
     }
 
     private validateStatusTransition(

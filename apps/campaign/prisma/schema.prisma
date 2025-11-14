@@ -25,11 +25,8 @@ model Campaign {
   cover_image_file_key         String?
   category_id                  String?
   completed_at                 DateTime?
-  cooking_budget_percentage    Decimal            @db.Decimal(5, 2)
-  delivery_budget_percentage   Decimal            @db.Decimal(5, 2)
-  fundraising_end_date         DateTime
   fundraising_start_date       DateTime
-  ingredient_budget_percentage Decimal            @db.Decimal(5, 2)
+  fundraising_end_date         DateTime
   changed_status_at            DateTime?
   extension_count              Int                @default(0)
   extension_days               Int                @default(0)
@@ -58,6 +55,9 @@ model Campaign_Phase {
   ingredient_purchase_date DateTime
   cooking_date             DateTime
   delivery_date            DateTime
+  ingredient_budget_percentage Decimal            @db.Decimal(5, 2)
+  cooking_budget_percentage    Decimal            @db.Decimal(5, 2)
+  delivery_budget_percentage   Decimal            @db.Decimal(5, 2)
   status                   Campaign_Phase_Status @default(PLANNING)
   created_at               DateTime              @default(now())
   updated_at               DateTime              @updatedAt

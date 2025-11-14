@@ -50,6 +50,8 @@ export class CampaignPhaseService {
             }
 
             this.validatePhaseDates([input], campaign.fundraisingEndDate)
+            const existingPhases = await this.phaseRepository.findByCampaignId(campaignId)
+            await this.validateTotalBudgetAfterAdd(existingPhases, input)
             if (input.phaseName.length < 5) {
                 throw new BadRequestException(
                     "Phase name must be at least 5 characters",
@@ -88,6 +90,9 @@ export class CampaignPhaseService {
                 ingredientPurchaseDate: input.ingredientPurchaseDate,
                 cookingDate: input.cookingDate,
                 deliveryDate: input.deliveryDate,
+                ingredientBudgetPercentage: parseFloat(input.ingredientBudgetPercentage),
+                cookingBudgetPercentage: parseFloat(input.cookingBudgetPercentage),
+                deliveryBudgetPercentage: parseFloat(input.deliveryBudgetPercentage),
             })
 
             await this.campaignCacheService.deleteCampaign(campaignId)
@@ -176,6 +181,15 @@ export class CampaignPhaseService {
                 )
             }
 
+            if (
+                input.ingredientBudgetPercentage ||
+                input.cookingBudgetPercentage ||
+                input.deliveryBudgetPercentage
+            ) {
+                const existingPhases = await this.phaseRepository.findByCampaignId(phase.campaignId)
+                await this.validateTotalBudgetAfterUpdate(existingPhases, phase.id, input)
+            }
+
             if (input.phaseName !== undefined && input.phaseName.length < 5) {
                 throw new BadRequestException(
                     "Phase name must be at least 5 characters",
@@ -243,6 +257,9 @@ export class CampaignPhaseService {
                 ingredientPurchaseDate?: Date
                 cookingDate?: Date
                 deliveryDate?: Date
+                ingredientBudgetPercentage?: number
+                cookingBudgetPercentage?: number
+                deliveryBudgetPercentage?: number
             } = {}
 
             if (input.phaseName !== undefined) {
@@ -259,6 +276,16 @@ export class CampaignPhaseService {
             }
             if (input.deliveryDate !== undefined) {
                 updateData.deliveryDate = input.deliveryDate
+            }
+
+            if (input.ingredientBudgetPercentage !== undefined) {
+                updateData.ingredientBudgetPercentage = parseFloat(input.ingredientBudgetPercentage)
+            }
+            if (input.cookingBudgetPercentage !== undefined) {
+                updateData.cookingBudgetPercentage = parseFloat(input.cookingBudgetPercentage)
+            }
+            if (input.deliveryBudgetPercentage !== undefined) {
+                updateData.deliveryBudgetPercentage = parseFloat(input.deliveryBudgetPercentage)
             }
 
             if (Object.keys(updateData).length === 0) {
@@ -312,6 +339,117 @@ export class CampaignPhaseService {
                 },
             })
             throw error
+        }
+    }
+
+    private async validateTotalBudgetAfterAdd(
+        existingPhases: CampaignPhase[],
+        newPhase: CreatePhaseInput,
+    ): Promise<void> {
+        let totalIngredient = 0
+        let totalCooking = 0
+        let totalDelivery = 0
+
+        existingPhases.forEach((phase) => {
+            totalIngredient += parseFloat(phase.ingredientBudgetPercentage)
+            totalCooking += parseFloat(phase.cookingBudgetPercentage)
+            totalDelivery += parseFloat(phase.deliveryBudgetPercentage)
+        })
+
+        const newIngredient = parseFloat(newPhase.ingredientBudgetPercentage)
+        const newCooking = parseFloat(newPhase.cookingBudgetPercentage)
+        const newDelivery = parseFloat(newPhase.deliveryBudgetPercentage)
+
+        if (isNaN(newIngredient) || isNaN(newCooking) || isNaN(newDelivery)) {
+            throw new BadRequestException(
+                "Budget percentages must be valid numbers",
+            )
+        }
+
+        if (
+            newIngredient < 0 || newCooking < 0 || newDelivery < 0 ||
+            newIngredient > 100 || newCooking > 100 || newDelivery > 100
+        ) {
+            throw new BadRequestException(
+                "Budget percentages must be between 0 and 100",
+            )
+        }
+
+        totalIngredient += newIngredient
+        totalCooking += newCooking
+        totalDelivery += newDelivery
+
+        const grandTotal = totalIngredient + totalCooking + totalDelivery
+
+        if (Math.abs(grandTotal - 100) > 0.01) {
+            throw new BadRequestException(
+                "Sau khi thêm phase mới, tổng budget vượt quá 100%. " +
+                `Ingredient (${totalIngredient.toFixed(2)}%) + ` +
+                `Cooking (${totalCooking.toFixed(2)}%) + ` +
+                `Delivery (${totalDelivery.toFixed(2)}%) = ${grandTotal.toFixed(2)}%. ` +
+                "Vui lòng điều chỉnh budget percentages cho phù hợp.",
+            )
+        }
+    }
+
+    private async validateTotalBudgetAfterUpdate(
+        existingPhases: CampaignPhase[],
+        updatingPhaseId: string,
+        updateInput: UpdatePhaseInput,
+    ): Promise<void> {
+        let totalIngredient = 0
+        let totalCooking = 0
+        let totalDelivery = 0
+
+        existingPhases.forEach((phase) => {
+            if (phase.id === updatingPhaseId) {
+                const ingredient = updateInput.ingredientBudgetPercentage 
+                    ? parseFloat(updateInput.ingredientBudgetPercentage)
+                    : parseFloat(phase.ingredientBudgetPercentage)
+                
+                const cooking = updateInput.cookingBudgetPercentage
+                    ? parseFloat(updateInput.cookingBudgetPercentage)
+                    : parseFloat(phase.cookingBudgetPercentage)
+                
+                const delivery = updateInput.deliveryBudgetPercentage
+                    ? parseFloat(updateInput.deliveryBudgetPercentage)
+                    : parseFloat(phase.deliveryBudgetPercentage)
+
+                if (isNaN(ingredient) || isNaN(cooking) || isNaN(delivery)) {
+                    throw new BadRequestException(
+                        "Budget percentages must be valid numbers",
+                    )
+                }
+
+                if (
+                    ingredient < 0 || cooking < 0 || delivery < 0 ||
+                    ingredient > 100 || cooking > 100 || delivery > 100
+                ) {
+                    throw new BadRequestException(
+                        "Budget percentages must be between 0 and 100",
+                    )
+                }
+
+                totalIngredient += ingredient
+                totalCooking += cooking
+                totalDelivery += delivery
+            } else {
+                totalIngredient += parseFloat(phase.ingredientBudgetPercentage)
+                totalCooking += parseFloat(phase.cookingBudgetPercentage)
+                totalDelivery += parseFloat(phase.deliveryBudgetPercentage)
+            }
+        })
+
+        const grandTotal = totalIngredient + totalCooking + totalDelivery
+
+        if (Math.abs(grandTotal - 100) > 0.01) {
+            throw new BadRequestException(
+                "Sau khi cập nhật phase, tổng budget không hợp lệ. " +
+                `Ingredient (${totalIngredient.toFixed(2)}%) + ` +
+                `Cooking (${totalCooking.toFixed(2)}%) + ` +
+                `Delivery (${totalDelivery.toFixed(2)}%) = ${grandTotal.toFixed(2)}%. ` +
+                "Tổng phải bằng 100%.",
+            )
         }
     }
 

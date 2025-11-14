@@ -52,36 +52,6 @@ export class CreateCampaignInput {
     @IsUUID()
         categoryId?: string
 
-    @Field(() => String, {
-        description: "Ingredient budget percentage (0-100, e.g., '60.00')",
-        defaultValue: "60.00",
-    })
-    @IsNumberString(
-        {},
-        { message: "Ingredient budget percentage must be a number string" },
-    )
-        ingredientBudgetPercentage: string = "60.00"
-
-    @Field(() => String, {
-        description: "Cooking budget percentage (0-100, e.g., '25.00')",
-        defaultValue: "25.00",
-    })
-    @IsNumberString(
-        {},
-        { message: "Cooking budget percentage must be a number string" },
-    )
-        cookingBudgetPercentage: string = "25.00"
-
-    @Field(() => String, {
-        description: "Delivery budget percentage (0-100, e.g., '15.00')",
-        defaultValue: "15.00",
-    })
-    @IsNumberString(
-        {},
-        { message: "Delivery budget percentage must be a number string" },
-    )
-        deliveryBudgetPercentage: string = "15.00"
-
     @Field(() => Date, { description: "Fundraising start date (ISO 8601)" })
     @Type(() => Date)
     @IsNotEmpty()
@@ -129,21 +99,6 @@ export class UpdateCampaignInput {
     @IsOptional()
     @IsUUID()
         categoryId?: string
-
-    @Field(() => String, { nullable: true })
-    @IsOptional()
-    @IsNumberString()
-        ingredientBudgetPercentage?: string
-
-    @Field(() => String, { nullable: true })
-    @IsOptional()
-    @IsNumberString()
-        cookingBudgetPercentage?: string
-
-    @Field(() => String, { nullable: true })
-    @IsOptional()
-    @IsNumberString()
-        deliveryBudgetPercentage?: string
 
     @Field(() => Date, { nullable: true })
     @IsOptional()

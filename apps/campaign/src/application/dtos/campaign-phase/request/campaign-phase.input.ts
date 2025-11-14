@@ -1,5 +1,11 @@
 import { InputType, Field } from "@nestjs/graphql"
-import { IsNotEmpty, IsOptional, IsString, MinLength } from "class-validator"
+import {
+    IsNotEmpty,
+    IsNumberString,
+    IsOptional,
+    IsString,
+    MinLength,
+} from "class-validator"
 import { Type } from "class-transformer"
 
 @InputType()
@@ -33,6 +39,33 @@ export class CreatePhaseInput {
     @Type(() => Date)
     @IsNotEmpty()
         deliveryDate: Date
+
+    @Field(() => String, {
+        description:
+            "Ingredient budget percentage (0-100, e.g., '20.00'). " +
+            "Note: Total of all phases (ingredient + cooking + delivery) must = 100%",
+    })
+    @IsNumberString()
+    @IsNotEmpty({ message: "Ingredient budget percentage is required" })
+        ingredientBudgetPercentage: string
+
+    @Field(() => String, {
+        description:
+            "Cooking budget percentage (0-100, e.g., '10.00'). " +
+            "Note: Total of all phases (ingredient + cooking + delivery) must = 100%",
+    })
+    @IsNumberString()
+    @IsNotEmpty({ message: "Cooking budget percentage is required" })
+        cookingBudgetPercentage: string
+
+    @Field(() => String, {
+        description:
+            "Delivery budget percentage (0-100, e.g., '5.00'). " +
+            "Note: Total of all phases (ingredient + cooking + delivery) must = 100%",
+    })
+    @IsNumberString()
+    @IsNotEmpty({ message: "Delivery budget percentage is required" })
+        deliveryBudgetPercentage: string
 }
 
 @InputType()
@@ -62,4 +95,19 @@ export class UpdatePhaseInput {
     @IsOptional()
     @Type(() => Date)
         deliveryDate?: Date
+
+    @Field(() => String, { nullable: true })
+    @IsOptional()
+    @IsNumberString()
+        ingredientBudgetPercentage?: string
+
+    @Field(() => String, { nullable: true })
+    @IsOptional()
+    @IsNumberString()
+        cookingBudgetPercentage?: string
+
+    @Field(() => String, { nullable: true })
+    @IsOptional()
+    @IsNumberString()
+        deliveryBudgetPercentage?: string
 }

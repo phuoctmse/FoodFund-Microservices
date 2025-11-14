@@ -26,6 +26,36 @@ export class CampaignPhase extends BaseSchema {
     @Field(() => Date, { description: "Delivery date" })
         deliveryDate: Date
 
+    @Field(() => String, {
+        description: "Ingredient budget percentage (0-100)",
+    })
+        ingredientBudgetPercentage: string
+
+    @Field(() => String, {
+        description: "Cooking budget percentage (0-100)",
+    })
+        cookingBudgetPercentage: string
+
+    @Field(() => String, {
+        description: "Delivery budget percentage (0-100)",
+    })
+        deliveryBudgetPercentage: string
+
+    @Field(() => String, {
+        nullable: true,
+    })
+        ingredientFundsAmount?: string
+
+    @Field(() => String, {
+        nullable: true,
+    })
+        cookingFundsAmount?: string
+
+    @Field(() => String, {
+        nullable: true,
+    })
+        deliveryFundsAmount?: string
+
     @Field(() => CampaignPhaseStatus, { description: "Phase execution status" })
         status: CampaignPhaseStatus
 
