@@ -74,24 +74,23 @@ ingress:
   #      - chart-example.local
 
 resources: 
-  # Optimized for small cluster (1-2 nodes, 1vCPU/2GB each)
-  # Gateway handles all external traffic, needs balanced allocation
+  # Optimized for single node (2 CPU / 2 GB RAM) - Gateway
   limits:
     cpu: 250m      
-    memory: 350Mi 
+    memory: 256Mi 
   requests:
-    cpu: 100m 
-    memory: 175Mi  
+    cpu: 50m 
+    memory: 128Mi  
 
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 startupProbe:
   httpGet:
     path: /health
     port: http
-  initialDelaySeconds: 10
-  periodSeconds: 5
+  initialDelaySeconds: 20  # Gateway needs to wait for subgraphs
+  periodSeconds: 10
   timeoutSeconds: 5
-  failureThreshold: 24  # Allow up to 2 minutes for startup (24 * 5s)
+  failureThreshold: 60  # Allow up to 600s (10 min) for startup (60 * 10s)
   successThreshold: 1
 livenessProbe:
   httpGet:

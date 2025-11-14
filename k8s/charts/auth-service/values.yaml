@@ -75,23 +75,23 @@ ingress:
   #      - chart-example.local
 
 resources:
-  # Ultra-optimized for small cluster - minimal resources
+  # Optimized for single node (2 CPU / 2 GB RAM) - no Prisma
   limits:
-    cpu: 100m # Max 10% of 1 vCPU (reduced from 150m)
-    memory: 200Mi # Max 200MB (reduced from 300Mi)
+    cpu: 200m # Max 20% of 1 vCPU
+    memory: 256Mi # Max 256MB
   requests:
-    cpu: 25m # Min 2.5% of 1 vCPU (reduced from 50m)
-    memory: 100Mi # Min 100MB (reduced from 150Mi)
+    cpu: 50m # Min 5% of 1 vCPU
+    memory: 128Mi # Min 128MB
 
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 startupProbe:
   httpGet:
     path: /health
     port: http
-  initialDelaySeconds: 10
-  periodSeconds: 5
+  initialDelaySeconds: 20
+  periodSeconds: 10
   timeoutSeconds: 5
-  failureThreshold: 18 # Allow up to 90s for startup (18 * 5s)
+  failureThreshold: 60 # Allow up to 600s (10 min) for startup (60 * 10s)
   successThreshold: 1
 livenessProbe:
   httpGet:
