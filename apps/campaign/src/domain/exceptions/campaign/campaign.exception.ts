@@ -22,3 +22,17 @@ export class CampaignCannotBeDeletedException extends BadRequestException {
         )
     }
 }
+
+export class FundraiserHasActiveCampaignException extends BadRequestException {
+    constructor(
+        activeCampaignTitle: string,
+        activeCampaignStatus: CampaignStatus,
+    ) {
+        super(
+            `Bạn hiện đang có một chiến dịch đang hoạt động "${activeCampaignTitle}" (${activeCampaignStatus}). ` +
+                "Vui lòng hoàn thành chiến dịch này trước khi tạo chiến dịch mới. " +
+                "Theo quy định, mỗi tổ chức chỉ được tạo 1 chiến dịch tại một thời điểm.",
+        )
+        this.name = "FundraiserHasActiveCampaignException"
+    }
+}

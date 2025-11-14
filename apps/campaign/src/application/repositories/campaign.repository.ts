@@ -242,6 +242,45 @@ export class CampaignRepository {
         return campaign ? this.mapToGraphQLModel(campaign) : null
     }
 
+    async findActiveCampaignByCreator(creatorId: string): Promise<{
+        id: string
+        title: string
+        status: CampaignStatus
+    } | null> {
+        const activeStatuses = [
+            CampaignStatus.PENDING,
+            CampaignStatus.APPROVED,
+            CampaignStatus.ACTIVE,
+            CampaignStatus.PROCESSING,
+        ]
+
+        const campaign = await this.prisma.campaign.findFirst({
+            where: {
+                created_by: creatorId,
+                is_active: true,
+                status: {
+                    in: activeStatuses,
+                },
+            },
+            select: {
+                id: true,
+                title: true,
+                status: true,
+            },
+            orderBy: {
+                created_at: "desc",
+            },
+        })
+
+        return campaign
+            ? {
+                id: campaign.id,
+                title: campaign.title,
+                status: campaign.status as CampaignStatus,
+            }
+            : null
+    }
+
     async getTotalCampaigns(categoryId?: string): Promise<number> {
         return await this.prisma.campaign.count({
             where: {
