@@ -1324,6 +1324,7 @@ export class CampaignService {
             [CampaignStatus.REJECTED]: [],
             [CampaignStatus.COMPLETED]: [],
             [CampaignStatus.CANCELLED]: [],
+            [CampaignStatus.ENDED]: [],
         }
 
         const allowedTransitions = validTransitions[currentStatus] || []

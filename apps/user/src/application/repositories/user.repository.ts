@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common"
 import { PrismaClient } from "../../generated/user-client"
 import { v7 as uuidv7 } from "uuid"
 
-import { Role, VerificationStatus } from "../enums/user.enum"
+import { Role, VerificationStatus } from "../../domain/enums/user.enum"
 import {
     CreateStaffUserInput,
     CreateUserInput,

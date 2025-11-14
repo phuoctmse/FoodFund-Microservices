@@ -1,3 +1,5 @@
 export * from "./user.model"
 export * from "./organization.model"
 export * from "./organization-member.model"
+export * from "./wallet.model"
+export * from "./wallet-transaction.model"

@@ -7,7 +7,7 @@ import {
     WalletWithTransactionsModel,
     WalletStatsModel,
 } from "../../models/wallet.model"
-import { Wallet_Type } from "../../../../generated/user-client"
+import { Wallet_Type } from "@app/user/src/domain/enums/wallet.enum"
 
 @Resolver()
 export class FundraiserWalletResolver {

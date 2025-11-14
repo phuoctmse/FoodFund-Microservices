@@ -3,7 +3,7 @@ import { Injectable, Scope } from "@nestjs/common"
 import {
     OrganizationRepository,
     UserRepository,
-} from "../../../domain/repositories"
+} from "../../repositories"
 
 @Injectable({ scope: Scope.REQUEST })
 export class DataLoaderFactory {

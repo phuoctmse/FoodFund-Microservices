@@ -1,2 +1,0 @@
--- This migration was manually applied and is kept for tracking purposes
--- No changes needed as schema is already in desired state

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing"
 import { UserQueryService } from "../user-query.service"
-import { UserRepository } from "@app/user/src/domain/repositories"
+import { UserRepository } from "@app/user/src/application/repositories"
 import { Role } from "apps/user/src/generated/user-client"
 
 describe("UserQueryService", () => {

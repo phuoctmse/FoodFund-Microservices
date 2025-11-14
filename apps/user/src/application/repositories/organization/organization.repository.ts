@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common"
 import { PrismaClient } from "../../../generated/user-client"
 import { CreateOrganizationInput } from "@app/user/src/application/dtos"
-import { Role, VerificationStatus } from "../../enums"
+import { Role, VerificationStatus } from "../../../domain/enums"
 
 @Injectable()
 export class OrganizationRepository {

@@ -20,7 +20,7 @@ import {
     OrganizationRepository,
     UserRepository,
     WalletRepository,
-} from "../../../domain/repositories"
+} from "../../repositories"
 import { Role, VerificationStatus } from "@libs/databases"
 import {
     JoinOrganizationRole,

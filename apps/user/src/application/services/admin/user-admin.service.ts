@@ -1,7 +1,7 @@
 import {
     UserAdminRepository,
     UserCommonRepository,
-} from "../../../domain/repositories"
+} from "../../repositories"
 import { Role } from "@libs/databases"
 import { Injectable, Logger, NotFoundException } from "@nestjs/common"
 import { AwsCognitoService } from "libs/aws-cognito"

@@ -4,7 +4,7 @@ import { UserAdminService } from "../user-admin.service"
 import {
     UserAdminRepository,
     UserCommonRepository,
-} from "../../../../domain/repositories"
+} from "../../../repositories"
 import { AwsCognitoService } from "libs/aws-cognito"
 import { Role } from "@libs/databases"
 

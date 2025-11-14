@@ -40,6 +40,9 @@ export class SepayWebhookService {
      * - If orderCode exists AND amount >= original: Skip (PayOS will handle)
      * - If orderCode exists AND amount < original: Process PARTIAL payment
      * - If no orderCode: Process as regular transfer
+     * 
+     * OUTGOING TRANSFERS (transferType: "out"):
+     * - Route to WalletTransactionService to deduct from admin wallet
      */
     async handleSepayWebhook(payload: SepayWebhookPayload): Promise<void> {
         this.logger.log("[Sepay] Received webhook:", {
@@ -51,9 +54,16 @@ export class SepayWebhookService {
             transferType: payload.transferType,
         })
 
-        // Only process incoming transfers
+        // Handle outgoing transfers (bank withdrawals)
+        if (payload.transferType === "out") {
+            this.logger.log(`[Sepay] Processing outgoing transfer: ${payload.id}`)
+            await this.handleOutgoingTransfer(payload)
+            return
+        }
+
+        // Only process incoming transfers below this point
         if (payload.transferType !== "in") {
-            this.logger.log(`[Sepay] Ignoring outgoing transfer: ${payload.id}`)
+            this.logger.log(`[Sepay] Ignoring unknown transfer type: ${payload.transferType}`)
             return
         }
 
@@ -463,6 +473,42 @@ export class SepayWebhookService {
             // On Redis error, allow processing (fail open)
             // Better to process twice than miss a transaction
             return false
+        }
+    }
+
+    /**
+     * Handle outgoing transfer (bank withdrawal from admin wallet)
+     * Route to User service via gRPC to process withdrawal
+     */
+    private async handleOutgoingTransfer(
+        payload: SepayWebhookPayload,
+    ): Promise<void> {
+        try {
+            this.logger.log(
+                `[Sepay OUT] Processing bank transfer OUT - Amount: ${payload.transferAmount}, Gateway: ${payload.gateway}`,
+            )
+
+            // Call User service to process withdrawal
+            await this.userClientService.processBankTransferOut({
+                sepayId: payload.id,
+                amount: BigInt(payload.transferAmount),
+                gateway: payload.gateway,
+                referenceCode: payload.referenceCode,
+                content: payload.content,
+                transactionDate: payload.transactionDate,
+                description: payload.description,
+            })
+
+            this.logger.log(
+                `[Sepay OUT] ✅ Successfully processed withdrawal - Sepay ID: ${payload.id}`,
+            )
+        } catch (error) {
+            this.logger.error(
+                `[Sepay OUT] ❌ Failed to process outgoing transfer: ${error.message}`,
+                error.stack,
+            )
+            // Don't throw - log error for manual review
+            // This prevents webhook retry loops
         }
     }
 

@@ -1,7 +1,7 @@
 import { Parent, ResolveField, Resolver } from "@nestjs/graphql"
 import { WalletModel } from "../../models/wallet.model"
 import { UserProfileSchema } from "../../../../domain/entities/user.model"
-import { UserCommonRepository } from "../../../../domain/repositories"
+import { UserCommonRepository } from "../../../../application/repositories"
 
 @Resolver(() => WalletModel)
 export class WalletFieldResolver {

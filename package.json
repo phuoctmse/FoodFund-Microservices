@@ -90,6 +90,7 @@
     "dataloader": "^2.2.3",
     "dd-trace": "^5.23.0",
     "graphql": "^16.11.0",
+    "graphql-type-json": "^0.3.2",
     "hot-shots": "^10.2.0",
     "http-proxy-middleware": "^3.0.5",
     "ioredis": "^5.8.2",

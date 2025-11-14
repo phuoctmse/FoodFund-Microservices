@@ -165,6 +165,8 @@ model Delivery_Status_Log {
 model Inflow_Transaction {
   id                String   @id @default(uuid())
   campaign_phase_id String
+  ingredient_request_id String?
+  operation_request_id String?
   receiver_id       String
   transaction_type  Inflow_Transaction_Type
   proof             String?  @db.Text()

@@ -4,7 +4,7 @@ import { OrganizationService } from "../organization.service"
 import {
     OrganizationRepository,
     UserRepository,
-} from "@app/user/src/domain/repositories"
+} from "@app/user/src/application/repositories"
 import { AwsCognitoService } from "@libs/aws-cognito"
 import { DataLoaderService } from "../../common"
 import { Role } from "@libs/databases"

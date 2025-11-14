@@ -213,6 +213,7 @@ enum Campaign_Status {
   ACTIVE
   PROCESSING
   COMPLETED
+  ENDED
   CANCELLED
 }
 

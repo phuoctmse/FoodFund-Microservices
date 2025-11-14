@@ -126,7 +126,7 @@ export class CampaignSettlementService {
             await tx.campaign.update({
                 where: { id: campaign.id },
                 data: {
-                    status: CampaignStatus.COMPLETED,
+                    status: CampaignStatus.PROCESSING,
                     completed_at: new Date(),
                 },
             })
