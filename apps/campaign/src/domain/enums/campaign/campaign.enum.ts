@@ -7,6 +7,7 @@ export enum CampaignStatus {
     ACTIVE = "ACTIVE",
     PROCESSING = "PROCESSING",
     COMPLETED = "COMPLETED",
+    ENDED = "ENDED",
     CANCELLED = "CANCELLED",
 }
 
@@ -32,6 +33,10 @@ registerEnumType(CampaignStatus, {
         },
         COMPLETED: {
             description: "All phases completed successfully",
+        },
+        ENDED: {
+            description:
+                "Campaign ended with insufficient funding (< 50%), funds pooled for other campaigns",
         },
         CANCELLED: {
             description: "Campaign cancelled by admin or creator",

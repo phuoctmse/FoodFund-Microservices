@@ -1,8 +1,7 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common"
 import { envConfig } from "@libs/env"
-import { WalletRepository } from "../../../domain/repositories/wallet.repository"
-import { UserCommonRepository } from "../../../domain/repositories"
-import { Wallet_Type, Transaction_Type } from "../../../generated/user-client"
+import { WalletRepository } from "../../repositories/wallet.repository"
+import { UserCommonRepository } from "../../repositories"
 import {
     WalletModel,
     WalletTransactionModel,
@@ -13,6 +12,7 @@ import {
     WalletStatsModel,
     PlatformWalletStatsModel,
 } from "../../../presentation/graphql/models/wallet.model"
+import { Transaction_Type, Wallet_Type } from "@app/user/src/domain/enums/wallet.enum"
 
 @Injectable()
 export class WalletService {

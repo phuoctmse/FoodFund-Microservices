@@ -84,7 +84,6 @@ if [[ "${DEPLOY_CAMPAIGN}" = "true" ]]; then
             --wait \
             --timeout ${HELM_TIMEOUT} \
             --atomic \
-            --debug \
         && echo "✅ campaign-service deployed" \
         || {
             echo "❌ campaign-service deployment failed"

@@ -3,7 +3,7 @@ import { UserGrpcController } from "../user-grpc.controller"
 import {
     UserCommonRepository,
     UserAdminRepository,
-} from "../../../domain/repositories"
+} from "../../../application/repositories"
 import { Role } from "@libs/databases"
 
 jest.mock("libs/common", () => ({
@@ -331,3 +331,4 @@ describe("UserGrpcController", () => {
         })
     })
 })
+

@@ -4,6 +4,7 @@ import { JobExecutionResult } from "@libs/common/base/base.job"
 import { CampaignStatus } from "@app/campaign/src/domain/enums/campaign/campaign.enum"
 import { CampaignRepository } from "../../repositories/campaign.repository"
 import { Campaign } from "@app/campaign/src/domain/entities/campaign.model"
+import { UserClientService } from "@app/campaign/src/shared"
 
 export interface StatusTransitionResult {
     campaignId: string
@@ -33,6 +34,7 @@ export class CampaignSchedulerService {
     constructor(
         private readonly campaignRepository: CampaignRepository,
         private readonly sentryService: SentryService,
+        private readonly userClientService: UserClientService,
     ) {}
 
     /**
@@ -331,20 +333,38 @@ export class CampaignSchedulerService {
         campaign: Campaign,
     ): Promise<StatusTransitionResult> {
         try {
-            const targetReached =
-                BigInt(campaign.receivedAmount) >= BigInt(campaign.targetAmount)
-            const reason = targetReached
-                ? "TARGET_AMOUNT_REACHED"
-                : "FUNDRAISING_END_DATE_REACHED"
+            const fundingPercentage = 
+                (Number(campaign.receivedAmount) / Number(campaign.targetAmount)) * 100
+
+            let newStatus: CampaignStatus
+            let reason: string
+
+            if (fundingPercentage >= 50) {
+                newStatus = CampaignStatus.PROCESSING
+                reason = "PARTIAL_FUNDING_SUCCESS"
+
+                this.logger.log(
+                    `Campaign ${campaign.id} reached ${fundingPercentage.toFixed(2)}% funding - Moving to PROCESSING`,
+                )
+            } else {
+                newStatus = CampaignStatus.ENDED
+                reason = "INSUFFICIENT_FUNDING"
+
+                this.logger.log(
+                    `Campaign ${campaign.id} only reached ${fundingPercentage.toFixed(2)}% funding - Pooling funds to fundraiser wallet`,
+                )
+
+                await this.poolFundsToFundraiser(campaign)
+            }
 
             await this.campaignRepository.update(campaign.id, {
-                status: CampaignStatus.PROCESSING,
+                status: newStatus,
             })
 
             return {
                 campaignId: campaign.id,
                 oldStatus: campaign.status,
-                newStatus: CampaignStatus.PROCESSING,
+                newStatus: newStatus,
                 reason,
                 success: true,
             }
@@ -363,6 +383,40 @@ export class CampaignSchedulerService {
                 success: false,
                 error: error.message,
             }
+        }
+    }
+
+    private async poolFundsToFundraiser(campaign: Campaign): Promise<void> {
+        try {
+            const fundraiserUser = await this.userClientService.getUserByCognitoId(
+                campaign.createdBy,
+            )
+
+            if (!fundraiserUser) {
+                throw new Error(
+                    `Fundraiser user not found for cognito_id ${campaign.createdBy}`,
+                )
+            }
+
+            // Credit fundraiser wallet with all received funds
+            await this.userClientService.creditFundraiserWallet({
+                fundraiserId: fundraiserUser.id,
+                campaignId: campaign.id,
+                paymentTransactionId: "",
+                amount: BigInt(campaign.receivedAmount),
+                gateway: "SYSTEM",
+                description: `Pooled funds from campaign "${campaign.title}" (Received: ${campaign.receivedAmount.toString()} VND, Target: ${campaign.targetAmount.toString()} VND)`,
+            })
+
+            this.logger.log(
+                `✅ Pooled ${campaign.receivedAmount.toString()} VND to fundraiser wallet for campaign ${campaign.id}`,
+            )
+        } catch (error) {
+            this.logger.error(
+                `Failed to pool funds for campaign ${campaign.id}:`,
+                error,
+            )
+            throw error
         }
     }
 

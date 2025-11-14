@@ -1,6 +1,7 @@
 export * from "./delivery-status-log.repository"
 export * from "./delivery-task.repository"
 export * from "./expense-proof.repository"
+export * from "./inflow-transaction.repository"
 export * from "./ingredient-request-item.repository"
 export * from "./ingredient-request.repository"
 export * from "./meal-batch.repository"

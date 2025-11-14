@@ -1,5 +1,5 @@
 import { DonorErrorHelper } from "@app/user/src/domain/exceptions"
-import { UserRepository } from "@app/user/src/domain/repositories"
+import { UserRepository } from "@app/user/src/application/repositories"
 import { Role } from "@libs/databases"
 import { Injectable, Logger } from "@nestjs/common"
 

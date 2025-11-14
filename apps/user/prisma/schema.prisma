@@ -115,13 +115,15 @@ model Wallet_Transaction {
   id                     String           @id @default(uuid())
   wallet_id              String
   wallet                 Wallet           @relation(fields: [wallet_id], references: [id], onDelete: Cascade)
-  campaign_id            String? 
+  campaign_id            String?
   payment_transaction_id String?
   amount                 BigInt
+  balance_before         BigInt? 
+  balance_after          BigInt? 
   transaction_type       Transaction_Type
   description            String?          @db.Text()
   gateway                String?          @db.VarChar(50) // "SEPAY" only for unknown transfers
-  sepay_metadata         Json?            // Sepay webhook payload for non-donation transfers (audit trail)
+  sepay_metadata         Json? // Sepay webhook payload for non-donation transfers (audit trail)
   created_at             DateTime         @default(now())
 
   @@index([wallet_id])

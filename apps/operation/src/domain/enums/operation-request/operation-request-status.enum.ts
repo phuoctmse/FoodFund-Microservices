@@ -4,6 +4,7 @@ export enum OperationRequestStatus {
     PENDING = "PENDING",
     APPROVED = "APPROVED",
     REJECTED = "REJECTED",
+    DISBURSED = "DISBURSED"
 }
 
 registerEnumType(OperationRequestStatus, {

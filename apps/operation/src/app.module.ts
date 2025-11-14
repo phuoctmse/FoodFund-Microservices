@@ -5,6 +5,9 @@ import {
     DeliveryTaskStatsQueryResolver,
     ExpenseProofMutationResolver,
     ExpenseProofQueryResolver,
+    InflowTransactionAdminResolver,
+    InflowTransactionFundraiserResolver,
+    InflowTransactionPublicResolver,
     IngredientRequestMutationResolver,
     IngredientRequestQueryResolver,
     MealBatchMutationResolver,
@@ -35,6 +38,8 @@ import { GrpcModule } from "@libs/grpc"
 import {
     DeliveryTaskService,
     ExpenseProofService,
+    InflowTransactionService,
+    InflowTransactionValidationService,
     IngredientRequestItemService,
     IngredientRequestService,
     OperationRequestService,
@@ -44,6 +49,7 @@ import {
     DeliveryStatusLogRepository,
     DeliveryTaskRepository,
     ExpenseProofRepository,
+    InflowTransactionRepository,
     MealBatchRepository,
     OperationRequestRepository,
 } from "./application/repositories"
@@ -91,6 +97,7 @@ import { MealBatchService } from "./application/services/meal-batch/meal-batch.s
         IngredientRequestRepository,
         IngredientRequestItemRepository,
         ExpenseProofRepository,
+        InflowTransactionRepository,
         MealBatchRepository,
         OperationRequestRepository,
         DeliveryTaskRepository,
@@ -104,6 +111,8 @@ import { MealBatchService } from "./application/services/meal-batch/meal-batch.s
         MealBatchService,
         OperationRequestService,
         DeliveryTaskService,
+        InflowTransactionService,
+        InflowTransactionValidationService,
 
         UserResolver,
         CampaignPhaseResolver,
@@ -118,6 +127,9 @@ import { MealBatchService } from "./application/services/meal-batch/meal-batch.s
         DeliveryTaskMutationResolver,
         DeliveryTaskQueryResolver,
         DeliveryTaskStatsQueryResolver,
+        InflowTransactionAdminResolver,
+        InflowTransactionFundraiserResolver,
+        InflowTransactionPublicResolver,
     ],
 })
 export class AppModule {}

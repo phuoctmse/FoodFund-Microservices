@@ -1,4 +1,4 @@
-import { FundraiserRepository } from "@app/user/src/domain/repositories"
+import { FundraiserRepository } from "@app/user/src/application/repositories"
 import { Injectable, Logger } from "@nestjs/common"
 
 @Injectable()

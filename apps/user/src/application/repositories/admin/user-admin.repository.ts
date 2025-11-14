@@ -1,10 +1,10 @@
 import { Injectable } from "@nestjs/common"
 import { PrismaClient } from "../../../generated/user-client"
-import { Role } from "../../enums/user.enum"
+import { Role } from "../../../domain/enums/user.enum"
 import {
     UpdateUserInput,
     UpdateUserAccountInput,
-} from "../../../application/dtos"
+} from "../../dtos"
 
 @Injectable()
 export class UserAdminRepository {

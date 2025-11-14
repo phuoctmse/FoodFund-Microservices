@@ -338,4 +338,69 @@ export class UserClientService {
             return [] // Return empty array on error (non-critical)
         }
     }
+
+    /**
+     * Process bank transfer OUT (withdrawal from admin wallet)
+     * Calls User service via gRPC to process Sepay outgoing transfer
+     */
+    async processBankTransferOut(data: {
+        sepayId: number
+        amount: bigint
+        gateway: string
+        referenceCode: string
+        content: string
+        transactionDate: string
+        description: string
+    }): Promise<void> {
+        try {
+            this.logger.log(
+                `[gRPC] Calling ProcessBankTransferOut - Sepay ID: ${data.sepayId}, Amount: ${data.amount}`,
+            )
+
+            const response = await this.grpcClient.callUserService<
+                {
+                    sepayId: number
+                    amount: string // gRPC uses string for bigint
+                    gateway: string
+                    referenceCode: string
+                    content: string
+                    transactionDate: string
+                    description: string
+                },
+                {
+                    success: boolean
+                    walletTransactionId?: string
+                    error?: string
+                }
+            >(
+                "ProcessBankTransferOut",
+                {
+                    sepayId: data.sepayId,
+                    amount: data.amount.toString(),
+                    gateway: data.gateway,
+                    referenceCode: data.referenceCode,
+                    content: data.content,
+                    transactionDate: data.transactionDate,
+                    description: data.description,
+                },
+                { timeout: 5000, retries: 3 },
+            )
+
+            if (!response.success) {
+                throw new Error(
+                    response.error || "Failed to process bank transfer out",
+                )
+            }
+
+            this.logger.log(
+                `[gRPC] ✅ Bank transfer OUT processed - Transaction ID: ${response.walletTransactionId}`,
+            )
+        } catch (error) {
+            this.logger.error(
+                `[gRPC] ❌ Failed to process bank transfer OUT (Sepay ID: ${data.sepayId}):`,
+                error,
+            )
+            throw error
+        }
+    }
 }

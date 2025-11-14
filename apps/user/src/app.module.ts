@@ -20,6 +20,7 @@ import {
     UserMutationService,
     WalletService,
 } from "./application/services"
+import { WalletTransactionService } from "./application/services/common/wallet-transaction.service"
 import {
     UserRepository,
     OrganizationRepository,
@@ -29,9 +30,9 @@ import {
     FundraiserRepository,
     DeliveryStaffRepository,
     WalletRepository,
-} from "./domain/repositories"
+} from "./application/repositories"
 import { PrismaUserService } from "./infrastructure/database"
-import { UserGrpcController } from "./infrastructure/grpc/user-grpc.controller"
+import { UserGrpcController } from "./presentation/grpc"
 import {
     UserQueryResolver,
     UserMutationResolver,
@@ -77,7 +78,7 @@ import { HealthController } from "./presentation/http/controllers"
         // Presentation - HTTP Controllers
         HealthController,
 
-        // Infrastructure - gRPC Controller
+        // Presentation - gRPC Controller
         UserGrpcController,
     ],
     providers: [
@@ -111,6 +112,7 @@ import { HealthController } from "./presentation/http/controllers"
         UserQueryService,
         UserMutationService,
         WalletService,
+        WalletTransactionService,
 
         // Presentation - Resolvers
         UserQueryResolver,
