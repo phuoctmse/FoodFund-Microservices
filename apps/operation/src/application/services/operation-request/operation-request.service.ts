@@ -328,6 +328,7 @@ export class OperationRequestService {
             ],
             [OperationRequestStatus.APPROVED]: [OperationRequestStatus.PENDING],
             [OperationRequestStatus.REJECTED]: [],
+            [OperationRequestStatus.DISBURSED]: [],
         }
 
         const allowed = validTransitions[currentStatus] || []
