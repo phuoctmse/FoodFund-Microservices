@@ -49,6 +49,7 @@ import {
     DeliveryStatusLogRepository,
     DeliveryTaskRepository,
     ExpenseProofRepository,
+    InflowTransactionRepository,
     MealBatchRepository,
     OperationRequestRepository,
 } from "./application/repositories"
@@ -96,6 +97,7 @@ import { MealBatchService } from "./application/services/meal-batch/meal-batch.s
         IngredientRequestRepository,
         IngredientRequestItemRepository,
         ExpenseProofRepository,
+        InflowTransactionRepository,
         MealBatchRepository,
         OperationRequestRepository,
         DeliveryTaskRepository,
