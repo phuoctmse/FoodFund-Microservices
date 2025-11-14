@@ -7,6 +7,12 @@ export class InflowTransaction extends BaseSchema {
     @Field(() => String, { description: "Campaign phase ID" })
         campaignPhaseId: string
 
+    @Field(() => String, { nullable: true, description: "Linked ingredient request ID (if applicable)" })
+        ingredientRequestId?: string
+
+    @Field(() => String, { nullable: true, description: "Linked operation request ID (if applicable)" })
+        operationRequestId?: string
+
     @Field(() => String, { description: "Fundraiser user ID who receives the money" })
         receiverId: string
 

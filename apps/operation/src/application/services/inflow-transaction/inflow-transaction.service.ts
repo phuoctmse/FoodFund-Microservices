@@ -29,19 +29,31 @@ export class InflowTransactionService {
         user: CurrentUserType,
     ): Promise<InflowTransaction> {
         try {
+            // Validate that exactly one request ID is provided
+            if (input.ingredientRequestId && input.operationRequestId) {
+                throw new BadRequestException(
+                    "Cannot provide both ingredientRequestId and operationRequestId. Please provide only one.",
+                )
+            }
+
+            if (!input.ingredientRequestId && !input.operationRequestId) {
+                throw new BadRequestException(
+                    "Must provide either ingredientRequestId or operationRequestId.",
+                )
+            }
+
             // Validate input and get fundraiser details
             const validation = await this.validationService.validateCreateInput(input)
 
-            // Check for duplicate disbursement
+            // Check for duplicate disbursement (each request can only be disbursed once)
             const isDuplicate = await this.validationService.checkDuplicateDisbursement(
-                validation.campaignPhaseId,
-                BigInt(input.amount),
+                input.ingredientRequestId,
+                input.operationRequestId,
             )
 
             if (isDuplicate) {
                 throw new BadRequestException(
-                    "A disbursement with the same phase and amount has already been created today. " +
-                        "Please verify if this is a duplicate.",
+                    "This request has already been disbursed. Each request can only be disbursed once.",
                 )
             }
 
@@ -50,7 +62,9 @@ export class InflowTransactionService {
                 data: {
                     campaign_phase_id: validation.campaignPhaseId,
                     receiver_id: validation.fundraiserId,
-                    transaction_type: "INGREDIENT", // Default type for phase-based disbursements
+                    ingredient_request_id: input.ingredientRequestId || null,
+                    operation_request_id: input.operationRequestId || null,
+                    transaction_type: validation.transactionType,
                     amount: BigInt(input.amount),
                     proof: input.proof.trim(),
                     status: InflowTransactionStatus.PENDING,
@@ -60,9 +74,12 @@ export class InflowTransactionService {
 
             this.sentryService.addBreadcrumb("Inflow transaction created", "disbursement", {
                 id: created.id,
+                type: validation.transactionType,
                 amount: input.amount,
                 campaignPhaseId: validation.campaignPhaseId,
                 fundraiserId: validation.fundraiserId,
+                ingredientRequestId: input.ingredientRequestId,
+                operationRequestId: input.operationRequestId,
             })
 
             return this.mapToGraphQLModel(created)

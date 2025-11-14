@@ -20,7 +20,10 @@ export class InflowTransactionAdminResolver {
         name: "createInflowTransaction",
         description:
             "Create a new inflow transaction (disbursement). Admin only. " +
-            "Provide campaignPhaseId, amount, and proof (S3 URL of bank transfer screenshot).",
+            "Must provide EITHER ingredientRequestId OR operationRequestId (not both). " +
+            "Amount must match the request's total_cost. " +
+            "Transaction type is automatically detected from the request. " +
+            "Also provide campaignPhaseId, amount, and proof (S3 URL of bank transfer screenshot).",
     })
     @RequireRole(Role.ADMIN)
     async createInflowTransaction(
