@@ -124,7 +124,7 @@ export class CampaignService {
                 "create campaign",
             )
 
-            await this.validateNoActiveCampaign(userContext.userId)
+            // await this.validateNoActiveCampaign(userContext.userId)
 
             if (input.categoryId) {
                 await this.validateCategoryExists(input.categoryId)
