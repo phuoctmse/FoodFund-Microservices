@@ -29,7 +29,6 @@ export class ExpenseProofQueryResolver {
     @Query(() => [ExpenseProof], {
         description: "Get expense proofs",
     })
-    @UseGuards(CognitoGraphQLGuard)
     async getExpenseProofs(
         @Args("filter", {
             type: () => ExpenseProofFilterInput,
@@ -38,14 +37,11 @@ export class ExpenseProofQueryResolver {
             filter: ExpenseProofFilterInput,
         @Args("limit", { type: () => Int, defaultValue: 10 }) limit: number,
         @Args("offset", { type: () => Int, defaultValue: 0 }) offset: number,
-        @CurrentUser("decodedToken") decodedToken: any,
     ): Promise<ExpenseProof[]> {
-        const userContext = createUserContextFromToken(decodedToken)
         return await this.expenseProofService.getExpenseProofs(
             filter || {},
             limit,
             offset,
-            userContext,
         )
     }
 

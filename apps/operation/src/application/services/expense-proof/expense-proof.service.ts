@@ -283,7 +283,6 @@ export class ExpenseProofService {
         filter: ExpenseProofFilterInput,
         limit: number,
         offset: number,
-        userContext: UserContext,
     ): Promise<ExpenseProof[]> {
         try {
             let proofs: any[]
@@ -321,21 +320,10 @@ export class ExpenseProofService {
                 )
             }
 
-            if (userContext.role === Role.FUNDRAISER) {
-                const filteredProofs = await this.filterFundraiserProofs(
-                    proofs,
-                    userContext.userId,
-                )
-                return filteredProofs.map((proof) =>
-                    this.mapToGraphQLModel(proof),
-                )
-            }
-
             return proofs.map((proof) => this.mapToGraphQLModel(proof))
         } catch (error) {
             this.sentryService.captureError(error as Error, {
                 operation: "ExpenseProofService.getExpenseProofs",
-                userId: userContext.userId,
                 filter,
             })
             throw error
@@ -491,26 +479,6 @@ export class ExpenseProofService {
             })
             return false
         }
-    }
-
-    private async filterFundraiserProofs(
-        proofs: any[],
-        fundraiserId: string,
-    ): Promise<any[]> {
-        const filteredProofs: any[] = []
-
-        for (const proof of proofs) {
-            const hasAccess = await this.checkFundraiserCampaignOwnership(
-                proof.request_id,
-                fundraiserId,
-            )
-
-            if (hasAccess) {
-                filteredProofs.push(proof)
-            }
-        }
-
-        return filteredProofs
     }
 
     private mapToGraphQLModel(proof: any): ExpenseProof {
