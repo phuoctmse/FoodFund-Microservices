@@ -4,7 +4,7 @@ import { AppModule } from "./app.module"
 import { ValidationPipe } from "@nestjs/common"
 import { envConfig } from "@libs/env"
 import { DatadogInterceptor, initDatadogTracer } from "@libs/observability"
-import { join } from "path"
+import { join } from "node:path"
 
 initDatadogTracer({
     serviceName: "operation-service",
