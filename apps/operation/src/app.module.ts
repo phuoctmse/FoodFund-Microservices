@@ -25,6 +25,7 @@ import {
     CampaignPhaseResolver,
     User,
     UserResolver,
+    UserClientService,
 } from "./shared"
 import { PrismaOperationService } from "./infrastructure"
 import { PrismaClient } from "./generated/operation-client"
@@ -34,6 +35,7 @@ import { SentryModule, DatadogModule } from "@libs/observability"
 import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 import { EnvModule } from "@libs/env/env.module"
 import { HealthController } from "./presentation/http"
+import { OperationGrpcController } from "./presentation/grpc"
 import { GrpcModule } from "@libs/grpc"
 import {
     DeliveryTaskService,
@@ -85,7 +87,13 @@ import { MealBatchService } from "./application/services/meal-batch/meal-batch.s
         }),
         GrpcModule,
     ],
-    controllers: [HealthController],
+    controllers: [
+        // Presentation - HTTP Controllers
+        HealthController,
+
+        // Presentation - gRPC Controller
+        OperationGrpcController,
+    ],
     providers: [
         PrismaOperationService,
         {
@@ -104,6 +112,7 @@ import { MealBatchService } from "./application/services/meal-batch/meal-batch.s
         DeliveryStatusLogRepository,
 
         AuthorizationService,
+        UserClientService,
         SpacesUploadService,
         IngredientRequestService,
         IngredientRequestItemService,

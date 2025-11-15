@@ -42,13 +42,13 @@ export class InflowTransactionAdminResolver {
     }
 
     @Query(() => InflowTransactionListResponse, {
-        name: "getDisbursements",
+        name: "getListInflowTransaction",
         description:
             "Get all disbursements with optional filters. Admin only. " +
             "Supports filtering by campaign phase, receiver, type, status, and date range.",
     })
     @RequireRole(Role.ADMIN)
-    async getDisbursements(
+    async getListInflowTransaction(
         @Args("filter", {
             type: () => InflowTransactionFilterInput,
             nullable: true,
@@ -67,12 +67,12 @@ export class InflowTransactionAdminResolver {
     }
 
     @Query(() => InflowTransaction, {
-        name: "getDisbursementById",
+        name: "getInflowTransactionDetails",
         description:
             "Get a single disbursement by ID. Admin or owner Fundraiser.",
     })
     @RequireRole(Role.ADMIN)
-    async getDisbursementById(
+    async getInflowTransactionDetails(
         @Args("id", { type: () => String }) id: string,
         @CurrentUser() user: CurrentUserType,
     ): Promise<InflowTransaction> {

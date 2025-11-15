@@ -88,28 +88,28 @@ startupProbe:
   httpGet:
     path: /health
     port: http
-  initialDelaySeconds: 30  # Increased for DB-heavy service with Prisma
+  initialDelaySeconds: 45  # Increased for DB-heavy service with Prisma + Redis
   periodSeconds: 10
-  timeoutSeconds: 5
+  timeoutSeconds: 10  # Increased from 5s for slow responses
   failureThreshold: 60  # Allow up to 600s (10 min) for startup (60 * 10s)
   successThreshold: 1
 livenessProbe:
   httpGet:
     path: /health
     port: http
-  initialDelaySeconds: 30
-  periodSeconds: 10
-  timeoutSeconds: 5
-  failureThreshold: 3
+  initialDelaySeconds: 60  # Wait longer before first liveness check
+  periodSeconds: 15  # Check less frequently
+  timeoutSeconds: 10  # Increased from 5s
+  failureThreshold: 5  # More tolerance before restart
   successThreshold: 1
 readinessProbe:
   httpGet:
     path: /health
     port: http
-  initialDelaySeconds: 30  # Increased to ensure DB connection is ready
-  periodSeconds: 5
-  timeoutSeconds: 5  # Increased from 3s
-  failureThreshold: 6  # Increased tolerance (30s total)
+  initialDelaySeconds: 40  # Increased to ensure DB + Redis connection is ready
+  periodSeconds: 10  # Check less frequently
+  timeoutSeconds: 10  # Increased from 5s
+  failureThreshold: 6  # Increased tolerance (60s total)
   successThreshold: 1
 
 # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/

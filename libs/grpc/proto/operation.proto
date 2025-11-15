@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package foodfund.operation;
+
+// Operation Service for internal communication
+service OperationService {
+  // Health check
+  rpc Health(HealthRequest) returns (HealthResponse);
+  
+  // Get operation request status
+  rpc GetOperationRequestStatus(GetOperationRequestStatusRequest) returns (GetOperationRequestStatusResponse);
+  
+  // Get inflow transaction by ID
+  rpc GetInflowTransactionById(GetInflowTransactionByIdRequest) returns (GetInflowTransactionByIdResponse);
+  
+  // Validate operation request
+  rpc ValidateOperationRequest(ValidateOperationRequestRequest) returns (ValidateOperationRequestResponse);
+}
+
+// Health Check
+message HealthRequest {}
+
+message HealthResponse {
+  string status = 1;
+  string service = 2;
+  string timestamp = 3;
+  double uptime = 4;
+}
+
+// Get Operation Request Status
+message GetOperationRequestStatusRequest {
+  string operation_request_id = 1;
+}
+
+message GetOperationRequestStatusResponse {
+  bool success = 1;
+  OperationRequestStatus operation_request = 2;
+  string error = 3;
+}
+
+message OperationRequestStatus {
+  string id = 1;
+  string campaign_phase_id = 2;
+  string status = 3;
+  string created_at = 4;
+  string updated_at = 5;
+}
+
+// Get Inflow Transaction by ID
+message GetInflowTransactionByIdRequest {
+  string inflow_transaction_id = 1;
+}
+
+message GetInflowTransactionByIdResponse {
+  bool success = 1;
+  InflowTransaction inflow_transaction = 2;
+  string error = 3;
+}
+
+message InflowTransaction {
+  string id = 1;
+  string campaign_phase_id = 2;
+  string receiver_id = 3;
+  string amount = 4;
+  string transaction_type = 5;
+  string status = 6;
+  string created_at = 7;
+}
+
+// Validate Operation Request
+message ValidateOperationRequestRequest {
+  string campaign_phase_id = 1;
+  string operation_type = 2;
+}
+
+message ValidateOperationRequestResponse {
+  bool success = 1;
+  bool is_valid = 2;
+  string message = 3;
+  string error = 4;
+}
+

@@ -14,12 +14,12 @@ export class InflowTransactionFilterInput {
         @IsString()
             receiverId?: string
 
-        @Field(() => String, { nullable: true })
+        @Field(() => InflowTransactionType, { nullable: true })
         @IsOptional()
         @IsEnum(InflowTransactionType)
             transactionType?: InflowTransactionType
 
-        @Field(() => String, { nullable: true })
+        @Field(() => InflowTransactionStatus, { nullable: true })
         @IsOptional()
         @IsEnum(InflowTransactionStatus)
             status?: InflowTransactionStatus

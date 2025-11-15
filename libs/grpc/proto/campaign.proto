@@ -7,6 +7,7 @@ service CampaignService {
   rpc GetCampaign(GetCampaignRequest) returns (GetCampaignResponse);
   rpc GetCampaignIdByPhaseId(GetCampaignIdByPhaseIdRequest) returns (GetCampaignIdByPhaseIdResponse);
   rpc GetCampaignPhases(GetCampaignPhasesRequest) returns (GetCampaignPhasesResponse);
+  rpc GetFundraiserByPhaseId(GetFundraiserByPhaseIdRequest) returns (GetFundraiserByPhaseIdResponse);
 }
 
 // Messages
@@ -77,5 +78,15 @@ message CampaignPhase {
 message GetCampaignPhasesResponse {
   bool success = 1;
   repeated CampaignPhase phases = 2;
+  string error = 3;
+}
+
+message GetFundraiserByPhaseIdRequest {
+  string phase_id = 1;
+}
+
+message GetFundraiserByPhaseIdResponse {
+  bool success = 1;
+  string fundraiser_id = 2;
   string error = 3;
 }

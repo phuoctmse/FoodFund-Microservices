@@ -1,5 +1,5 @@
 import { Field, InputType, registerEnumType } from "@nestjs/graphql"
-import { IsEnum, IsNotEmpty, IsOptional, IsString, ValidateIf } from "class-validator"
+import { IsEnum, IsNotEmpty, IsString } from "class-validator"
 
 export enum DisbursementConfirmationStatus {
     COMPLETED = "COMPLETED",
@@ -14,7 +14,7 @@ registerEnumType(DisbursementConfirmationStatus, {
             description: "Fundraiser has received the money",
         },
         FAILED: {
-            description: "Fundraiser has not received the money or encountered issues",
+            description: "Fundraiser reports not receiving the money or encountering issues",
         },
     },
 })
@@ -34,14 +34,4 @@ export class ConfirmDisbursementInput {
     @IsNotEmpty()
     @IsEnum(DisbursementConfirmationStatus)
         status: DisbursementConfirmationStatus
-
-    @Field(() => String, {
-        nullable: true,
-        description: "Reason for failure (required if status is FAILED)",
-    })
-    @IsOptional()
-    @IsString()
-    @ValidateIf((o) => o.status === DisbursementConfirmationStatus.FAILED)
-    @IsNotEmpty({ message: "Reason is required when status is FAILED" })
-        reason?: string
 }

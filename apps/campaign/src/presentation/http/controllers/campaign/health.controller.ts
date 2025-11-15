@@ -6,7 +6,19 @@ export class HealthController {
     constructor(private readonly cacheService: CampaignCacheService) {}
 
     @Get()
-    async checkHealth() {
+    checkHealth() {
+        // Simple health check for K8s probes - no async operations
+        return {
+            status: "healthy",
+            service: "campaign-service",
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime(),
+        }
+    }
+
+    @Get("detailed")
+    async checkDetailedHealth() {
+        // Detailed health check with cache status - for monitoring
         try {
             const cacheHealth = await this.cacheService.getHealthStatus()
 

@@ -10,11 +10,8 @@ import { SpacesUploadService } from "libs/s3-storage/spaces-upload.service"
 import { CampaignCacheService } from "./campaign-cache.service"
 import { CampaignRepository } from "../../repositories/campaign.repository"
 import { CampaignCategoryRepository } from "../../repositories/campaign-category.repository"
-import {
-    AuthorizationService,
-    Role,
-    UserContext,
-} from "@app/campaign/src/shared"
+import { CampaignPhaseRepository } from "../../repositories/campaign-phase.repository"
+import { AuthorizationService, Role, UserContext } from "@app/campaign/src/shared"
 import { CampaignPhaseService } from "../campaign-phase/campaign-phase.service"
 import {
     CampaignFilterInput,
@@ -51,6 +48,7 @@ export class CampaignService {
     constructor(
         private readonly campaignRepository: CampaignRepository,
         private readonly campaignCategoryRepository: CampaignCategoryRepository,
+        private readonly campaignPhaseRepository: CampaignPhaseRepository,
         private readonly sentryService: SentryService,
         private readonly spacesUploadService: SpacesUploadService,
         private readonly authorizationService: AuthorizationService,
@@ -292,6 +290,10 @@ export class CampaignService {
 
         await this.cacheService.setCampaign(id, campaign)
         return campaign
+    }
+
+    async getCampaignIdByPhaseId(phaseId: string): Promise<string | null> {
+        return this.campaignPhaseRepository.getCampaignIdByPhaseId(phaseId)
     }
 
     async updateCampaign(

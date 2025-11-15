@@ -26,7 +26,6 @@ export interface CreateInflowTransactionData {
 
 export interface UpdateInflowTransactionStatusData {
     status: InflowTransactionStatus
-    failedReason?: string
     isReported?: boolean
     reportedAt?: Date
 }
@@ -110,10 +109,6 @@ export class InflowTransactionRepository {
             updated_at: new Date(),
         }
 
-        if (data.failedReason !== undefined) {
-            updateData.failed_reason = data.failedReason
-        }
-
         if (data.isReported !== undefined) {
             updateData.is_reported = data.isReported
         }
@@ -132,7 +127,11 @@ export class InflowTransactionRepository {
         ingredientRequestId?: string,
         operationRequestId?: string,
     ): Promise<boolean> {
-        const where: any = {}
+        const where: any = {
+            status: {
+                in: [InflowTransactionStatus.COMPLETED, InflowTransactionStatus.PENDING],
+            },
+        }
 
         if (ingredientRequestId) {
             where.ingredient_request_id = ingredientRequestId

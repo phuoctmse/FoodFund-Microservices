@@ -47,16 +47,19 @@ export class InflowTransactionService {
      * Helper: Get user by Cognito ID
      */
     private async getUserByCognitoId(cognitoId: string): Promise<{ id: string; cognitoId: string }> {
-        const user = await this.grpcClient.callUserService<
+        const response = await this.grpcClient.callUserService<
             { cognitoId: string },
-            { id: string; cognitoId: string } | null
-        >("GetUserByCognitoId", { cognitoId })
+            { success: boolean; user?: any; error?: string }
+        >("GetUser", { cognitoId })
 
-        if (!user) {
-            throw new NotFoundException("User not found")
+        if (!response.success || !response.user) {
+            throw new NotFoundException(response.error || "User not found")
         }
 
-        return user
+        return {
+            id: response.user.id,
+            cognitoId: response.user.cognitoId
+        }
     }
 
     async createInflowTransaction(
@@ -79,10 +82,8 @@ export class InflowTransactionService {
                     )
                 }
 
-                // Validate input and get fundraiser details
                 const validation = await this.validationService.validateCreateInput(input)
 
-                // Check for duplicate disbursement (each request can only be disbursed once)
                 const isDuplicate = await this.inflowTransactionRepository.hasDuplicateDisbursement(
                     input.ingredientRequestId,
                     input.operationRequestId,
@@ -90,11 +91,11 @@ export class InflowTransactionService {
 
                 if (isDuplicate) {
                     throw new BadRequestException(
-                        "This request has already been disbursed. Each request can only be disbursed once.",
+                        "This request already has a pending or completed disbursement. " +
+                        "Each request can only have one active disbursement at a time.",
                     )
                 }
 
-                // Create inflow transaction
                 const created = await this.inflowTransactionRepository.create({
                     campaignPhaseId: validation.campaignPhaseId,
                     receiverId: validation.fundraiserId,
@@ -139,7 +140,7 @@ export class InflowTransactionService {
                 // Verify the receiver is the current user
                 const receiver = await this.getUserByCognitoId(user.id)
 
-                if (transaction.receiver_id !== receiver.id) {
+                if (transaction.receiver_id !== receiver.cognitoId) {
                     throw new ForbiddenException(
                         "You are not authorized to confirm this disbursement",
                     )
@@ -153,14 +154,6 @@ export class InflowTransactionService {
                     )
                 }
 
-                // Validate reason required for FAILED status
-                if (
-                    input.status === DisbursementConfirmationStatus.FAILED &&
-                    (!input.reason || input.reason.trim().length === 0)
-                ) {
-                    throw new BadRequestException("Reason is required when marking as FAILED")
-                }
-
                 // Prepare update data
                 const newStatus =
                     input.status === DisbursementConfirmationStatus.COMPLETED
@@ -169,17 +162,11 @@ export class InflowTransactionService {
 
                 const updateData: any = {
                     status: newStatus,
+                    isReported: true, 
+                    reportedAt: new Date(),
                 }
 
-                if (input.status === DisbursementConfirmationStatus.FAILED) {
-                    updateData.failedReason = input.reason
-                }
-
-                // If COMPLETED, mark as reported and update linked request to DISBURSED
                 if (input.status === DisbursementConfirmationStatus.COMPLETED) {
-                    updateData.isReported = true
-                    updateData.reportedAt = new Date()
-
                     // Update linked request status to DISBURSED using direct foreign key
                     await this.updateLinkedRequestToDisbursed(
                         transaction.ingredient_request_id,
@@ -243,7 +230,7 @@ export class InflowTransactionService {
         const skip = (page - 1) * limit
 
         const { items, total } = await this.inflowTransactionRepository.findByReceiverId(
-            foundUser.id,
+            foundUser.cognitoId,
             filter,
             limit,
             skip,
@@ -275,7 +262,7 @@ export class InflowTransactionService {
         if (user.attributes.role === Role.FUNDRAISER) {
             const foundUser = await this.getUserByCognitoId(user.id)
 
-            if (transaction.receiver_id !== foundUser.id) {
+            if (transaction.receiver_id !== foundUser.cognitoId) {
                 throw new ForbiddenException("You are not authorized to view this disbursement")
             }
         }
@@ -331,7 +318,6 @@ export class InflowTransactionService {
             proof: transaction.proof,
             isReported: transaction.is_reported,
             reportedAt: transaction.reported_at,
-            failedReason: transaction.failed_reason,
             created_at: transaction.created_at,
             updated_at: transaction.updated_at,
         }

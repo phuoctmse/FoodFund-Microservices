@@ -87,28 +87,28 @@ startupProbe:
   httpGet:
     path: /health
     port: http
-  initialDelaySeconds: 20  # Gateway needs to wait for subgraphs
+  initialDelaySeconds: 40  # Gateway needs to wait for subgraphs
   periodSeconds: 10
-  timeoutSeconds: 5
+  timeoutSeconds: 10  # Increased from 5s
   failureThreshold: 60  # Allow up to 600s (10 min) for startup (60 * 10s)
   successThreshold: 1
 livenessProbe:
   httpGet:
     path: /health
     port: http
-  initialDelaySeconds: 30
-  periodSeconds: 10
-  timeoutSeconds: 5
-  failureThreshold: 3
+  initialDelaySeconds: 50  # Wait longer before first liveness check
+  periodSeconds: 15  # Check less frequently
+  timeoutSeconds: 10  # Increased from 5s
+  failureThreshold: 5  # More tolerance before restart
   successThreshold: 1
 readinessProbe:
   httpGet:
     path: /health
     port: http
-  initialDelaySeconds: 30  # Increased from 15 to ensure env vars are loaded
-  periodSeconds: 5
-  timeoutSeconds: 3
-  failureThreshold: 5  # Increased tolerance for temporary issues
+  initialDelaySeconds: 40  # Increased to ensure env vars and subgraphs are loaded
+  periodSeconds: 10  # Check less frequently
+  timeoutSeconds: 10  # Increased from 3s
+  failureThreshold: 6  # Increased tolerance for temporary issues
   successThreshold: 1
 
 # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/

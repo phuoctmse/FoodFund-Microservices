@@ -18,6 +18,7 @@ export enum GrpcService {
     User = "user",
     Campaign = "campaign",
     Donation = "donation",
+    Operation = "operation",
 }
 
 // Configuration interfaces
