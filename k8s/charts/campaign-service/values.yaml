@@ -75,13 +75,13 @@ ingress:
   #      - chart-example.local
 
 resources: 
-  # Optimized for single node (2 CPU / 2 GB RAM)
+  # Ultra-optimized for small cluster (2 nodes x 2GB RAM) - with Prisma
   limits:
-    cpu: 300m      # Max 30% of 1 vCPU
-    memory: 512Mi  # Max 512MB
+    cpu: 200m      # Max 20% of 1 vCPU
+    memory: 256Mi  # Max 256MB
   requests:
-    cpu: 50m       # Min 5% of 1 vCPU  
-    memory: 256Mi  # Min 256MB
+    cpu: 30m       # Min 3% of 1 vCPU  
+    memory: 128Mi  # Min 128MB
 
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 startupProbe:
@@ -114,10 +114,10 @@ readinessProbe:
 
 # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
 autoscaling:
-  enabled: true
+  enabled: false  # Disabled for resource-constrained cluster
   minReplicas: 1
-  maxReplicas: 2  # Limited to 2 for small cluster
-  targetCPUUtilizationPercentage: 80  # Higher threshold for cost efficiency
+  maxReplicas: 1  # Keep at 1 replica due to memory constraints
+  targetCPUUtilizationPercentage: 80
   targetMemoryUtilizationPercentage: 85
 
 # Additional volumes on the output Deployment definition.
