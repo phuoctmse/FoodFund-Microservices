@@ -19,9 +19,9 @@ export class InflowTransactionFundraiserResolver {
     @Mutation(() => InflowTransaction, {
         name: "confirmDisbursement",
         description:
-            "Fundraiser confirms receipt of disbursement. " +
+            "Fundraiser reports disbursement status. " +
             "Status can be COMPLETED (money received) or FAILED (money not received). " +
-            "Reason is required when status is FAILED. " +
+            "In both cases, is_reported will be set to true and reported_at timestamp recorded. " +
             "If COMPLETED, the linked request will be marked as DISBURSED.",
     })
     @RequireRole(Role.FUNDRAISER)

@@ -26,7 +26,6 @@ export interface CreateInflowTransactionData {
 
 export interface UpdateInflowTransactionStatusData {
     status: InflowTransactionStatus
-    failedReason?: string
     isReported?: boolean
     reportedAt?: Date
 }
@@ -108,10 +107,6 @@ export class InflowTransactionRepository {
         const updateData: any = {
             status: data.status,
             updated_at: new Date(),
-        }
-
-        if (data.failedReason !== undefined) {
-            updateData.failed_reason = data.failedReason
         }
 
         if (data.isReported !== undefined) {

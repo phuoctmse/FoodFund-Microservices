@@ -154,14 +154,6 @@ export class InflowTransactionService {
                     )
                 }
 
-                // Validate reason required for FAILED status
-                if (
-                    input.status === DisbursementConfirmationStatus.FAILED &&
-                    (!input.reason || input.reason.trim().length === 0)
-                ) {
-                    throw new BadRequestException("Reason is required when marking as FAILED")
-                }
-
                 // Prepare update data
                 const newStatus =
                     input.status === DisbursementConfirmationStatus.COMPLETED
@@ -170,17 +162,11 @@ export class InflowTransactionService {
 
                 const updateData: any = {
                     status: newStatus,
+                    isReported: true, 
+                    reportedAt: new Date(),
                 }
 
-                if (input.status === DisbursementConfirmationStatus.FAILED) {
-                    updateData.failedReason = input.reason
-                }
-
-                // If COMPLETED, mark as reported and update linked request to DISBURSED
                 if (input.status === DisbursementConfirmationStatus.COMPLETED) {
-                    updateData.isReported = true
-                    updateData.reportedAt = new Date()
-
                     // Update linked request status to DISBURSED using direct foreign key
                     await this.updateLinkedRequestToDisbursed(
                         transaction.ingredient_request_id,
@@ -332,7 +318,6 @@ export class InflowTransactionService {
             proof: transaction.proof,
             isReported: transaction.is_reported,
             reportedAt: transaction.reported_at,
-            failedReason: transaction.failed_reason,
             created_at: transaction.created_at,
             updated_at: transaction.updated_at,
         }

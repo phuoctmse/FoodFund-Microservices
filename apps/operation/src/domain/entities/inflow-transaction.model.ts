@@ -45,12 +45,6 @@ export class InflowTransaction extends BaseSchema {
     })
         reportedAt?: Date
 
-    @Field(() => String, {
-        nullable: true,
-        description: "Reason if the fundraiser marked as FAILED",
-    })
-        failedReason?: string
-
     @Field(() => User, {
         nullable: true,
         description: "Fundraiser who receives the disbursement",
