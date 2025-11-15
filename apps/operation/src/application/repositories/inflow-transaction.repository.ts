@@ -132,7 +132,11 @@ export class InflowTransactionRepository {
         ingredientRequestId?: string,
         operationRequestId?: string,
     ): Promise<boolean> {
-        const where: any = {}
+        const where: any = {
+            status: {
+                in: [InflowTransactionStatus.COMPLETED, InflowTransactionStatus.PENDING],
+            },
+        }
 
         if (ingredientRequestId) {
             where.ingredient_request_id = ingredientRequestId

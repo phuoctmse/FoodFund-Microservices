@@ -56,16 +56,15 @@ export class UserClientService {
 
     async getUserByCognitoId(cognitoId: string): Promise<UserProfile | null> {
         try {
-            // Use GetUser method with cognito_id parameter
-            // According to user.proto: GetUserRequest has optional cognito_id field
+            // Use GetUser method with cognitoId parameter (camelCase as expected by gRPC)
             const response = await this.grpcClient.callUserService<
-                { id?: string; cognito_id?: string },
+                { cognitoId?: string },
                 {
                     success: boolean
                     user?: {
                         id: string
-                        cognito_id: string
-                        full_name: string
+                        cognitoId: string
+                        fullName: string
                         username: string
                         email: string
                     }
@@ -73,7 +72,7 @@ export class UserClientService {
                 }
             >(
                 "GetUser",
-                { cognito_id: cognitoId },
+                { cognitoId: cognitoId },
                 { timeout: 3000, retries: 2 },
             )
 
@@ -86,7 +85,7 @@ export class UserClientService {
 
             return {
                 id: response.user.id,
-                fullName: response.user.full_name,
+                fullName: response.user.fullName,
                 username: response.user.username,
                 email: response.user.email,
             }

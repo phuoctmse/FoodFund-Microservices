@@ -61,4 +61,62 @@ export class CampaignCommonGrpcService {
             })
         }
     }
+
+    // Get fundraiser ID by campaign phase ID
+    async getFundraiserByPhaseId(call: any, callback: any) {
+        try {
+            const { phaseId } = call.request
+
+            if (!phaseId) {
+                return callback(null, {
+                    success: false,
+                    fundraiserId: null,
+                    error: "Phase ID is required",
+                })
+            }
+
+            // Get campaign ID from phase
+            const campaignId = await this.campaignService.getCampaignIdByPhaseId(phaseId)
+
+            if (!campaignId) {
+                return callback(null, {
+                    success: false,
+                    fundraiserId: null,
+                    error: `Campaign phase ${phaseId} not found`,
+                })
+            }
+
+            // Get campaign to extract fundraiser ID
+            const campaign = await this.campaignService.findCampaignById(campaignId)
+
+            if (!campaign) {
+                return callback(null, {
+                    success: false,
+                    fundraiserId: null,
+                    error: `Campaign ${campaignId} not found`,
+                })
+            }
+
+            if (!campaign.createdBy) {
+                return callback(null, {
+                    success: false,
+                    fundraiserId: null,
+                    error: `Campaign ${campaignId} has no fundraiser`,
+                })
+            }
+
+            callback(null, {
+                success: true,
+                fundraiserId: campaign.createdBy,
+                error: null,
+            })
+        } catch (error) {
+            this.logger.error("Error getting fundraiser by phase ID:", error)
+            callback(null, {
+                success: false,
+                fundraiserId: null,
+                error: error.message || "Failed to get fundraiser",
+            })
+        }
+    }
 }

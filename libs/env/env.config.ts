@@ -114,12 +114,12 @@ export const envConfig = (): EnvironmentConfig => ({
                 : 50003,
             url: process.env.CAMPAIGN_GRPC_URL ?? "localhost:50003",
         },
-        // [GrpcService.Donation]: {
-        //     port: process.env.DONATION_GRPC_PORT
-        //         ? Number.parseInt(process.env.DONATION_GRPC_PORT)
-        //         : 50004,
-        //     url: process.env.DONATION_GRPC_URL ?? "localhost:50004",
-        // },
+        [GrpcService.Operation]: {
+            port: process.env.OPERATION_GRPC_PORT
+                ? Number.parseInt(process.env.OPERATION_GRPC_PORT)
+                : 50004,
+            url: process.env.OPERATION_GRPC_URL ?? "localhost:50004",
+        },
     },
 
     // AWS Configuration

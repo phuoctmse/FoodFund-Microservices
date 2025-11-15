@@ -37,6 +37,16 @@ interface GetCampaignIdByPhaseIdResponse {
     error: string | null
 }
 
+interface GetFundraiserByPhaseIdRequest {
+    phaseId: string
+}
+
+interface GetFundraiserByPhaseIdResponse {
+    success: boolean
+    fundraiserId: string | null
+    error: string | null
+}
+
 interface GetCampaignPhasesRequest {
     campaignId: string
 }
@@ -155,6 +165,57 @@ export class CampaignGrpcService {
         return {
             success: true,
             campaignId: campaignId,
+            error: null,
+        }
+    }
+
+    @GrpcMethod("CampaignService", "GetFundraiserByPhaseId")
+    async getFundraiserByPhaseId(
+        data: GetFundraiserByPhaseIdRequest,
+    ): Promise<GetFundraiserByPhaseIdResponse> {
+        const { phaseId } = data
+
+        if (!phaseId) {
+            return {
+                success: false,
+                fundraiserId: null,
+                error: "Phase ID is required",
+            }
+        }
+
+        // Get campaign ID from phase
+        const campaignId = await this.campaignService.getCampaignIdByPhaseId(phaseId)
+
+        if (!campaignId) {
+            return {
+                success: false,
+                fundraiserId: null,
+                error: `Campaign phase ${phaseId} not found`,
+            }
+        }
+
+        // Get campaign to extract fundraiser ID
+        const campaign = await this.campaignService.findCampaignById(campaignId)
+
+        if (!campaign) {
+            return {
+                success: false,
+                fundraiserId: null,
+                error: `Campaign ${campaignId} not found`,
+            }
+        }
+
+        if (!campaign.createdBy) {
+            return {
+                success: false,
+                fundraiserId: null,
+                error: `Campaign ${campaignId} has no fundraiser`,
+            }
+        }
+
+        return {
+            success: true,
+            fundraiserId: campaign.createdBy,
             error: null,
         }
     }

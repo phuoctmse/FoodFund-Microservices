@@ -172,6 +172,7 @@ model Inflow_Transaction {
   proof             String?  @db.Text()
   amount            BigInt   @default(0)
   status            Inflow_Transaction_Status @default(PENDING)
+  failed_reason     String?  @db.Text()
   is_reported       Boolean  @default(false)
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
