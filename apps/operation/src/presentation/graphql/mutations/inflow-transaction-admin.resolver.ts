@@ -5,16 +5,76 @@ import { InflowTransactionService } from "../../../application/services"
 import { InflowTransaction } from "../../../domain/entities/inflow-transaction.model"
 import {
     CreateInflowTransactionInput,
+    GenerateProofUploadUrlInput,
     InflowTransactionListResponse,
+    ProofUploadResponse,
 } from "../../../application/dtos"
 import { InflowTransactionFilterInput } from "@app/operation/src/application/dtos/inflow-transaction/inflow-transaction-filter.input"
 import { CurrentUserType, RequireRole, CurrentUser } from "@libs/auth"
+import { SpacesUploadService } from "@libs/s3-storage"
 
 @Resolver(() => InflowTransaction)
 export class InflowTransactionAdminResolver {
+    private readonly resource = "disbursement-proofs"
+
     constructor(
         private readonly inflowTransactionService: InflowTransactionService,
+        private readonly spacesUploadService: SpacesUploadService,
     ) {}
+
+    @Mutation(() => ProofUploadResponse, {
+        name: "generateProofUploadUrl",
+        description:
+            "Generate presigned upload URL for disbursement proof (bank transfer screenshot). Admin only. " +
+            "Upload the file using the returned uploadUrl, then use the cdnUrl in createInflowTransaction.",
+    })
+    @RequireRole(Role.ADMIN)
+    async generateProofUploadUrl(
+        @Args(
+            "input",
+            { type: () => GenerateProofUploadUrlInput },
+            new ValidationPipe(),
+        )
+            input: GenerateProofUploadUrlInput,
+        @CurrentUser() user: CurrentUserType,
+    ): Promise<ProofUploadResponse> {
+        const uploadResults =
+            await this.spacesUploadService.generateBatchImageUploadUrls(
+                user.id,
+                this.resource,
+                1,
+                [input.fileType || "jpg"],
+                input.campaignPhaseId,
+            )
+
+        const uploadUrl = uploadResults[0]
+
+        return {
+            success: true,
+            message: "Generated upload URL successfully",
+            uploadUrl: {
+                uploadUrl: uploadUrl.uploadUrl,
+                fileKey: uploadUrl.fileKey,
+                cdnUrl: uploadUrl.cdnUrl,
+                expiresAt: uploadUrl.expiresAt,
+                fileType: uploadUrl.fileType,
+            },
+            instructions: `
+1. Upload the file using PUT request to the uploadUrl
+2. Set required headers:
+   - Content-Type: matching the file type (e.g., image/jpeg)
+   - x-amz-acl: public-read
+3. After upload completes, use the cdnUrl as the 'proof' field in createInflowTransaction mutation
+4. Upload URL expires in 5 minutes
+
+Example:
+curl -X PUT "{{uploadUrl}}" \\
+  -H "Content-Type: image/jpeg" \\
+  -H "x-amz-acl: public-read" \\
+  --upload-file proof.jpg
+      `.trim(),
+        }
+    }
 
     @Mutation(() => InflowTransaction, {
         name: "createInflowTransaction",
@@ -23,7 +83,7 @@ export class InflowTransactionAdminResolver {
             "Must provide EITHER ingredientRequestId OR operationRequestId (not both). " +
             "Amount must match the request's total_cost. " +
             "Transaction type is automatically detected from the request. " +
-            "Also provide campaignPhaseId, amount, and proof (S3 URL of bank transfer screenshot).",
+            "Also provide campaignPhaseId, amount, and proof (use cdnUrl from generateProofUploadUrl).",
     })
     @RequireRole(Role.ADMIN)
     async createInflowTransaction(

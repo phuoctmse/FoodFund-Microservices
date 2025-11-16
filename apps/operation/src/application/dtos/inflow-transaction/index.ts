@@ -1,3 +1,5 @@
 export * from "./confirm-disbursement.input"
 export * from "./create-inflow-transaction.input"
+export * from "./generate-proof-upload-url.input"
 export * from "./inflow-transaction-filter.input"
+export * from "./proof-upload-response.dto"

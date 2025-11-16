@@ -36,7 +36,7 @@ export class CreateInflowTransactionInput {
         amount: bigint
 
     @Field(() => String, {
-        description: "Proof of bank transfer (S3 URL of screenshot)",
+        description: "Proof CDN URL (use cdnUrl from generateProofUploadUrl mutation after uploading the file)",
     })
     @IsNotEmpty()
     @IsString()
