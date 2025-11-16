@@ -1,25 +1,25 @@
-import { createHash } from "crypto"
 import { OperationRequestFilterInput } from "../../dtos"
 import { Injectable } from "@nestjs/common"
 import { RedisService } from "@libs/redis"
 import { OperationRequest } from "@app/operation/src/domain"
+import { BaseCacheService } from "@app/operation/src/shared/services"
 
 export interface OperationRequestListCacheKey {
     filter?: OperationRequestFilterInput
 }
 
 @Injectable()
-export class OperationRequestCacheService {
-    private readonly TTL = {
-        SINGLE_REQUEST: 60 * 30, // 30 minutes
-        REQUEST_LIST: 60 * 15, // 15 minutes
-        PHASE_REQUESTS: 60 * 30, // 30 minutes
-        CAMPAIGN_REQUESTS: 60 * 30, // 30 minutes
-        USER_REQUESTS: 60 * 30, // 30 minutes
-        STATS: 60 * 10, // 10 minutes
+export class OperationRequestCacheService extends BaseCacheService<OperationRequest> {
+    protected readonly TTL = {
+        SINGLE_REQUEST: 60 * 30,
+        REQUEST_LIST: 60 * 15,
+        PHASE_REQUESTS: 60 * 30,
+        CAMPAIGN_REQUESTS: 60 * 30,
+        USER_REQUESTS: 60 * 30,
+        STATS: 60 * 10,
     }
 
-    private readonly KEYS = {
+    protected readonly KEYS = {
         SINGLE: "operation-request",
         LIST: "operation-requests:list",
         PHASE: "operation-requests:phase",
@@ -28,102 +28,51 @@ export class OperationRequestCacheService {
         STATS: "operation-requests:stats",
     }
 
-    constructor(private readonly redis: RedisService) {}
+    constructor(redis: RedisService) {
+        super(redis)
+    }
 
     // ==================== Single Operation Request ====================
 
     async getRequest(id: string): Promise<OperationRequest | null> {
-        if (!this.redis.isAvailable()) {
-            return null
-        }
-
-        const key = `${this.KEYS.SINGLE}:${id}`
-        const cached = await this.redis.get(key)
-
-        if (cached) {
-            return JSON.parse(cached) as OperationRequest
-        }
-
-        return null
+        return this.getSingle(this.KEYS.SINGLE, id)
     }
 
     async setRequest(id: string, request: OperationRequest): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = `${this.KEYS.SINGLE}:${id}`
-        await this.redis.set(key, JSON.stringify(request), {
-            ex: this.TTL.SINGLE_REQUEST,
-        })
+        return this.setSingle(
+            this.KEYS.SINGLE,
+            id,
+            request,
+            this.TTL.SINGLE_REQUEST,
+        )
     }
 
     async deleteRequest(id: string): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = `${this.KEYS.SINGLE}:${id}`
-        await this.redis.del(key)
+        return this.deleteSingle(this.KEYS.SINGLE, id)
     }
 
     // ==================== Request Lists ====================
 
-    private generateListCacheKey(params: OperationRequestListCacheKey): string {
-        const normalized = {
-            filter: params.filter || {},
-        }
-
-        const hash = createHash("sha256")
-            .update(JSON.stringify(normalized))
-            .digest("hex")
-            .substring(0, 16)
-
-        return `${this.KEYS.LIST}:${hash}`
-    }
-
     async getRequestList(
         params: OperationRequestListCacheKey,
     ): Promise<OperationRequest[] | null> {
-        if (!this.redis.isAvailable()) {
-            return null
-        }
-
-        const key = this.generateListCacheKey(params)
-        const cached = await this.redis.get(key)
-
-        if (cached) {
-            return JSON.parse(cached) as OperationRequest[]
-        }
-
-        return null
+        return this.getList(this.KEYS.LIST, params)
     }
 
     async setRequestList(
         params: OperationRequestListCacheKey,
         requests: OperationRequest[],
     ): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = this.generateListCacheKey(params)
-        await this.redis.set(key, JSON.stringify(requests), {
-            ex: this.TTL.REQUEST_LIST,
-        })
+        return this.setList(
+            this.KEYS.LIST,
+            params,
+            requests,
+            this.TTL.REQUEST_LIST,
+        )
     }
 
     async deleteAllRequestLists(): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const pattern = `${this.KEYS.LIST}:*`
-        const keys = await this.redis.keys(pattern)
-
-        if (keys.length > 0) {
-            await this.redis.del(keys)
-        }
+        return this.deleteAllLists(this.KEYS.LIST)
     }
 
     // ==================== Campaign Phase Requests ====================
@@ -131,41 +80,23 @@ export class OperationRequestCacheService {
     async getPhaseRequests(
         campaignPhaseId: string,
     ): Promise<OperationRequest[] | null> {
-        if (!this.redis.isAvailable()) {
-            return null
-        }
-
-        const key = `${this.KEYS.PHASE}:${campaignPhaseId}`
-        const cached = await this.redis.get(key)
-
-        if (cached) {
-            return JSON.parse(cached) as OperationRequest[]
-        }
-
-        return null
+        return this.getRelatedList(this.KEYS.PHASE, campaignPhaseId)
     }
 
     async setPhaseRequests(
         campaignPhaseId: string,
         requests: OperationRequest[],
     ): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = `${this.KEYS.PHASE}:${campaignPhaseId}`
-        await this.redis.set(key, JSON.stringify(requests), {
-            ex: this.TTL.PHASE_REQUESTS,
-        })
+        return this.setRelatedList(
+            this.KEYS.PHASE,
+            campaignPhaseId,
+            requests,
+            this.TTL.PHASE_REQUESTS,
+        )
     }
 
     async deletePhaseRequests(campaignPhaseId: string): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = `${this.KEYS.PHASE}:${campaignPhaseId}`
-        await this.redis.del(key)
+        return this.deleteRelatedList(this.KEYS.PHASE, campaignPhaseId)
     }
 
     // ==================== Campaign Requests ====================
@@ -173,41 +104,23 @@ export class OperationRequestCacheService {
     async getCampaignRequests(
         campaignId: string,
     ): Promise<OperationRequest[] | null> {
-        if (!this.redis.isAvailable()) {
-            return null
-        }
-
-        const key = `${this.KEYS.CAMPAIGN}:${campaignId}`
-        const cached = await this.redis.get(key)
-
-        if (cached) {
-            return JSON.parse(cached) as OperationRequest[]
-        }
-
-        return null
+        return this.getRelatedList(this.KEYS.CAMPAIGN, campaignId)
     }
 
     async setCampaignRequests(
         campaignId: string,
         requests: OperationRequest[],
     ): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = `${this.KEYS.CAMPAIGN}:${campaignId}`
-        await this.redis.set(key, JSON.stringify(requests), {
-            ex: this.TTL.CAMPAIGN_REQUESTS,
-        })
+        return this.setRelatedList(
+            this.KEYS.CAMPAIGN,
+            campaignId,
+            requests,
+            this.TTL.CAMPAIGN_REQUESTS,
+        )
     }
 
     async deleteCampaignRequests(campaignId: string): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = `${this.KEYS.CAMPAIGN}:${campaignId}`
-        await this.redis.del(key)
+        return this.deleteRelatedList(this.KEYS.CAMPAIGN, campaignId)
     }
 
     // ==================== User Requests ====================
@@ -217,18 +130,7 @@ export class OperationRequestCacheService {
         limit: number,
         offset: number,
     ): Promise<OperationRequest[] | null> {
-        if (!this.redis.isAvailable()) {
-            return null
-        }
-
-        const key = `${this.KEYS.USER}:${userId}:${limit}:${offset}`
-        const cached = await this.redis.get(key)
-
-        if (cached) {
-            return JSON.parse(cached) as OperationRequest[]
-        }
-
-        return null
+        return this.getRelatedList(this.KEYS.USER, userId, limit, offset)
     }
 
     async setUserRequests(
@@ -237,74 +139,42 @@ export class OperationRequestCacheService {
         offset: number,
         requests: OperationRequest[],
     ): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = `${this.KEYS.USER}:${userId}:${limit}:${offset}`
-        await this.redis.set(key, JSON.stringify(requests), {
-            ex: this.TTL.USER_REQUESTS,
-        })
+        return this.setRelatedList(
+            this.KEYS.USER,
+            userId,
+            requests,
+            this.TTL.USER_REQUESTS,
+            limit,
+            offset,
+        )
     }
 
     async deleteUserRequests(userId: string): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const pattern = `${this.KEYS.USER}:${userId}:*`
-        const keys = await this.redis.keys(pattern)
-
-        if (keys.length > 0) {
-            await this.redis.del(keys)
-        }
+        return this.deleteRelatedList(this.KEYS.USER, userId)
     }
 
     // ==================== Statistics ====================
 
-    async getStats(): Promise<{
+    async getRequestStats(): Promise<{
         totalRequests: number
         pendingCount: number
         approvedCount: number
         rejectedCount: number
     } | null> {
-        if (!this.redis.isAvailable()) {
-            return null
-        }
-
-        const key = `${this.KEYS.STATS}:global`
-        const cached = await this.redis.get(key)
-
-        if (cached) {
-            return JSON.parse(cached)
-        }
-
-        return null
+        return this.getStats(this.KEYS.STATS)
     }
 
-    async setStats(stats: {
+    async setRequestStats(stats: {
         totalRequests: number
         pendingCount: number
         approvedCount: number
         rejectedCount: number
     }): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = `${this.KEYS.STATS}:global`
-        await this.redis.set(key, JSON.stringify(stats), {
-            ex: this.TTL.STATS,
-        })
+        return this.setStats(this.KEYS.STATS, stats, this.TTL.STATS)
     }
 
-    async deleteStats(): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = `${this.KEYS.STATS}:global`
-        await this.redis.del(key)
+    async deleteRequestStats(): Promise<void> {
+        return this.deleteStats(this.KEYS.STATS)
     }
 
     // ==================== Invalidation ====================
@@ -314,47 +184,32 @@ export class OperationRequestCacheService {
         campaignPhaseId?: string,
         userId?: string,
     ): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const deleteOperations: Promise<void>[] = [
+        const operations: Promise<void>[] = [
             this.deleteRequest(requestId),
             this.deleteAllRequestLists(),
-            this.deleteStats(),
+            this.deleteRequestStats(),
         ]
 
         if (campaignPhaseId) {
-            deleteOperations.push(this.deletePhaseRequests(campaignPhaseId))
+            operations.push(this.deletePhaseRequests(campaignPhaseId))
         }
 
         if (userId) {
-            deleteOperations.push(this.deleteUserRequests(userId))
+            operations.push(this.deleteUserRequests(userId))
         }
 
-        await Promise.all(deleteOperations)
+        return this.invalidateMultiple(...operations)
     }
 
     async invalidateAll(): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const patterns = [
+        return this.invalidateByPatterns(
             `${this.KEYS.SINGLE}:*`,
             `${this.KEYS.LIST}:*`,
             `${this.KEYS.PHASE}:*`,
             `${this.KEYS.CAMPAIGN}:*`,
             `${this.KEYS.USER}:*`,
             `${this.KEYS.STATS}:*`,
-        ]
-
-        for (const pattern of patterns) {
-            const keys = await this.redis.keys(pattern)
-            if (keys.length > 0) {
-                await this.redis.del(keys)
-            }
-        }
+        )
     }
 
     // ==================== Health Check ====================
@@ -363,15 +218,6 @@ export class OperationRequestCacheService {
         available: boolean
         keysCount: number
     }> {
-        const isAvailable = this.redis.isAvailable()
-
-        if (!isAvailable) {
-            return { available: false, keysCount: 0 }
-        }
-
-        const keys = await this.redis.keys("operation-request*")
-        const keysCount = keys.length
-
-        return { available: true, keysCount }
+        return super.getHealthStatus("operation-request*")
     }
 }
