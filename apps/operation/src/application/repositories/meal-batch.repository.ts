@@ -150,13 +150,26 @@ export class MealBatchRepository {
         return this.mapToGraphQLModel(batch)
     }
 
-    async updateStatusToDelivered(id: string) {
-        return await this.prisma.meal_Batch.update({
+    async updateStatusToDelivered(id: string): Promise<MealBatch> {
+        const batch = await this.prisma.meal_Batch.update({
             where: { id },
             data: {
                 status: MealBatchStatus.DELIVERED,
             },
+            include: {
+                ingredient_usages: {
+                    include: {
+                        ingredient_item: {
+                            include: {
+                                request: true,
+                            },
+                        },
+                    },
+                },
+            },
         })
+
+        return this.mapToGraphQLModel(batch)
     }
 
     private mapToGraphQLModel(batch: any): MealBatch {
