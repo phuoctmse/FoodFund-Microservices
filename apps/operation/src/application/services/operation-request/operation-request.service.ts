@@ -3,12 +3,30 @@ import {
     OperationRequest,
     OperationRequestStatus,
 } from "@app/operation/src/domain"
-import { AuthorizationService, Role, UserContext } from "@app/operation/src/shared"
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common"
-import { CreateOperationRequestInput, OperationRequestFilterInput, OperationRequestStatsResponse, UpdateOperationRequestStatusInput } from "../../dtos"
-import { CreateOperationRequestData, OperationRequestRepository, UpdateStatusData } from "../../repositories"
+import {
+    AuthorizationService,
+    Role,
+    UserContext,
+} from "@app/operation/src/shared"
+import {
+    BadRequestException,
+    Injectable,
+    NotFoundException,
+} from "@nestjs/common"
+import {
+    CreateOperationRequestInput,
+    OperationRequestFilterInput,
+    OperationRequestStatsResponse,
+    UpdateOperationRequestStatusInput,
+} from "../../dtos"
+import {
+    CreateOperationRequestData,
+    OperationRequestRepository,
+    UpdateStatusData,
+} from "../../repositories"
 import { SentryService } from "@libs/observability"
 import { GrpcClientService } from "@libs/grpc"
+import { OperationRequestCacheService } from "./operation-request-cache.service"
 
 @Injectable()
 export class OperationRequestService {
@@ -17,6 +35,7 @@ export class OperationRequestService {
         private readonly authService: AuthorizationService,
         private readonly grpcClient: GrpcClientService,
         private readonly sentryService: SentryService,
+        private readonly cacheService: OperationRequestCacheService,
     ) {}
 
     async createRequest(
@@ -60,19 +79,45 @@ export class OperationRequestService {
             }
 
             const created = await this.repository.create(createData)
-
-            this.sentryService.addBreadcrumb(
-                "Operation request created",
-                "operation",
-                {
-                    requestId: created.id,
-                    expenseType: input.expenseType,
-                    campaignPhaseId: input.campaignPhaseId,
-                    userId: userContext.userId,
-                },
+            const newStatus = this.getPhaseStatusForRequestType(
+                input.expenseType,
             )
 
-            return this.mapToGraphQLModel(created)
+            await this.updateCampaignPhaseStatus(
+                input.campaignPhaseId,
+                newStatus,
+            )
+
+            const mappedRequest = this.mapToGraphQLModel(created)
+
+            const campaignIdResponse =
+                await this.grpcClient.callCampaignService<
+                    { phaseId: string },
+                    {
+                        success: boolean
+                        campaignId?: string
+                        error?: string
+                    }
+                >(
+                    "GetCampaignIdByPhaseId",
+                    { phaseId: input.campaignPhaseId },
+                    { timeout: 3000, retries: 1 },
+                )
+
+            const campaignId = campaignIdResponse.campaignId
+
+            await Promise.all([
+                this.cacheService.setRequest(mappedRequest.id, mappedRequest),
+                this.cacheService.deletePhaseRequests(input.campaignPhaseId),
+                this.cacheService.deleteUserRequests(userContext.userId),
+                this.cacheService.deleteAllRequestLists(),
+                this.cacheService.deleteStats(),
+                campaignId
+                    ? this.invalidateCampaignCache(campaignId)
+                    : Promise.resolve(),
+            ])
+
+            return mappedRequest
         } catch (error) {
             this.sentryService.captureError(error as Error, {
                 operation: "createOperationRequest",
@@ -126,18 +171,19 @@ export class OperationRequestService {
                 updateData,
             )
 
-            this.sentryService.addBreadcrumb(
-                "Operation request status updated",
-                "operation",
-                {
-                    requestId: input.requestId,
-                    oldStatus: request.status,
-                    newStatus: input.status,
-                    adminId: userContext.userId,
-                },
-            )
+            const mappedRequest = this.mapToGraphQLModel(updated)
 
-            return this.mapToGraphQLModel(updated)
+            await Promise.all([
+                this.cacheService.setRequest(mappedRequest.id, mappedRequest),
+                this.cacheService.deletePhaseRequests(
+                    request.campaign_phase_id,
+                ),
+                this.cacheService.deleteUserRequests(request.user_id),
+                this.cacheService.deleteAllRequestLists(),
+                this.cacheService.deleteStats(),
+            ])
+
+            return mappedRequest
         } catch (error) {
             this.sentryService.captureError(error as Error, {
                 operation: "updateOperationRequestStatus",
@@ -152,6 +198,28 @@ export class OperationRequestService {
         filter: OperationRequestFilterInput,
     ): Promise<OperationRequest[]> {
         try {
+            let cachedRequests: OperationRequest[] | null = null
+
+            if (filter.campaignPhaseId) {
+                cachedRequests = await this.cacheService.getPhaseRequests(
+                    filter.campaignPhaseId,
+                )
+            } else if (filter.campaignId) {
+                cachedRequests = await this.cacheService.getCampaignRequests(
+                    filter.campaignId,
+                )
+            } else {
+                cachedRequests = await this.cacheService.getRequestList({
+                    filter,
+                })
+            }
+
+            if (cachedRequests) {
+                return cachedRequests
+            }
+
+            let requests: any[]
+
             if (filter.campaignId) {
                 const phases = await this.getCampaignPhases(filter.campaignId)
                 const phaseIds = phases.map((p) => p.id)
@@ -160,17 +228,42 @@ export class OperationRequestService {
                     return []
                 }
 
-                const requests = await this.repository.findByPhaseIds(
+                requests = await this.repository.findByPhaseIds(
                     phaseIds,
                     filter.limit,
                     filter.offset,
                 )
 
-                return requests.map((r) => this.mapToGraphQLModel(r))
+                const mappedRequests = requests.map((r) =>
+                    this.mapToGraphQLModel(r),
+                )
+
+                await this.cacheService.setCampaignRequests(
+                    filter.campaignId,
+                    mappedRequests,
+                )
+
+                return mappedRequests
             }
 
-            const requests = await this.repository.findMany(filter)
-            return requests.map((r) => this.mapToGraphQLModel(r))
+            requests = await this.repository.findMany(filter)
+            const mappedRequests = requests.map((r) =>
+                this.mapToGraphQLModel(r),
+            )
+
+            if (filter.campaignPhaseId) {
+                await this.cacheService.setPhaseRequests(
+                    filter.campaignPhaseId,
+                    mappedRequests,
+                )
+            } else {
+                await this.cacheService.setRequestList(
+                    { filter },
+                    mappedRequests,
+                )
+            }
+
+            return mappedRequests
         } catch (error) {
             this.sentryService.captureError(error as Error, {
                 operation: "getOperationRequests",
@@ -180,19 +273,25 @@ export class OperationRequestService {
         }
     }
 
-    async getRequestById(
-        id: string
-    ): Promise<OperationRequest> {
+    async getRequestById(id: string): Promise<OperationRequest> {
         try {
-            const request = await this.repository.findById(id)
+            let request = await this.cacheService.getRequest(id)
 
             if (!request) {
-                throw new NotFoundException(
-                    `Operation request with ID ${id} not found`,
-                )
+                const dbRequest = await this.repository.findById(id)
+
+                if (!dbRequest) {
+                    throw new NotFoundException(
+                        `Operation request with ID ${id} not found`,
+                    )
+                }
+
+                request = this.mapToGraphQLModel(dbRequest)
+
+                await this.cacheService.setRequest(id, request)
             }
 
-            return this.mapToGraphQLModel(request)
+            return request
         } catch (error) {
             this.sentryService.captureError(error as Error, {
                 operation: "getOperationRequestById",
@@ -213,13 +312,34 @@ export class OperationRequestService {
                 "view your operation requests",
             )
 
+            const cachedRequests = await this.cacheService.getUserRequests(
+                userContext.userId,
+                limit,
+                offset,
+            )
+
+            if (cachedRequests) {
+                return cachedRequests
+            }
+
             const requests = await this.repository.findByUserId(
                 userContext.userId,
                 limit,
                 offset,
             )
 
-            return requests.map((r) => this.mapToGraphQLModel(r))
+            const mappedRequests = requests.map((r) =>
+                this.mapToGraphQLModel(r),
+            )
+
+            await this.cacheService.setUserRequests(
+                userContext.userId,
+                limit,
+                offset,
+                mappedRequests,
+            )
+
+            return mappedRequests
         } catch (error) {
             this.sentryService.captureError(error as Error, {
                 operation: "getMyOperationRequests",
@@ -238,12 +358,61 @@ export class OperationRequestService {
                 "view operation request statistics",
             )
 
+            const cachedStats = await this.cacheService.getStats()
+
+            if (cachedStats) {
+                return cachedStats
+            }
+
             const stats = await this.repository.getStats()
+
+            await this.cacheService.setStats(stats)
+
             return stats
         } catch (error) {
             this.sentryService.captureError(error as Error, {
                 operation: "getOperationRequestStats",
                 adminId: userContext.userId,
+            })
+            throw error
+        }
+    }
+
+    private getPhaseStatusForRequestType(
+        expenseType: OperationExpenseType,
+    ): string {
+        const statusMap: Record<OperationExpenseType, string> = {
+            [OperationExpenseType.COOKING]: "AWAITING_COOKING_DISBURSEMENT",
+            [OperationExpenseType.DELIVERY]: "AWAITING_DELIVERY_DISBURSEMENT",
+        }
+
+        return statusMap[expenseType]
+    }
+
+    private async updateCampaignPhaseStatus(
+        phaseId: string,
+        status: string,
+    ): Promise<void> {
+        try {
+            const response = await this.grpcClient.callCampaignService<
+                { phaseId: string; status: string },
+                { success: boolean; error: string | null }
+            >(
+                "UpdatePhaseStatus",
+                { phaseId, status },
+                { timeout: 5000, retries: 2 },
+            )
+
+            if (!response.success) {
+                throw new Error(
+                    response.error || "Failed to update campaign phase status",
+                )
+            }
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "updateCampaignPhaseStatus",
+                phaseId,
+                status,
             })
             throw error
         }
@@ -364,6 +533,17 @@ export class OperationRequestService {
                 "Invalid total cost format. Must be a valid number.",
             )
         }
+    }
+
+    private async invalidateCampaignCache(campaignId: string): Promise<void> {
+        await this.grpcClient.callCampaignService<
+            { campaignId: string },
+            { success: boolean; error?: string }
+        >(
+            "InvalidateCampaignCache",
+            { campaignId },
+            { timeout: 3000, retries: 1 },
+        )
     }
 
     private mapToGraphQLModel(data: any): OperationRequest {
