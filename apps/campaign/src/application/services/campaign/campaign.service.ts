@@ -390,17 +390,6 @@ export class CampaignService {
                     oldFileKeyToDelete,
                 )
             }
-            this.sentryService.addBreadcrumb("Campaign updated", "campaign", {
-                campaignId: id,
-                user: {
-                    id: userContext.userId,
-                    username: userContext.username,
-                    role: userContext.role,
-                },
-                updatedFields: Object.keys(input),
-                coverImageReplaced: !!oldFileKeyToDelete,
-                cacheInvalidated: true,
-            })
             return updatedCampaign
         } catch (error) {
             this.sentryService.captureError(error as Error, {
@@ -463,25 +452,6 @@ export class CampaignService {
                     finalStatus = CampaignStatus.ACTIVE
                     updateData.status = CampaignStatus.ACTIVE
                     updateData.changedStatusAt = new Date()
-
-                    this.sentryService.addBreadcrumb(
-                        "Campaign auto-activated on approval",
-                        "campaign",
-                        {
-                            campaignId: id,
-                            admin: {
-                                id: userContext.userId,
-                                username: userContext.username,
-                                role: userContext.role,
-                            },
-                            originalStatus: campaign.status,
-                            requestedStatus: newStatus,
-                            finalStatus: finalStatus,
-                            startDate:
-                                campaign.fundraisingStartDate.toISOString(),
-                            reason: "start_date_is_today",
-                        },
-                    )
                 } else {
                     updateData.changedStatusAt = new Date()
                 }
@@ -502,23 +472,6 @@ export class CampaignService {
                 id,
                 campaign.createdBy,
                 campaign.categoryId,
-            )
-
-            this.sentryService.addBreadcrumb(
-                "Campaign status changed",
-                "campaign",
-                {
-                    campaignId: id,
-                    admin: {
-                        id: userContext.userId,
-                        username: userContext.username,
-                        role: userContext.role,
-                    },
-                    oldStatus: campaign.status,
-                    newStatus: finalStatus,
-                    autoActivated: finalStatus !== newStatus,
-                    cacheInvalidated: true,
-                },
             )
 
             return updatedCampaign
@@ -588,29 +541,21 @@ export class CampaignService {
             const newEndDate = new Date(endDate)
             newEndDate.setDate(newEndDate.getDate() + input.extensionDays)
 
-            const updatedCampaign = await this.campaignRepository.update(id, {
-                fundraisingEndDate: newEndDate,
-                extensionCount: 1,
-                extensionDays: input.extensionDays,
-            })
+            const updatedCampaign =
+                await this.campaignRepository.extendCampaignWithPhases({
+                    campaignId: id,
+                    extensionDays: input.extensionDays,
+                    newFundraisingEndDate: newEndDate,
+                })
 
-            await this.cacheService.deleteCampaign(id)
-            await this.cacheService.invalidateAll(
-                id,
-                userContext.userId,
-                campaign.categoryId,
-            )
-
-            this.sentryService.addBreadcrumb("Campaign extended", "campaign", {
-                campaignId: id,
-                extensionDays: input.extensionDays,
-                oldEndDate: campaign.fundraisingEndDate,
-                newEndDate: newEndDate,
-                user: {
-                    id: userContext.userId,
-                    username: userContext.username,
-                },
-            })
+            await Promise.all([
+                this.cacheService.deleteCampaign(id),
+                this.cacheService.invalidateAll(
+                    id,
+                    userContext.userId,
+                    campaign.categoryId,
+                ),
+            ])
 
             return updatedCampaign
         } catch (error) {
@@ -1288,18 +1233,6 @@ export class CampaignService {
                     `Delivery (${totalDelivery.toFixed(2)}%) = ${grandTotal.toFixed(2)}%`,
             )
         }
-
-        this.sentryService.addBreadcrumb(
-            "Phase budgets validated",
-            "validation",
-            {
-                phaseCount: phases.length,
-                totalIngredient,
-                totalCooking,
-                totalDelivery,
-                grandTotal,
-            },
-        )
     }
 
     private validateStatusTransition(
