@@ -8,6 +8,7 @@ import { PostRepository } from "../../repositories/post.repository"
 import { CreatePostInput, UpdatePostInput } from "../../dtos/post/request"
 import { PostLikeDataLoader } from "../../dataloaders"
 import { PostSortOrder } from "@app/campaign/src/domain/enums/post/post.enum"
+import { PostCacheService } from "./post-cache.service"
 
 @Injectable()
 export class PostService {
@@ -16,6 +17,7 @@ export class PostService {
     constructor(
         private readonly postRepository: PostRepository,
         private readonly spacesUploadService: SpacesUploadService,
+        private readonly postCacheService: PostCacheService,
     ) {}
 
     async createPost(data: CreatePostInput, userId: string) {
@@ -42,7 +44,16 @@ export class PostService {
             media: mediaUrls ? JSON.stringify(mediaUrls) : undefined,
         }
 
-        return await this.postRepository.createPost(repositoryInput, userId)
+        const post = await this.postRepository.createPost(repositoryInput, userId)
+
+        await Promise.all([
+            this.postCacheService.setPost(post.id, post),
+            this.postCacheService.deleteCampaignPosts(data.campaignId),
+            this.postCacheService.deleteUserPosts(userId),
+            this.postCacheService.deleteAllPostLists(),
+        ])
+
+        return post
     }
 
     async getPostsByCampaignId(
@@ -53,12 +64,41 @@ export class PostService {
         limit: number = 10,
         offset: number = 0,
     ) {
+        const cacheKey = {
+            filter: { campaignId },
+            sortBy,
+            limit: Math.min(limit, 100),
+            offset: Math.max(offset, 0),
+        }
+
+        const cachedPosts = await this.postCacheService.getPostList(cacheKey)
+
+        if (cachedPosts && cachedPosts.length > 0) {
+            const postsWithLikeStatus = await Promise.all(
+                cachedPosts.map(async (post) => {
+                    const isLikedByMe = await dataLoader.load({
+                        postId: post.id,
+                        userId,
+                    })
+
+                    return {
+                        ...post,
+                        isLikedByMe,
+                    }
+                }),
+            )
+
+            return postsWithLikeStatus
+        }
+
         const posts = await this.postRepository.findManyPosts({
             filter: { campaignId },
             sortBy,
             limit: Math.min(limit, 100),
             offset: Math.max(offset, 0),
         })
+
+        await this.postCacheService.setPostList(cacheKey, posts)
 
         const postsWithLikeStatus = await Promise.all(
             posts.map(async (post) => {
@@ -82,10 +122,16 @@ export class PostService {
         userId: string | null,
         dataLoader: PostLikeDataLoader,
     ) {
-        const post = await this.postRepository.findPostById(id)
+        let post = await this.postCacheService.getPost(id)
 
         if (!post) {
-            throw new NotFoundException(`Post with ID ${id} not found`)
+            post = await this.postRepository.findPostById(id)
+
+            if (!post) {
+                throw new NotFoundException(`Post with ID ${id} not found`)
+            }
+
+            await this.postCacheService.setPost(id, post)
         }
 
         const isLikedByMe = await dataLoader.load({
@@ -143,12 +189,29 @@ export class PostService {
             media: mediaUrls ? JSON.stringify(mediaUrls) : undefined,
         }
 
-        return await this.postRepository.updatePost(id, repositoryInput, userId)
+        const updatedPost = await this.postRepository.updatePost(
+            id,
+            repositoryInput,
+            userId,
+        )
+
+        await this.postCacheService.invalidatePost(
+            id,
+            existingPost.campaignId,
+            userId,
+        )
+
+        return updatedPost
     }
 
     async deletePost(id: string, userId: string) {
         const post = await this.postRepository.findPostById(id)
-        if (post && post.media) {
+
+        if (!post) {
+            throw new NotFoundException(`Post with ID ${id} not found`)
+        }
+
+        if (post.media) {
             const mediaUrls = JSON.parse(post.media)
             if (Array.isArray(mediaUrls)) {
                 const fileKeys = mediaUrls
@@ -165,11 +228,26 @@ export class PostService {
         }
 
         await this.postRepository.deactivatePost(id, userId)
+
+        await this.postCacheService.invalidatePost(
+            id,
+            post.campaignId,
+            userId,
+        )
+
         return { success: true, message: "Delete successfully" }
     }
 
     async deactivatePost(id: string, userId: string) {
-        return await this.postRepository.deactivatePost(id, userId)
+        const post = await this.postRepository.deactivatePost(id, userId)
+
+        await this.postCacheService.invalidatePost(
+            id,
+            post.campaignId,
+            userId,
+        )
+
+        return post
     }
 
     private convertFileKeysToCdnUrls(
