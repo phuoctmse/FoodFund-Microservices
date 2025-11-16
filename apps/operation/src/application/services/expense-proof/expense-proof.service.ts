@@ -28,18 +28,22 @@ import {
     IngredientRequestStatus,
 } from "@app/operation/src/domain/enums"
 import { ExpenseProofCacheService } from "./expense-proof-cache.service"
+import { BaseOperationService } from "@app/operation/src/shared/services"
+import { BudgetValidationHelper } from "@app/operation/src/shared/helpers"
 
 @Injectable()
-export class ExpenseProofService {
+export class ExpenseProofService extends BaseOperationService {
     constructor(
         private readonly expenseProofRepository: ExpenseProofRepository,
         private readonly ingredientRequestRepository: IngredientRequestRepository,
         private readonly spacesUploadService: SpacesUploadService,
-        private readonly sentryService: SentryService,
         private readonly authorizationService: AuthorizationService,
-        private readonly grpcClient: GrpcClientService,
         private readonly cacheService: ExpenseProofCacheService,
-    ) {}
+        sentryService: SentryService,
+        grpcClient: GrpcClientService,
+    ) {
+        super(sentryService, grpcClient)
+    }
 
     async generateUploadUrls(
         input: GenerateExpenseProofUploadUrlsInput,
@@ -96,16 +100,7 @@ export class ExpenseProofService {
                 )
             }
 
-            const allowedTypes = ["jpg", "jpeg", "png", "mp4", "mov"]
-            const invalidTypes = input.fileTypes.filter(
-                (type) => !allowedTypes.includes(type.toLowerCase()),
-            )
-
-            if (invalidTypes.length > 0) {
-                throw new BadRequestException(
-                    `Invalid file types: ${invalidTypes.join(", ")}. Allowed: ${allowedTypes.join(", ")}`,
-                )
-            }
+            BudgetValidationHelper.validateFileTypes(input.fileTypes)
 
             const uploadResults =
                 await this.spacesUploadService.generateBatchImageUploadUrls(
@@ -189,10 +184,7 @@ export class ExpenseProofService {
                 )
             }
 
-            const amount = BigInt(input.amount)
-            if (amount <= 0) {
-                throw new BadRequestException("Amount must be greater than 0")
-            }
+            const amount = this.parseTotalCost(input.amount)
 
             const cdnEndpoint = process.env.SPACES_CDN_ENDPOINT!
             const mediaUrls = input.mediaFileKeys.map(
@@ -210,14 +202,9 @@ export class ExpenseProofService {
             await Promise.all([
                 this.cacheService.setProof(mappedProof.id, mappedProof),
                 this.cacheService.deleteRequestProofs(input.requestId),
-                request.campaignPhaseId
-                    ? this.cacheService.deletePhaseProofs(
-                        request.campaignPhaseId,
-                    )
-                    : Promise.resolve(),
                 this.cacheService.deleteOrganizationProofs(userContext.userId),
                 this.cacheService.deleteAllProofLists(),
-                this.cacheService.deleteStats(),
+                this.cacheService.deleteProofStats(),
             ])
 
             return mappedProof
@@ -271,25 +258,11 @@ export class ExpenseProofService {
 
             const mappedProof = this.mapToGraphQLModel(updatedProof)
 
-            let campaignPhaseId: string | undefined
-
-            if (proof.request) {
-                campaignPhaseId = proof.request.campaign_phase_id
-            } else {
-                const request = await this.ingredientRequestRepository.findById(
-                    proof.request_id,
-                )
-                campaignPhaseId = request?.campaignPhaseId
-            }
-
             await Promise.all([
                 this.cacheService.setProof(mappedProof.id, mappedProof),
                 this.cacheService.deleteRequestProofs(proof.request_id),
-                campaignPhaseId
-                    ? this.cacheService.deletePhaseProofs(campaignPhaseId)
-                    : Promise.resolve(),
                 this.cacheService.deleteAllProofLists(),
-                this.cacheService.deleteStats(),
+                this.cacheService.deleteProofStats(),
             ])
 
             return mappedProof
@@ -318,7 +291,6 @@ export class ExpenseProofService {
                 }
 
                 proof = this.mapToGraphQLModel(dbProof)
-
                 await this.cacheService.setProof(id, proof)
             }
 
@@ -356,9 +328,7 @@ export class ExpenseProofService {
                     this.sentryService.addBreadcrumb(
                         "No campaign phases found for campaign",
                         "warning",
-                        {
-                            campaignId: filter.campaignId,
-                        },
+                        { campaignId: filter.campaignId },
                     )
                     return []
                 }
@@ -409,10 +379,14 @@ export class ExpenseProofService {
         try {
             const cachedProofs = await this.cacheService.getOrganizationProofs(
                 userContext.userId,
-                requestId,
             )
 
             if (cachedProofs) {
+                if (requestId) {
+                    return cachedProofs.filter(
+                        (proof) => proof.requestId === requestId,
+                    )
+                }
                 return cachedProofs
             }
 
@@ -448,7 +422,6 @@ export class ExpenseProofService {
             await this.cacheService.setOrganizationProofs(
                 userContext.userId,
                 mappedProofs,
-                requestId,
             )
 
             return mappedProofs
@@ -474,7 +447,7 @@ export class ExpenseProofService {
         )
 
         try {
-            const cachedStats = await this.cacheService.getStats()
+            const cachedStats = await this.cacheService.getProofStats()
 
             if (cachedStats) {
                 return cachedStats
@@ -482,51 +455,12 @@ export class ExpenseProofService {
 
             const stats = await this.expenseProofRepository.getStats()
 
-            await this.cacheService.setStats(stats)
+            await this.cacheService.setProofStats(stats)
 
             return stats
         } catch (error) {
             this.sentryService.captureError(error as Error, {
                 operation: "ExpenseProofService.getExpenseProofStats",
-            })
-            throw error
-        }
-    }
-
-    private async getCampaignPhases(campaignId: string): Promise<any[]> {
-        try {
-            const response = await this.grpcClient.callCampaignService<
-                { campaignId: string },
-                {
-                    success: boolean
-                    phases: Array<{
-                        id: string
-                        campaignId: string
-                        phaseName: string
-                        location: string
-                        ingredientPurchaseDate: string
-                        cookingDate: string
-                        deliveryDate: string
-                    }>
-                    error: string | null
-                }
-            >(
-                "GetCampaignPhases",
-                { campaignId },
-                { timeout: 5000, retries: 2 },
-            )
-
-            if (!response.success) {
-                throw new BadRequestException(
-                    response.error || "Failed to fetch campaign phases",
-                )
-            }
-
-            return response.phases || []
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "ExpenseProofService.getCampaignPhases",
-                campaignId,
             })
             throw error
         }

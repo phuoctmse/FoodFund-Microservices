@@ -34,19 +34,22 @@ import { SentryService } from "@libs/observability"
 import { GrpcClientService } from "@libs/grpc"
 import { DeliveryTaskCacheService } from "./delivery-task-cache.service"
 import { MealBatchCacheService } from "../meal-batch"
+import { BaseOperationService } from "@app/operation/src/shared/services"
 
 @Injectable()
-export class DeliveryTaskService {
+export class DeliveryTaskService extends BaseOperationService {
     constructor(
         private readonly deliveryTaskRepository: DeliveryTaskRepository,
         private readonly deliveryStatusLogRepository: DeliveryStatusLogRepository,
         private readonly mealBatchRepository: MealBatchRepository,
         private readonly authService: AuthorizationService,
-        private readonly grpcClient: GrpcClientService,
-        private readonly sentryService: SentryService,
         private readonly cacheService: DeliveryTaskCacheService,
         private readonly mealBatchCacheService: MealBatchCacheService,
-    ) {}
+        sentryService: SentryService,
+        grpcClient: GrpcClientService,
+    ) {
+        super(sentryService, grpcClient)
+    }
 
     async assignTaskToStaff(
         input: AssignTaskToStaffInput,
@@ -167,7 +170,7 @@ export class DeliveryTaskService {
             return createdTasks
         } catch (error) {
             this.sentryService.captureError(error as Error, {
-                operation: "assignTaskToStaff",
+                operation: "DeliveryTaskService.assignTaskToStaff",
                 input,
                 userId: userContext.userId,
             })
@@ -236,7 +239,7 @@ export class DeliveryTaskService {
             return mappedTask
         } catch (error) {
             this.sentryService.captureError(error as Error, {
-                operation: "selfAssignTask",
+                operation: "DeliveryTaskService.selfAssignTask",
                 input,
                 userId: userContext.userId,
             })
@@ -335,7 +338,7 @@ export class DeliveryTaskService {
             return mappedTask
         } catch (error) {
             this.sentryService.captureError(error as Error, {
-                operation: "updateDeliveryTaskStatus",
+                operation: "DeliveryTaskService.updateTaskStatus",
                 input,
                 userId: userContext.userId,
             })
@@ -376,7 +379,7 @@ export class DeliveryTaskService {
             return mappedTasks
         } catch (error) {
             this.sentryService.captureError(error as Error, {
-                operation: "getDeliveryTasks",
+                operation: "DeliveryTaskService.getTasks",
                 filter,
             })
             throw error
@@ -404,7 +407,7 @@ export class DeliveryTaskService {
             return task
         } catch (error) {
             this.sentryService.captureError(error as Error, {
-                operation: "getDeliveryTaskById",
+                operation: "DeliveryTaskService.getTaskById",
                 taskId: id,
             })
             throw error
@@ -430,8 +433,6 @@ export class DeliveryTaskService {
 
             const cachedTasks = await this.cacheService.getStaffTasks(
                 userContext.userId,
-                limit,
-                offset,
             )
 
             if (cachedTasks) {
@@ -449,15 +450,13 @@ export class DeliveryTaskService {
 
             await this.cacheService.setStaffTasks(
                 userContext.userId,
-                limit,
-                offset,
                 mappedTasks,
             )
 
             return mappedTasks
         } catch (error) {
             this.sentryService.captureError(error as Error, {
-                operation: "getMyDeliveryTasks",
+                operation: "DeliveryTaskService.getMyTasks",
                 userId: userContext.userId,
             })
             throw error
@@ -491,7 +490,7 @@ export class DeliveryTaskService {
             return mappedTasks
         } catch (error) {
             this.sentryService.captureError(error as Error, {
-                operation: "getTasksByMealBatch",
+                operation: "DeliveryTaskService.getTasksByMealBatch",
                 mealBatchId,
             })
             throw error
@@ -539,7 +538,7 @@ export class DeliveryTaskService {
             return stats
         } catch (error) {
             this.sentryService.captureError(error as Error, {
-                operation: "getDeliveryTaskStats",
+                operation: "DeliveryTaskService.getStatsByCampaignPhase",
                 campaignPhaseId,
             })
             throw error
@@ -556,12 +555,14 @@ export class DeliveryTaskService {
             return logs.map((log) => this.mapStatusLogToGraphQLModel(log))
         } catch (error) {
             this.sentryService.captureError(error as Error, {
-                operation: "getDeliveryTaskStatusLogs",
+                operation: "DeliveryTaskService.getStatusLogs",
                 taskId,
             })
             throw error
         }
     }
+
+    // ==================== Private Helper Methods ====================
 
     private async resolveMealBatchIds(
         filter: DeliveryTaskFilterInput,
@@ -612,45 +613,6 @@ export class DeliveryTaskService {
         })
 
         return mealBatches.map((mb) => mb.id)
-    }
-
-    private async getCampaignPhases(campaignId: string): Promise<any[]> {
-        try {
-            const response = await this.grpcClient.callCampaignService<
-                { campaignId: string },
-                {
-                    success: boolean
-                    phases: Array<{
-                        id: string
-                        campaignId: string
-                        phaseName: string
-                        location: string
-                        ingredientPurchaseDate: string
-                        cookingDate: string
-                        deliveryDate: string
-                    }>
-                    error: string | null
-                }
-            >(
-                "GetCampaignPhases",
-                { campaignId },
-                { timeout: 5000, retries: 2 },
-            )
-
-            if (!response.success) {
-                throw new BadRequestException(
-                    response.error || "Failed to fetch campaign phases",
-                )
-            }
-
-            return response.phases || []
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "DeliveryTaskService.getCampaignPhases",
-                campaignId,
-            })
-            throw error
-        }
     }
 
     private validateStatusTransition(

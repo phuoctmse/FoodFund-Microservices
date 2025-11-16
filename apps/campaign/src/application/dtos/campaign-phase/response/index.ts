@@ -1,1 +1,1 @@
-export * from "./delete-phase.response"
+export * from "./phases.response"

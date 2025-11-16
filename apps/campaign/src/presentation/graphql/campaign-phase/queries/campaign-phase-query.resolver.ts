@@ -1,8 +1,6 @@
 import {
     Args,
-    Parent,
     Query,
-    ResolveField,
     Resolver,
     ResolveReference,
 } from "@nestjs/graphql"

@@ -1,119 +1,117 @@
 import { CampaignCategory } from "@app/campaign/src/domain/entities/campaign-category.model"
+import { BaseCacheService } from "@app/campaign/src/shared/services"
 import { RedisService } from "@libs/redis"
 import { Injectable } from "@nestjs/common"
 
 @Injectable()
-export class CampaignCategoryCacheService {
-    private readonly TTL = {
-        SINGLE_CATEGORY: 60 * 60,
-        ALL_CATEGORIES: 60 * 30,
-        CATEGORY_STATS: 60 * 15,
+export class CampaignCategoryCacheService extends BaseCacheService<CampaignCategory> {
+    protected readonly TTL = {
+        SINGLE_CATEGORY: 60 * 60, // 1 hour
+        ALL_CATEGORIES: 60 * 30, // 30 minutes
+        CATEGORY_STATS: 60 * 15, // 15 minutes
     }
 
-    private readonly KEYS = {
+    protected readonly KEYS = {
         SINGLE: "category",
         ALL_ACTIVE: "categories:all:active",
-        ALL_WITH_INACTIVE: "categories:all:with-inactive",
         STATS: "categories:stats",
     }
 
-    constructor(private readonly redis: RedisService) {}
+    constructor(redis: RedisService) {
+        super(redis)
+    }
+
+    // ==================== Single Category ====================
 
     async getCategory(id: string): Promise<CampaignCategory | null> {
-        try {
-            const key = `${this.KEYS.SINGLE}:${id}`
-            const cached = await this.redis.get(key)
-
-            if (cached) {
-                return JSON.parse(cached) as CampaignCategory
-            }
-
-            return null
-        } catch (error) {
-            return null
-        }
+        return this.getSingle(this.KEYS.SINGLE, id)
     }
 
     async setCategory(id: string, category: CampaignCategory): Promise<void> {
-        const key = `${this.KEYS.SINGLE}:${id}`
-        await this.redis.set(key, JSON.stringify(category), {
-            ex: this.TTL.SINGLE_CATEGORY,
-        })
+        return this.setSingle(
+            this.KEYS.SINGLE,
+            id,
+            category,
+            this.TTL.SINGLE_CATEGORY,
+        )
     }
 
     async deleteCategory(id: string): Promise<void> {
-        const key = `${this.KEYS.SINGLE}:${id}`
-        await this.redis.del(key)
+        return this.deleteSingle(this.KEYS.SINGLE, id)
     }
 
+    // ==================== All Active Categories ====================
+
     async getAllActiveCategories(): Promise<CampaignCategory[] | null> {
-        try {
-            const cached = await this.redis.get(this.KEYS.ALL_ACTIVE)
-
-            if (cached) {
-                return JSON.parse(cached) as CampaignCategory[]
-            }
-
-            return null
-        } catch (error) {
+        if (!this.redis.isAvailable()) {
             return null
         }
+
+        const cached = await this.redis.get(this.KEYS.ALL_ACTIVE)
+
+        if (cached) {
+            return JSON.parse(cached) as CampaignCategory[]
+        }
+
+        return null
     }
 
     async setAllActiveCategories(
         categories: CampaignCategory[],
     ): Promise<void> {
+        if (!this.redis.isAvailable()) {
+            return
+        }
+
         await this.redis.set(this.KEYS.ALL_ACTIVE, JSON.stringify(categories), {
             ex: this.TTL.ALL_CATEGORIES,
         })
     }
 
     async deleteAllActiveCategories(): Promise<void> {
+        if (!this.redis.isAvailable()) {
+            return
+        }
+
         await this.redis.del(this.KEYS.ALL_ACTIVE)
     }
+
+    // ==================== Category Stats ====================
 
     async getCategoryStats(): Promise<Array<
         CampaignCategory & { campaignCount: number }
     > | null> {
-        try {
-            const cached = await this.redis.get(this.KEYS.STATS)
-
-            if (cached) {
-                return JSON.parse(cached) as Array<
-                    CampaignCategory & { campaignCount: number }
-                >
-            }
-
-            return null
-        } catch (error) {
-            return null
-        }
+        return this.getStats<Array<CampaignCategory & { campaignCount: number }>>(
+            this.KEYS.STATS,
+        )
     }
 
     async setCategoryStats(
         stats: Array<CampaignCategory & { campaignCount: number }>,
     ): Promise<void> {
-        await this.redis.set(this.KEYS.STATS, JSON.stringify(stats), {
-            ex: this.TTL.CATEGORY_STATS,
-        })
+        return this.setStats(this.KEYS.STATS, stats, this.TTL.CATEGORY_STATS)
     }
 
     async deleteCategoryStats(): Promise<void> {
-        await this.redis.del(this.KEYS.STATS)
+        return this.deleteStats(this.KEYS.STATS)
     }
 
+    // ==================== Invalidation ====================
+
     async invalidateAll(categoryId?: string): Promise<void> {
-        const deleteOperations: Promise<void>[] = [
+        const operations: Promise<void>[] = [
             this.deleteAllActiveCategories(),
             this.deleteCategoryStats(),
         ]
 
         if (categoryId) {
-            deleteOperations.push(this.deleteCategory(categoryId))
+            operations.push(this.deleteCategory(categoryId))
         }
 
-        await Promise.all(deleteOperations)
+        return this.invalidateMultiple(...operations)
     }
+
+    // ==================== Cache Warming ====================
 
     async warmUpCache(
         categories: CampaignCategory[],
@@ -130,23 +128,12 @@ export class CampaignCategoryCacheService {
         await Promise.all(operations)
     }
 
+    // ==================== Health Check ====================
+
     async getHealthStatus(): Promise<{
         available: boolean
         keysCount: number
     }> {
-        try {
-            const isAvailable = this.redis.isAvailable()
-
-            if (!isAvailable) {
-                return { available: false, keysCount: 0 }
-            }
-
-            const keys = await this.redis.keys("category*")
-            const keysCount = keys.length
-
-            return { available: true, keysCount }
-        } catch (error) {
-            return { available: false, keysCount: 0 }
-        }
+        return super.getHealthStatus("category*")
     }
 }

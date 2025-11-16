@@ -27,6 +27,21 @@ export interface UpdatePhaseData {
     status?: CampaignPhaseStatus
 }
 
+export interface SyncPhasesData {
+    campaignId: string
+    phases: Array<{
+        id?: string
+        phaseName: string
+        location: string
+        ingredientPurchaseDate: Date
+        cookingDate: Date
+        deliveryDate: Date
+        ingredientBudgetPercentage: number
+        cookingBudgetPercentage: number
+        deliveryBudgetPercentage: number
+    }>
+}
+
 @Injectable()
 export class CampaignPhaseRepository {
     constructor(private readonly prisma: PrismaClient) {}
@@ -190,6 +205,106 @@ export class CampaignPhaseRepository {
                 status,
                 updated_at: new Date(),
             },
+        })
+    }
+
+    async syncPhases(data: SyncPhasesData): Promise<{
+        phases: any[]
+        createdCount: number
+        updatedCount: number
+        deletedCount: number
+    }> {
+        return await this.prisma.$transaction(async (tx) => {
+            const existingPhases = await tx.campaign_Phase.findMany({
+                where: {
+                    campaign_id: data.campaignId,
+                    is_active: true,
+                },
+            })
+
+            const existingIds = new Set(existingPhases.map((p) => p.id))
+            const incomingIds = new Set(
+                data.phases.filter((p) => p.id).map((p) => p.id!),
+            )
+
+            const toCreate = data.phases.filter((p) => !p.id)
+            const toUpdate = data.phases.filter(
+                (p) => p.id && existingIds.has(p.id),
+            )
+            const toDeleteIds = [...existingIds].filter(
+                (id) => !incomingIds.has(id),
+            )
+
+            const createdPhases = await Promise.all(
+                toCreate.map((phase) =>
+                    tx.campaign_Phase.create({
+                        data: {
+                            campaign_id: data.campaignId,
+                            phase_name: phase.phaseName,
+                            location: phase.location,
+                            ingredient_purchase_date:
+                                phase.ingredientPurchaseDate,
+                            cooking_date: phase.cookingDate,
+                            delivery_date: phase.deliveryDate,
+                            ingredient_budget_percentage:
+                                phase.ingredientBudgetPercentage,
+                            cooking_budget_percentage:
+                                phase.cookingBudgetPercentage,
+                            delivery_budget_percentage:
+                                phase.deliveryBudgetPercentage,
+                            status: CampaignPhaseStatus.PLANNING,
+                            is_active: true,
+                        },
+                    }),
+                ),
+            )
+
+            const updatedPhases = await Promise.all(
+                toUpdate.map((phase) =>
+                    tx.campaign_Phase.update({
+                        where: { id: phase.id, is_active: true },
+                        data: {
+                            phase_name: phase.phaseName,
+                            location: phase.location,
+                            ingredient_purchase_date:
+                                phase.ingredientPurchaseDate,
+                            cooking_date: phase.cookingDate,
+                            delivery_date: phase.deliveryDate,
+                            ingredient_budget_percentage:
+                                phase.ingredientBudgetPercentage,
+                            cooking_budget_percentage:
+                                phase.cookingBudgetPercentage,
+                            delivery_budget_percentage:
+                                phase.deliveryBudgetPercentage,
+                            updated_at: new Date(),
+                        },
+                    }),
+                ),
+            )
+
+            let deletedCount = 0
+            if (toDeleteIds.length > 0) {
+                const deleteResult = await tx.campaign_Phase.updateMany({
+                    where: {
+                        id: { in: toDeleteIds },
+                        is_active: true,
+                    },
+                    data: {
+                        is_active: false,
+                        updated_at: new Date(),
+                    },
+                })
+                deletedCount = deleteResult.count
+            }
+
+            const allPhases = [...createdPhases, ...updatedPhases]
+
+            return {
+                phases: allPhases,
+                createdCount: createdPhases.length,
+                updatedCount: updatedPhases.length,
+                deletedCount,
+            }
         })
     }
 

@@ -1,25 +1,25 @@
-import { createHash } from "crypto"
 import { MealBatchFilterInput } from "../../dtos"
 import { Injectable } from "@nestjs/common"
 import { RedisService } from "@libs/redis"
 import { MealBatch } from "@app/operation/src/domain"
+import { BaseCacheService } from "@app/operation/src/shared/services"
 
 export interface MealBatchListCacheKey {
     filter?: MealBatchFilterInput
 }
 
 @Injectable()
-export class MealBatchCacheService {
-    private readonly TTL = {
-        SINGLE_BATCH: 60 * 30, // 30 minutes
-        BATCH_LIST: 60 * 15, // 15 minutes
-        PHASE_BATCHES: 60 * 30, // 30 minutes
-        CAMPAIGN_BATCHES: 60 * 30, // 30 minutes
-        USER_BATCHES: 60 * 30, // 30 minutes
-        STATS: 60 * 10, // 10 minutes
+export class MealBatchCacheService extends BaseCacheService<MealBatch> {
+    protected readonly TTL = {
+        SINGLE_BATCH: 60 * 30,
+        BATCH_LIST: 60 * 15,
+        PHASE_BATCHES: 60 * 30,
+        CAMPAIGN_BATCHES: 60 * 30,
+        USER_BATCHES: 60 * 30,
+        STATS: 60 * 10,
     }
 
-    private readonly KEYS = {
+    protected readonly KEYS = {
         SINGLE: "meal-batch",
         LIST: "meal-batches:list",
         PHASE: "meal-batches:phase",
@@ -28,102 +28,51 @@ export class MealBatchCacheService {
         STATS: "meal-batches:stats",
     }
 
-    constructor(private readonly redis: RedisService) {}
+    constructor(redis: RedisService) {
+        super(redis)
+    }
 
     // ==================== Single Meal Batch ====================
 
     async getBatch(id: string): Promise<MealBatch | null> {
-        if (!this.redis.isAvailable()) {
-            return null
-        }
-
-        const key = `${this.KEYS.SINGLE}:${id}`
-        const cached = await this.redis.get(key)
-
-        if (cached) {
-            return JSON.parse(cached) as MealBatch
-        }
-
-        return null
+        return this.getSingle(this.KEYS.SINGLE, id)
     }
 
     async setBatch(id: string, batch: MealBatch): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = `${this.KEYS.SINGLE}:${id}`
-        await this.redis.set(key, JSON.stringify(batch), {
-            ex: this.TTL.SINGLE_BATCH,
-        })
+        return this.setSingle(
+            this.KEYS.SINGLE,
+            id,
+            batch,
+            this.TTL.SINGLE_BATCH,
+        )
     }
 
     async deleteBatch(id: string): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = `${this.KEYS.SINGLE}:${id}`
-        await this.redis.del(key)
+        return this.deleteSingle(this.KEYS.SINGLE, id)
     }
 
     // ==================== Batch Lists ====================
 
-    private generateListCacheKey(params: MealBatchListCacheKey): string {
-        const normalized = {
-            filter: params.filter || {},
-        }
-
-        const hash = createHash("sha256")
-            .update(JSON.stringify(normalized))
-            .digest("hex")
-            .substring(0, 16)
-
-        return `${this.KEYS.LIST}:${hash}`
-    }
-
     async getBatchList(
         params: MealBatchListCacheKey,
     ): Promise<MealBatch[] | null> {
-        if (!this.redis.isAvailable()) {
-            return null
-        }
-
-        const key = this.generateListCacheKey(params)
-        const cached = await this.redis.get(key)
-
-        if (cached) {
-            return JSON.parse(cached) as MealBatch[]
-        }
-
-        return null
+        return this.getList(this.KEYS.LIST, params)
     }
 
     async setBatchList(
         params: MealBatchListCacheKey,
         batches: MealBatch[],
     ): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = this.generateListCacheKey(params)
-        await this.redis.set(key, JSON.stringify(batches), {
-            ex: this.TTL.BATCH_LIST,
-        })
+        return this.setList(
+            this.KEYS.LIST,
+            params,
+            batches,
+            this.TTL.BATCH_LIST,
+        )
     }
 
     async deleteAllBatchLists(): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const pattern = `${this.KEYS.LIST}:*`
-        const keys = await this.redis.keys(pattern)
-
-        if (keys.length > 0) {
-            await this.redis.del(keys)
-        }
+        return this.deleteAllLists(this.KEYS.LIST)
     }
 
     // ==================== Campaign Phase Batches ====================
@@ -131,121 +80,67 @@ export class MealBatchCacheService {
     async getPhaseBatches(
         campaignPhaseId: string,
     ): Promise<MealBatch[] | null> {
-        if (!this.redis.isAvailable()) {
-            return null
-        }
-
-        const key = `${this.KEYS.PHASE}:${campaignPhaseId}`
-        const cached = await this.redis.get(key)
-
-        if (cached) {
-            return JSON.parse(cached) as MealBatch[]
-        }
-
-        return null
+        return this.getRelatedList(this.KEYS.PHASE, campaignPhaseId)
     }
 
     async setPhaseBatches(
         campaignPhaseId: string,
         batches: MealBatch[],
     ): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = `${this.KEYS.PHASE}:${campaignPhaseId}`
-        await this.redis.set(key, JSON.stringify(batches), {
-            ex: this.TTL.PHASE_BATCHES,
-        })
+        return this.setRelatedList(
+            this.KEYS.PHASE,
+            campaignPhaseId,
+            batches,
+            this.TTL.PHASE_BATCHES,
+        )
     }
 
     async deletePhaseBatches(campaignPhaseId: string): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = `${this.KEYS.PHASE}:${campaignPhaseId}`
-        await this.redis.del(key)
+        return this.deleteRelatedList(this.KEYS.PHASE, campaignPhaseId)
     }
 
     // ==================== Campaign Batches ====================
 
     async getCampaignBatches(campaignId: string): Promise<MealBatch[] | null> {
-        if (!this.redis.isAvailable()) {
-            return null
-        }
-
-        const key = `${this.KEYS.CAMPAIGN}:${campaignId}`
-        const cached = await this.redis.get(key)
-
-        if (cached) {
-            return JSON.parse(cached) as MealBatch[]
-        }
-
-        return null
+        return this.getRelatedList(this.KEYS.CAMPAIGN, campaignId)
     }
 
     async setCampaignBatches(
         campaignId: string,
         batches: MealBatch[],
     ): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = `${this.KEYS.CAMPAIGN}:${campaignId}`
-        await this.redis.set(key, JSON.stringify(batches), {
-            ex: this.TTL.CAMPAIGN_BATCHES,
-        })
+        return this.setRelatedList(
+            this.KEYS.CAMPAIGN,
+            campaignId,
+            batches,
+            this.TTL.CAMPAIGN_BATCHES,
+        )
     }
 
     async deleteCampaignBatches(campaignId: string): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = `${this.KEYS.CAMPAIGN}:${campaignId}`
-        await this.redis.del(key)
+        return this.deleteRelatedList(this.KEYS.CAMPAIGN, campaignId)
     }
 
     // ==================== Kitchen Staff Batches ====================
 
     async getUserBatches(kitchenStaffId: string): Promise<MealBatch[] | null> {
-        if (!this.redis.isAvailable()) {
-            return null
-        }
-
-        const key = `${this.KEYS.USER}:${kitchenStaffId}`
-        const cached = await this.redis.get(key)
-
-        if (cached) {
-            return JSON.parse(cached) as MealBatch[]
-        }
-
-        return null
+        return this.getRelatedList(this.KEYS.USER, kitchenStaffId)
     }
 
     async setUserBatches(
         kitchenStaffId: string,
         batches: MealBatch[],
     ): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = `${this.KEYS.USER}:${kitchenStaffId}`
-        await this.redis.set(key, JSON.stringify(batches), {
-            ex: this.TTL.USER_BATCHES,
-        })
+        return this.setRelatedList(
+            this.KEYS.USER,
+            kitchenStaffId,
+            batches,
+            this.TTL.USER_BATCHES,
+        )
     }
 
     async deleteUserBatches(kitchenStaffId: string): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = `${this.KEYS.USER}:${kitchenStaffId}`
-        await this.redis.del(key)
+        return this.deleteRelatedList(this.KEYS.USER, kitchenStaffId)
     }
 
     // ==================== Statistics ====================
@@ -257,18 +152,7 @@ export class MealBatchCacheService {
         deliveredCount: number
         totalPortions: number
     } | null> {
-        if (!this.redis.isAvailable()) {
-            return null
-        }
-
-        const key = `${this.KEYS.STATS}:phase:${campaignPhaseId}`
-        const cached = await this.redis.get(key)
-
-        if (cached) {
-            return JSON.parse(cached)
-        }
-
-        return null
+        return this.getStats(this.KEYS.STATS, `phase:${campaignPhaseId}`)
     }
 
     async setPhaseStats(
@@ -281,23 +165,16 @@ export class MealBatchCacheService {
             totalPortions: number
         },
     ): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = `${this.KEYS.STATS}:phase:${campaignPhaseId}`
-        await this.redis.set(key, JSON.stringify(stats), {
-            ex: this.TTL.STATS,
-        })
+        return this.setStats(
+            this.KEYS.STATS,
+            stats,
+            this.TTL.STATS,
+            `phase:${campaignPhaseId}`,
+        )
     }
 
     async deletePhaseStats(campaignPhaseId: string): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const key = `${this.KEYS.STATS}:phase:${campaignPhaseId}`
-        await this.redis.del(key)
+        return this.deleteStats(this.KEYS.STATS, `phase:${campaignPhaseId}`)
     }
 
     // ==================== Invalidation ====================
@@ -307,47 +184,32 @@ export class MealBatchCacheService {
         campaignPhaseId?: string,
         kitchenStaffId?: string,
     ): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const deleteOperations: Promise<void>[] = [
+        const operations: Promise<void>[] = [
             this.deleteBatch(batchId),
             this.deleteAllBatchLists(),
         ]
 
         if (campaignPhaseId) {
-            deleteOperations.push(this.deletePhaseBatches(campaignPhaseId))
-            deleteOperations.push(this.deletePhaseStats(campaignPhaseId))
+            operations.push(this.deletePhaseBatches(campaignPhaseId))
+            operations.push(this.deletePhaseStats(campaignPhaseId))
         }
 
         if (kitchenStaffId) {
-            deleteOperations.push(this.deleteUserBatches(kitchenStaffId))
+            operations.push(this.deleteUserBatches(kitchenStaffId))
         }
 
-        await Promise.all(deleteOperations)
+        return this.invalidateMultiple(...operations)
     }
 
     async invalidateAll(): Promise<void> {
-        if (!this.redis.isAvailable()) {
-            return
-        }
-
-        const patterns = [
+        return this.invalidateByPatterns(
             `${this.KEYS.SINGLE}:*`,
             `${this.KEYS.LIST}:*`,
             `${this.KEYS.PHASE}:*`,
             `${this.KEYS.CAMPAIGN}:*`,
             `${this.KEYS.USER}:*`,
             `${this.KEYS.STATS}:*`,
-        ]
-
-        for (const pattern of patterns) {
-            const keys = await this.redis.keys(pattern)
-            if (keys.length > 0) {
-                await this.redis.del(keys)
-            }
-        }
+        )
     }
 
     // ==================== Health Check ====================
@@ -356,15 +218,6 @@ export class MealBatchCacheService {
         available: boolean
         keysCount: number
     }> {
-        const isAvailable = this.redis.isAvailable()
-
-        if (!isAvailable) {
-            return { available: false, keysCount: 0 }
-        }
-
-        const keys = await this.redis.keys("meal-batch*")
-        const keysCount = keys.length
-
-        return { available: true, keysCount }
+        return super.getHealthStatus("meal-batch*")
     }
 }

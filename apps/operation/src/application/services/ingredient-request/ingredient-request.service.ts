@@ -20,16 +20,20 @@ import { IngredientRequest } from "@app/operation/src/domain"
 import { IngredientRequestStatus } from "@app/operation/src/domain/enums"
 import { GrpcClientService } from "@libs/grpc"
 import { IngredientRequestCacheService } from "./ingredient-request-cache.service"
+import { BaseOperationService } from "@app/operation/src/shared/services"
+import { BudgetValidationHelper } from "@app/operation/src/shared/helpers"
 
 @Injectable()
-export class IngredientRequestService {
+export class IngredientRequestService extends BaseOperationService {
     constructor(
         private readonly repository: IngredientRequestRepository,
         private readonly authService: AuthorizationService,
-        private readonly sentryService: SentryService,
-        private readonly grpcClient: GrpcClientService,
         private readonly cacheService: IngredientRequestCacheService,
-    ) {}
+        sentryService: SentryService,
+        grpcClient: GrpcClientService,
+    ) {
+        super(sentryService, grpcClient)
+    }
 
     async createRequest(
         input: CreateIngredientRequestInput,
@@ -56,25 +60,13 @@ export class IngredientRequestService {
                 )
             }
 
-            const totalCostNum = parseFloat(input.totalCost)
-            if (isNaN(totalCostNum) || totalCostNum <= 0) {
-                throw new BadRequestException(
-                    "Total cost must be greater than 0",
-                )
-            }
+            const totalCostBigInt = this.parseTotalCost(input.totalCost)
 
-            for (const item of input.items) {
-                if (
-                    item.estimatedUnitPrice <= 0 ||
-                    item.estimatedTotalPrice <= 0
-                ) {
-                    throw new BadRequestException(
-                        "All item prices must be greater than 0",
-                    )
-                }
-            }
-
-            this.validateItemsTotalCost(input.items, input.totalCost)
+            BudgetValidationHelper.validateItemPrices(input.items)
+            BudgetValidationHelper.validateItemsTotalCost(
+                input.items,
+                input.totalCost,
+            )
 
             const hasPending =
                 await this.repository.hasPendingOrApprovedRequest(
@@ -86,9 +78,10 @@ export class IngredientRequestService {
                 )
             }
 
-            await this.validateRequestBudget(
+            await this.validateBudget(
                 input.campaignPhaseId,
-                BigInt(input.totalCost),
+                totalCostBigInt,
+                "ingredientFundsAmount",
             )
 
             const request = await this.repository.create(
@@ -101,7 +94,7 @@ export class IngredientRequestService {
                 "AWAITING_INGREDIENT_DISBURSEMENT",
             )
 
-            const campaignId = await this.repository.getCampaignIdFromPhaseId(
+            const campaignId = await this.getCampaignIdFromPhaseId(
                 input.campaignPhaseId,
             )
 
@@ -110,7 +103,7 @@ export class IngredientRequestService {
                 this.cacheService.deletePhaseRequests(input.campaignPhaseId),
                 this.cacheService.deleteUserRequests(userContext.userId),
                 this.cacheService.deleteAllRequestLists(),
-                this.cacheService.deleteStats(),
+                this.cacheService.deleteRequestStats(),
                 campaignId
                     ? this.invalidateCampaignCache(campaignId)
                     : Promise.resolve(),
@@ -119,7 +112,7 @@ export class IngredientRequestService {
             return request
         } catch (error) {
             this.sentryService.captureError(error as Error, {
-                operation: "createIngredientRequest",
+                operation: "IngredientRequestService.createRequest",
                 userId: userContext.userId,
                 campaignPhaseId: input.campaignPhaseId,
             })
@@ -141,14 +134,13 @@ export class IngredientRequestService {
                 }
 
                 request = dbRequest
-
                 await this.cacheService.setRequest(id, request)
             }
 
             return request
         } catch (error) {
             this.sentryService.captureError(error as Error, {
-                operation: "getIngredientRequestById",
+                operation: "IngredientRequestService.getRequestById",
                 requestId: id,
             })
             throw error
@@ -198,7 +190,7 @@ export class IngredientRequestService {
             return requests
         } catch (error) {
             this.sentryService.captureError(error as Error, {
-                operation: "getIngredientRequests",
+                operation: "IngredientRequestService.getRequests",
                 filter,
             })
             throw error
@@ -218,8 +210,6 @@ export class IngredientRequestService {
 
             const cachedRequests = await this.cacheService.getUserRequests(
                 userContext.userId,
-                limit,
-                offset,
             )
 
             if (cachedRequests) {
@@ -234,15 +224,13 @@ export class IngredientRequestService {
 
             await this.cacheService.setUserRequests(
                 userContext.userId,
-                limit,
-                offset,
                 requests,
             )
 
             return requests
         } catch (error) {
             this.sentryService.captureError(error as Error, {
-                operation: "getMyIngredientRequests",
+                operation: "IngredientRequestService.getMyRequests",
                 userId: userContext.userId,
             })
             throw error
@@ -287,200 +275,18 @@ export class IngredientRequestService {
                     existingRequest.kitchenStaffId,
                 ),
                 this.cacheService.deleteAllRequestLists(),
-                this.cacheService.deleteStats(),
+                this.cacheService.deleteRequestStats(),
             ])
 
             return updatedRequest
         } catch (error) {
             this.sentryService.captureError(error as Error, {
-                operation: "updateIngredientRequestStatus",
+                operation: "IngredientRequestService.updateRequestStatus",
                 requestId: id,
                 newStatus: input.status,
                 adminId: userContext.userId,
             })
             throw error
         }
-    }
-
-    private validateItemsTotalCost(
-        items: Array<{ estimatedTotalPrice: number; ingredientName: string }>,
-        requestTotalCost: string,
-    ): void {
-        const itemsTotal = items.reduce(
-            (sum, item) => sum + item.estimatedTotalPrice,
-            0,
-        )
-
-        const requestTotal = parseFloat(requestTotalCost)
-
-        if (isNaN(requestTotal)) {
-            throw new BadRequestException(
-                "Invalid total cost format. Must be a valid number.",
-            )
-        }
-
-        const difference = Math.abs(itemsTotal - requestTotal)
-        const tolerance = 0.01
-
-        if (difference > tolerance) {
-            const itemsTotalFormatted = this.formatCurrency(
-                BigInt(Math.round(itemsTotal)),
-            )
-            const requestTotalFormatted = this.formatCurrency(
-                BigInt(Math.round(requestTotal)),
-            )
-
-            throw new BadRequestException(
-                `Tổng chi phí các nguyên liệu (${itemsTotalFormatted} VND) không khớp với ` +
-                    `tổng chi phí yêu cầu (${requestTotalFormatted} VND). ` +
-                    `Chênh lệch: ${Math.round(difference)} VND. ` +
-                    "Vui lòng kiểm tra lại tổng chi phí ước tính của từng item.",
-            )
-        }
-    }
-
-    private async invalidateCampaignCache(campaignId: string): Promise<void> {
-        await this.grpcClient.callCampaignService<
-            { campaignId: string },
-            { success: boolean; error?: string }
-        >(
-            "InvalidateCampaignCache",
-            { campaignId },
-            { timeout: 3000, retries: 1 },
-        )
-    }
-
-    private async getCampaignPhases(campaignId: string): Promise<any[]> {
-        try {
-            const response = await this.grpcClient.callCampaignService<
-                { campaignId: string },
-                {
-                    success: boolean
-                    phases: Array<{
-                        id: string
-                        campaignId: string
-                        phaseName: string
-                        location: string
-                        ingredientPurchaseDate: string
-                        cookingDate: string
-                        deliveryDate: string
-                    }>
-                    error: string | null
-                }
-            >(
-                "GetCampaignPhases",
-                { campaignId },
-                { timeout: 5000, retries: 2 },
-            )
-
-            if (!response.success) {
-                throw new BadRequestException(
-                    response.error || "Failed to fetch campaign phases",
-                )
-            }
-
-            return response.phases || []
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "IngredientRequestService.getCampaignPhases",
-                campaignId,
-            })
-            throw error
-        }
-    }
-
-    private async updateCampaignPhaseStatus(
-        phaseId: string,
-        status: string,
-    ): Promise<void> {
-        try {
-            const response = await this.grpcClient.callCampaignService<
-                { phaseId: string; status: string },
-                { success: boolean; error: string | null }
-            >(
-                "UpdatePhaseStatus",
-                { phaseId, status },
-                { timeout: 5000, retries: 2 },
-            )
-
-            if (!response.success) {
-                throw new Error(
-                    response.error || "Failed to update campaign phase status",
-                )
-            }
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "updateCampaignPhaseStatus",
-                phaseId,
-                status,
-            })
-            throw error
-        }
-    }
-
-    private async validateRequestBudget(
-        phaseId: string,
-        requestCost: bigint,
-    ): Promise<void> {
-        try {
-            const response = await this.grpcClient.callCampaignService<
-                { phaseId: string },
-                {
-                    success: boolean
-                    phase?: {
-                        id: string
-                        campaignId: string
-                        phaseName: string
-                        ingredientFundsAmount: string
-                        cookingFundsAmount: string
-                        deliveryFundsAmount: string
-                    }
-                    error: string | null
-                }
-            >("GetCampaignPhase", { phaseId }, { timeout: 5000, retries: 2 })
-
-            if (!response.success || !response.phase) {
-                throw new BadRequestException(
-                    response.error || `Campaign phase ${phaseId} not found`,
-                )
-            }
-
-            const ingredientBudget = BigInt(
-                response.phase.ingredientFundsAmount || "0",
-            )
-
-            if (ingredientBudget === 0n) {
-                throw new BadRequestException(
-                    `Chiến dịch "${response.phase.phaseName}" chưa nhận được quyên góp nào. ` +
-                        "Không thể tạo yêu cầu mua nguyên liệu khi chưa có kinh phí.",
-                )
-            }
-
-            if (requestCost > ingredientBudget) {
-                const requestCostFormatted = this.formatCurrency(requestCost)
-                const budgetFormatted = this.formatCurrency(ingredientBudget)
-
-                throw new BadRequestException(
-                    `Tổng chi phí yêu cầu (${requestCostFormatted} VND) vượt quá ngân sách nguyên liệu ` +
-                        `được phân bổ cho giai đoạn "${response.phase.phaseName}" (${budgetFormatted} VND). `,
-                )
-            }
-        } catch (error) {
-            if (error instanceof BadRequestException) {
-                throw error
-            }
-            this.sentryService.captureError(error as Error, {
-                operation: "validateIngredientRequestBudget",
-                phaseId,
-                requestCost: requestCost.toString(),
-            })
-            throw new BadRequestException(
-                "Không thể xác thực ngân sách giai đoạn. Vui lòng thử lại.",
-            )
-        }
-    }
-
-    private formatCurrency(amount: bigint): string {
-        return Number(amount).toLocaleString("vi-VN")
     }
 }

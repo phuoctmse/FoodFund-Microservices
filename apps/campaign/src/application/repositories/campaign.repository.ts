@@ -56,6 +56,12 @@ export interface UpdateCampaignData {
     donationCount?: number
 }
 
+export interface ExtendCampaignData {
+    campaignId: string
+    extensionDays: number
+    newFundraisingEndDate: Date
+}
+
 export interface StatsDateRange {
     dateFrom?: Date
     dateTo?: Date
@@ -522,6 +528,52 @@ export class CampaignRepository {
         return this.mapToGraphQLModel(campaign)
     }
 
+    async extendCampaignWithPhases(
+        data: ExtendCampaignData,
+    ): Promise<Campaign> {
+        const result = await this.prisma.$transaction(async (tx) => {
+            const updatedCampaign = await tx.campaign.update({
+                where: {
+                    id: data.campaignId,
+                    is_active: true,
+                },
+                data: {
+                    fundraising_end_date: data.newFundraisingEndDate,
+                    extension_count: 1,
+                    extension_days: data.extensionDays,
+                    updated_at: new Date(),
+                },
+            })
+
+            await tx.$executeRaw`
+                UPDATE campaign_phases
+                SET 
+                    ingredient_purchase_date = ingredient_purchase_date + INTERVAL '${data.extensionDays} days',
+                    cooking_date = cooking_date + INTERVAL '${data.extensionDays} days',
+                    delivery_date = delivery_date + INTERVAL '${data.extensionDays} days',
+                    updated_at = NOW()
+                WHERE 
+                    campaign_id = ${data.campaignId}
+                    AND is_active = true
+            `
+
+            const campaignWithPhases = await tx.campaign.findUnique({
+                where: { id: data.campaignId },
+                include: this.CAMPAIGN_JOIN_FIELDS,
+            })
+
+            return campaignWithPhases
+        })
+
+        if (!result) {
+            throw new Error(
+                `Failed to extend campaign ${data.campaignId} with phases`,
+            )
+        }
+
+        return this.mapToGraphQLModel(result)
+    }
+
     async delete(id: string): Promise<boolean> {
         await this.prisma.$transaction(async (tx) => {
             await tx.campaign_Phase.updateMany({
@@ -740,9 +792,13 @@ export class CampaignRepository {
 
         const msPerDay = 1000 * 60 * 60 * 24
 
-        const daysRemaining = Math.ceil(
+        let daysRemaining = Math.ceil(
             (endMidnight.getTime() - todayMidnight.getTime()) / msPerDay,
         )
+
+        if (daysRemaining < 0) {
+            daysRemaining = 0
+        }
 
         const startMidnight = new Date(
             startDate.getFullYear(),
@@ -763,7 +819,7 @@ export class CampaignRepository {
 
         return {
             fundingProgress: Math.round(fundingProgress * 100) / 100,
-            daysRemaining: Math.max(-1, daysRemaining),
+            daysRemaining,
             daysActive,
             totalPhases,
         }

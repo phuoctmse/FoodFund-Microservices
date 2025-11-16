@@ -53,9 +53,21 @@ export class PostCommentService {
             userId,
         )
 
+        const currentCount = await this.postCacheService.getCommentsCount(
+            data.postId,
+        )
+
+        if (currentCount === null) {
+            await this.postCacheService.initializeCommentsCount(
+                data.postId,
+                post.commentCount + 1,
+            )
+        } else {
+            await this.postCacheService.incrementCommentsCount(data.postId)
+        }
+
         await Promise.all([
             this.postCacheService.deletePostComments(data.postId),
-            this.postCacheService.incrementCommentsCount(data.postId),
             this.postCacheService.deletePost(data.postId),
         ])
 
@@ -139,9 +151,15 @@ export class PostCommentService {
             comment.postId,
         )
 
+        const updatedCommentCount =
+            await this.postCommentRepository.getCommentCount(comment.postId)
+
         await Promise.all([
             this.postCacheService.deletePostComments(comment.postId),
-            this.postCacheService.decrementCommentsCount(comment.postId),
+            this.postCacheService.initializeCommentsCount(
+                comment.postId,
+                updatedCommentCount,
+            ),
             this.postCacheService.deletePost(comment.postId),
         ])
 

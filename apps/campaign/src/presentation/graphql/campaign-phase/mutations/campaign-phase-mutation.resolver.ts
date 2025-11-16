@@ -1,91 +1,42 @@
 import { Args, Mutation, Resolver } from "@nestjs/graphql"
-import { UseGuards, ValidationPipe } from "@nestjs/common"
+import { UseGuards } from "@nestjs/common"
 import { CampaignPhase } from "@app/campaign/src/domain/entities/campaign-phase.model"
 import { CognitoGraphQLGuard, createUserContextFromToken, CurrentUser } from "@app/campaign/src/shared"
 import { CampaignPhaseService } from "@app/campaign/src/application/services/campaign-phase/campaign-phase.service"
-import { CreatePhaseInput, UpdatePhaseInput } from "@app/campaign/src/application/dtos/campaign-phase/request"
-import { DeletePhasesResponse } from "@app/campaign/src/application/dtos/campaign-phase/response"
+import { SyncPhaseInput } from "@app/campaign/src/application/dtos/campaign-phase/request"
+import { SyncPhasesResponse } from "@app/campaign/src/application/dtos/campaign-phase/response"
 
 @Resolver(() => CampaignPhase)
 @UseGuards(CognitoGraphQLGuard)
 export class CampaignPhaseMutationResolver {
     constructor(private readonly campaignPhaseService: CampaignPhaseService) {}
 
-    @Mutation(() => CampaignPhase, {
-        description: "Add a new phase to an existing campaign",
+    @Mutation(() => SyncPhasesResponse, {
+        description:
+            "Sync all phases for a campaign atomically. " +
+            "Creates new phases (without id), updates existing (with id), " +
+            "and deletes phases not in the array. " +
+            "Total budget must equal 100%.",
     })
-    async addCampaignPhase(
-        @Args("campaignId", { type: () => String, description: "Campaign ID" })
-            campaignId: string,
-        @Args("input", { type: () => CreatePhaseInput }, new ValidationPipe())
-            input: CreatePhaseInput,
-        @CurrentUser("decodedToken") decodedToken: any,
-    ): Promise<CampaignPhase> {
-        const userContext = createUserContextFromToken(decodedToken)
-        const phase = await this.campaignPhaseService.createPhase(
-            campaignId,
-            input,
-            userContext,
-        )
-
-        return phase
-    }
-
-    @Mutation(() => CampaignPhase, {
-        description: "Update an existing campaign phase",
-    })
-    async updateCampaignPhase(
-        @Args("id", { type: () => String, description: "Phase ID" }) id: string,
-        @Args("input", { type: () => UpdatePhaseInput }, new ValidationPipe())
-            input: UpdatePhaseInput,
-        @CurrentUser("decodedToken") decodedToken: any,
-    ): Promise<CampaignPhase> {
-        const userContext = createUserContextFromToken(decodedToken)
-        const updatedPhase = await this.campaignPhaseService.updatePhase(
-            id,
-            input,
-            userContext,
-        )
-
-        return updatedPhase
-    }
-
-    @Mutation(() => Boolean, {
-        description: "Delete a campaign phase",
-    })
-    async deleteCampaignPhase(
-        @Args("id", {
+    async syncCampaignPhases(
+        @Args("campaignId", {
             type: () => String,
-            description: "Phase ID to delete",
+            description: "Campaign ID to sync phases for",
         })
-            id: string,
-        @CurrentUser("decodedToken") decodedToken: any,
-    ): Promise<boolean> {
-        const userContext = createUserContextFromToken(decodedToken)
-        return this.campaignPhaseService.deletePhase(id, userContext)
-    }
-
-    @Mutation(() => DeletePhasesResponse, {
-        description: "Delete multiple campaign phases",
-    })
-    async deleteManyCampaignPhases(
-        @Args("ids", {
-            type: () => [String],
-            description: "Array of phase IDs to delete",
+            campaignId: string,
+        @Args("phases", {
+            type: () => [SyncPhaseInput],
+            description:
+                "Array of phases to sync. Include 'id' to update existing phase, omit to create new",
         })
-            ids: string[],
+            phases: SyncPhaseInput[],
         @CurrentUser("decodedToken") decodedToken: any,
-    ): Promise<DeletePhasesResponse> {
+    ): Promise<SyncPhasesResponse> {
         const userContext = createUserContextFromToken(decodedToken)
-        const result = await this.campaignPhaseService.deleteManyPhases(
-            ids,
+        return this.campaignPhaseService.syncCampaignPhases(
+            campaignId,
+            phases,
             userContext,
         )
-
-        return {
-            success: true,
-            deletedCount: result.deletedCount,
-            affectedCampaignIds: result.campaignIds,
-        }
     }
 }

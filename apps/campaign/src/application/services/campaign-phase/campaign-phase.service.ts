@@ -10,10 +10,11 @@ import { SentryService } from "@libs/observability"
 import { CampaignPhaseRepository } from "../../repositories/campaign-phase.repository"
 import { CampaignService } from "../campaign/campaign.service"
 import { CampaignCacheService } from "../campaign/campaign-cache.service"
-import { CreatePhaseInput, UpdatePhaseInput } from "../../dtos/campaign-phase/request"
+import { SyncPhaseInput } from "../../dtos/campaign-phase/request"
 import { UserContext } from "@app/campaign/src/shared"
 import { CampaignPhase } from "@app/campaign/src/domain/entities/campaign-phase.model"
 import { CampaignStatus } from "@app/campaign/src/domain/enums/campaign/campaign.enum"
+import { SyncPhasesResponse } from "../../dtos/campaign-phase/response"
 
 @Injectable()
 export class CampaignPhaseService {
@@ -25,18 +26,18 @@ export class CampaignPhaseService {
         private readonly campaignCacheService: CampaignCacheService,
     ) {}
 
-    async createPhase(
+    async syncCampaignPhases(
         campaignId: string,
-        input: CreatePhaseInput,
+        phases: SyncPhaseInput[],
         userContext: UserContext,
-    ): Promise<CampaignPhase> {
+    ): Promise<SyncPhasesResponse> {
         try {
             const campaign =
                 await this.campaignService.findCampaignById(campaignId)
 
             if (campaign.createdBy !== userContext.userId) {
                 throw new ForbiddenException(
-                    "You can only add phases to campaigns you created",
+                    "You can only modify phases of campaigns you created",
                 )
             }
 
@@ -45,54 +46,72 @@ export class CampaignPhaseService {
                 campaign.status !== CampaignStatus.APPROVED
             ) {
                 throw new ForbiddenException(
-                    `Cannot add phases to campaign in ${campaign.status} status. Only PENDING or APPROVED campaigns can be modified.`,
+                    `Cannot modify phases of campaign in ${campaign.status} status. Only PENDING or APPROVED campaigns can be modified.`,
                 )
             }
 
-            this.validatePhaseDates([input], campaign.fundraisingEndDate)
-            const existingPhases = await this.phaseRepository.findByCampaignId(campaignId)
-            await this.validateTotalBudgetAfterAdd(existingPhases, input)
-            if (input.phaseName.length < 5) {
+            if (phases.length === 0) {
                 throw new BadRequestException(
-                    "Phase name must be at least 5 characters",
+                    "At least one phase is required for a campaign",
                 )
             }
 
-            const cookingToDeliveryMs =
-                input.deliveryDate.getTime() - input.cookingDate.getTime()
-            const maxDurationMs = 24 * 60 * 60 * 1000
+            this.validateTotalBudget(phases)
 
-            if (
-                cookingToDeliveryMs > maxDurationMs ||
-                cookingToDeliveryMs < 0
-            ) {
-                throw new BadRequestException(
-                    "Delivery date must be within 24 hours from cooking date for food safety",
-                )
-            }
+            this.validatePhaseDates(phases, campaign.fundraisingEndDate)
 
-            if (input.cookingDate < input.ingredientPurchaseDate) {
-                throw new BadRequestException(
-                    "Cooking date must be after ingredient purchase date",
-                )
-            }
+            phases.forEach((phase) => {
+                if (phase.phaseName.length < 5) {
+                    throw new BadRequestException(
+                        `Phase "${phase.phaseName}": Phase name must be at least 5 characters`,
+                    )
+                }
 
-            if (input.deliveryDate < input.cookingDate) {
-                throw new BadRequestException(
-                    "Delivery date must be after cooking date",
-                )
-            }
+                const cookingToDeliveryMs =
+                    phase.deliveryDate.getTime() - phase.cookingDate.getTime()
+                const maxDurationMs = 24 * 60 * 60 * 1000
 
-            const phase = await this.phaseRepository.create({
+                if (
+                    cookingToDeliveryMs > maxDurationMs ||
+                    cookingToDeliveryMs < 0
+                ) {
+                    throw new BadRequestException(
+                        `Phase "${phase.phaseName}": Delivery date must be within 24 hours from cooking date for food safety`,
+                    )
+                }
+
+                if (phase.cookingDate < phase.ingredientPurchaseDate) {
+                    throw new BadRequestException(
+                        `Phase "${phase.phaseName}": Cooking date must be after ingredient purchase date`,
+                    )
+                }
+
+                if (phase.deliveryDate < phase.cookingDate) {
+                    throw new BadRequestException(
+                        `Phase "${phase.phaseName}": Delivery date must be after cooking date`,
+                    )
+                }
+            })
+
+            const result = await this.phaseRepository.syncPhases({
                 campaignId,
-                phaseName: input.phaseName,
-                location: input.location,
-                ingredientPurchaseDate: input.ingredientPurchaseDate,
-                cookingDate: input.cookingDate,
-                deliveryDate: input.deliveryDate,
-                ingredientBudgetPercentage: parseFloat(input.ingredientBudgetPercentage),
-                cookingBudgetPercentage: parseFloat(input.cookingBudgetPercentage),
-                deliveryBudgetPercentage: parseFloat(input.deliveryBudgetPercentage),
+                phases: phases.map((p) => ({
+                    id: p.id,
+                    phaseName: p.phaseName,
+                    location: p.location,
+                    ingredientPurchaseDate: p.ingredientPurchaseDate,
+                    cookingDate: p.cookingDate,
+                    deliveryDate: p.deliveryDate,
+                    ingredientBudgetPercentage: parseFloat(
+                        p.ingredientBudgetPercentage,
+                    ),
+                    cookingBudgetPercentage: parseFloat(
+                        p.cookingBudgetPercentage,
+                    ),
+                    deliveryBudgetPercentage: parseFloat(
+                        p.deliveryBudgetPercentage,
+                    ),
+                })),
             })
 
             await this.campaignCacheService.deleteCampaign(campaignId)
@@ -105,27 +124,27 @@ export class CampaignPhaseService {
             if (campaign.status === CampaignStatus.APPROVED) {
                 await this.campaignService.revertToPending(
                     campaignId,
-                    "Phase added - requires re-approval",
+                    "Phases modified - requires re-approval",
                 )
             }
-            this.sentryService.addBreadcrumb(
-                "Campaign phase created",
-                "campaign-phase",
-                {
-                    phaseId: phase.id,
-                    campaignId,
-                    user: {
-                        id: userContext.userId,
-                        username: userContext.username,
-                    },
-                },
+
+            const mappedPhases = result.phases.map((p) =>
+                this.phaseRepository["mapToGraphQLModel"](p),
             )
 
-            return phase
+            return {
+                success: true,
+                phases: mappedPhases,
+                createdCount: result.createdCount,
+                updatedCount: result.updatedCount,
+                deletedCount: result.deletedCount,
+                message: `Successfully synced ${phases.length} phases (${result.createdCount} created, ${result.updatedCount} updated, ${result.deletedCount} deleted)`,
+            }
         } catch (error) {
             this.sentryService.captureError(error as Error, {
-                operation: "createCampaignPhase",
+                operation: "syncCampaignPhases",
                 campaignId,
+                phaseCount: phases.length,
                 user: {
                     id: userContext.userId,
                     username: userContext.username,
@@ -155,291 +174,82 @@ export class CampaignPhaseService {
         return phase
     }
 
-    async updatePhase(
-        id: string,
-        input: UpdatePhaseInput,
-        userContext: UserContext,
-    ): Promise<CampaignPhase> {
-        try {
-            const phase = await this.getPhaseById(id)
-            const campaign = await this.campaignService.findCampaignById(
-                phase.campaignId,
-            )
-
-            if (campaign.createdBy !== userContext.userId) {
-                throw new ForbiddenException(
-                    "You can only update phases of campaigns you created",
-                )
-            }
-
-            if (
-                campaign.status !== CampaignStatus.PENDING &&
-                campaign.status !== CampaignStatus.APPROVED
-            ) {
-                throw new ForbiddenException(
-                    `Cannot update phases of campaign in ${campaign.status} status.`,
-                )
-            }
-
-            if (
-                input.ingredientBudgetPercentage ||
-                input.cookingBudgetPercentage ||
-                input.deliveryBudgetPercentage
-            ) {
-                const existingPhases = await this.phaseRepository.findByCampaignId(phase.campaignId)
-                await this.validateTotalBudgetAfterUpdate(existingPhases, phase.id, input)
-            }
-
-            if (input.phaseName !== undefined && input.phaseName.length < 5) {
-                throw new BadRequestException(
-                    "Phase name must be at least 5 characters",
-                )
-            }
-
-            const finalIngredientDate =
-                input.ingredientPurchaseDate || phase.ingredientPurchaseDate
-            const finalCookingDate = input.cookingDate || phase.cookingDate
-            const finalDeliveryDate = input.deliveryDate || phase.deliveryDate
-
-            const cookingToDeliveryMs =
-                finalDeliveryDate.getTime() - finalCookingDate.getTime()
-            const maxDurationMs = 24 * 60 * 60 * 1000
-
-            if (
-                cookingToDeliveryMs > maxDurationMs ||
-                cookingToDeliveryMs < 0
-            ) {
-                throw new BadRequestException(
-                    "Delivery date must be within 24 hours from cooking date for food safety",
-                )
-            }
-
-            if (finalCookingDate < finalIngredientDate) {
-                throw new BadRequestException(
-                    "Cooking date must be after ingredient purchase date",
-                )
-            }
-
-            if (finalDeliveryDate < finalCookingDate) {
-                throw new BadRequestException(
-                    "Delivery date must be after cooking date",
-                )
-            }
-
-            if (input.ingredientPurchaseDate) {
-                const endDate =
-                    typeof campaign.fundraisingEndDate === "string"
-                        ? new Date(campaign.fundraisingEndDate)
-                        : campaign.fundraisingEndDate
-
-                const endDateNormalized = new Date(
-                    endDate.getFullYear(),
-                    endDate.getMonth(),
-                    endDate.getDate(),
-                )
-
-                const ingredientDateNormalized = new Date(
-                    finalIngredientDate.getFullYear(),
-                    finalIngredientDate.getMonth(),
-                    finalIngredientDate.getDate(),
-                )
-
-                if (ingredientDateNormalized <= endDateNormalized) {
-                    throw new BadRequestException(
-                        `Ingredient purchase date must be after fundraising end date (${endDate.toISOString().split("T")[0]})`,
-                    )
-                }
-            }
-
-            const updateData: {
-                phaseName?: string
-                location?: string
-                ingredientPurchaseDate?: Date
-                cookingDate?: Date
-                deliveryDate?: Date
-                ingredientBudgetPercentage?: number
-                cookingBudgetPercentage?: number
-                deliveryBudgetPercentage?: number
-            } = {}
-
-            if (input.phaseName !== undefined) {
-                updateData.phaseName = input.phaseName
-            }
-            if (input.location !== undefined) {
-                updateData.location = input.location
-            }
-            if (input.ingredientPurchaseDate !== undefined) {
-                updateData.ingredientPurchaseDate = input.ingredientPurchaseDate
-            }
-            if (input.cookingDate !== undefined) {
-                updateData.cookingDate = input.cookingDate
-            }
-            if (input.deliveryDate !== undefined) {
-                updateData.deliveryDate = input.deliveryDate
-            }
-
-            if (input.ingredientBudgetPercentage !== undefined) {
-                updateData.ingredientBudgetPercentage = parseFloat(input.ingredientBudgetPercentage)
-            }
-            if (input.cookingBudgetPercentage !== undefined) {
-                updateData.cookingBudgetPercentage = parseFloat(input.cookingBudgetPercentage)
-            }
-            if (input.deliveryBudgetPercentage !== undefined) {
-                updateData.deliveryBudgetPercentage = parseFloat(input.deliveryBudgetPercentage)
-            }
-
-            if (Object.keys(updateData).length === 0) {
-                throw new BadRequestException(
-                    "At least one field must be provided for update",
-                )
-            }
-
-            const updatedPhase = await this.phaseRepository.update(
-                id,
-                updateData,
-            )
-
-            await this.campaignCacheService.deleteCampaign(phase.campaignId)
-            await this.campaignCacheService.invalidateAll(
-                phase.campaignId,
-                campaign.createdBy,
-                campaign.categoryId,
-            )
-
-            if (campaign.status === CampaignStatus.APPROVED) {
-                await this.campaignService.revertToPending(
-                    campaign.id,
-                    "Phase updated - requires re-approval",
-                )
-            }
-
-            return updatedPhase
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "updateCampaignPhase",
-                phaseId: id,
-                user: {
-                    id: userContext.userId,
-                    username: userContext.username,
-                },
-            })
-            throw error
-        }
-    }
-
-    private async validateTotalBudgetAfterAdd(
-        existingPhases: CampaignPhase[],
-        newPhase: CreatePhaseInput,
-    ): Promise<void> {
+    private validateTotalBudget(
+        phases: Array<{
+            phaseName: string
+            ingredientBudgetPercentage: string
+            cookingBudgetPercentage: string
+            deliveryBudgetPercentage: string
+        }>,
+    ): void {
         let totalIngredient = 0
         let totalCooking = 0
         let totalDelivery = 0
 
-        existingPhases.forEach((phase) => {
-            totalIngredient += parseFloat(phase.ingredientBudgetPercentage)
-            totalCooking += parseFloat(phase.cookingBudgetPercentage)
-            totalDelivery += parseFloat(phase.deliveryBudgetPercentage)
-        })
+        phases.forEach((phase, index) => {
+            const ingredientPct = parseFloat(phase.ingredientBudgetPercentage)
+            const cookingPct = parseFloat(phase.cookingBudgetPercentage)
+            const deliveryPct = parseFloat(phase.deliveryBudgetPercentage)
 
-        const newIngredient = parseFloat(newPhase.ingredientBudgetPercentage)
-        const newCooking = parseFloat(newPhase.cookingBudgetPercentage)
-        const newDelivery = parseFloat(newPhase.deliveryBudgetPercentage)
-
-        if (isNaN(newIngredient) || isNaN(newCooking) || isNaN(newDelivery)) {
-            throw new BadRequestException(
-                "Budget percentages must be valid numbers",
-            )
-        }
-
-        if (
-            newIngredient < 0 || newCooking < 0 || newDelivery < 0 ||
-            newIngredient > 100 || newCooking > 100 || newDelivery > 100
-        ) {
-            throw new BadRequestException(
-                "Budget percentages must be between 0 and 100",
-            )
-        }
-
-        totalIngredient += newIngredient
-        totalCooking += newCooking
-        totalDelivery += newDelivery
-
-        const grandTotal = totalIngredient + totalCooking + totalDelivery
-
-        if (Math.abs(grandTotal - 100) > 0.01) {
-            throw new BadRequestException(
-                "Sau khi thêm phase mới, tổng budget vượt quá 100%. " +
-                `Ingredient (${totalIngredient.toFixed(2)}%) + ` +
-                `Cooking (${totalCooking.toFixed(2)}%) + ` +
-                `Delivery (${totalDelivery.toFixed(2)}%) = ${grandTotal.toFixed(2)}%. ` +
-                "Vui lòng điều chỉnh budget percentages cho phù hợp.",
-            )
-        }
-    }
-
-    private async validateTotalBudgetAfterUpdate(
-        existingPhases: CampaignPhase[],
-        updatingPhaseId: string,
-        updateInput: UpdatePhaseInput,
-    ): Promise<void> {
-        let totalIngredient = 0
-        let totalCooking = 0
-        let totalDelivery = 0
-
-        existingPhases.forEach((phase) => {
-            if (phase.id === updatingPhaseId) {
-                const ingredient = updateInput.ingredientBudgetPercentage 
-                    ? parseFloat(updateInput.ingredientBudgetPercentage)
-                    : parseFloat(phase.ingredientBudgetPercentage)
-                
-                const cooking = updateInput.cookingBudgetPercentage
-                    ? parseFloat(updateInput.cookingBudgetPercentage)
-                    : parseFloat(phase.cookingBudgetPercentage)
-                
-                const delivery = updateInput.deliveryBudgetPercentage
-                    ? parseFloat(updateInput.deliveryBudgetPercentage)
-                    : parseFloat(phase.deliveryBudgetPercentage)
-
-                if (isNaN(ingredient) || isNaN(cooking) || isNaN(delivery)) {
-                    throw new BadRequestException(
-                        "Budget percentages must be valid numbers",
-                    )
-                }
-
-                if (
-                    ingredient < 0 || cooking < 0 || delivery < 0 ||
-                    ingredient > 100 || cooking > 100 || delivery > 100
-                ) {
-                    throw new BadRequestException(
-                        "Budget percentages must be between 0 and 100",
-                    )
-                }
-
-                totalIngredient += ingredient
-                totalCooking += cooking
-                totalDelivery += delivery
-            } else {
-                totalIngredient += parseFloat(phase.ingredientBudgetPercentage)
-                totalCooking += parseFloat(phase.cookingBudgetPercentage)
-                totalDelivery += parseFloat(phase.deliveryBudgetPercentage)
+            if (
+                isNaN(ingredientPct) ||
+                isNaN(cookingPct) ||
+                isNaN(deliveryPct)
+            ) {
+                throw new BadRequestException(
+                    `Phase ${index + 1} (${phase.phaseName}): Budget percentages must be valid numbers`,
+                )
             }
+
+            if (
+                ingredientPct < 0 ||
+                cookingPct < 0 ||
+                deliveryPct < 0 ||
+                ingredientPct > 100 ||
+                cookingPct > 100 ||
+                deliveryPct > 100
+            ) {
+                throw new BadRequestException(
+                    `Phase ${index + 1} (${phase.phaseName}): Budget percentages must be between 0 and 100`,
+                )
+            }
+
+            totalIngredient += ingredientPct
+            totalCooking += cookingPct
+            totalDelivery += deliveryPct
         })
 
         const grandTotal = totalIngredient + totalCooking + totalDelivery
 
         if (Math.abs(grandTotal - 100) > 0.01) {
             throw new BadRequestException(
-                "Sau khi cập nhật phase, tổng budget không hợp lệ. " +
-                `Ingredient (${totalIngredient.toFixed(2)}%) + ` +
-                `Cooking (${totalCooking.toFixed(2)}%) + ` +
-                `Delivery (${totalDelivery.toFixed(2)}%) = ${grandTotal.toFixed(2)}%. ` +
-                "Tổng phải bằng 100%.",
+                "Tổng budget của tất cả phases phải bằng 100%. " +
+                    `Hiện tại: Ingredient (${totalIngredient.toFixed(2)}%) + ` +
+                    `Cooking (${totalCooking.toFixed(2)}%) + ` +
+                    `Delivery (${totalDelivery.toFixed(2)}%) = ${grandTotal.toFixed(2)}%`,
             )
         }
+
+        this.sentryService.addBreadcrumb(
+            "Phase budgets validated",
+            "validation",
+            {
+                phaseCount: phases.length,
+                totalIngredient,
+                totalCooking,
+                totalDelivery,
+                grandTotal,
+            },
+        )
     }
 
-    validatePhaseDates(
-        phases: CreatePhaseInput[],
+    public validatePhaseDates(
+        phases: Array<{
+            phaseName: string
+            ingredientPurchaseDate: Date
+            cookingDate: Date
+            deliveryDate: Date
+        }>,
         fundraisingEndDate: Date | string,
     ): void {
         const endDate =
@@ -548,151 +358,6 @@ export class CampaignPhaseService {
                     `Phase "${phase.phaseName}": Delivery date must be after cooking date`,
                 )
             }
-        }
-    }
-
-    async deletePhase(id: string, userContext: UserContext): Promise<boolean> {
-        try {
-            const phase = await this.getPhaseById(id)
-            const campaign = await this.campaignService.findCampaignById(
-                phase.campaignId,
-            )
-
-            if (campaign.createdBy !== userContext.userId) {
-                throw new ForbiddenException(
-                    "You can only delete phases of campaigns you created",
-                )
-            }
-
-            if (
-                campaign.status !== CampaignStatus.PENDING &&
-                campaign.status !== CampaignStatus.APPROVED
-            ) {
-                throw new ForbiddenException(
-                    `Cannot delete phases of campaign in ${campaign.status} status. Only PENDING or APPROVED campaigns can be modified.`,
-                )
-            }
-
-            const result = await this.phaseRepository.delete(id)
-
-            if (!result) {
-                throw new BadRequestException(`Failed to delete phase ${id}`)
-            }
-
-            await this.campaignCacheService.deleteCampaign(phase.campaignId)
-            await this.campaignCacheService.invalidateAll(
-                phase.campaignId,
-                campaign.createdBy,
-                campaign.categoryId,
-            )
-
-            if (campaign.status === CampaignStatus.APPROVED) {
-                await this.campaignService.revertToPending(
-                    campaign.id,
-                    "Phase deleted - requires re-approval",
-                )
-            }
-
-            return true
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "deleteCampaignPhase",
-                phaseId: id,
-                user: {
-                    id: userContext.userId,
-                    username: userContext.username,
-                },
-            })
-            throw error
-        }
-    }
-
-    async deleteManyPhases(
-        ids: string[],
-        userContext: UserContext,
-    ): Promise<{ deletedCount: number; campaignIds: string[] }> {
-        try {
-            if (ids.length === 0) {
-                throw new BadRequestException(
-                    "At least one phase ID is required",
-                )
-            }
-
-            const phases = await Promise.all(
-                ids.map((id) => this.phaseRepository.findById(id)),
-            )
-
-            const existingPhases = phases.filter((p) => p !== null)
-
-            if (existingPhases.length === 0) {
-                throw new NotFoundException("No phases found with provided IDs")
-            }
-
-            const campaignIds = [
-                ...new Set(existingPhases.map((p) => p!.campaignId)),
-            ]
-
-            const campaigns = await Promise.all(
-                campaignIds.map((cid) =>
-                    this.campaignService.findCampaignById(cid),
-                ),
-            )
-
-            const unauthorizedCampaign = campaigns.find(
-                (c) => c.createdBy !== userContext.userId,
-            )
-
-            if (unauthorizedCampaign) {
-                throw new ForbiddenException(
-                    "You can only delete phases of campaigns you created",
-                )
-            }
-
-            const invalidStatusCampaign = campaigns.find(
-                (c) =>
-                    c.status !== CampaignStatus.PENDING &&
-                    c.status !== CampaignStatus.APPROVED,
-            )
-
-            if (invalidStatusCampaign) {
-                throw new ForbiddenException(
-                    `Cannot delete phases of campaign in ${invalidStatusCampaign.status} status.`,
-                )
-            }
-
-            const deletedCount = await this.phaseRepository.deleteMany(
-                existingPhases.map((p) => p!.id),
-            )
-
-            await Promise.all(
-                campaigns.map(async (campaign) => {
-                    await this.campaignCacheService.deleteCampaign(campaign.id)
-                    await this.campaignCacheService.invalidateAll(
-                        campaign.id,
-                        campaign.createdBy,
-                        campaign.categoryId,
-                    )
-
-                    if (campaign.status === CampaignStatus.APPROVED) {
-                        await this.campaignService.revertToPending(
-                            campaign.id,
-                            "Phases deleted - requires re-approval",
-                        )
-                    }
-                }),
-            )
-
-            return { deletedCount, campaignIds }
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "deleteManyPhases",
-                phaseIds: ids,
-                user: {
-                    id: userContext.userId,
-                    username: userContext.username,
-                },
-            })
-            throw error
         }
     }
 }

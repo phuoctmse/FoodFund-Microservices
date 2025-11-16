@@ -4,6 +4,7 @@ import {
     IsNumberString,
     IsOptional,
     IsString,
+    IsUUID,
     MinLength,
 } from "class-validator"
 import { Type } from "class-transformer"
@@ -110,4 +111,67 @@ export class UpdatePhaseInput {
     @IsOptional()
     @IsNumberString()
         deliveryBudgetPercentage?: string
+}
+
+@InputType()
+export class SyncPhaseInput {
+    @Field(() => String, {
+        nullable: true,
+        description:
+            "Phase ID - if provided, updates existing phase. If null/omitted, creates new phase",
+    })
+    @IsOptional()
+    @IsUUID()
+        id?: string
+
+    @Field(() => String, {
+        description: "Phase name (e.g., 'Phase 1 - District 1')",
+    })
+    @IsString()
+    @IsNotEmpty()
+    @MinLength(5, { message: "Phase name must be at least 5 characters" })
+        phaseName: string
+
+    @Field(() => String, { description: "Delivery location for this phase" })
+    @IsString()
+    @IsNotEmpty()
+        location: string
+
+    @Field(() => Date, { description: "Ingredient purchase date (ISO 8601)" })
+    @Type(() => Date)
+    @IsNotEmpty()
+        ingredientPurchaseDate: Date
+
+    @Field(() => Date, { description: "Cooking date (ISO 8601)" })
+    @Type(() => Date)
+    @IsNotEmpty()
+        cookingDate: Date
+
+    @Field(() => Date, {
+        description: "Delivery date (ISO 8601, must be ≤24h from cooking)",
+    })
+    @Type(() => Date)
+    @IsNotEmpty()
+        deliveryDate: Date
+
+    @Field(() => String, {
+        description: "Ingredient budget percentage (0-100, e.g., '20.00')",
+    })
+    @IsNumberString()
+    @IsNotEmpty({ message: "Ingredient budget percentage is required" })
+        ingredientBudgetPercentage: string
+
+    @Field(() => String, {
+        description: "Cooking budget percentage (0-100, e.g., '10.00')",
+    })
+    @IsNumberString()
+    @IsNotEmpty({ message: "Cooking budget percentage is required" })
+        cookingBudgetPercentage: string
+
+    @Field(() => String, {
+        description: "Delivery budget percentage (0-100, e.g., '5.00')",
+    })
+    @IsNumberString()
+    @IsNotEmpty({ message: "Delivery budget percentage is required" })
+        deliveryBudgetPercentage: string
 }
