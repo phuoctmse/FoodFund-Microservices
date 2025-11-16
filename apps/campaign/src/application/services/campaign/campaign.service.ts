@@ -211,16 +211,6 @@ export class CampaignService {
                 input.categoryId,
             )
 
-            this.sentryService.addBreadcrumb("Campaign created", "campaign", {
-                campaignId: campaign.id,
-                title: campaign.title,
-                user: {
-                    id: userContext.userId,
-                    username: userContext.username,
-                },
-                phaseCount: input.phases.length,
-            })
-
             return campaign
         } catch (error) {
             this.sentryService.captureError(error as Error, {
