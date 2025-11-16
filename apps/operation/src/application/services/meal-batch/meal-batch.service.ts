@@ -27,6 +27,7 @@ import {
 import { MealBatchMediaUploadResponse } from "../../dtos/meal-batch/response"
 import { MealBatch } from "@app/operation/src/domain/entities"
 import { MealBatchStatus } from "@app/operation/src/domain/enums"
+import { MealBatchCacheService } from "./meal-batch-cache.service"
 
 @Injectable()
 export class MealBatchService {
@@ -39,6 +40,7 @@ export class MealBatchService {
         private readonly authorizationService: AuthorizationService,
         private readonly sentryService: SentryService,
         private readonly grpcClient: GrpcClientService,
+        private readonly cacheService: MealBatchCacheService,
     ) {}
 
     async generateMediaUploadUrls(
@@ -211,6 +213,15 @@ export class MealBatchService {
                 ingredientIds: input.ingredientIds,
             })
 
+            // ✅ Cache new batch and invalidate related caches
+            await Promise.all([
+                this.cacheService.setBatch(mealBatch.id, mealBatch),
+                this.cacheService.deletePhaseBatches(input.campaignPhaseId),
+                this.cacheService.deleteUserBatches(userContext.userId!),
+                this.cacheService.deleteAllBatchLists(),
+                this.cacheService.deletePhaseStats(input.campaignPhaseId),
+            ])
+
             this.sentryService.addBreadcrumb(
                 "Meal batch created",
                 "meal-batch",
@@ -289,6 +300,15 @@ export class MealBatchService {
                 cookedDate,
             )
 
+            // ✅ Update cache and invalidate related caches
+            await Promise.all([
+                this.cacheService.setBatch(id, updatedBatch),
+                this.cacheService.deletePhaseBatches(mealBatch.campaignPhaseId),
+                this.cacheService.deleteUserBatches(mealBatch.kitchenStaffId),
+                this.cacheService.deleteAllBatchLists(),
+                this.cacheService.deletePhaseStats(mealBatch.campaignPhaseId),
+            ])
+
             this.sentryService.addBreadcrumb(
                 "Meal batch status updated",
                 "meal-batch",
@@ -315,10 +335,21 @@ export class MealBatchService {
 
     async getMealBatchById(id: string): Promise<MealBatch> {
         try {
-            const mealBatch = await this.mealBatchRepository.findById(id)
+            // ✅ Try cache first
+            let mealBatch = await this.cacheService.getBatch(id)
 
             if (!mealBatch) {
-                throw new NotFoundException(`Meal batch not found: ${id}`)
+                // ✅ Cache miss - fetch from DB
+                const dbBatch = await this.mealBatchRepository.findById(id)
+
+                if (!dbBatch) {
+                    throw new NotFoundException(`Meal batch not found: ${id}`)
+                }
+
+                mealBatch = dbBatch
+
+                // ✅ Cache the result
+                await this.cacheService.setBatch(id, mealBatch)
             }
 
             return mealBatch
@@ -333,6 +364,33 @@ export class MealBatchService {
 
     async getMealBatches(filter: MealBatchFilterInput): Promise<MealBatch[]> {
         try {
+            // ✅ Try cache first based on filter type
+            let cachedBatches: MealBatch[] | null = null
+
+            if (filter.campaignPhaseId) {
+                cachedBatches = await this.cacheService.getPhaseBatches(
+                    filter.campaignPhaseId,
+                )
+            } else if (filter.kitchenStaffId) {
+                cachedBatches = await this.cacheService.getUserBatches(
+                    filter.kitchenStaffId,
+                )
+            } else if (filter.campaignId) {
+                cachedBatches = await this.cacheService.getCampaignBatches(
+                    filter.campaignId,
+                )
+            } else {
+                // Generic filter - check list cache
+                cachedBatches = await this.cacheService.getBatchList({ filter })
+            }
+
+            if (cachedBatches) {
+                return cachedBatches
+            }
+
+            // ✅ Cache miss - fetch from DB
+            let batches: MealBatch[]
+
             if (filter.campaignId) {
                 const phaseIds = await this.getCampaignPhaseIds(
                     filter.campaignId,
@@ -342,18 +400,41 @@ export class MealBatchService {
                     return []
                 }
 
-                const batches = await this.mealBatchRepository.findWithFilters({
+                batches = await this.mealBatchRepository.findWithFilters({
                     campaignPhaseIds: phaseIds,
                     kitchenStaffId: filter.kitchenStaffId,
                     status: filter.status,
                 })
 
-                return batches.sort(
+                batches = batches.sort(
                     (a, b) => b.created_at.getTime() - a.created_at.getTime(),
                 )
+
+                // ✅ Cache campaign batches
+                await this.cacheService.setCampaignBatches(
+                    filter.campaignId,
+                    batches,
+                )
+            } else {
+                batches = await this.mealBatchRepository.findWithFilters(filter)
+
+                // ✅ Cache based on filter type
+                if (filter.campaignPhaseId) {
+                    await this.cacheService.setPhaseBatches(
+                        filter.campaignPhaseId,
+                        batches,
+                    )
+                } else if (filter.kitchenStaffId) {
+                    await this.cacheService.setUserBatches(
+                        filter.kitchenStaffId,
+                        batches,
+                    )
+                } else {
+                    await this.cacheService.setBatchList({ filter }, batches)
+                }
             }
 
-            return await this.mealBatchRepository.findWithFilters(filter)
+            return batches
         } catch (error) {
             this.sentryService.captureError(error as Error, {
                 operation: "getMealBatches",
