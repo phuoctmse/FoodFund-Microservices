@@ -37,18 +37,14 @@ export class MealBatchCacheService {
             return null
         }
 
-        try {
-            const key = `${this.KEYS.SINGLE}:${id}`
-            const cached = await this.redis.get(key)
+        const key = `${this.KEYS.SINGLE}:${id}`
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return JSON.parse(cached) as MealBatch
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return JSON.parse(cached) as MealBatch
         }
+
+        return null
     }
 
     async setBatch(id: string, batch: MealBatch): Promise<void> {
@@ -93,18 +89,14 @@ export class MealBatchCacheService {
             return null
         }
 
-        try {
-            const key = this.generateListCacheKey(params)
-            const cached = await this.redis.get(key)
+        const key = this.generateListCacheKey(params)
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return JSON.parse(cached) as MealBatch[]
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return JSON.parse(cached) as MealBatch[]
         }
+
+        return null
     }
 
     async setBatchList(
@@ -143,18 +135,14 @@ export class MealBatchCacheService {
             return null
         }
 
-        try {
-            const key = `${this.KEYS.PHASE}:${campaignPhaseId}`
-            const cached = await this.redis.get(key)
+        const key = `${this.KEYS.PHASE}:${campaignPhaseId}`
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return JSON.parse(cached) as MealBatch[]
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return JSON.parse(cached) as MealBatch[]
         }
+
+        return null
     }
 
     async setPhaseBatches(
@@ -187,18 +175,14 @@ export class MealBatchCacheService {
             return null
         }
 
-        try {
-            const key = `${this.KEYS.CAMPAIGN}:${campaignId}`
-            const cached = await this.redis.get(key)
+        const key = `${this.KEYS.CAMPAIGN}:${campaignId}`
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return JSON.parse(cached) as MealBatch[]
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return JSON.parse(cached) as MealBatch[]
         }
+
+        return null
     }
 
     async setCampaignBatches(
@@ -231,18 +215,14 @@ export class MealBatchCacheService {
             return null
         }
 
-        try {
-            const key = `${this.KEYS.USER}:${kitchenStaffId}`
-            const cached = await this.redis.get(key)
+        const key = `${this.KEYS.USER}:${kitchenStaffId}`
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return JSON.parse(cached) as MealBatch[]
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return JSON.parse(cached) as MealBatch[]
         }
+
+        return null
     }
 
     async setUserBatches(
@@ -281,18 +261,14 @@ export class MealBatchCacheService {
             return null
         }
 
-        try {
-            const key = `${this.KEYS.STATS}:phase:${campaignPhaseId}`
-            const cached = await this.redis.get(key)
+        const key = `${this.KEYS.STATS}:phase:${campaignPhaseId}`
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return JSON.parse(cached)
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return JSON.parse(cached)
         }
+
+        return null
     }
 
     async setPhaseStats(
@@ -380,19 +356,15 @@ export class MealBatchCacheService {
         available: boolean
         keysCount: number
     }> {
-        try {
-            const isAvailable = this.redis.isAvailable()
+        const isAvailable = this.redis.isAvailable()
 
-            if (!isAvailable) {
-                return { available: false, keysCount: 0 }
-            }
-
-            const keys = await this.redis.keys("meal-batch*")
-            const keysCount = keys.length
-
-            return { available: true, keysCount }
-        } catch (error) {
+        if (!isAvailable) {
             return { available: false, keysCount: 0 }
         }
+
+        const keys = await this.redis.keys("meal-batch*")
+        const keysCount = keys.length
+
+        return { available: true, keysCount }
     }
 }

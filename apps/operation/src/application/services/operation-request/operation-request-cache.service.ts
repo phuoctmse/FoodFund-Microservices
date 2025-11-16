@@ -37,18 +37,14 @@ export class OperationRequestCacheService {
             return null
         }
 
-        try {
-            const key = `${this.KEYS.SINGLE}:${id}`
-            const cached = await this.redis.get(key)
+        const key = `${this.KEYS.SINGLE}:${id}`
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return JSON.parse(cached) as OperationRequest
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return JSON.parse(cached) as OperationRequest
         }
+
+        return null
     }
 
     async setRequest(id: string, request: OperationRequest): Promise<void> {
@@ -73,9 +69,7 @@ export class OperationRequestCacheService {
 
     // ==================== Request Lists ====================
 
-    private generateListCacheKey(
-        params: OperationRequestListCacheKey,
-    ): string {
+    private generateListCacheKey(params: OperationRequestListCacheKey): string {
         const normalized = {
             filter: params.filter || {},
         }
@@ -95,18 +89,14 @@ export class OperationRequestCacheService {
             return null
         }
 
-        try {
-            const key = this.generateListCacheKey(params)
-            const cached = await this.redis.get(key)
+        const key = this.generateListCacheKey(params)
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return JSON.parse(cached) as OperationRequest[]
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return JSON.parse(cached) as OperationRequest[]
         }
+
+        return null
     }
 
     async setRequestList(
@@ -145,18 +135,14 @@ export class OperationRequestCacheService {
             return null
         }
 
-        try {
-            const key = `${this.KEYS.PHASE}:${campaignPhaseId}`
-            const cached = await this.redis.get(key)
+        const key = `${this.KEYS.PHASE}:${campaignPhaseId}`
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return JSON.parse(cached) as OperationRequest[]
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return JSON.parse(cached) as OperationRequest[]
         }
+
+        return null
     }
 
     async setPhaseRequests(
@@ -191,18 +177,14 @@ export class OperationRequestCacheService {
             return null
         }
 
-        try {
-            const key = `${this.KEYS.CAMPAIGN}:${campaignId}`
-            const cached = await this.redis.get(key)
+        const key = `${this.KEYS.CAMPAIGN}:${campaignId}`
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return JSON.parse(cached) as OperationRequest[]
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return JSON.parse(cached) as OperationRequest[]
         }
+
+        return null
     }
 
     async setCampaignRequests(
@@ -239,18 +221,14 @@ export class OperationRequestCacheService {
             return null
         }
 
-        try {
-            const key = `${this.KEYS.USER}:${userId}:${limit}:${offset}`
-            const cached = await this.redis.get(key)
+        const key = `${this.KEYS.USER}:${userId}:${limit}:${offset}`
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return JSON.parse(cached) as OperationRequest[]
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return JSON.parse(cached) as OperationRequest[]
         }
+
+        return null
     }
 
     async setUserRequests(
@@ -294,18 +272,14 @@ export class OperationRequestCacheService {
             return null
         }
 
-        try {
-            const key = `${this.KEYS.STATS}:global`
-            const cached = await this.redis.get(key)
+        const key = `${this.KEYS.STATS}:global`
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return JSON.parse(cached)
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return JSON.parse(cached)
         }
+
+        return null
     }
 
     async setStats(stats: {
@@ -389,19 +363,15 @@ export class OperationRequestCacheService {
         available: boolean
         keysCount: number
     }> {
-        try {
-            const isAvailable = this.redis.isAvailable()
+        const isAvailable = this.redis.isAvailable()
 
-            if (!isAvailable) {
-                return { available: false, keysCount: 0 }
-            }
-
-            const keys = await this.redis.keys("operation-request*")
-            const keysCount = keys.length
-
-            return { available: true, keysCount }
-        } catch (error) {
+        if (!isAvailable) {
             return { available: false, keysCount: 0 }
         }
+
+        const keys = await this.redis.keys("operation-request*")
+        const keysCount = keys.length
+
+        return { available: true, keysCount }
     }
 }

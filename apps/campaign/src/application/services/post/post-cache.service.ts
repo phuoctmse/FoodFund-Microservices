@@ -306,19 +306,15 @@ export class PostCacheService {
             return 0
         }
 
-        try {
-            const key = `${this.KEYS.LIKES_COUNT}:${postId}`
-            
-            const newCount = await this.redis.incr(key)
-            
-            if (newCount === 1) {
-                await this.redis.expire(key, this.TTL.POST_LIKES_COUNT)
-            }
+        const key = `${this.KEYS.LIKES_COUNT}:${postId}`
 
-            return newCount
-        } catch (error) {
-            return 0
+        const newCount = await this.redis.incr(key)
+
+        if (newCount === 1) {
+            await this.redis.expire(key, this.TTL.POST_LIKES_COUNT)
         }
+
+        return newCount
     }
 
     async decrementDistributedLikeCounter(postId: string): Promise<number> {
@@ -326,22 +322,18 @@ export class PostCacheService {
             return 0
         }
 
-        try {
-            const key = `${this.KEYS.LIKES_COUNT}:${postId}`
-            
-            const newCount = await this.redis.decr(key)
-            
-            if (newCount < 0) {
-                await this.redis.set(key, "0", {
-                    ex: this.TTL.POST_LIKES_COUNT,
-                })
-                return 0
-            }
+        const key = `${this.KEYS.LIKES_COUNT}:${postId}`
 
-            return newCount
-        } catch (error) {
+        const newCount = await this.redis.decr(key)
+
+        if (newCount < 0) {
+            await this.redis.set(key, "0", {
+                ex: this.TTL.POST_LIKES_COUNT,
+            })
             return 0
         }
+
+        return newCount
     }
 
     async getDistributedLikeCounter(postId: string): Promise<number | null> {
@@ -349,18 +341,14 @@ export class PostCacheService {
             return null
         }
 
-        try {
-            const key = `${this.KEYS.LIKES_COUNT}:${postId}`
-            const cached = await this.redis.get(key)
+        const key = `${this.KEYS.LIKES_COUNT}:${postId}`
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return parseInt(cached, 10)
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return parseInt(cached, 10)
         }
+
+        return null
     }
 
     async initializeDistributedLikeCounter(
@@ -382,18 +370,14 @@ export class PostCacheService {
             return null
         }
 
-        try {
-            const key = `${this.KEYS.COMMENTS_COUNT}:${postId}`
-            const cached = await this.redis.get(key)
+        const key = `${this.KEYS.COMMENTS_COUNT}:${postId}`
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return parseInt(cached, 10)
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return parseInt(cached, 10)
         }
+
+        return null
     }
 
     async setCommentsCount(postId: string, count: number): Promise<void> {

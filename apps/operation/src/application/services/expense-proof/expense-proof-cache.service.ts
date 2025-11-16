@@ -41,18 +41,14 @@ export class ExpenseProofCacheService {
             return null
         }
 
-        try {
-            const key = `${this.KEYS.SINGLE}:${id}`
-            const cached = await this.redis.get(key)
+        const key = `${this.KEYS.SINGLE}:${id}`
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return JSON.parse(cached) as ExpenseProof
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return JSON.parse(cached) as ExpenseProof
         }
+
+        return null
     }
 
     async setProof(id: string, proof: ExpenseProof): Promise<void> {
@@ -99,18 +95,14 @@ export class ExpenseProofCacheService {
             return null
         }
 
-        try {
-            const key = this.generateListCacheKey(params)
-            const cached = await this.redis.get(key)
+        const key = this.generateListCacheKey(params)
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return JSON.parse(cached) as ExpenseProof[]
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return JSON.parse(cached) as ExpenseProof[]
         }
+
+        return null
     }
 
     async setProofList(
@@ -147,18 +139,14 @@ export class ExpenseProofCacheService {
             return null
         }
 
-        try {
-            const key = `${this.KEYS.REQUEST}:${requestId}`
-            const cached = await this.redis.get(key)
+        const key = `${this.KEYS.REQUEST}:${requestId}`
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return JSON.parse(cached) as ExpenseProof[]
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return JSON.parse(cached) as ExpenseProof[]
         }
+
+        return null
     }
 
     async setRequestProofs(
@@ -195,18 +183,14 @@ export class ExpenseProofCacheService {
             return null
         }
 
-        try {
-            const key = `${this.KEYS.PHASE}:${campaignPhaseId}:${limit}:${offset}`
-            const cached = await this.redis.get(key)
+        const key = `${this.KEYS.PHASE}:${campaignPhaseId}:${limit}:${offset}`
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return JSON.parse(cached) as ExpenseProof[]
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return JSON.parse(cached) as ExpenseProof[]
         }
+
+        return null
     }
 
     async setPhaseProofs(
@@ -249,18 +233,14 @@ export class ExpenseProofCacheService {
             return null
         }
 
-        try {
-            const key = `${this.KEYS.CAMPAIGN}:${campaignId}:${limit}:${offset}`
-            const cached = await this.redis.get(key)
+        const key = `${this.KEYS.CAMPAIGN}:${campaignId}:${limit}:${offset}`
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return JSON.parse(cached) as ExpenseProof[]
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return JSON.parse(cached) as ExpenseProof[]
         }
+
+        return null
     }
 
     async setCampaignProofs(
@@ -302,20 +282,16 @@ export class ExpenseProofCacheService {
             return null
         }
 
-        try {
-            const key = requestId
-                ? `${this.KEYS.ORGANIZATION}:${userId}:${requestId}`
-                : `${this.KEYS.ORGANIZATION}:${userId}:all`
-            const cached = await this.redis.get(key)
+        const key = requestId
+            ? `${this.KEYS.ORGANIZATION}:${userId}:${requestId}`
+            : `${this.KEYS.ORGANIZATION}:${userId}:all`
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return JSON.parse(cached) as ExpenseProof[]
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return JSON.parse(cached) as ExpenseProof[]
         }
+
+        return null
     }
 
     async setOrganizationProofs(
@@ -360,18 +336,14 @@ export class ExpenseProofCacheService {
             return null
         }
 
-        try {
-            const key = `${this.KEYS.STATS}:global`
-            const cached = await this.redis.get(key)
+        const key = `${this.KEYS.STATS}:global`
+        const cached = await this.redis.get(key)
 
-            if (cached) {
-                return JSON.parse(cached)
-            }
-
-            return null
-        } catch (error) {
-            return null
+        if (cached) {
+            return JSON.parse(cached)
         }
+
+        return null
     }
 
     async setStats(stats: {
@@ -463,19 +435,15 @@ export class ExpenseProofCacheService {
         available: boolean
         keysCount: number
     }> {
-        try {
-            const isAvailable = this.redis.isAvailable()
+        const isAvailable = this.redis.isAvailable()
 
-            if (!isAvailable) {
-                return { available: false, keysCount: 0 }
-            }
-
-            const keys = await this.redis.keys("expense-proof*")
-            const keysCount = keys.length
-
-            return { available: true, keysCount }
-        } catch (error) {
+        if (!isAvailable) {
             return { available: false, keysCount: 0 }
         }
+
+        const keys = await this.redis.keys("expense-proof*")
+        const keysCount = keys.length
+
+        return { available: true, keysCount }
     }
 }
