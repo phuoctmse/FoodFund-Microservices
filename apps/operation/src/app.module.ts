@@ -39,11 +39,14 @@ import { OperationGrpcController } from "./presentation/grpc"
 import { GrpcModule } from "@libs/grpc"
 import {
     DeliveryTaskService,
+    ExpenseProofCacheService,
     ExpenseProofService,
     InflowTransactionService,
     InflowTransactionValidationService,
     IngredientRequestItemService,
     IngredientRequestService,
+    MealBatchCacheService,
+    OperationRequestCacheService,
     OperationRequestService,
 } from "./application/services"
 import { SpacesUploadService } from "@libs/s3-storage"
@@ -56,6 +59,8 @@ import {
     OperationRequestRepository,
 } from "./application/repositories"
 import { MealBatchService } from "./application/services/meal-batch/meal-batch.service"
+import { DeliveryTaskCacheService } from "./application/services/delivery-task"
+import { IngredientRequestCacheService } from "./application/services/ingredient-request"
 
 @Module({
     imports: [
@@ -88,10 +93,7 @@ import { MealBatchService } from "./application/services/meal-batch/meal-batch.s
         GrpcModule,
     ],
     controllers: [
-        // Presentation - HTTP Controllers
         HealthController,
-
-        // Presentation - gRPC Controller
         OperationGrpcController,
     ],
     providers: [
@@ -114,11 +116,17 @@ import { MealBatchService } from "./application/services/meal-batch/meal-batch.s
         AuthorizationService,
         UserClientService,
         SpacesUploadService,
+
+        IngredientRequestCacheService,
         IngredientRequestService,
         IngredientRequestItemService,
+        ExpenseProofCacheService,
         ExpenseProofService,
+        MealBatchCacheService,
         MealBatchService,
+        OperationRequestCacheService,
         OperationRequestService,
+        DeliveryTaskCacheService,
         DeliveryTaskService,
         InflowTransactionService,
         InflowTransactionValidationService,
