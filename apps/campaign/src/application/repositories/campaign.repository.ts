@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common"
-import { PrismaClient } from "../../generated/campaign-client"
+import { Prisma, PrismaClient } from "../../generated/campaign-client"
 import { sanitizeSearchTerm, User } from "../../shared"
 import {
     CampaignFilterInput,
@@ -545,17 +545,19 @@ export class CampaignRepository {
                 },
             })
 
-            await tx.$executeRaw`
-                UPDATE campaign_phases
-                SET 
-                    ingredient_purchase_date = ingredient_purchase_date + INTERVAL '${data.extensionDays} days',
-                    cooking_date = cooking_date + INTERVAL '${data.extensionDays} days',
-                    delivery_date = delivery_date + INTERVAL '${data.extensionDays} days',
-                    updated_at = NOW()
-                WHERE 
-                    campaign_id = ${data.campaignId}
-                    AND is_active = true
-            `
+            await tx.$executeRaw(
+                Prisma.sql`
+                    UPDATE campaign_phases
+                    SET
+                        ingredient_purchase_date = ingredient_purchase_date + (${data.extensionDays} || ' days')::INTERVAL,
+                        cooking_date = cooking_date + (${data.extensionDays} || ' days')::INTERVAL,
+                        delivery_date = delivery_date + (${data.extensionDays} || ' days')::INTERVAL,
+                        updated_at = NOW()
+                    WHERE
+                        campaign_id = ${data.campaignId}
+                        AND is_active = true
+                `
+            )
 
             const campaignWithPhases = await tx.campaign.findUnique({
                 where: { id: data.campaignId },
