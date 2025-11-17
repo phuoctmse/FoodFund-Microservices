@@ -168,6 +168,9 @@ export const envConfig = (): EnvironmentConfig => ({
 
     datadog: {
         agentHost: process.env.DD_AGENT_HOST || "localhost",
+        traceAgentPort: Number.parseInt(
+            process.env.DD_TRACE_AGENT_PORT || "8126",
+        ),
         agentPort: Number.parseInt(process.env.DD_AGENT_PORT || "8125"),
         env: process.env.DD_ENV || process.env.NODE_ENV || "development",
         version: process.env.DD_VERSION || "1.0.0",

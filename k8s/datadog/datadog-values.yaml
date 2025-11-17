@@ -1,31 +1,60 @@
-# Minimal Datadog Configuration for Quick Setup
+# Datadog Configuration with Essential Monitoring Features
 
 datadog:
   apiKeyExistingSecret: datadog-secret
   clusterName: foodfund-k8s
   site: us5.datadoghq.com
   
-  # Basic monitoring only (fixed deprecated warning)
+  # Tags for all metrics
+  tags:
+    - env:production
+    - team:foodfund
+    - cluster:foodfund-k8s
+  
+  # APM (Application Performance Monitoring)
   apm:
     portEnabled: true
     socketEnabled: true
+  
+  # Logs Collection
   logs:
     enabled: true
     containerCollectAll: true
+    containerCollectUsingFiles: true  # More reliable
+    autoMultiLineDetection: true      # Auto-detect stack traces
+  
+  # Process Monitoring (Priority 1)
+  processAgent:
+    enabled: true
+    processCollection: true
+  
+  # Kubernetes Events (Priority 1)
+  collectEvents: true
+  
+  # Orchestrator Explorer (Priority 1)
+  orchestratorExplorer:
+    enabled: true
+  
+  # Kube State Metrics (Priority 1)
+  kubeStateMetricsCore:
+    enabled: true
+  
+  # Live Container Monitoring
+  containerCollectAll: true
   
   # Disable problematic auto-discovery
   env:
     - name: DD_IGNORE_AUTOCONF
       value: "cilium"
   
-  # Minimal resources
+  # Resources (increased for additional features)
   resources:
     requests:
-      memory: 128Mi
-      cpu: 100m
-    limits:
       memory: 256Mi
       cpu: 200m
+    limits:
+      memory: 512Mi
+      cpu: 400m
 
 # High Availability cluster agent (fixed warning)
 clusterAgent:
@@ -35,3 +64,12 @@ clusterAgent:
   pdb:
     create: true
     minAvailable: 1
+  
+  # Enable Admission Controller for auto-injection
+  admissionController:
+    enabled: true
+    mutateUnlabelled: false  # Only inject to labeled pods
+    # Auto-inject APM configuration
+    configMode: "socket"  # Use Unix Domain Socket (recommended)
+    # Inject APM libraries and config
+    agentCommunicationMode: "socket"

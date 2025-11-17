@@ -80,6 +80,7 @@ export interface PayOSConfig {
 export interface DataDogConfig {
     agentHost: string
     agentPort: number
+    traceAgentPort: number
     env: string
     version: string
     logsInjection: boolean
