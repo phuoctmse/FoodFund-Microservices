@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common"
-import { PrismaClient } from "../../generated/campaign-client"
+import { Prisma, PrismaClient } from "../../generated/campaign-client"
 import { sanitizeSearchTerm, User } from "../../shared"
 import {
     CampaignFilterInput,
@@ -532,7 +532,7 @@ export class CampaignRepository {
         data: ExtendCampaignData,
     ): Promise<Campaign> {
         const result = await this.prisma.$transaction(async (tx) => {
-            const updatedCampaign = await tx.campaign.update({
+            await tx.campaign.update({
                 where: {
                     id: data.campaignId,
                     is_active: true,
@@ -545,17 +545,19 @@ export class CampaignRepository {
                 },
             })
 
-            await tx.$executeRaw`
-                UPDATE campaign_phases
-                SET 
-                    ingredient_purchase_date = ingredient_purchase_date + INTERVAL '${data.extensionDays} days',
-                    cooking_date = cooking_date + INTERVAL '${data.extensionDays} days',
-                    delivery_date = delivery_date + INTERVAL '${data.extensionDays} days',
-                    updated_at = NOW()
-                WHERE 
-                    campaign_id = ${data.campaignId}
-                    AND is_active = true
-            `
+            await tx.$executeRaw(
+                Prisma.sql`
+                    UPDATE campaign_phases
+                    SET
+                        ingredient_purchase_date = ingredient_purchase_date + (${data.extensionDays} || ' days')::INTERVAL,
+                        cooking_date = cooking_date + (${data.extensionDays} || ' days')::INTERVAL,
+                        delivery_date = delivery_date + (${data.extensionDays} || ' days')::INTERVAL,
+                        updated_at = NOW()
+                    WHERE
+                        campaign_id = ${data.campaignId}
+                        AND is_active = true
+                `
+            )
 
             const campaignWithPhases = await tx.campaign.findUnique({
                 where: { id: data.campaignId },
@@ -665,15 +667,15 @@ export class CampaignRepository {
         const phases =
             dbCampaign.campaign_phases?.map((phase: any) => {
                 const ingredientPct =
-                    parseFloat(
+                    Number.parseFloat(
                         phase.ingredient_budget_percentage?.toString() || "0",
                     ) / 100
                 const cookingPct =
-                    parseFloat(
+                    Number.parseFloat(
                         phase.cooking_budget_percentage?.toString() || "0",
                     ) / 100
                 const deliveryPct =
-                    parseFloat(
+                    Number.parseFloat(
                         phase.delivery_budget_percentage?.toString() || "0",
                     ) / 100
 

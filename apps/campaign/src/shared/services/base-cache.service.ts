@@ -122,7 +122,7 @@ export abstract class BaseCacheService<T> {
             return null
         }
 
-        const key = `${keyPrefix}:${relatedId}${params.length > 0 ? `:${params.join(":")}` : ""}`
+        const key = [keyPrefix, relatedId, ...params].join(":")
         const cached = await this.redis.get(key)
 
         if (cached) {
@@ -143,7 +143,7 @@ export abstract class BaseCacheService<T> {
             return
         }
 
-        const key = `${keyPrefix}:${relatedId}${params.length > 0 ? `:${params.join(":")}` : ""}`
+        const key = [keyPrefix, relatedId, ...params].join(":")
         await this.redis.set(key, JSON.stringify(entities), { ex: ttl })
     }
 
@@ -223,7 +223,7 @@ export abstract class BaseCacheService<T> {
         const cached = await this.redis.get(key)
 
         if (cached) {
-            return parseInt(cached, 10)
+            return Number.parseInt(cached, 10)
         }
 
         return null

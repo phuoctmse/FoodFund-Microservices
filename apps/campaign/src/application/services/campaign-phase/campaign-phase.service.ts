@@ -11,10 +11,17 @@ import { CampaignPhaseRepository } from "../../repositories/campaign-phase.repos
 import { CampaignService } from "../campaign/campaign.service"
 import { CampaignCacheService } from "../campaign/campaign-cache.service"
 import { SyncPhaseInput } from "../../dtos/campaign-phase/request"
-import { UserContext } from "@app/campaign/src/shared"
+import { PhaseBudgetValidator, UserContext } from "@app/campaign/src/shared"
 import { CampaignPhase } from "@app/campaign/src/domain/entities/campaign-phase.model"
 import { CampaignStatus } from "@app/campaign/src/domain/enums/campaign/campaign.enum"
 import { SyncPhasesResponse } from "../../dtos/campaign-phase/response"
+
+interface PhaseDate {
+    phaseName: string
+    ingredientPurchaseDate: Date
+    cookingDate: Date
+    deliveryDate: Date
+}
 
 @Injectable()
 export class CampaignPhaseService {
@@ -56,11 +63,11 @@ export class CampaignPhaseService {
                 )
             }
 
-            this.validateTotalBudget(phases)
+            PhaseBudgetValidator.validate(phases)
 
             this.validatePhaseDates(phases, campaign.fundraisingEndDate)
 
-            phases.forEach((phase) => {
+            for (const phase of phases) {
                 if (phase.phaseName.length < 5) {
                     throw new BadRequestException(
                         `Phase "${phase.phaseName}": Phase name must be at least 5 characters`,
@@ -91,7 +98,7 @@ export class CampaignPhaseService {
                         `Phase "${phase.phaseName}": Delivery date must be after cooking date`,
                     )
                 }
-            })
+            }
 
             const result = await this.phaseRepository.syncPhases({
                 campaignId,
@@ -102,13 +109,13 @@ export class CampaignPhaseService {
                     ingredientPurchaseDate: p.ingredientPurchaseDate,
                     cookingDate: p.cookingDate,
                     deliveryDate: p.deliveryDate,
-                    ingredientBudgetPercentage: parseFloat(
+                    ingredientBudgetPercentage: Number.parseFloat(
                         p.ingredientBudgetPercentage,
                     ),
-                    cookingBudgetPercentage: parseFloat(
+                    cookingBudgetPercentage: Number.parseFloat(
                         p.cookingBudgetPercentage,
                     ),
-                    deliveryBudgetPercentage: parseFloat(
+                    deliveryBudgetPercentage: Number.parseFloat(
                         p.deliveryBudgetPercentage,
                     ),
                 })),
@@ -174,190 +181,154 @@ export class CampaignPhaseService {
         return phase
     }
 
-    private validateTotalBudget(
-        phases: Array<{
-            phaseName: string
-            ingredientBudgetPercentage: string
-            cookingBudgetPercentage: string
-            deliveryBudgetPercentage: string
-        }>,
-    ): void {
-        let totalIngredient = 0
-        let totalCooking = 0
-        let totalDelivery = 0
-
-        phases.forEach((phase, index) => {
-            const ingredientPct = parseFloat(phase.ingredientBudgetPercentage)
-            const cookingPct = parseFloat(phase.cookingBudgetPercentage)
-            const deliveryPct = parseFloat(phase.deliveryBudgetPercentage)
-
-            if (
-                isNaN(ingredientPct) ||
-                isNaN(cookingPct) ||
-                isNaN(deliveryPct)
-            ) {
-                throw new BadRequestException(
-                    `Phase ${index + 1} (${phase.phaseName}): Budget percentages must be valid numbers`,
-                )
-            }
-
-            if (
-                ingredientPct < 0 ||
-                cookingPct < 0 ||
-                deliveryPct < 0 ||
-                ingredientPct > 100 ||
-                cookingPct > 100 ||
-                deliveryPct > 100
-            ) {
-                throw new BadRequestException(
-                    `Phase ${index + 1} (${phase.phaseName}): Budget percentages must be between 0 and 100`,
-                )
-            }
-
-            totalIngredient += ingredientPct
-            totalCooking += cookingPct
-            totalDelivery += deliveryPct
-        })
-
-        const grandTotal = totalIngredient + totalCooking + totalDelivery
-
-        if (Math.abs(grandTotal - 100) > 0.01) {
-            throw new BadRequestException(
-                "Tổng budget của tất cả phases phải bằng 100%. " +
-                    `Hiện tại: Ingredient (${totalIngredient.toFixed(2)}%) + ` +
-                    `Cooking (${totalCooking.toFixed(2)}%) + ` +
-                    `Delivery (${totalDelivery.toFixed(2)}%) = ${grandTotal.toFixed(2)}%`,
-            )
-        }
-
-        this.sentryService.addBreadcrumb(
-            "Phase budgets validated",
-            "validation",
-            {
-                phaseCount: phases.length,
-                totalIngredient,
-                totalCooking,
-                totalDelivery,
-                grandTotal,
-            },
-        )
-    }
-
     public validatePhaseDates(
-        phases: Array<{
-            phaseName: string
-            ingredientPurchaseDate: Date
-            cookingDate: Date
-            deliveryDate: Date
-        }>,
+        phases: PhaseDate[],
         fundraisingEndDate: Date | string,
     ): void {
+        const endDate = this.parseFundraisingEndDate(fundraisingEndDate)
+        const sortedPhases = this.sortPhasesByIngredientDate(phases)
+
+        for (let i = 0; i < sortedPhases.length; i++) {
+            const phase = sortedPhases[i]
+            const normalizedPhase = this.normalizePhaseDate(phase)
+
+            this.validateDeliveryWithin24Hours(normalizedPhase)
+            this.validateIngredientAfterFundraisingEnd(normalizedPhase, endDate)
+            this.validatePhaseDateOrder(normalizedPhase)
+
+            if (i > 0) {
+                const prevPhase = this.normalizePhaseDate(sortedPhases[i - 1])
+                this.validateNoPhaseOverlap(normalizedPhase, prevPhase)
+            }
+        }
+    }
+
+    private parseFundraisingEndDate(fundraisingEndDate: Date | string): Date {
         const endDate =
             typeof fundraisingEndDate === "string"
                 ? new Date(fundraisingEndDate)
                 : fundraisingEndDate
 
-        if (isNaN(endDate.getTime())) {
+        if (Number.isNaN(endDate.getTime())) {
             throw new BadRequestException(
                 "Invalid fundraising end date provided",
             )
         }
 
-        const endDateNormalized = new Date(
-            endDate.getFullYear(),
-            endDate.getMonth(),
-            endDate.getDate(),
-        )
+        return endDate
+    }
 
-        const sortedPhases = [...phases].sort(
+    private sortPhasesByIngredientDate(phases: PhaseDate[]): PhaseDate[] {
+        return [...phases].sort(
             (a, b) =>
                 a.ingredientPurchaseDate.getTime() -
                 b.ingredientPurchaseDate.getTime(),
         )
+    }
 
-        for (let i = 0; i < sortedPhases.length; i++) {
-            const phase = sortedPhases[i]
-
-            const ingredientDate =
-                typeof phase.ingredientPurchaseDate === "string"
-                    ? new Date(phase.ingredientPurchaseDate)
-                    : phase.ingredientPurchaseDate
-            const cookingDate =
-                typeof phase.cookingDate === "string"
-                    ? new Date(phase.cookingDate)
-                    : phase.cookingDate
-            const deliveryDate =
-                typeof phase.deliveryDate === "string"
-                    ? new Date(phase.deliveryDate)
-                    : phase.deliveryDate
-
-            const cookingToDeliveryMs =
-                deliveryDate.getTime() - cookingDate.getTime()
-            const maxDurationMs = 24 * 60 * 60 * 1000
-
-            if (
-                cookingToDeliveryMs > maxDurationMs ||
-                cookingToDeliveryMs < 0
-            ) {
-                throw new BadRequestException(
-                    `Phase "${phase.phaseName}": Delivery date must be within 24 hours from cooking date for food safety`,
-                )
-            }
-
-            const ingredientDateNormalized = new Date(
-                ingredientDate.getFullYear(),
-                ingredientDate.getMonth(),
-                ingredientDate.getDate(),
-            )
-
-            if (ingredientDateNormalized <= endDateNormalized) {
-                throw new BadRequestException(
-                    `Phase "${phase.phaseName}": All phase dates must be after fundraising end date (${endDate.toISOString().split("T")[0]})`,
-                )
-            }
-
-            if (i > 0) {
-                const prevPhase = sortedPhases[i - 1]
-
-                const prevIngredientDate =
-                    typeof prevPhase.ingredientPurchaseDate === "string"
-                        ? new Date(prevPhase.ingredientPurchaseDate)
-                        : prevPhase.ingredientPurchaseDate
-                const prevCookingDate =
-                    typeof prevPhase.cookingDate === "string"
-                        ? new Date(prevPhase.cookingDate)
-                        : prevPhase.cookingDate
-                const prevDeliveryDate =
-                    typeof prevPhase.deliveryDate === "string"
-                        ? new Date(prevPhase.deliveryDate)
-                        : prevPhase.deliveryDate
-
-                const prevLatestDate = new Date(
-                    Math.max(
-                        prevIngredientDate.getTime(),
-                        prevCookingDate.getTime(),
-                        prevDeliveryDate.getTime(),
-                    ),
-                )
-
-                if (ingredientDate <= prevLatestDate) {
-                    throw new BadRequestException(
-                        `Phase "${phase.phaseName}" overlaps with "${prevPhase.phaseName}". Please ensure phases do not overlap.`,
-                    )
-                }
-            }
-
-            if (cookingDate < ingredientDate) {
-                throw new BadRequestException(
-                    `Phase "${phase.phaseName}": Cooking date must be after ingredient purchase date`,
-                )
-            }
-
-            if (deliveryDate < cookingDate) {
-                throw new BadRequestException(
-                    `Phase "${phase.phaseName}": Delivery date must be after cooking date`,
-                )
-            }
+    private normalizePhaseDate(phase: PhaseDate): {
+        phaseName: string
+        ingredientDate: Date
+        cookingDate: Date
+        deliveryDate: Date
+    } {
+        return {
+            phaseName: phase.phaseName,
+            ingredientDate: this.toDate(phase.ingredientPurchaseDate),
+            cookingDate: this.toDate(phase.cookingDate),
+            deliveryDate: this.toDate(phase.deliveryDate),
         }
+    }
+
+    private toDate(value: Date | string): Date {
+        return typeof value === "string" ? new Date(value) : value
+    }
+
+    private validateDeliveryWithin24Hours(phase: {
+        phaseName: string
+        cookingDate: Date
+        deliveryDate: Date
+    }): void {
+        const cookingToDeliveryMs =
+            phase.deliveryDate.getTime() - phase.cookingDate.getTime()
+        const maxDurationMs = 24 * 60 * 60 * 1000
+
+        if (cookingToDeliveryMs <= 0 || cookingToDeliveryMs > maxDurationMs) {
+            throw new BadRequestException(
+                `Phase "${phase.phaseName}": Delivery date must be within 24 hours from cooking date for food safety`,
+            )
+        }
+    }
+
+    private validateIngredientAfterFundraisingEnd(
+        phase: {
+            phaseName: string
+            ingredientDate: Date
+        },
+        fundraisingEndDate: Date,
+    ): void {
+        if (phase.ingredientDate.getTime() <= fundraisingEndDate.getTime()) {
+            throw new BadRequestException(
+                `Phase "${phase.phaseName}": Ingredient purchase date (${this.formatDateTime(phase.ingredientDate)}) ` +
+                    `must be after fundraising end date (${this.formatDateTime(fundraisingEndDate)})`,
+            )
+        }
+    }
+
+    private validatePhaseDateOrder(phase: {
+        phaseName: string
+        ingredientDate: Date
+        cookingDate: Date
+        deliveryDate: Date
+    }): void {
+        if (phase.cookingDate.getTime() < phase.ingredientDate.getTime()) {
+            throw new BadRequestException(
+                `Phase "${phase.phaseName}": Cooking date must be after ingredient purchase date`,
+            )
+        }
+
+        if (phase.deliveryDate.getTime() < phase.cookingDate.getTime()) {
+            throw new BadRequestException(
+                `Phase "${phase.phaseName}": Delivery date must be after cooking date`,
+            )
+        }
+    }
+
+    private validateNoPhaseOverlap(
+        currentPhase: {
+            phaseName: string
+            ingredientDate: Date
+        },
+        previousPhase: {
+            phaseName: string
+            ingredientDate: Date
+            cookingDate: Date
+            deliveryDate: Date
+        },
+    ): void {
+        const prevLatestTimestamp = this.getLatestTimestamp(previousPhase)
+
+        if (currentPhase.ingredientDate.getTime() <= prevLatestTimestamp) {
+            throw new BadRequestException(
+                `Phase "${currentPhase.phaseName}" overlaps with "${previousPhase.phaseName}". ` +
+                    "Please ensure phases do not overlap.",
+            )
+        }
+    }
+
+    private getLatestTimestamp(phase: {
+        ingredientDate: Date
+        cookingDate: Date
+        deliveryDate: Date
+    }): number {
+        return Math.max(
+            phase.ingredientDate.getTime(),
+            phase.cookingDate.getTime(),
+            phase.deliveryDate.getTime(),
+        )
+    }
+
+    private formatDateTime(date: Date): string {
+        return date.toISOString().replace("T", " ").substring(0, 19)
     }
 }

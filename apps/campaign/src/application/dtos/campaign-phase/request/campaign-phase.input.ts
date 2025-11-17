@@ -70,50 +70,6 @@ export class CreatePhaseInput {
 }
 
 @InputType()
-export class UpdatePhaseInput {
-    @Field(() => String, { nullable: true })
-    @IsOptional()
-    @IsString()
-    @MinLength(5, { message: "Phase name must be at least 5 characters" })
-        phaseName?: string
-
-    @Field(() => String, { nullable: true })
-    @IsOptional()
-    @IsString()
-        location?: string
-
-    @Field(() => Date, { nullable: true })
-    @IsOptional()
-    @Type(() => Date)
-        ingredientPurchaseDate?: Date
-
-    @Field(() => Date, { nullable: true })
-    @IsOptional()
-    @Type(() => Date)
-        cookingDate?: Date
-
-    @Field(() => Date, { nullable: true })
-    @IsOptional()
-    @Type(() => Date)
-        deliveryDate?: Date
-
-    @Field(() => String, { nullable: true })
-    @IsOptional()
-    @IsNumberString()
-        ingredientBudgetPercentage?: string
-
-    @Field(() => String, { nullable: true })
-    @IsOptional()
-    @IsNumberString()
-        cookingBudgetPercentage?: string
-
-    @Field(() => String, { nullable: true })
-    @IsOptional()
-    @IsNumberString()
-        deliveryBudgetPercentage?: string
-}
-
-@InputType()
 export class SyncPhaseInput {
     @Field(() => String, {
         nullable: true,
