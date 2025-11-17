@@ -2,7 +2,7 @@ import { CampaignPhaseRepository } from "@app/campaign/src/application/repositor
 import { CampaignCacheService } from "@app/campaign/src/application/services/campaign/campaign-cache.service"
 import { CampaignService } from "@app/campaign/src/application/services/campaign/campaign.service"
 import { CampaignPhaseStatus } from "@app/campaign/src/domain/enums/campaign-phase/campaign-phase.enum"
-import { Controller, Injectable } from "@nestjs/common"
+import { Controller } from "@nestjs/common"
 import { GrpcMethod } from "@nestjs/microservices"
 
 interface GetCampaignRequest {

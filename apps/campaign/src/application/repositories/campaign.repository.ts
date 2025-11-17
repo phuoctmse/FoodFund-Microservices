@@ -532,7 +532,7 @@ export class CampaignRepository {
         data: ExtendCampaignData,
     ): Promise<Campaign> {
         const result = await this.prisma.$transaction(async (tx) => {
-            const updatedCampaign = await tx.campaign.update({
+            await tx.campaign.update({
                 where: {
                     id: data.campaignId,
                     is_active: true,
@@ -665,15 +665,15 @@ export class CampaignRepository {
         const phases =
             dbCampaign.campaign_phases?.map((phase: any) => {
                 const ingredientPct =
-                    parseFloat(
+                    Number.parseFloat(
                         phase.ingredient_budget_percentage?.toString() || "0",
                     ) / 100
                 const cookingPct =
-                    parseFloat(
+                    Number.parseFloat(
                         phase.cooking_budget_percentage?.toString() || "0",
                     ) / 100
                 const deliveryPct =
-                    parseFloat(
+                    Number.parseFloat(
                         phase.delivery_budget_percentage?.toString() || "0",
                     ) / 100
 
