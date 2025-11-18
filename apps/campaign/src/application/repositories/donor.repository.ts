@@ -455,6 +455,7 @@ export class DonorRepository {
                 },
                 select: {
                     id: true,
+                    title: true,
                     received_amount: true,
                     target_amount: true,
                     status: true,
@@ -583,6 +584,7 @@ export class DonorRepository {
                 },
                 select: {
                     id: true,
+                    title: true,
                     received_amount: true,
                     target_amount: true,
                     status: true,

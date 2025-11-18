@@ -66,6 +66,12 @@ export interface RedisConfig {
     username: string
 }
 
+export interface BrevoConfig {
+    apiKey: string
+    senderEmail: string
+    senderName: string
+}
+
 export interface PayOSConfig {
     payosClienId: string
     payosApiKey: string
@@ -139,6 +145,9 @@ export interface EnvironmentConfig {
 
     //DataDog Configuration
     datadog: DataDogConfig
+
+    //Brevo Configuration
+    brevo: BrevoConfig
 }
 
 export interface EnvModuleOptions {

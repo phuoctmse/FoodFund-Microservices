@@ -5,6 +5,7 @@ import { envConfig } from "@libs/env"
 import { UserClientService } from "@app/campaign/src/shared"
 import { DonorRepository } from "../../repositories/donor.repository"
 import { CampaignStatus } from "@app/campaign/src/domain/enums/campaign/campaign.enum"
+import { DonationEmailService } from "./donation-email.service"
 
 interface SepayWebhookPayload {
     id: number // Sepay transaction ID
@@ -30,20 +31,9 @@ export class SepayWebhookService {
         private readonly redisService: RedisService,
         private readonly donorRepository: DonorRepository,
         private readonly eventEmitter: EventEmitter2,
+        private readonly donationEmailService: DonationEmailService,
     ) {}
 
-    /**
-     * Handle Sepay webhook - Route ALL transfers to Admin Wallet
-     * NEW LOGIC: All Sepay transfers now go to Admin Wallet
-     * 
-     * DUPLICATE PREVENTION:
-     * - If orderCode exists AND amount >= original: Skip (PayOS will handle)
-     * - If orderCode exists AND amount < original: Process PARTIAL payment
-     * - If no orderCode: Process as regular transfer
-     * 
-     * OUTGOING TRANSFERS (transferType: "out"):
-     * - Route to WalletTransactionService to deduct from admin wallet
-     */
     async handleSepayWebhook(payload: SepayWebhookPayload): Promise<void> {
         this.logger.log("[Sepay] Received webhook:", {
             id: payload.id,
@@ -239,6 +229,14 @@ export class SepayWebhookService {
             this.logger.log(
                 `[Sepay→Admin] ✅ Admin wallet credited - orderCode=${orderCode}, amount=${payload.transferAmount}`,
             )
+
+            // Step 4: Send donation confirmation email (if donor is not anonymous)
+            await this.donationEmailService.sendDonationConfirmation(
+                donation,
+                BigInt(payload.transferAmount),
+                donation.campaign,
+                "Sepay",
+            )
         } catch (error) {
             this.logger.error(
                 `[Sepay→Admin] ❌ Failed to process partial payment - orderCode=${orderCode}`,
@@ -309,6 +307,14 @@ export class SepayWebhookService {
 
             this.logger.log(
                 `[Sepay→Admin] ✅ Admin wallet credited for supplementary payment - amount=${payload.transferAmount}`,
+            )
+
+            // Step 4: Send donation confirmation email (if donor is not anonymous)
+            await this.donationEmailService.sendDonationConfirmation(
+                donation,
+                BigInt(payload.transferAmount),
+                result.campaign,
+                "Sepay",
             )
         } catch (error) {
             this.logger.error(
@@ -507,8 +513,6 @@ export class SepayWebhookService {
                 `[Sepay OUT] ❌ Failed to process outgoing transfer: ${error.message}`,
                 error.stack,
             )
-            // Don't throw - log error for manual review
-            // This prevents webhook retry loops
         }
     }
 
@@ -519,4 +523,5 @@ export class SepayWebhookService {
         const adminId = envConfig().systemAdminId || "admin-system-001"
         return adminId
     }
+
 }

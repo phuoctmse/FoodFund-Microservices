@@ -5,6 +5,7 @@ import { envConfig } from "@libs/env"
 import { DonorRepository } from "../../repositories/donor.repository"
 import { UserClientService } from "@app/campaign/src/shared"
 import { CampaignStatus } from "@app/campaign/src/domain/enums/campaign/campaign.enum"
+import { DonationEmailService } from "./donation-email.service"
 
 interface PayOSWebhookData {
     orderCode: number
@@ -35,6 +36,7 @@ export class DonationWebhookService {
         private readonly donorRepository: DonorRepository,
         private readonly userClientService: UserClientService,
         private readonly eventEmitter: EventEmitter2,
+        private readonly donationEmailService: DonationEmailService,
     ) {}
 
     private getPayOS(): PayOS {
@@ -94,7 +96,10 @@ export class DonationWebhookService {
         // This check comes AFTER gateway check because:
         // - If gateway=SEPAY, PayOS should never process (even if processed_by_webhook=false)
         // - If gateway=PAYOS and processed_by_webhook=true, skip to prevent duplicate
-        if (paymentTransaction.processed_by_webhook && paymentTransaction.gateway === "PAYOS") {
+        if (
+            paymentTransaction.processed_by_webhook &&
+            paymentTransaction.gateway === "PAYOS"
+        ) {
             this.logger.log(
                 `[PayOS] Webhook already processed for order ${orderCode}`,
             )
@@ -111,14 +116,6 @@ export class DonationWebhookService {
         }
     }
 
-    /**
-     * Process successful PayOS payment
-     * PayOS webhook is ONLY called when user transfers ENOUGH or MORE (>= amount)
-     * PARTIAL payments (< amount) are handled by Sepay webhook
-     * 
-     * 1. Update payment_transaction (SUCCESS, gateway=PAYOS, processed_by_webhook=true)
-     * 2. Credit Admin Wallet with ACTUAL amount paid
-     */
     private async processSuccessfulPayment(
         paymentTransaction: any,
         webhookData: PayOSWebhookData,
@@ -144,22 +141,29 @@ export class DonationWebhookService {
             )
 
             // Step 1: Update payment transaction with PayOS data and actual amount
-            const result = await this.donorRepository.updatePaymentTransactionSuccess({
-                order_code: BigInt(orderCode),
-                amount_paid: actualAmountReceived,
-                gateway: "PAYOS",
-                processed_by_webhook: true,
-                payos_metadata: {
-                    reference: webhookData.reference,
-                    transaction_datetime: new Date(webhookData.transactionDateTime),
-                    counter_account_bank_id: webhookData.counterAccountBankId,
-                    counter_account_bank_name: webhookData.counterAccountBankName,
-                    counter_account_name: webhookData.counterAccountName,
-                    counter_account_number: webhookData.counterAccountNumber,
-                    virtual_account_name: webhookData.virtualAccountName,
-                    virtual_account_number: webhookData.virtualAccountNumber,
-                },
-            })
+            const result =
+                await this.donorRepository.updatePaymentTransactionSuccess({
+                    order_code: BigInt(orderCode),
+                    amount_paid: actualAmountReceived,
+                    gateway: "PAYOS",
+                    processed_by_webhook: true,
+                    payos_metadata: {
+                        reference: webhookData.reference,
+                        transaction_datetime: new Date(
+                            webhookData.transactionDateTime,
+                        ),
+                        counter_account_bank_id:
+                            webhookData.counterAccountBankId,
+                        counter_account_bank_name:
+                            webhookData.counterAccountBankName,
+                        counter_account_name: webhookData.counterAccountName,
+                        counter_account_number:
+                            webhookData.counterAccountNumber,
+                        virtual_account_name: webhookData.virtualAccountName,
+                        virtual_account_number:
+                            webhookData.virtualAccountNumber,
+                    },
+                })
 
             this.logger.log(
                 `[PayOS] ✅ Payment transaction updated - Order ${orderCode}, Amount Paid: ${actualAmountReceived}`,
@@ -167,8 +171,12 @@ export class DonationWebhookService {
 
             // 🆕 Check for campaign surplus and emit event
             const { campaign } = result
-            if (campaign.received_amount > campaign.target_amount && campaign.status === CampaignStatus.ACTIVE) {
-                const surplus = campaign.received_amount - campaign.target_amount
+            if (
+                campaign.received_amount > campaign.target_amount &&
+                campaign.status === CampaignStatus.ACTIVE
+            ) {
+                const surplus =
+                    campaign.received_amount - campaign.target_amount
                 this.logger.log(
                     `[PayOS] 🎯 Surplus detected for campaign ${campaign.id} - Surplus: ${surplus.toString()} VND`,
                 )
@@ -193,19 +201,25 @@ export class DonationWebhookService {
             const adminUserId = this.getSystemAdminId()
 
             // Step 4: Credit Admin Wallet with ACTUAL amount received
-            // NOTE: gateway and metadata are stored in Payment_Transaction, NOT Wallet_Transaction
-            // Wallet_Transaction links to Payment_Transaction via payment_transaction_id
             await this.userClientService.creditAdminWallet({
                 adminId: adminUserId,
                 campaignId: campaignId,
                 paymentTransactionId: paymentTransaction.id,
                 amount: actualAmountReceived,
-                gateway: "PAYOS", // For logging/description only, NOT stored in Wallet_Transaction
+                gateway: "PAYOS", 
                 description: `Donation from ${donation.donor_name || "Anonymous"} - Order ${orderCode}`,
             })
 
             this.logger.log(
                 `[PayOS] ✅ Admin wallet credited - Order ${orderCode}, Amount: ${actualAmountReceived} (Original: ${paymentTransaction.amount})`,
+            )
+
+            // Step 5: Send donation confirmation email (if donor is not anonymous)
+            await this.donationEmailService.sendDonationConfirmation(
+                donation,
+                actualAmountReceived,
+                result.campaign,
+                "PayOS",
             )
         } catch (error) {
             this.logger.error(
@@ -256,4 +270,5 @@ export class DonationWebhookService {
         const adminId = envConfig().systemAdminId || "admin-system-001"
         return adminId
     }
+
 }

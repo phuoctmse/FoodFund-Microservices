@@ -5,7 +5,6 @@ import {
     NotFoundException,
 } from "@nestjs/common"
 import { EventEmitter2 } from "@nestjs/event-emitter"
-import { SqsService } from "@libs/aws-sqs"
 import { CurrentUserType } from "@libs/auth"
 import { PayOS } from "@payos/node"
 import { envConfig } from "@libs/env"
@@ -25,7 +24,6 @@ export class DonorService {
     constructor(
         private readonly donorRepository: DonorRepository,
         private readonly campaignRepository: CampaignRepository,
-        private readonly sqsService: SqsService,
         private readonly userClientService: UserClientService,
         private readonly userDataLoader: UserDataLoader,
         private readonly eventEmitter: EventEmitter2,
@@ -197,20 +195,8 @@ export class DonorService {
                 },
             )
 
-            // Send to SQS for async processing (optional - for background tasks)
-            try {
-                await this.sqsService.sendMessage({
-                    messageBody: {
-                        donationId: donation.id,
-                        orderCode,
-                        campaignId: input.campaignId,
-                        amount: donationAmount.toString(),
-                    },
-                })
-            } catch (sqsError) {
-                this.logger.warn("Failed to send SQS message", sqsError)
-                // Don't fail the request if SQS fails
-            }
+            // Note: Async processing now handled by BullMQ queues
+            // Webhook processing will handle payment confirmation
 
             // Get PayOS bank account info from config
             const config = envConfig().payos

@@ -181,6 +181,12 @@ export const envConfig = (): EnvironmentConfig => ({
             process.env.DD_TRACE_SAMPLE_RATE || "1.0",
         ),
     },
+
+    brevo: {
+        apiKey: process.env.BREVO_API_KEY as string,
+        senderEmail: process.env.BREVO_SENDER_EMAIL as string,
+        senderName: process.env.BREVO_SENDER_NAME as string,
+    }
 })
 
 // Utility functions
