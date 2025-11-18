@@ -8,12 +8,14 @@ import {
 import { Logger } from "@nestjs/common"
 import { Job } from "bull"
 import tracer from "dd-trace"
-import { PostLikeJob } from "@libs/queue/types"
-import { BullDatadogService } from "@libs/queue/bull-datadog.service"
-import { PostLikeRepository } from "../../repositories/post-like.repository"
-import { PostCacheService } from "../../services/post/post-cache.service"
-import { QUEUE_NAMES } from "@libs/queue"
-
+import {
+    QUEUE_NAMES,
+    PostLikeJob,
+    LikeAction,
+    BullDatadogService,
+} from "@libs/queue"
+import { PostLikeRepository } from "../repositories/post-like.repository"
+import { PostCacheService } from "../services/post/post-cache.service"
 
 @Processor(QUEUE_NAMES.POST_LIKES)
 export class PostLikeProcessor {
@@ -46,10 +48,13 @@ export class PostLikeProcessor {
                 `Processing ${action} for post ${postId} by user ${userId}`,
             )
 
-            if (action === "LIKE") {
+            if (action === LikeAction.LIKE) {
                 await this.processLike(postId, userId)
-            } else if (action === "UNLIKE") {
+            } else if (action === LikeAction.UNLIKE) {
                 await this.processUnlike(postId, userId)
+            } else {
+                this.logger.warn(`Unknown action: ${action}`)
+                return { success: false, error: "Unknown action" }
             }
 
             const duration = Date.now() - startTime
@@ -74,16 +79,16 @@ export class PostLikeProcessor {
     }
 
     private async processLike(postId: string, userId: string): Promise<void> {
-        const alreadyLiked = await this.postLikeRepository.checkIfUserLikedPost(
-            postId,
-            userId,
-        )
+        const alreadyLiked =
+            await this.postLikeRepository.checkIfUserLikedPost(postId, userId)
+
         if (alreadyLiked) {
             this.logger.debug(`User ${userId} already liked post ${postId}`)
             return
         }
 
         const result = await this.postLikeRepository.likePost(postId, userId)
+
         await this.postCacheService.initializeDistributedLikeCounter(
             postId,
             result.likeCount,
@@ -91,17 +96,22 @@ export class PostLikeProcessor {
         await this.postCacheService.deletePost(postId)
     }
 
-    private async processUnlike(postId: string, userId: string): Promise<void> {
+    private async processUnlike(
+        postId: string,
+        userId: string,
+    ): Promise<void> {
         const hasLiked = await this.postLikeRepository.checkIfUserLikedPost(
             postId,
             userId,
         )
+
         if (!hasLiked) {
             this.logger.debug(`User ${userId} has not liked post ${postId}`)
             return
         }
 
         const result = await this.postLikeRepository.unlikePost(postId, userId)
+
         await this.postCacheService.initializeDistributedLikeCounter(
             postId,
             result.likeCount,
@@ -111,16 +121,19 @@ export class PostLikeProcessor {
 
     @OnQueueActive()
     onActive(job: Job) {
-        this.logger.log(`Processing job ${job.id} of type ${job.name}`)
+        // Silent - only log errors
     }
 
     @OnQueueCompleted()
     onCompleted(job: Job, result: any) {
-        this.logger.log(`Job ${job.id} completed in ${result.duration}ms`)
+        // Silent - only log errors
     }
 
     @OnQueueFailed()
     onFailed(job: Job, error: Error) {
-        this.logger.error(`Job ${job.id} failed: ${error.message}`, error.stack)
+        this.logger.error(
+            `Job ${job.id} failed: ${error.message}`,
+            error.stack,
+        )
     }
 }

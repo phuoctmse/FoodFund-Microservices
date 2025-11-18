@@ -24,6 +24,12 @@
       "@libs/*": [
         "libs/*"
       ],
+      "@libs/queue": [
+        "libs/queue/index.ts"
+      ],
+      "@libs/queue/*": [
+        "libs/queue/*"
+      ],
       "libs/*": [
         "libs/*"
       ]
