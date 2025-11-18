@@ -76,11 +76,11 @@ ingress:
 
 resources:
   limits:
-    cpu: 300m
-    memory: 320Mi
+    cpu: 500m
+    memory: 512Mi
   requests:
-    cpu: 60m
-    memory: 128Mi
+    cpu: 100m
+    memory: 256Mi
 
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 startupProbe:
@@ -147,7 +147,7 @@ env:
   - name: SERVICE_NAME
     value: "auth-service"
   - name: NODE_OPTIONS
-    value: "--max-old-space-size=160"
+    value: "--max-old-space-size=320"
 # Sensitive environment variables are set via ConfigMap/Secret
 # See k8s/config/ for templates
 

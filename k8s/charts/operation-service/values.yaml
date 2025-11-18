@@ -77,11 +77,11 @@ ingress:
 resources: 
   # Ultra-optimized for small cluster (2 nodes x 2GB RAM) - with Prisma
   limits:
-    cpu: 300m      # Max 30% of 1 vCPU
-    memory: 320Mi  # Max 320MB
+    cpu: 500m      # Max 50% of 1 vCPU
+    memory: 512Mi  # Max 512MB
   requests:
-    cpu: 60m       # Min 6% of 1 vCPU  
-    memory: 128Mi  # Min 128MB
+    cpu: 100m       # Min 10% of 1 vCPU  
+    memory: 256Mi  # Min 256MB
 
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 startupProbe:
@@ -148,7 +148,7 @@ env:
   - name: SERVICE_NAME
     value: "operation-service"
   - name: NODE_OPTIONS
-    value: "--max-old-space-size=160"
+    value: "--max-old-space-size=320"
   # Add any service-specific env vars that are not in ConfigMap/Secret here
   # Example:
   # - name: SERVICE_SPECIFIC_CONFIG
