@@ -77,7 +77,7 @@ ingress:
 resources:
   limits:
     cpu: 300m
-    memory: 256Mi
+    memory: 320Mi
   requests:
     cpu: 60m
     memory: 128Mi
@@ -147,7 +147,7 @@ env:
   - name: SERVICE_NAME
     value: "auth-service"
   - name: NODE_OPTIONS
-    value: "--max-old-space-size=192"
+    value: "--max-old-space-size=160"
 # Sensitive environment variables are set via ConfigMap/Secret
 # See k8s/config/ for templates
 
