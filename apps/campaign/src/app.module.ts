@@ -8,6 +8,10 @@ import { EnvModule } from "@libs/env/env.module"
 import { OpenSearchModule } from "@libs/aws-opensearch"
 import { SqsModule } from "@libs/aws-sqs"
 import { GrpcModule } from "@libs/grpc"
+import { QueueModule, QUEUE_NAMES } from "@libs/queue"
+import { BullBoardModule } from "@bull-board/nestjs"
+import { ExpressAdapter } from "@bull-board/express"
+import { BullAdapter } from "@bull-board/api/bullAdapter"
 import { VietQRModule } from "@libs/vietqr"
 import { DatadogModule } from "@libs/observability"
 import { AwsCognitoModule } from "@libs/aws-cognito"
@@ -57,10 +61,9 @@ import { PostCommentService } from "./application/services/post/post-comment.ser
 import { PostCommentQueryResolver, PostLikeQueryResolver, PostQueryResolver } from "./presentation/graphql/post/queries"
 import { PostCommentMutationResolver, PostLikeMutationResolver, PostMutationResolver } from "./presentation/graphql/post/mutations"
 import { PostLikeDataLoader } from "./application/dataloaders"
-import { QueueWorkerService } from "./application/workers/queue-worker.service"
 import { PostCacheService } from "./application/services/post/post-cache.service"
 import { CampaignSchedulerService } from "./application/workers/campaign/schedulers"
-import { LikeQueueWorkerService } from "./application/workers/post-like/post-like-queue.worker"
+import { PostLikeProcessor } from "./application/processors/post-like.processor"
 
 @Module({
     imports: [
@@ -93,6 +96,15 @@ import { LikeQueueWorkerService } from "./application/workers/post-like/post-lik
         ScheduleModule.forRoot(),
         GrpcModule,
         SqsModule,
+        QueueModule,
+        BullBoardModule.forRoot({
+            route: "/admin/queues",
+            adapter: ExpressAdapter,
+        }),
+        BullBoardModule.forFeature({
+            name: QUEUE_NAMES.POST_LIKES,
+            adapter: BullAdapter,
+        }),
         OpenSearchModule,
         VietQRModule,
         AuthLibModule,
@@ -160,8 +172,7 @@ import { LikeQueueWorkerService } from "./application/workers/post-like/post-lik
         PostCommentRepository,
 
         CampaignStatusJob,
-        QueueWorkerService,
-        LikeQueueWorkerService,
+        PostLikeProcessor,
 
         UserDataLoader,
         PostLikeDataLoader

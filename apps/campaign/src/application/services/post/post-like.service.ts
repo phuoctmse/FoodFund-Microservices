@@ -7,19 +7,7 @@ import {
 import { PostLikeRepository } from "../../repositories/post-like.repository"
 import { PostRepository } from "../../repositories/post.repository"
 import { PostCacheService } from "./post-cache.service"
-import { SqsService } from "@libs/aws-sqs"
-
-export enum LikeAction {
-    LIKE = "LIKE",
-    UNLIKE = "UNLIKE",
-}
-
-export interface LikeQueueMessage {
-    action: LikeAction
-    postId: string
-    userId: string
-    timestamp: number
-}
+import { PostLikeQueue, LikeAction, PostLikeJob } from "@libs/queue"
 
 export interface LikeQueueResponse {
     success: boolean
@@ -34,7 +22,7 @@ export class PostLikeService {
         private readonly postLikeRepository: PostLikeRepository,
         private readonly postRepository: PostRepository,
         private readonly postCacheService: PostCacheService,
-        private readonly sqsService: SqsService,
+        private readonly postLikeQueue: PostLikeQueue,
     ) {}
 
     async likePost(postId: string, userId: string) {
@@ -56,7 +44,7 @@ export class PostLikeService {
             throw new BadRequestException("You already liked this post")
         }
 
-        const queueMessage: LikeQueueMessage = {
+        const jobData: PostLikeJob = {
             action: LikeAction.LIKE,
             postId,
             userId,
@@ -64,11 +52,7 @@ export class PostLikeService {
         }
 
         try {
-            await this.sqsService.sendMessage({
-                messageBody: queueMessage,
-                messageGroupId: `post-like:${postId}`,
-                messageDeduplicationId: `like:${postId}:${userId}:${Date.now()}`,
-            })
+            await this.postLikeQueue.addLikeJob(jobData)
         } catch (error) {
             return await this.likeSyncFallback(postId, userId)
         }
@@ -108,7 +92,7 @@ export class PostLikeService {
             )
         }
 
-        const queueMessage: LikeQueueMessage = {
+        const jobData: PostLikeJob = {
             action: LikeAction.UNLIKE,
             postId,
             userId,
@@ -116,11 +100,7 @@ export class PostLikeService {
         }
 
         try {
-            await this.sqsService.sendMessage({
-                messageBody: queueMessage,
-                messageGroupId: `post-like:${postId}`,
-                messageDeduplicationId: `unlike:${postId}:${userId}:${Date.now()}`,
-            })
+            await this.postLikeQueue.addLikeJob(jobData)
         } catch (error) {
             return await this.unlikeSyncFallback(postId, userId)
         }
