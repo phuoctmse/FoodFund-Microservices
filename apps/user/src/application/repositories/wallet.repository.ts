@@ -18,9 +18,9 @@ export class WalletRepository {
         schema.wallet_id = tx.wallet_id
         schema.campaign_id = tx.campaign_id
         schema.payment_transaction_id = tx.payment_transaction_id
-        schema.amount = tx.amount.toString()
-        schema.balance_before = tx.balance_before.toString()
-        schema.balance_after = tx.balance_after.toString()
+        schema.amount = tx.amount?.toString() || "0"
+        schema.balance_before = tx.balance_before?.toString() || "0"
+        schema.balance_after = tx.balance_after?.toString() || "0"
         schema.transaction_type = tx.transaction_type
         schema.description = tx.description
         schema.gateway = tx.gateway

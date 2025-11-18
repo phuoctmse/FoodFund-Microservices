@@ -281,7 +281,7 @@ export class WalletService {
         const systemWallet = await this.getSystemWallet()
 
         return {
-            systemBalance: systemWallet?.balance || "0",
+            systemBalance: systemWallet?.balance.toString() || "0",
             totalFundraiserBalance: stats.totalFundraiserBalance.toString(),
             totalFundraisers: stats.totalFundraisers,
             totalTransactionsToday: stats.totalTransactionsToday,

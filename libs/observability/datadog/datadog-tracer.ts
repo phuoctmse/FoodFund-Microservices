@@ -87,7 +87,7 @@ export function initDatadogTracer(
 
         // DataDog Agent host and port
         hostname: env.datadog.agentHost,
-        port: env.datadog.agentPort.toString(),
+        port: env.datadog.traceAgentPort,
 
         // Enable runtime metrics
         runtimeMetrics: true,
