@@ -13,6 +13,7 @@ import { EventEmitter2 } from "@nestjs/event-emitter"
 import { CampaignNewPostEvent } from "@app/campaign/src/domain/events"
 import { CampaignRepository } from "../../repositories/campaign.repository"
 import { CampaignFollowerService } from "../campaign/campaign-follower.service"
+import { stripHtmlTags } from "@app/campaign/src/shared/utils"
 
 @Injectable()
 export class PostService {
@@ -290,7 +291,7 @@ export class PostService {
     }
 
     private createPostPreview(content: string): string {
-        const plainText = content.replaceAll(/<[^>]*>/g, "")
+        const plainText = stripHtmlTags(content)
         return plainText.length > 100
             ? `${plainText.slice(0, 100)}...`
             : plainText

@@ -15,6 +15,7 @@ import {
 } from "@app/campaign/src/domain/events"
 import { PostComment } from "@app/campaign/src/domain/entities/post-comment.model"
 import { UserClientService } from "@app/campaign/src/shared"
+import { stripHtmlTags } from "@app/campaign/src/shared/utils"
 
 @Injectable()
 export class PostCommentService {
@@ -301,7 +302,7 @@ export class PostCommentService {
     }
 
     private createCommentPreview(content: string): string {
-        const plainText = content.replaceAll(/<[^>]*>/g, "")
+        const plainText = stripHtmlTags(content)
         return plainText.length > 100
             ? `${plainText.slice(0, 100)}...`
             : plainText
