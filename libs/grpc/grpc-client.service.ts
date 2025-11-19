@@ -3,7 +3,7 @@ import * as grpc from "@grpc/grpc-js"
 import * as protoLoader from "@grpc/proto-loader"
 import { SentryService } from "libs/observability/sentry.service"
 import { envConfig } from "libs/env"
-import { join } from "path"
+import { join } from "node:path"
 
 export interface GrpcServiceConfig {
     name: string
@@ -114,7 +114,7 @@ export class GrpcClientService implements OnModuleDestroy {
             const client = new ServiceConstructor(
                 config.url,
                 grpc.credentials.createInsecure(),
-                config.options || {},
+                config.options ?? {},
             )
 
             this.clients.set(config.name, client)

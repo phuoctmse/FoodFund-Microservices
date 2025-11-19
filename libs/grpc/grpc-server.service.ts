@@ -7,7 +7,7 @@ import {
 import * as grpc from "@grpc/grpc-js"
 import * as protoLoader from "@grpc/proto-loader"
 import { SentryService } from "libs/observability/sentry.service"
-import { join } from "path"
+import { join } from "node:path"
 
 export interface GrpcServerConfig {
     port: number
@@ -27,7 +27,7 @@ export interface GrpcMethodHandler {
 @Injectable()
 export class GrpcServerService implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(GrpcServerService.name)
-    private server: grpc.Server
+    private readonly server: grpc.Server
     private config: GrpcServerConfig
 
     constructor(private readonly sentryService: SentryService) {
