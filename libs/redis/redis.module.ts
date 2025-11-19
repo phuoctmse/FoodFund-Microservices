@@ -1,4 +1,4 @@
-import { DynamicModule, Module } from "@nestjs/common"
+import { DynamicModule, Global, Module } from "@nestjs/common"
 import {
     ConfigurableModuleClass,
     MODULE_OPTIONS_TOKEN,
@@ -7,6 +7,7 @@ import { RedisService } from "./redis.service"
 import type { RedisModuleOptions } from "./redis.types"
 import { envConfig } from "@libs/env"
 
+@Global()
 @Module({})
 export class RedisModule extends ConfigurableModuleClass {
     static registerAsync(): DynamicModule {
@@ -24,6 +25,7 @@ export class RedisModule extends ConfigurableModuleClass {
         const dynamicModule = super.forRoot(options)
 
         return {
+            global: true,
             ...dynamicModule,
             providers: [
                 {
