@@ -46,7 +46,7 @@ export class AwsCognitoService {
     private readonly userPoolId: string
     private readonly clientId: string
     private readonly clientSecret?: string
-    
+
     // Cache TTL: 50 minutes (shorter than 60 min token expiration)
     private readonly CACHE_TTL_SECONDS = 50 * 60
 
@@ -121,7 +121,7 @@ export class AwsCognitoService {
             .update(token)
             .digest("hex")
             .substring(0, 24)
-        
+
         return `${prefix}:${tokenHash}`
     }
 
@@ -401,14 +401,11 @@ export class AwsCognitoService {
             // 1. Check cache first
             const cacheKey = this.generateCacheKey(token, "cognito:token")
             const cachedPayload = await this.redisService.get(cacheKey)
-            
+
             if (cachedPayload) {
-                this.logger.debug(`✅ Token validation cache HIT: ${cacheKey}`)
                 return JSON.parse(cachedPayload)
             }
-            
-            this.logger.debug(`⚠️  Token validation cache MISS: ${cacheKey}`)
-            
+
             // 2. Validate with AWS Cognito (cache miss)
             const jwtVerifier = CognitoJwtVerifier.create({
                 userPoolId: this.userPoolId,
@@ -417,16 +414,11 @@ export class AwsCognitoService {
             })
 
             const payload = await jwtVerifier.verify(token)
-            
+
             // 3. Cache the result (50 minutes TTL)
-            await this.redisService.set(
-                cacheKey,
-                JSON.stringify(payload),
-                { ex: this.CACHE_TTL_SECONDS }
-            )
-            
-            this.logger.debug(`💾 Token validation result cached: ${cacheKey}`)
-            
+            await this.redisService.set(cacheKey, JSON.stringify(payload), {
+                ex: this.CACHE_TTL_SECONDS,
+            })
             return payload
         } catch (error) {
             const errorMessage =
@@ -444,30 +436,23 @@ export class AwsCognitoService {
             // 1. Check cache first
             const cacheKey = this.generateCacheKey(accessToken, "cognito:user")
             const cachedUser = await this.redisService.get(cacheKey)
-            
+
             if (cachedUser) {
-                this.logger.debug(`✅ User info cache HIT: ${cacheKey}`)
                 return JSON.parse(cachedUser)
             }
-            
-            this.logger.debug(`⚠️  User info cache MISS: ${cacheKey}`)
-            
+
             // 2. Get from AWS Cognito (cache miss)
             const command = new GetUserCommand({
                 AccessToken: accessToken,
             })
 
             const response = await this.cognitoClient.send(command)
-            
+
             // 3. Cache the result (50 minutes TTL)
-            await this.redisService.set(
-                cacheKey,
-                JSON.stringify(response),
-                { ex: this.CACHE_TTL_SECONDS }
-            )
-            
-            this.logger.debug(`💾 User info cached: ${cacheKey}`)
-            
+            await this.redisService.set(cacheKey, JSON.stringify(response), {
+                ex: this.CACHE_TTL_SECONDS,
+            })
+
             return response
         } catch (error) {
             const errorMessage =
