@@ -7,10 +7,9 @@ import { User } from "./shared/model/user.model"
 import { EnvModule } from "@libs/env/env.module"
 import { OpenSearchModule } from "@libs/aws-opensearch"
 import { GrpcModule } from "@libs/grpc"
-import { QueueModule, QUEUE_NAMES } from "@libs/queue"
+import { QueueModule, QUEUE_NAMES, BullDatadogModule } from "@libs/queue"
 import { BullBoardModule } from "@bull-board/nestjs"
 import { ExpressAdapter } from "@bull-board/express"
-import { BullAdapter } from "@bull-board/api/bullAdapter"
 import { VietQRModule } from "@libs/vietqr"
 import { DatadogModule } from "@libs/observability"
 import { AwsCognitoModule } from "@libs/aws-cognito"
@@ -21,7 +20,12 @@ import { SpacesUploadService } from "@libs/s3-storage"
 import { CampaignCacheService } from "./application/services/campaign/campaign-cache.service"
 import { CampaignService } from "./application/services/campaign/campaign.service"
 import { CampaignSettlementService } from "./application/services/campaign/campaign-settlement.service"
-import { AuthorizationService, UserClientService, UserDataLoader, UserResolver } from "./shared"
+import {
+    AuthorizationService,
+    UserClientService,
+    UserDataLoader,
+    UserResolver,
+} from "./shared"
 import { CampaignQueryResolver } from "./presentation/graphql/campaign/queries"
 import { CampaignStatsQueryResolver } from "./presentation/graphql/campaign/queries/campaign-stats-query.resolver"
 import { CampaignMutationResolver } from "./presentation/graphql/campaign/mutations"
@@ -50,20 +54,65 @@ import { DonationAdminService } from "./application/services/donation/admin"
 import { DonorRepository } from "./application/repositories/donor.repository"
 import { DonorMutationResolver } from "./presentation/graphql/donation/donor/mutations/donor-mutation.resolver"
 import { DonorQueryResolver } from "./presentation/graphql/donation/donor/queries/donor-query.resolver"
-import { AdminMutationResolver, AdminQueryResolver } from "./presentation/graphql/donation/admin"
+import {
+    AdminMutationResolver,
+    AdminQueryResolver,
+} from "./presentation/graphql/donation/admin"
 import { PostRepository } from "./application/repositories/post.repository"
 import { PostLikeRepository } from "./application/repositories/post-like.repository"
 import { PostCommentRepository } from "./application/repositories/post-comment.repository"
 import { PostService } from "./application/services/post/post.service"
 import { PostLikeService } from "./application/services/post/post-like.service"
 import { PostCommentService } from "./application/services/post/post-comment.service"
-import { PostCommentQueryResolver, PostLikeQueryResolver, PostQueryResolver } from "./presentation/graphql/post/queries"
-import { PostCommentMutationResolver, PostLikeMutationResolver, PostMutationResolver } from "./presentation/graphql/post/mutations"
+import {
+    PostCommentQueryResolver,
+    PostLikeQueryResolver,
+    PostQueryResolver,
+} from "./presentation/graphql/post/queries"
+import {
+    PostCommentMutationResolver,
+    PostLikeMutationResolver,
+    PostMutationResolver,
+} from "./presentation/graphql/post/mutations"
 import { PostLikeDataLoader } from "./application/dataloaders"
 import { PostCacheService } from "./application/services/post/post-cache.service"
 import { CampaignSchedulerService } from "./application/workers/campaign/schedulers"
 import { PostLikeProcessor } from "./application/processors/post-like.processor"
+import {
+    NotificationCacheService,
+    NotificationService,
+} from "./application/services/notification"
+import { NotificationRepository } from "./application/repositories/notification.repository"
+import {
+    CampaignApprovedBuilder,
+    CampaignCancelledBuilder,
+    CampaignCompletedBuilder,
+    CampaignDonationReceivedBuilder,
+    CampaignNewPostBuilder,
+    CampaignRejectedBuilder,
+    DeliveryTaskAssignedBuilder,
+    IngredientRequestApprovedBuilder,
+    NotificationBuilderFactory,
+    PostCommentBuilder,
+    PostLikeBuilder,
+    PostReplyBuilder,
+    SystemAnnouncementBuilder,
+} from "./application/builders/notification"
+import { NotificationQueryResolver } from "./presentation/graphql/notification/queries"
+import { NotificationMutationResolver } from "./presentation/graphql/notification/mutations"
+import { NotificationSubscriptionResolver } from "./presentation/graphql/notification/subscriptions"
+import { BullModule, getQueueToken } from "@nestjs/bull"
+import { PostLikeQueue } from "./application/workers/post-like/post-like.queue"
+import { NotificationQueue } from "./application/workers/notification/notification.queue"
 import { BrevoEmailService } from "@libs/email"
+import { NotificationProcessor } from "./application/processors"
+import {
+    CampaignNotificationHandler,
+    PostNotificationHandler,
+} from "./application/handlers"
+import { CampaignFollowerService } from "./application/services/campaign/campaign-follower.service"
+import { Queue } from "bull"
+import { PubSubModule } from "@libs/pubsub"
 
 @Module({
     imports: [
@@ -96,24 +145,39 @@ import { BrevoEmailService } from "@libs/email"
         ScheduleModule.forRoot(),
         GrpcModule,
         QueueModule,
+        PubSubModule.forRoot(),
         BullBoardModule.forRoot({
             route: "/admin/queues",
             adapter: ExpressAdapter,
         }),
-        BullBoardModule.forFeature({
-            name: QUEUE_NAMES.POST_LIKES,
-            adapter: BullAdapter,
+        BullDatadogModule.forRootAsync({
+            imports: [
+                BullModule.registerQueue({ name: QUEUE_NAMES.CAMPAIGN_JOBS }),
+            ],
+            inject: [getQueueToken(QUEUE_NAMES.CAMPAIGN_JOBS)],
+            useFactory: (campaignQueue: Queue) => ({
+                serviceName: "campaign-service",
+                queues: [{ name: "campaign-jobs", queue: campaignQueue }],
+            }),
         }),
         OpenSearchModule,
         VietQRModule,
         AuthLibModule,
-        EventEmitterModule.forRoot(),
+        EventEmitterModule.forRoot({
+            wildcard: false,
+            delimiter: ".",
+            newListener: false,
+            removeListener: false,
+            maxListeners: 10,
+            verboseMemoryLeak: false,
+            ignoreErrors: false,
+        }),
     ],
     controllers: [
         HealthController,
         CampaignGrpcService,
         DonationWebhookController,
-        SepayWebhookController
+        SepayWebhookController,
     ],
     providers: [
         PrismaCampaignService,
@@ -129,6 +193,7 @@ import { BrevoEmailService } from "@libs/email"
         CampaignCacheService,
         CampaignService,
         CampaignSettlementService,
+        CampaignFollowerService,
         CampaignCategoryCacheService,
         CampaignCategoryService,
         CampaignPhaseService,
@@ -142,6 +207,8 @@ import { BrevoEmailService } from "@libs/email"
         PostLikeService,
         PostCommentService,
         PostCacheService,
+        NotificationService,
+        NotificationCacheService,
 
         UserResolver,
         CampaignQueryResolver,
@@ -161,6 +228,9 @@ import { BrevoEmailService } from "@libs/email"
         PostLikeMutationResolver,
         PostCommentQueryResolver,
         PostCommentMutationResolver,
+        NotificationQueryResolver,
+        NotificationMutationResolver,
+        NotificationSubscriptionResolver,
 
         CampaignRepository,
         CampaignCategoryRepository,
@@ -169,13 +239,34 @@ import { BrevoEmailService } from "@libs/email"
         PostRepository,
         PostLikeRepository,
         PostCommentRepository,
+        NotificationRepository,
 
         CampaignStatusJob,
         PostLikeProcessor,
+        NotificationProcessor,
+        PostLikeQueue,
+        NotificationQueue,
 
         UserDataLoader,
         PostLikeDataLoader,
-        BrevoEmailService
+        BrevoEmailService,
+
+        CampaignNotificationHandler,
+        PostNotificationHandler,
+
+        NotificationBuilderFactory,
+        CampaignApprovedBuilder,
+        CampaignRejectedBuilder,
+        CampaignCompletedBuilder,
+        CampaignCancelledBuilder,
+        CampaignDonationReceivedBuilder,
+        CampaignNewPostBuilder,
+        PostLikeBuilder,
+        PostCommentBuilder,
+        PostReplyBuilder,
+        IngredientRequestApprovedBuilder,
+        DeliveryTaskAssignedBuilder,
+        SystemAnnouncementBuilder,
     ],
 })
 export class AppModule {}
