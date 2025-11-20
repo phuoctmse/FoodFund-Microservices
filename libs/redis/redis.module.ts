@@ -17,6 +17,7 @@ export class RedisModule extends ConfigurableModuleClass {
             port: env.redis.port,
             password: env.redis.password,
             username: env.redis.username,
+            tls: {}
         })
     }
 
