@@ -1,4 +1,4 @@
-import DataLoader from "dataloader"
+import * as DataLoader from "dataloader"
 import { Injectable, Scope } from "@nestjs/common"
 import {
     OrganizationRepository,
