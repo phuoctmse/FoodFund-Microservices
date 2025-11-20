@@ -159,6 +159,8 @@ export interface EnvironmentConfig {
     brevo: BrevoConfig
 
     badge: Badge
+
+    frontEndUrl: string
 }
 
 export interface EnvModuleOptions {

@@ -453,8 +453,100 @@ export class UserClientService {
                 `[gRPC] ❌ Failed to update donor stats for ${data.donorId}:`,
                 error,
             )
-            // Don't throw - this is non-critical for donation flow
-            // Badge award will still work, just with extra queries
+        }
+    }
+
+    async getFundraiserWalletBalance(userId: string): Promise<bigint> {
+        try {
+            this.logger.log(
+                `[gRPC] Getting wallet balance for fundraiser ${userId}`,
+            )
+
+            const response = await this.grpcClient.callUserService<
+                { userId: string },
+                {
+                    success: boolean
+                    balance?: string
+                    error?: string
+                }
+            >(
+                "GetFundraiserWalletBalance",
+                { userId },
+                { timeout: 3000, retries: 2 },
+            )
+
+            if (!response.success || !response.balance) {
+                throw new Error(
+                    response.error || "Failed to get wallet balance",
+                )
+            }
+
+            return BigInt(response.balance)
+        } catch (error) {
+            this.logger.error(
+                `[gRPC] ❌ Failed to get wallet balance for ${userId}:`,
+                error,
+            )
+            return BigInt(0) // Return 0 on error
+        }
+    }
+
+    /**
+     * Debit fundraiser wallet (for campaign auto-transfer)
+     */
+    async debitFundraiserWallet(data: {
+        userId: string
+        campaignId: string
+        amount: bigint
+        description?: string
+    }): Promise<{ success: boolean; newBalance: bigint }> {
+        try {
+            this.logger.log(
+                `[gRPC] Debiting ${data.amount} from fundraiser ${data.userId} for campaign ${data.campaignId}`,
+            )
+
+            const response = await this.grpcClient.callUserService<
+                {
+                    userId: string
+                    campaignId: string
+                    amount: string
+                    description?: string
+                },
+                {
+                    success: boolean
+                    walletTransactionId?: string
+                    newBalance?: string
+                    error?: string
+                }
+            >(
+                "DebitFundraiserWallet",
+                {
+                    userId: data.userId,
+                    campaignId: data.campaignId,
+                    amount: data.amount.toString(),
+                    description: data.description,
+                },
+                { timeout: 5000, retries: 3 },
+            )
+
+            if (!response.success) {
+                throw new Error(response.error || "Failed to debit wallet")
+            }
+
+            this.logger.log(
+                `[gRPC] ✅ Wallet debited - Transaction: ${response.walletTransactionId}, New balance: ${response.newBalance}`,
+            )
+
+            return {
+                success: true,
+                newBalance: BigInt(response.newBalance || "0"),
+            }
+        } catch (error) {
+            this.logger.error(
+                `[gRPC] ❌ Failed to debit wallet for ${data.userId}:`,
+                error,
+            )
+            throw error // This is critical - must throw
         }
     }
 }

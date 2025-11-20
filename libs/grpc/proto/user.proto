@@ -45,6 +45,10 @@ service UserService {
   
   // Get user with cached stats (for badge optimization)
   rpc GetUserWithStats(GetUserWithStatsRequest) returns (GetUserWithStatsResponse);
+  
+  // Wallet operations for campaign auto-transfer
+  rpc GetFundraiserWalletBalance(GetWalletBalanceRequest) returns (GetWalletBalanceResponse);
+  rpc DebitFundraiserWallet(DebitWalletRequest) returns (DebitWalletResponse);
 }
 
 // Messages
@@ -143,6 +147,32 @@ message GetUserWithStatsResponse {
   int32 donation_count = 4;
   string last_donation_at = 5; // ISO timestamp
   string error = 6;
+}
+
+// Wallet Balance
+message GetWalletBalanceRequest {
+  string user_id = 1;
+}
+
+message GetWalletBalanceResponse {
+  bool success = 1;
+  string balance = 2; // BigInt as string
+  string error = 3;
+}
+
+// Debit Wallet (for campaign auto-transfer)
+message DebitWalletRequest {
+  string user_id = 1;
+  string campaign_id = 2;
+  string amount = 3; // BigInt as string
+  string description = 4;
+}
+
+message DebitWalletResponse {
+  bool success = 1;
+  string wallet_transaction_id = 2;
+  string new_balance = 3; // BigInt as string
+  string error = 4;
 }
 
 message GetUserResponse {

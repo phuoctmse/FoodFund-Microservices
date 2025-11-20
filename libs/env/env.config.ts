@@ -195,7 +195,9 @@ export const envConfig = (): EnvironmentConfig => ({
         goldId: process.env.BADGE_GOLD_ID as string,
         platinumId: process.env.BADGE_PLATINUM_ID as string,
         diamondId: process.env.BADGE_DIAMOND_ID as string,
-    }
+    },
+
+    frontEndUrl: process.env.FRONTEND_URL as string,
 })
 
 // Utility functions

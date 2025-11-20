@@ -193,6 +193,30 @@ interface GetUserWithStatsResponse {
     error?: string
 }
 
+interface GetWalletBalanceRequest {
+    userId: string
+}
+
+interface GetWalletBalanceResponse {
+    success: boolean
+    balance?: string
+    error?: string
+}
+
+interface DebitWalletRequest {
+    userId: string
+    campaignId: string
+    amount: string
+    description?: string
+}
+
+interface DebitWalletResponse {
+    success: boolean
+    walletTransactionId?: string
+    newBalance?: string
+    error?: string
+}
+
 const ROLE_MAP = {
     DONOR: 0,
     FUNDRAISER: 1,
@@ -1027,6 +1051,105 @@ export class UserGrpcController {
             return {
                 success: false,
                 error: error.message || "Failed to fetch user stats",
+            }
+        }
+    }
+
+    @GrpcMethod("UserService", "GetFundraiserWalletBalance")
+    async getFundraiserWalletBalance(
+        data: GetWalletBalanceRequest,
+    ): Promise<GetWalletBalanceResponse> {
+        const { userId } = data
+
+        this.logger.log(
+            `[GetFundraiserWalletBalance] Fetching balance for user ${userId}`,
+        )
+
+        if (!userId) {
+            return {
+                success: false,
+                error: "userId is required",
+            }
+        }
+
+        try {
+            const balance = await this.walletRepository.getWalletBalance(
+                userId,
+                Wallet_Type.FUNDRAISER,
+            )
+
+            this.logger.log(
+                `[GetFundraiserWalletBalance] ✅ Balance: ${balance}`,
+            )
+
+            return {
+                success: true,
+                balance: balance.toString(),
+            }
+        } catch (error) {
+            this.logger.error(
+                "[GetFundraiserWalletBalance] ❌ Failed:",
+                error.stack || error,
+            )
+            return {
+                success: false,
+                error: error.message || "Failed to fetch wallet balance",
+            }
+        }
+    }
+
+    @GrpcMethod("UserService", "DebitFundraiserWallet")
+    async debitFundraiserWallet(
+        data: DebitWalletRequest,
+    ): Promise<DebitWalletResponse> {
+        const { userId, campaignId, amount, description } = data
+
+        this.logger.log(
+            `[DebitFundraiserWallet] Debiting ${amount} from user ${userId} for campaign ${campaignId}`,
+        )
+
+        if (!userId || !campaignId || !amount) {
+            return {
+                success: false,
+                error: "userId, campaignId, and amount are required",
+            }
+        }
+
+        try {
+            const transaction = await this.walletRepository.debitWallet({
+                userId,
+                walletType: Wallet_Type.FUNDRAISER,
+                amount: BigInt(amount),
+                transactionType: Transaction_Type.WITHDRAWAL,
+                campaignId,
+                description:
+                    description ||
+                    `Auto-transfer to campaign ${campaignId} on approval`,
+            })
+
+            // Get new balance
+            const newBalance = await this.walletRepository.getWalletBalance(
+                userId,
+                Wallet_Type.FUNDRAISER,
+            )
+
+            this.logger.log(
+                `[DebitFundraiserWallet] ✅ Debited ${amount}, New balance: ${newBalance}`,
+            )
+
+            return {
+                success: true,
+                walletTransactionId: transaction.id,
+                newBalance: newBalance.toString(),
+            }
+        } catch (error) {
+            this.logger.error(
+                "[DebitFundraiserWallet] ❌ Failed:",
+                error.stack || error,
+            )
+            return {
+                success: false,
+                error: error.message || "Failed to debit wallet",
             }
         }
     }

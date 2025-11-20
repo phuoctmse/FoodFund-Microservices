@@ -18,6 +18,7 @@ import { QUEUE_NAMES } from "./constants"
                         port: env.redis.port,
                         password: env.redis.password,
                         username: env.redis.username,
+                        tls: {}
                     },
                     defaultJobOptions: {
                         attempts: 3,

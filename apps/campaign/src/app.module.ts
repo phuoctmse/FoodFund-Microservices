@@ -21,6 +21,7 @@ import { SpacesUploadService } from "@libs/s3-storage"
 import { CampaignCacheService } from "./application/services/campaign/campaign-cache.service"
 import { CampaignService } from "./application/services/campaign/campaign.service"
 import { CampaignSettlementService } from "./application/services/campaign/campaign-settlement.service"
+import { CampaignEmailService } from "./application/services/campaign/campaign-email.service"
 import { AuthorizationService, UserClientService, UserDataLoader, UserResolver } from "./shared"
 import { CampaignQueryResolver } from "./presentation/graphql/campaign/queries"
 import { CampaignStatsQueryResolver } from "./presentation/graphql/campaign/queries/campaign-stats-query.resolver"
@@ -130,6 +131,8 @@ import { BrevoEmailService } from "@libs/email"
         CampaignCacheService,
         CampaignService,
         CampaignSettlementService,
+        CampaignEmailService,
+        BrevoEmailService,
         CampaignCategoryCacheService,
         CampaignCategoryService,
         CampaignPhaseService,
