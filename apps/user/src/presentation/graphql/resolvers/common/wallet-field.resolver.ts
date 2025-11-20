@@ -1,11 +1,11 @@
 import { Parent, ResolveField, Resolver } from "@nestjs/graphql"
 import { WalletModel } from "../../models/wallet.model"
 import { UserProfileSchema } from "../../../../domain/entities/user.model"
-import { UserCommonRepository } from "../../../../application/repositories"
+import { UserRepository } from "../../../../application/repositories"
 
 @Resolver(() => WalletModel)
 export class WalletFieldResolver {
-    constructor(private readonly userRepository: UserCommonRepository) {}
+    constructor(private readonly userRepository: UserRepository) {}
 
     @ResolveField(() => UserProfileSchema, {
         description: "Resolve user information for the wallet owner",

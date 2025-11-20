@@ -47,7 +47,6 @@ export class BadgeMutationResolver {
                 this.resource,
                 1,
                 [input.fileType || "png"],
-                undefined, // No campaign phase for badges
             )
 
         const uploadUrl = uploadResults[0]

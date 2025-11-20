@@ -24,12 +24,7 @@ export class BadgeEmailService {
         try {
             const {
                 userEmail,
-                userName,
-                badgeName,
-                badgeDescription,
-                badgeIconUrl,
-                totalDonated,
-                donationCount,
+                badgeName
             } = data
 
             this.logger.log(
@@ -47,7 +42,6 @@ export class BadgeEmailService {
                 `✅ Badge award email sent successfully to ${userEmail}`,
             )
         } catch (error) {
-            // Non-blocking: Log error but don't throw
             this.logger.error(
                 `Failed to send badge award email to ${data.userEmail}:`,
                 error.message,

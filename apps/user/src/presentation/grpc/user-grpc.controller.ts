@@ -1,8 +1,7 @@
 import { Controller, Logger } from "@nestjs/common"
 import { GrpcMethod } from "@nestjs/microservices"
 import {
-    UserCommonRepository,
-    UserAdminRepository,
+    UserRepository,
     WalletRepository,
     OrganizationRepository,
     BadgeRepository,
@@ -283,8 +282,7 @@ export class UserGrpcController {
     private readonly logger = new Logger(UserGrpcController.name)
 
     constructor(
-        private readonly userCommonRepository: UserCommonRepository,
-        private readonly userAdminRepository: UserAdminRepository,
+        private readonly userRepository: UserRepository,
         private readonly walletRepository: WalletRepository,
         private readonly organizationRepository: OrganizationRepository,
         private readonly walletTransactionService: WalletTransactionService,
@@ -400,7 +398,7 @@ export class UserGrpcController {
 
             const finalUsername = generateUniqueUsername(email)
 
-            const user = await this.userCommonRepository.createUser({
+            const user = await this.userRepository.createUser({
                 cognito_id: cognitoId,
                 email,
                 user_name: finalUsername,
@@ -430,7 +428,7 @@ export class UserGrpcController {
             }
 
             const user =
-                await this.userCommonRepository.findUserByCognitoId(cognitoId)
+                await this.userRepository.findUserByCognitoId(cognitoId)
 
             if (!user) {
                 return this.createErrorResponse("User not found")
@@ -457,7 +455,7 @@ export class UserGrpcController {
             if (avatarUrl) updateData.avatar_url = avatarUrl
             if (bio) updateData.bio = bio
 
-            const user = await this.userAdminRepository.updateUser(
+            const user = await this.userRepository.updateUser(
                 id,
                 updateData,
             )
@@ -482,7 +480,7 @@ export class UserGrpcController {
             }
 
             const user =
-                await this.userCommonRepository.findUserByCognitoId(cognitoId)
+                await this.userRepository.findUserByCognitoId(cognitoId)
 
             return {
                 exists: !!user,
@@ -509,7 +507,7 @@ export class UserGrpcController {
                 return this.createErrorResponse("Email is required")
             }
 
-            const user = await this.userCommonRepository.findUserByEmail(email)
+            const user = await this.userRepository.findUserByEmail(email)
 
             if (!user) {
                 return this.createErrorResponse("User not found")
@@ -549,7 +547,7 @@ export class UserGrpcController {
             "CreditFundraiserWallet",
             async () => {
                 const user =
-                    await this.userCommonRepository.findUserById(fundraiserId)
+                    await this.userRepository.findUserById(fundraiserId)
                 if (!user) {
                     this.logger.error(
                         `[CreditFundraiserWallet] ❌ Fundraiser ${fundraiserId} not found`,
@@ -613,7 +611,7 @@ export class UserGrpcController {
 
         return this.executeWalletOperation("CreditAdminWallet", async () => {
             // Verify admin user exists
-            const user = await this.userCommonRepository.findUserById(adminId)
+            const user = await this.userRepository.findUserById(adminId)
             if (!user) {
                 throw new Error(`Admin ${adminId} not found`)
             }
@@ -664,7 +662,7 @@ export class UserGrpcController {
             }
         }
 
-        const user = await this.userCommonRepository.findUserBasicInfo(userId)
+        const user = await this.userRepository.findUserBasicInfo(userId)
 
         if (!user) {
             return {
@@ -723,7 +721,7 @@ export class UserGrpcController {
             }
         }
 
-        const user = await this.userCommonRepository.findUserBasicInfo(userId)
+        const user = await this.userRepository.findUserBasicInfo(userId)
 
         if (!user) {
             return {
@@ -928,7 +926,7 @@ export class UserGrpcController {
             }
 
             const users =
-                await this.userCommonRepository.findUsersByIds(userIds)
+                await this.userRepository.findUsersByIds(userIds)
 
             const mappedUsers = users.map((user) => ({
                 id: user.id,
@@ -965,7 +963,7 @@ export class UserGrpcController {
             }
         }
 
-        const user = await this.userCommonRepository.findUserFullName(userId)
+        const user = await this.userRepository.findUserFullName(userId)
 
         if (!user) {
             return {
@@ -1109,7 +1107,7 @@ export class UserGrpcController {
         }
 
         try {
-            const updatedUser = await this.userCommonRepository.updateDonorStats({
+            const updatedUser = await this.userRepository.updateDonorStats({
                 donorId,
                 amountToAdd: BigInt(amountToAdd),
                 incrementCount: incrementCount || 1,
@@ -1153,7 +1151,7 @@ export class UserGrpcController {
         }
 
         try {
-            const user = await this.userCommonRepository.findUserById(id)
+            const user = await this.userRepository.findUserById(id)
 
             if (!user) {
                 this.logger.warn(`[GetUserWithStats] User not found: ${id}`)

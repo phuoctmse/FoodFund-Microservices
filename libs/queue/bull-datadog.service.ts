@@ -10,13 +10,13 @@ import { QUEUE_NAMES } from "./constants"
 export class BullDatadogService implements OnModuleInit {
     private readonly logger = new Logger(BullDatadogService.name)
     private statsd: InstanceType<typeof StatsD>
-    private env = envConfig()
+    private readonly env = envConfig()
     private lastErrorLog = 0
 
     constructor(
-        @InjectQueue(QUEUE_NAMES.POST_LIKES) private postLikeQueue: Queue,
+        @InjectQueue(QUEUE_NAMES.POST_LIKES) private readonly postLikeQueue: Queue,
         @InjectQueue(QUEUE_NAMES.CAMPAIGN_JOBS)
-        private campaignJobsQueue: Queue,
+        private readonly campaignJobsQueue: Queue,
     ) {}
 
     onModuleInit() {

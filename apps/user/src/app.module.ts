@@ -28,11 +28,6 @@ import { BrevoEmailService } from "@libs/email"
 import {
     UserRepository,
     OrganizationRepository,
-    UserAdminRepository,
-    UserCommonRepository,
-    KitchenStaffRepository,
-    FundraiserRepository,
-    DeliveryStaffRepository,
     WalletRepository,
     BadgeRepository,
     UserBadgeRepository,
@@ -102,11 +97,6 @@ import { HealthController } from "./presentation/http/controllers"
         // Domain - Repositories
         UserRepository,
         OrganizationRepository,
-        UserAdminRepository,
-        UserCommonRepository,
-        KitchenStaffRepository,
-        FundraiserRepository,
-        DeliveryStaffRepository,
         WalletRepository,
         BadgeRepository,
         UserBadgeRepository,
