@@ -3,44 +3,44 @@ import { Field, ObjectType, Int } from "@nestjs/graphql"
 @ObjectType()
 export class Badge {
     @Field()
-    id: string
+        id: string
 
     @Field()
-    name: string
+        name: string
 
     @Field()
-    description: string
+        description: string
 
     @Field()
-    icon_url: string
+        icon_url: string
 
     @Field(() => Int)
-    sort_order: number
+        sort_order: number
 
     @Field()
-    is_active: boolean
+        is_active: boolean
 
     @Field()
-    created_at: Date
+        created_at: Date
 
     @Field()
-    updated_at: Date
+        updated_at: Date
 }
 
 @ObjectType()
 export class UserBadge {
     @Field()
-    id: string
+        id: string
 
     @Field()
-    user_id: string
+        user_id: string
 
     @Field()
-    badge_id: string
+        badge_id: string
 
     @Field(() => Badge)
-    badge: Badge
+        badge: Badge
 
     @Field()
-    awarded_at: Date
+        awarded_at: Date
 }
