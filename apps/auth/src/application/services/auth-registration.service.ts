@@ -6,6 +6,7 @@ import {
     ConfirmSignUpResponse,
     ForgotPasswordResponse,
     ResetPasswordResponse,
+    ResendCodeResponse,
 } from "../../domain/entities"
 import { AuthErrorHelper } from "../../shared/helpers"
 import { GrpcClientService } from "libs/grpc"
@@ -14,8 +15,8 @@ import { Role } from "../../domain/enums/role.enum"
 import { SentryService } from "libs/observability"
 
 @Injectable()
-export class AuthRegistrationService {
-    private readonly logger = new Logger(AuthRegistrationService.name)
+export class RegistrationService {
+    private readonly logger = new Logger(RegistrationService.name)
 
     constructor(
         private readonly awsCognitoService: AwsCognitoService,
@@ -174,7 +175,7 @@ export class AuthRegistrationService {
 
     async resendConfirmationCode(
         email: string,
-    ): Promise<{ emailSent: boolean; message: string }> {
+    ): Promise<ResendCodeResponse> {
         try {
             this.logger.log(`Resending confirmation code for: ${email}`)
 

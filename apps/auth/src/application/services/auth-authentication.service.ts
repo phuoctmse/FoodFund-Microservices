@@ -7,13 +7,14 @@ import {
     AuthUser,
     SignInResponse,
     RefreshTokenResponse,
+    SignOutResponse,
 } from "../../domain/entities"
 import { IUserService, USER_SERVICE_TOKEN } from "../../domain/interfaces"
 import { AuthErrorHelper } from "../../shared/helpers"
 
 @Injectable()
-export class AuthAuthenticationService {
-    private readonly logger = new Logger(AuthAuthenticationService.name)
+export class AuthenticationService {
+    private readonly logger = new Logger(AuthenticationService.name)
 
     constructor(
         private readonly awsCognitoService: AwsCognitoService,
@@ -113,7 +114,7 @@ export class AuthAuthenticationService {
 
     async signOut(
         accessToken: string,
-    ): Promise<{ success: boolean; message: string }> {
+    ): Promise<SignOutResponse> {
         try {
             this.logger.log("Processing sign out request")
 
@@ -124,6 +125,7 @@ export class AuthAuthenticationService {
             return {
                 success: result.success,
                 message: "User signed out successfully",
+                timestamp: new Date().toISOString()
             }
         } catch (error) {
             this.logger.error("Sign out failed:", error)

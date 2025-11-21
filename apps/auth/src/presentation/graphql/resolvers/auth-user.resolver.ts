@@ -20,17 +20,17 @@ import {
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
 import { UseGuards } from "@nestjs/common"
 import { CurrentUser } from "libs/auth"
-import { AuthUserService } from "../../../application/services"
+import { UserService } from "../../../application/services"
 
 @Resolver(() => AuthUser)
-export class AuthUserResolver {
-    constructor(private readonly authUserService: AuthUserService) {}
+export class UserResolver {
+    constructor(private readonly userService: UserService) {}
 
     @Query(() => AuthUser, { nullable: true })
     async getUserByCognitoId(
         @Args({ name: "id", type: () => ID }) id: string,
     ): Promise<AuthUser | null> {
-        return this.authUserService.getUserById(id)
+        return this.userService.getUserById(id)
     }
 
     // **FEDERATION**
@@ -39,7 +39,7 @@ export class AuthUserResolver {
         __typename: string
         id: string
     }): Promise<AuthUser | null> {
-        return this.authUserService.getUserById(reference.id)
+        return this.userService.getUserById(reference.id)
     }
 
     @Mutation(() => ChangePasswordResponse)
@@ -48,7 +48,7 @@ export class AuthUserResolver {
         @CurrentUser() { id }: { id: string },
         @Args("input") input: ChangePasswordInput,
     ): Promise<ChangePasswordResponse> {
-        const success = await this.authUserService.changePassword(id, input)
+        const success = await this.userService.changePassword(id, input)
         return {
             success,
             message: success
@@ -64,13 +64,13 @@ export class AuthUserResolver {
         @CurrentUser() { id }: { id: string },
         @Args("input") input: CheckCurrentPasswordInput,
     ): Promise<CheckPasswordResponse> {
-        return this.authUserService.checkCurrentPassword(id, input)
+        return this.userService.checkCurrentPassword(id, input)
     }
 
     @Mutation(() => GoogleAuthResponse)
     async googleAuthentication(
         @Args("input") input: GoogleAuthInput,
     ): Promise<GoogleAuthResponse> {
-        return this.authUserService.googleAuthentication(input)
+        return this.userService.googleAuthentication(input)
     }
 }
