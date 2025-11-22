@@ -1,7 +1,4 @@
-import {
-    UserAdminRepository,
-    UserCommonRepository,
-} from "../../repositories"
+import { UserRepository } from "../../repositories"
 import { Role } from "@libs/databases"
 import { Injectable, Logger, NotFoundException } from "@nestjs/common"
 import { AwsCognitoService } from "libs/aws-cognito"
@@ -13,8 +10,7 @@ export class UserAdminService {
 
     constructor(
         private readonly awsCognitoService: AwsCognitoService,
-        private readonly userAdminRepository: UserAdminRepository,
-        private readonly userCommonRepository: UserCommonRepository,
+        private readonly userRepository: UserRepository,
     ) {}
 
     async updateStaffAccount(
@@ -25,7 +21,7 @@ export class UserAdminService {
         this.logger.log(`Admin ${adminUserId} updating staff ${staffId}`)
 
         // Validate admin role
-        const admin = await this.userCommonRepository.findUserById(adminUserId)
+        const admin = await this.userRepository.findUserById(adminUserId)
         if (!admin || admin.role !== Role.ADMIN) {
             throw new Error(
                 "Unauthorized: Only admins can update staff accounts",
@@ -33,7 +29,7 @@ export class UserAdminService {
         }
 
         // Validate staff exists and is staff role
-        const staff = await this.userCommonRepository.findUserById(staffId)
+        const staff = await this.userRepository.findUserById(staffId)
         if (!staff) {
             throw new NotFoundException("Staff not found")
         }
@@ -47,14 +43,14 @@ export class UserAdminService {
             throw new Error("Can only update staff accounts")
         }
 
-        return this.userAdminRepository.updateUser(staffId, updateData)
+        return this.userRepository.updateUser(staffId, updateData)
     }
 
     async getAllAccounts(skip: number = 0, take: number = 10) {
         this.logger.log(
             `Getting all accounts with skip: ${skip}, take: ${take}`,
         )
-        return this.userAdminRepository.findAllUsers(skip, take)
+        return this.userRepository.findAllUsers(skip, take)
     }
 
     async updateAccountStatus(
@@ -67,7 +63,7 @@ export class UserAdminService {
         )
 
         // Validate admin role
-        const admin = await this.userCommonRepository.findUserById(adminUserId)
+        const admin = await this.userRepository.findUserById(adminUserId)
         if (!admin || admin.role !== Role.ADMIN) {
             throw new Error(
                 "Unauthorized: Only admins can update account status",
@@ -75,7 +71,7 @@ export class UserAdminService {
         }
 
         // Cannot deactivate other admins
-        const targetUser = await this.userCommonRepository.findUserById(userId)
+        const targetUser = await this.userRepository.findUserById(userId)
         if (!targetUser) {
             throw new NotFoundException("User not found")
         }
@@ -88,27 +84,7 @@ export class UserAdminService {
             is_active: isActive,
         }
 
-        return this.userAdminRepository.updateUser(userId, updateData)
-    }
-
-    async getStaffAccounts() {
-        this.logger.log("Getting all staff accounts")
-        const staffRoles = [
-            Role.KITCHEN_STAFF,
-            Role.DELIVERY_STAFF,
-            Role.FUNDRAISER,
-        ]
-        const allStaff = await Promise.all(
-            staffRoles.map((role) =>
-                this.userAdminRepository.getUsersByRole(role),
-            ),
-        )
-        return allStaff.flat()
-    }
-
-    async getDonorAccounts() {
-        this.logger.log("Getting all donor accounts")
-        return this.userAdminRepository.getUsersByRole(Role.DONOR)
+        return this.userRepository.updateUser(userId, updateData)
     }
 
     async updateUserAccount(
@@ -119,7 +95,7 @@ export class UserAdminService {
 
         // Check if user exists
         const existingUser =
-            await this.userCommonRepository.findUserById(userId)
+            await this.userRepository.findUserById(userId)
         if (!existingUser) {
             throw new NotFoundException(`User with ID ${userId} not found`)
         }
@@ -133,7 +109,7 @@ export class UserAdminService {
         }
 
         // Update in database
-        const updatedUser = await this.userCommonRepository.updateUser(
+        const updatedUser = await this.userRepository.updateUser(
             userId,
             updateData,
         )
@@ -215,7 +191,7 @@ export class UserAdminService {
         this.logger.log(`Getting admin profile for cognito_id: ${cognitoId}`)
 
         const admin =
-            await this.userCommonRepository.findUserByCognitoId(cognitoId)
+            await this.userRepository.findUserByCognitoId(cognitoId)
         if (!admin) {
             throw new NotFoundException("Admin not found")
         }
@@ -233,6 +209,6 @@ export class UserAdminService {
         this.logger.log(
             `Admin getting all users with offset: ${offset}, limit: ${limit}`,
         )
-        return this.userAdminRepository.findAllUsers(offset, limit)
+        return this.userRepository.findAllUsers(offset, limit)
     }
 }

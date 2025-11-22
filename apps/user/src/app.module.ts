@@ -6,6 +6,7 @@ import { EnvModule } from "@libs/env/env.module"
 import { AwsCognitoModule } from "@libs/aws-cognito"
 import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 import { GrpcModule } from "@libs/grpc"
+import { SpacesUploadService } from "@libs/s3-storage"
 import { PrismaClient } from "./generated/user-client"
 import {
     UserAdminService,
@@ -21,15 +22,15 @@ import {
     WalletService,
 } from "./application/services"
 import { WalletTransactionService } from "./application/services/common/wallet-transaction.service"
+import { BadgeService, UserBadgeService } from "./application/services/badge"
+import { BadgeEmailService } from "./application/services/badge/badge-email.service"
+import { BrevoEmailService } from "@libs/email"
 import {
     UserRepository,
     OrganizationRepository,
-    UserAdminRepository,
-    UserCommonRepository,
-    KitchenStaffRepository,
-    FundraiserRepository,
-    DeliveryStaffRepository,
     WalletRepository,
+    BadgeRepository,
+    UserBadgeRepository,
 } from "./application/repositories"
 import { PrismaUserService } from "./infrastructure/database"
 import { UserGrpcController } from "./presentation/grpc"
@@ -45,6 +46,9 @@ import {
     DeliveryStaffProfileResolver,
     WalletQueryResolver,
     WalletFieldResolver,
+    BadgeQueryResolver,
+    BadgeMutationResolver,
+    UserFieldResolver,
 } from "./presentation/graphql/resolvers"
 import { HealthController } from "./presentation/http/controllers"
 
@@ -93,12 +97,9 @@ import { HealthController } from "./presentation/http/controllers"
         // Domain - Repositories
         UserRepository,
         OrganizationRepository,
-        UserAdminRepository,
-        UserCommonRepository,
-        KitchenStaffRepository,
-        FundraiserRepository,
-        DeliveryStaffRepository,
         WalletRepository,
+        BadgeRepository,
+        UserBadgeRepository,
 
         // Application - Use Cases
         UserAdminService,
@@ -113,6 +114,11 @@ import { HealthController } from "./presentation/http/controllers"
         UserMutationService,
         WalletService,
         WalletTransactionService,
+        BadgeService,
+        UserBadgeService,
+        BadgeEmailService,
+        BrevoEmailService,
+        SpacesUploadService,
 
         // Presentation - Resolvers
         UserQueryResolver,
@@ -126,6 +132,9 @@ import { HealthController } from "./presentation/http/controllers"
         DeliveryStaffProfileResolver,
         WalletQueryResolver,
         WalletFieldResolver,
+        BadgeQueryResolver,
+        BadgeMutationResolver,
+        UserFieldResolver,
     ],
     exports: [UserRepository],
 })

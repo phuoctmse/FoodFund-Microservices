@@ -1,8 +1,9 @@
-import DataLoader from "dataloader"
+import * as DataLoader from "dataloader"
 import { Injectable, Scope } from "@nestjs/common"
 import {
     OrganizationRepository,
     UserRepository,
+    UserBadgeRepository,
 } from "../../repositories"
 
 @Injectable({ scope: Scope.REQUEST })
@@ -11,10 +12,12 @@ export class DataLoaderFactory {
     private organizationMemberLoader?: DataLoader<string, any[]>
     private userOrganizationLoader?: DataLoader<string, any>
     private userLoader?: DataLoader<string, any>
+    private userBadgeLoader?: DataLoader<string, any>
 
     constructor(
         private readonly organizationRepository: OrganizationRepository,
         private readonly userRepository: UserRepository,
+        private readonly userBadgeRepository: UserBadgeRepository,
     ) {}
 
     // Organization by ID DataLoader
@@ -103,6 +106,25 @@ export class DataLoaderFactory {
         return this.userLoader
     }
 
+    // User Badge DataLoader (optimized for N+1 queries)
+    getUserBadgeLoader(): DataLoader<string, any> {
+        if (!this.userBadgeLoader) {
+            this.userBadgeLoader = new DataLoader(
+                async (userIds: readonly string[]) => {
+                    return this.userBadgeRepository.findBadgesByUserIds(
+                        userIds as string[],
+                    )
+                },
+                {
+                    cache: true,
+                    maxBatchSize: 100,
+                    batchScheduleFn: (callback) => setTimeout(callback, 1),
+                },
+            )
+        }
+        return this.userBadgeLoader
+    }
+
     // Clear specific cache
     clearOrganizationCache(organizationId: string) {
         this.organizationLoader?.clear(organizationId)
@@ -116,11 +138,16 @@ export class DataLoaderFactory {
         this.organizationMemberLoader?.clear(userId)
     }
 
+    clearUserBadgeCache(userId: string) {
+        this.userBadgeLoader?.clear(userId)
+    }
+
     // Clear all caches
     clearAllCaches() {
         this.organizationLoader?.clearAll()
         this.organizationMemberLoader?.clearAll()
         this.userOrganizationLoader?.clearAll()
         this.userLoader?.clearAll()
+        this.userBadgeLoader?.clearAll()
     }
 }

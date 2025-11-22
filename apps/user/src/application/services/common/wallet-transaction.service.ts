@@ -6,7 +6,6 @@ import {
     BadRequestException,
 } from "@nestjs/common"
 import { WalletRepository } from "../../repositories/wallet.repository"
-import { UserCommonRepository } from "../../repositories"
 import { Transaction_Type, Wallet_Type } from "@app/user/src/domain/enums/wallet.enum"
 
 export interface SepayWebhookPayload {
@@ -30,7 +29,6 @@ export class WalletTransactionService {
 
     constructor(
         private readonly walletRepository: WalletRepository,
-        private readonly userRepository: UserCommonRepository,
     ) {}
 
     async processBankTransferOut(

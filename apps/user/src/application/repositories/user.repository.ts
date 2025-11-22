@@ -54,7 +54,17 @@ export class UserRepository {
 
     async findUserById(id: string) {
         return this.prisma.user.findUnique({
-            where: { cognito_id: id },
+            where: { id, is_active: true },
+        })
+    }
+
+    async findUserByCognitoIdSimple(cognito_id: string) {
+        if (!cognito_id) {
+            throw new Error("cognito_id is required")
+        }
+
+        return this.prisma.user.findUnique({
+            where: { cognito_id },
         })
     }
 
@@ -187,6 +197,98 @@ export class UserRepository {
                         Organization_Member: true,
                     },
                 },
+            },
+        })
+    }
+
+    async updateDonorStats(data: {
+        donorId: string
+        amountToAdd: bigint
+        incrementCount: number
+        lastDonationAt: Date
+    }) {
+        return this.prisma.user.update({
+            where: { id: data.donorId },
+            data: {
+                total_donated: {
+                    increment: data.amountToAdd,
+                },
+                donation_count: {
+                    increment: data.incrementCount,
+                },
+                last_donation_at: data.lastDonationAt,
+            },
+            select: {
+                id: true,
+                total_donated: true,
+                donation_count: true,
+                last_donation_at: true,
+            },
+        })
+    }
+
+    /**
+     * Find user with badge (for badge award optimization)
+     * Single query with LEFT JOIN
+     */
+    async findUserWithBadge(userId: string) {
+        return this.prisma.user.findUnique({
+            where: { id: userId },
+            include: {
+                User_Badge: {
+                    include: {
+                        badge: true,
+                    },
+                },
+            },
+        })
+    }
+
+    /**
+     * Find user basic info (id + role only)
+     * Used for lightweight queries
+     */
+    async findUserBasicInfo(cognitoId: string) {
+        return this.prisma.user.findUnique({
+            where: { cognito_id: cognitoId },
+            select: {
+                id: true,
+                role: true,
+            },
+        })
+    }
+
+    /**
+     * Find user full name by cognito_id
+     * Used for display purposes
+     */
+    async findUserFullName(cognitoId: string) {
+        return this.prisma.user.findUnique({
+            where: { cognito_id: cognitoId, is_active: true },
+            select: {
+                id: true,
+                full_name: true,
+            },
+        })
+    }
+
+    /**
+     * Find users by IDs (lightweight - no relations)
+     * Used for batch operations
+     */
+    async findUsersByIdsSimple(userIds: string[]): Promise<any[]> {
+        return this.prisma.user.findMany({
+            where: {
+                id: {
+                    in: userIds,
+                },
+                is_active: true,
+            },
+            select: {
+                id: true,
+                full_name: true,
+                user_name: true,
+                avatar_url: true,
             },
         })
     }

@@ -1,6 +1,7 @@
 import { ObjectType, Field, Directive } from "@nestjs/graphql"
 import { Role } from "../enums/user.enum"
 import { AbstractSchema } from "../../shared/helpers/base.schema"
+import { Badge } from "../../presentation/graphql/models/badge.model"
 
 @ObjectType("User")
 @Directive("@key(fields: \"id\")")
@@ -54,6 +55,12 @@ export class UserProfileSchema extends AbstractSchema {
         description: "User's bio/description",
     })
         bio?: string
+
+    @Field(() => Badge, {
+        nullable: true,
+        description: "User's badge (only for DONOR role)",
+    })
+        badge?: Badge
 
     __typename?: string
 

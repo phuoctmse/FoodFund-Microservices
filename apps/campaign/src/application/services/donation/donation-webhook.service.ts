@@ -6,6 +6,7 @@ import { DonorRepository } from "../../repositories/donor.repository"
 import { UserClientService } from "@app/campaign/src/shared"
 import { CampaignStatus } from "@app/campaign/src/domain/enums/campaign/campaign.enum"
 import { DonationEmailService } from "./donation-email.service"
+import { BadgeAwardService } from "./badge-award.service"
 import { CampaignFollowerService } from "../campaign/campaign-follower.service"
 
 interface PayOSWebhookData {
@@ -38,6 +39,7 @@ export class DonationWebhookService {
         private readonly userClientService: UserClientService,
         private readonly eventEmitter: EventEmitter2,
         private readonly donationEmailService: DonationEmailService,
+        private readonly badgeAwardService: BadgeAwardService,
         private readonly campaignFollowerService: CampaignFollowerService,
     ) {}
 
@@ -223,6 +225,31 @@ export class DonationWebhookService {
                 result.campaign,
                 "PayOS",
             )
+
+            // Step 6: Update donor cached stats and award badge
+            if (donation.donor_id) {
+                // Get user database ID from cognito_id
+                const donor = await this.userClientService.getUserByCognitoId(
+                    donation.donor_id,
+                )
+
+                if (donor) {
+                    // Update cached stats (via gRPC)
+                    await this.userClientService.updateDonorStats({
+                        donorId: donor.id, // Use database ID, not cognito_id
+                        amountToAdd: actualAmountReceived,
+                        incrementCount: 1,
+                        lastDonationAt: new Date(),
+                    })
+
+                    // Award badge (non-blocking, uses cached data)
+                    this.awardBadgeAsync(donor.id) // Use database ID, not cognito_id
+                } else {
+                    this.logger.warn(
+                        `[PayOS] Donor not found for cognito_id: ${donation.donor_id}`,
+                    )
+                }
+            }
             await this.campaignFollowerService.invalidateFollowersCache(
                 donation.campaign_id,
             )
@@ -235,10 +262,18 @@ export class DonationWebhookService {
         }
     }
 
-    /**
-     * Process failed PayOS payment
-     * Update payment_transaction with error details
-     */
+    private async awardBadgeAsync(donorId: string): Promise<void> {
+        try {
+            await this.badgeAwardService.checkAndAwardBadge(donorId)
+        } catch (error) {
+            // Non-blocking: Just log error, don't throw
+            this.logger.error(
+                `[Badge] Failed to award badge to donor ${donorId}:`,
+                error.message,
+            )
+        }
+    }
+
     private async processFailedPayment(
         paymentTransaction: any,
         errorCode: string,

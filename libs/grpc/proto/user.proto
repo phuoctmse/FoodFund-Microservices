@@ -37,6 +37,20 @@ service UserService {
 
   // Process bank transfer out (for withdrawal/payout)
   rpc ProcessBankTransferOut(ProcessBankTransferOutRequest) returns (ProcessBankTransferOutResponse);
+  
+  // Badge operations
+  rpc AwardBadgeToDonor(AwardBadgeRequest) returns (AwardBadgeResponse);
+  rpc GetUserBadge(GetUserBadgeRequest) returns (GetUserBadgeResponse);
+  
+  // Update donor cached stats (for badge optimization)
+  rpc UpdateDonorStats(UpdateDonorStatsRequest) returns (UpdateDonorStatsResponse);
+  
+  // Get user with cached stats (for badge optimization)
+  rpc GetUserWithStats(GetUserWithStatsRequest) returns (GetUserWithStatsResponse);
+  
+  // Wallet operations for campaign auto-transfer
+  rpc GetFundraiserWalletBalance(GetWalletBalanceRequest) returns (GetWalletBalanceResponse);
+  rpc DebitFundraiserWallet(DebitWalletRequest) returns (DebitWalletResponse);
 }
 
 // Messages
@@ -93,7 +107,7 @@ message CreditAdminWalletRequest {
 
 message CreditAdminWalletResponse {
   bool success = 1;
-  string wallet_transaction_id = 2; // Wallet transaction ID
+  string wallet_transaction_id = 2; 
   string error = 3;
 }
 
@@ -121,6 +135,46 @@ message GetUserRequest {
 // Get User by Database ID
 message GetUserByIdRequest {
   string id = 1; 
+}
+
+// Get User with Cached Stats (for badge optimization)
+message GetUserWithStatsRequest {
+  string id = 1;
+}
+
+message GetUserWithStatsResponse {
+  bool success = 1;
+  string id = 2;
+  string total_donated = 3; 
+  int32 donation_count = 4;
+  string last_donation_at = 5; 
+  string error = 6;
+}
+
+// Wallet Balance
+message GetWalletBalanceRequest {
+  string user_id = 1;
+}
+
+message GetWalletBalanceResponse {
+  bool success = 1;
+  string balance = 2; 
+  string error = 3;
+}
+
+// Debit Wallet (for campaign auto-transfer)
+message DebitWalletRequest {
+  string user_id = 1;
+  string campaign_id = 2;
+  string amount = 3; 
+  string description = 4;
+}
+
+message DebitWalletResponse {
+  bool success = 1;
+  string wallet_transaction_id = 2;
+  string new_balance = 3; 
+  string error = 4;
 }
 
 message GetUserResponse {
@@ -224,6 +278,56 @@ message ProcessBankTransferOutResponse {
   bool success = 1;
   string wallet_transaction_id = 2;
   string error = 3;
+}
+
+// Badge Messages
+message Badge {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string icon_url = 4;
+  int32 sort_order = 5;
+  bool is_active = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+message AwardBadgeRequest {
+  string user_id = 1;
+  string badge_id = 2;
+}
+
+message AwardBadgeResponse {
+  bool success = 1;
+  string user_badge_id = 2;
+  Badge badge = 3;
+  string error = 4;
+}
+
+message GetUserBadgeRequest {
+  string user_id = 1;
+}
+
+message GetUserBadgeResponse {
+  bool success = 1;
+  Badge badge = 2;
+  string awarded_at = 3;
+  string error = 4;
+}
+
+// Update Donor Stats (for badge optimization)
+message UpdateDonorStatsRequest {
+  string donor_id = 1;
+  string amount_to_add = 2; 
+  int32 increment_count = 3;
+  string last_donation_at = 4; 
+}
+
+message UpdateDonorStatsResponse {
+  bool success = 1;
+  string total_donated = 2; 
+  int32 donation_count = 3;
+  string error = 4;
 }
 
 message GetUsersByIdsRequest {

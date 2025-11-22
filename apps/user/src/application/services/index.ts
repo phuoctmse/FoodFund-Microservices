@@ -1,4 +1,6 @@
 export * from "./admin/user-admin.service"
+export * from "./badge/badge.service"
+export * from "./badge/user-badge.service"
 export * from "./common/dataloader.factory"
 export * from "./common/dataloader.service"
 export * from "./common/user-mutation.service"

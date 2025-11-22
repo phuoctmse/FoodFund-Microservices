@@ -6,19 +6,20 @@ import { UserClientService } from "@app/campaign/src/shared"
 import { DonorRepository } from "../../repositories/donor.repository"
 import { CampaignStatus } from "@app/campaign/src/domain/enums/campaign/campaign.enum"
 import { DonationEmailService } from "./donation-email.service"
+import { BadgeAwardService } from "./badge-award.service"
 
 interface SepayWebhookPayload {
-    id: number // Sepay transaction ID
-    gateway: string // Bank name (Vietcombank, MBBank, etc.)
-    transactionDate: string // Transaction date
-    accountNumber: string // Receiving account number
+    id: number 
+    gateway: string 
+    transactionDate: string 
+    accountNumber: string 
     code: string | null
-    content: string // Transfer content/description
-    transferType: string // "in" or "out"
-    transferAmount: number // Amount transferred
-    accumulated: number // Account balance after transfer
+    content: string 
+    transferType: string 
+    transferAmount: number 
+    accumulated: number 
     subAccount: string | null
-    referenceCode: string // Bank reference code (MBVCB.xxx)
+    referenceCode: string 
     description: string
 }
 
@@ -32,6 +33,7 @@ export class SepayWebhookService {
         private readonly donorRepository: DonorRepository,
         private readonly eventEmitter: EventEmitter2,
         private readonly donationEmailService: DonationEmailService,
+        private readonly badgeAwardService: BadgeAwardService,
     ) {}
 
     async handleSepayWebhook(payload: SepayWebhookPayload): Promise<void> {
@@ -84,12 +86,6 @@ export class SepayWebhookService {
 
     /**
      * Handle Sepay transfer that has orderCode (PayOS-related)
-     * LOGIC:
-     * 1. Check if this sepayId already processed → skip (idempotency)
-     * 2. Find original payment by orderCode
-     * 3. If payment NOT processed yet (PENDING) → process as initial payment
-     * 4. If payment already SUCCESS → create supplementary payment (new Payment_Transaction)
-     * 5. If amount >= original → skip (PayOS will handle to avoid duplicate)
      */
     private async handlePayOSRelatedTransfer(
         payload: SepayWebhookPayload,
@@ -109,7 +105,6 @@ export class SepayWebhookService {
                 return
             }
 
-            // Find ORIGINAL payment by orderCode
             const paymentTransaction =
                 await this.donorRepository.findPaymentTransactionByOrderCode(
                     BigInt(orderCode),
@@ -127,7 +122,6 @@ export class SepayWebhookService {
             const originalAmount = paymentTransaction.amount
 
             // Case 1: Sepay amount >= original amount
-            // → Skip, let PayOS handle (to avoid duplicate between PayOS + Sepay)
             if (sepayAmount >= originalAmount) {
                 this.logger.log(
                     `[Sepay] ⚠️ Skipping - Sepay amount (${sepayAmount}) >= original (${originalAmount}). PayOS webhook will handle this to avoid duplicate.`,
@@ -136,7 +130,6 @@ export class SepayWebhookService {
             }
 
             // Case 2: Original payment NOT processed yet (PENDING)
-            // → Process as initial PARTIAL payment (update original Payment_Transaction)
             if (!paymentTransaction.processed_by_webhook) {
                 this.logger.log(
                     `[Sepay] 💰 Processing initial PARTIAL payment - ${sepayAmount}/${originalAmount}`,
@@ -146,7 +139,6 @@ export class SepayWebhookService {
             }
 
             // Case 3: Original payment already processed (SUCCESS)
-            // → This is a SUPPLEMENTARY payment (create NEW Payment_Transaction)
             this.logger.log(
                 `[Sepay] 💰 Processing SUPPLEMENTARY payment - amount=${sepayAmount} (original already processed)`,
             )
@@ -157,7 +149,6 @@ export class SepayWebhookService {
                 `[Sepay] ❌ Failed to handle PayOS-related transfer - orderCode=${orderCode}`,
                 error.stack,
             )
-            // Fallback to Admin Wallet on error
             this.logger.log(
                 "[Sepay] Fallback: Routing to Admin Wallet instead",
             )
@@ -215,8 +206,6 @@ export class SepayWebhookService {
             const adminUserId = this.getSystemAdminId()
 
             // Step 3: Credit Admin Wallet with actual amount
-            // NOTE: gateway and sepay_metadata are stored in Payment_Transaction, NOT Wallet_Transaction
-            // Wallet_Transaction links to Payment_Transaction via payment_transaction_id
             await this.userClientService.creditAdminWallet({
                 adminId: adminUserId,
                 campaignId: campaignId,
@@ -237,12 +226,44 @@ export class SepayWebhookService {
                 donation.campaign,
                 "Sepay",
             )
+
+            // Step 5: Update donor cached stats and award badge
+            if (donation.donor_id) {
+                const donor = await this.userClientService.getUserByCognitoId(donation.donor_id)
+                
+                if (donor) {
+                    await this.userClientService.updateDonorStats({
+                        donorId: donor.id, 
+                        amountToAdd: BigInt(payload.transferAmount),
+                        incrementCount: 1,
+                        lastDonationAt: new Date(),
+                    })
+
+                    this.awardBadgeAsync(donor.id) 
+                } else {
+                    this.logger.warn(
+                        `[Sepay→Admin] Donor not found for cognito_id: ${donation.donor_id}`,
+                    )
+                }
+            }
         } catch (error) {
             this.logger.error(
                 `[Sepay→Admin] ❌ Failed to process partial payment - orderCode=${orderCode}`,
                 error.stack,
             )
             throw error
+        }
+    }
+
+    private async awardBadgeAsync(donorId: string): Promise<void> {
+        try {
+            await this.badgeAwardService.checkAndAwardBadge(donorId)
+        } catch (error) {
+            // Non-blocking: Just log error, don't throw
+            this.logger.error(
+                `[Badge] Failed to award badge to donor ${donorId}:`,
+                error.message,
+            )
         }
     }
 
@@ -316,6 +337,26 @@ export class SepayWebhookService {
                 result.campaign,
                 "Sepay",
             )
+
+            // Step 5: Update donor cached stats and award badge
+            if (donation.donor_id) {
+                const donor = await this.userClientService.getUserByCognitoId(donation.donor_id)
+                
+                if (donor) {
+                    await this.userClientService.updateDonorStats({
+                        donorId: donor.id, 
+                        amountToAdd: BigInt(payload.transferAmount),
+                        incrementCount: 1,
+                        lastDonationAt: new Date(),
+                    })
+
+                    this.awardBadgeAsync(donor.id) 
+                } else {
+                    this.logger.warn(
+                        `[Sepay→Admin] Donor not found for cognito_id: ${donation.donor_id}`,
+                    )
+                }
+            }
         } catch (error) {
             this.logger.error(
                 "[Sepay→Admin] ❌ Failed to process supplementary payment",
@@ -338,32 +379,24 @@ export class SepayWebhookService {
         }
     }
 
-    /**
-     * Route incoming transfer to Admin Wallet (catch-all for non-PayOS transfers)
-     * NOTE: Admin wallet must be created first in User service
-     */
     private async routeToAdminWallet(
         payload: SepayWebhookPayload,
     ): Promise<void> {
         try {
-            // Get system admin ID from environment
             const adminUserId = this.getSystemAdminId()
 
             this.logger.log(
                 `[Sepay→Admin] Routing non-donation transfer to Admin Wallet - Admin ID: ${adminUserId}`,
             )
 
-            // Credit Admin Wallet via gRPC
-            // NOTE: This is a NON-DONATION transfer (no payment_transaction_id)
-            // Gateway and sepay_metadata WILL BE stored in Wallet_Transaction
+           
             await this.userClientService.creditAdminWallet({
                 adminId: adminUserId,
-                campaignId: null, // No campaign (non-donation transfer)
-                paymentTransactionId: null, // No payment_transaction (non-donation transfer)
+                campaignId: null, 
+                paymentTransactionId: null, 
                 amount: BigInt(payload.transferAmount),
-                gateway: "SEPAY", // Will be stored in Wallet_Transaction
+                gateway: "SEPAY", 
                 description: this.buildDescription(payload),
-                // Store full Sepay metadata in Wallet_Transaction (for audit/debugging)
                 sepayMetadata: {
                     sepayId: payload.id,
                     referenceCode: payload.referenceCode,
@@ -380,7 +413,6 @@ export class SepayWebhookService {
                 `[Sepay→Admin] ✅ Admin Wallet credited (non-donation) - Sepay ID: ${payload.id}, Amount: ${payload.transferAmount}`,
             )
         } catch (error) {
-            // If admin wallet doesn't exist, log warning but don't crash
             if (error.message?.includes("ADMIN wallet not found")) {
                 this.logger.warn(
                     `[Sepay→Admin] ⚠️ Admin wallet not found - skipping transfer routing. Please create admin wallet first. Transfer ID: ${payload.id}, Amount: ${payload.transferAmount}`,
@@ -388,11 +420,9 @@ export class SepayWebhookService {
                 this.logger.warn(
                     `[Sepay→Admin] Transfer details: Ref=${payload.referenceCode}, Bank=${payload.gateway}, Content="${payload.content}"`,
                 )
-                // Don't throw - just log for manual review
                 return
             }
 
-            // Other errors - log and throw
             this.logger.error(
                 `[Sepay→Admin] ❌ Failed to route to Admin Wallet - ID: ${payload.id}`,
                 error.stack,
@@ -411,14 +441,11 @@ export class SepayWebhookService {
      */
     private extractOrderCodeFromContent(content: string): string | null {
         try {
-            // PayOS orderCode is exactly 16 digits (timestamp + 3 random digits)
-            // Match all 16-digit numbers in the content
             const sixteenDigitPattern = /\b(\d{16})\b/g
             const matches = content.match(sixteenDigitPattern)
             
             if (matches && matches.length > 0) {
                 // If multiple 16-digit numbers, take the first one
-                // (orderCode typically appears in the middle of Sepay content)
                 const orderCode = matches[0]
                 
                 this.logger.debug(
@@ -456,36 +483,28 @@ export class SepayWebhookService {
         referenceCode: string,
     ): Promise<boolean> {
         try {
-            // Create unique cache key combining Sepay ID and reference code
             const cacheKey = `sepay:webhook:${sepayId}:${referenceCode}`
 
-            // Check if key exists in Redis
             const exists = await this.redisService.exists(cacheKey)
 
             if (exists) {
-                return true // Duplicate - already processed
+                return true 
             }
 
-            // Mark as processed with 7-day TTL (longer than PayOS for review time)
             const ttl = 7 * 24 * 60 * 60 // 7 days in seconds
             await this.redisService.set(cacheKey, "processed", { ex: ttl })
 
-            return false // Not a duplicate
+            return false 
         } catch (error) {
             this.logger.error(
                 `[Sepay] Failed to check idempotency for ${sepayId}:`,
                 error,
             )
-            // On Redis error, allow processing (fail open)
-            // Better to process twice than miss a transaction
             return false
         }
     }
 
-    /**
-     * Handle outgoing transfer (bank withdrawal from admin wallet)
-     * Route to User service via gRPC to process withdrawal
-     */
+
     private async handleOutgoingTransfer(
         payload: SepayWebhookPayload,
     ): Promise<void> {
@@ -494,7 +513,6 @@ export class SepayWebhookService {
                 `[Sepay OUT] Processing bank transfer OUT - Amount: ${payload.transferAmount}, Gateway: ${payload.gateway}`,
             )
 
-            // Call User service to process withdrawal
             await this.userClientService.processBankTransferOut({
                 sepayId: payload.id,
                 amount: BigInt(payload.transferAmount),
@@ -516,9 +534,6 @@ export class SepayWebhookService {
         }
     }
 
-    /**
-     * Get system admin user ID from environment
-     */
     private getSystemAdminId(): string {
         const adminId = envConfig().systemAdminId || "admin-system-001"
         return adminId

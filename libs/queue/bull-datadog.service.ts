@@ -1,59 +1,69 @@
-import { Injectable, Logger, OnModuleInit, Inject } from "@nestjs/common"
+import { Injectable, Logger, OnModuleInit } from "@nestjs/common"
+import { InjectQueue } from "@nestjs/bull"
 import { Queue } from "bull"
 import { Cron, CronExpression } from "@nestjs/schedule"
 import { StatsD } from "hot-shots"
 import { envConfig } from "@libs/env"
-
-export interface QueueConfig {
-    name: string
-    queue: Queue
-}
-
-export interface BullDatadogOptions {
-    serviceName: string
-    queues: QueueConfig[]
-}
+import { QUEUE_NAMES } from "./constants"
 
 @Injectable()
 export class BullDatadogService implements OnModuleInit {
     private readonly logger = new Logger(BullDatadogService.name)
     private statsd: InstanceType<typeof StatsD>
-    private readonly queues: QueueConfig[]
+    private readonly env = envConfig()
+    private lastErrorLog = 0
 
     constructor(
-        @Inject("BULL_DATADOG_OPTIONS")
-        private readonly options: BullDatadogOptions,
-    ) {
-        this.queues = options.queues
-    }
+        @InjectQueue(QUEUE_NAMES.POST_LIKES) private readonly postLikeQueue: Queue,
+        @InjectQueue(QUEUE_NAMES.CAMPAIGN_JOBS)
+        private readonly campaignJobsQueue: Queue,
+    ) {}
 
     onModuleInit() {
-        const env = envConfig()
         this.statsd = new StatsD({
-            host: env.datadog.agentHost || "localhost",
-            port: env.datadog.agentPort || 8125,
-            prefix: `${this.options.serviceName}.`,
+            host: this.env.datadog.agentHost || "localhost",
+            port: this.env.datadog.agentPort || 8125,
+            prefix: "campaign.",
             globalTags: {
-                env: env.datadog.env || "production",
-                service: this.options.serviceName,
+                env: this.env.datadog.env || "production",
+                service: "campaign-service",
             },
         })
 
-        this.logger.log(
-            `Bull Datadog monitoring initialized for ${this.options.serviceName}`,
-        )
-        this.logger.log(
-            `Monitoring ${this.queues.length} queues: ${this.queues.map((q) => q.name).join(", ")}`,
-        )
+        this.logger.log("Bull Datadog monitoring initialized")
     }
 
     @Cron(CronExpression.EVERY_10_SECONDS)
     async collectMetrics() {
-        for (const queueConfig of this.queues) {
+        // Skip metrics in development
+        if (this.env.nodeEnv === "development") {
+            return
+        }
+
+        try {
+            await this.collectQueueMetrics("post-likes", this.postLikeQueue)
             await this.collectQueueMetrics(
-                queueConfig.name,
-                queueConfig.queue,
+                "campaign-jobs",
+                this.campaignJobsQueue,
             )
+        } catch (error) {
+            const errorMessage = error?.message || String(error)
+            const errorName = error?.name || ""
+
+            if (
+                errorMessage.includes("Connection is closed") ||
+                errorName === "MaxRetriesPerRequestError"
+            ) {
+                if (
+                    !this.lastErrorLog ||
+                    Date.now() - this.lastErrorLog > 60000
+                ) {
+                    this.logger.warn(
+                        "Valkey unavailable - skipping metrics collection",
+                    )
+                    this.lastErrorLog = Date.now()
+                }
+            }
         }
     }
 
@@ -90,10 +100,17 @@ export class BullDatadogService implements OnModuleInit {
                 })
             }
         } catch (error) {
-            this.logger.error(
-                `Failed to collect metrics for ${queueName}`,
-                error,
-            )
+            const errorMessage = error?.message || String(error)
+            if (
+                !errorMessage.includes("Connection is closed") &&
+                !errorMessage.includes("MaxRetriesPerRequestError")
+            ) {
+                this.logger.error(
+                    `Failed to collect metrics for ${queueName}`,
+                    error,
+                )
+            }
+            throw error
         }
     }
 
@@ -114,16 +131,23 @@ export class BullDatadogService implements OnModuleInit {
     }
 
     trackJobStart(queueName: string, jobId: string) {
-        this.statsd.increment(`queue.${queueName}.job.started`)
+        this.statsd.increment(`queue.${queueName}.job.started`, {
+            job_id: jobId,
+        })
     }
 
     trackJobComplete(queueName: string, jobId: string, duration: number) {
-        this.statsd.increment(`queue.${queueName}.job.completed`)
-        this.statsd.timing(`queue.${queueName}.job.duration`, duration)
+        this.statsd.increment(`queue.${queueName}.job.completed`, {
+            job_id: jobId,
+        })
+        this.statsd.timing(`queue.${queueName}.job.duration`, duration, {
+            job_id: jobId,
+        })
     }
 
     trackJobFailed(queueName: string, jobId: string, error: Error) {
         this.statsd.increment(`queue.${queueName}.job.failed`, {
+            job_id: jobId,
             error_type: error.name,
         })
     }

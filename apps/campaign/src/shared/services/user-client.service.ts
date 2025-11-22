@@ -367,7 +367,7 @@ export class UserClientService {
             const response = await this.grpcClient.callUserService<
                 {
                     sepayId: number
-                    amount: string // gRPC uses string for bigint
+                    amount: string
                     gateway: string
                     referenceCode: string
                     content: string
@@ -411,6 +411,151 @@ export class UserClientService {
         }
     }
 
+    async updateDonorStats(data: {
+        donorId: string
+        amountToAdd: bigint
+        incrementCount: number
+        lastDonationAt: Date
+    }): Promise<void> {
+        try {
+            this.logger.log(
+                `[gRPC] Updating donor stats for ${data.donorId} - Amount: ${data.amountToAdd}, Count: ${data.incrementCount}`,
+            )
+
+            const response = await this.grpcClient.callUserService<
+                {
+                    donorId: string
+                    amountToAdd: string // BigInt as string
+                    incrementCount: number
+                    lastDonationAt: string // ISO timestamp
+                },
+                {
+                    success: boolean
+                    totalDonated?: string
+                    donationCount?: number
+                    error?: string
+                }
+            >(
+                "UpdateDonorStats",
+                {
+                    donorId: data.donorId,
+                    amountToAdd: data.amountToAdd.toString(),
+                    incrementCount: data.incrementCount,
+                    lastDonationAt: data.lastDonationAt.toISOString(),
+                },
+                { timeout: 3000, retries: 2 },
+            )
+
+            if (!response.success) {
+                throw new Error(
+                    response.error || "Failed to update donor stats",
+                )
+            }
+
+            this.logger.log(
+                `[gRPC] ✅ Donor stats updated - Total: ${response.totalDonated}, Count: ${response.donationCount}`,
+            )
+        } catch (error) {
+            this.logger.error(
+                `[gRPC] ❌ Failed to update donor stats for ${data.donorId}:`,
+                error,
+            )
+        }
+    }
+
+    async getFundraiserWalletBalance(userId: string): Promise<bigint> {
+        try {
+            this.logger.log(
+                `[gRPC] Getting wallet balance for fundraiser ${userId}`,
+            )
+
+            const response = await this.grpcClient.callUserService<
+                { userId: string },
+                {
+                    success: boolean
+                    balance?: string
+                    error?: string
+                }
+            >(
+                "GetFundraiserWalletBalance",
+                { userId },
+                { timeout: 3000, retries: 2 },
+            )
+
+            if (!response.success || !response.balance) {
+                throw new Error(
+                    response.error || "Failed to get wallet balance",
+                )
+            }
+
+            return BigInt(response.balance)
+        } catch (error) {
+            this.logger.error(
+                `[gRPC] ❌ Failed to get wallet balance for ${userId}:`,
+                error,
+            )
+            return BigInt(0) // Return 0 on error
+        }
+    }
+
+    /**
+     * Debit fundraiser wallet (for campaign auto-transfer)
+     */
+    async debitFundraiserWallet(data: {
+        userId: string
+        campaignId: string
+        amount: bigint
+        description?: string
+    }): Promise<{ success: boolean; newBalance: bigint }> {
+        try {
+            this.logger.log(
+                `[gRPC] Debiting ${data.amount} from fundraiser ${data.userId} for campaign ${data.campaignId}`,
+            )
+
+            const response = await this.grpcClient.callUserService<
+                {
+                    userId: string
+                    campaignId: string
+                    amount: string
+                    description?: string
+                },
+                {
+                    success: boolean
+                    walletTransactionId?: string
+                    newBalance?: string
+                    error?: string
+                }
+            >(
+                "DebitFundraiserWallet",
+                {
+                    userId: data.userId,
+                    campaignId: data.campaignId,
+                    amount: data.amount.toString(),
+                    description: data.description,
+                },
+                { timeout: 5000, retries: 3 },
+            )
+
+            if (!response.success) {
+                throw new Error(response.error || "Failed to debit wallet")
+            }
+
+            this.logger.log(
+                `[gRPC] ✅ Wallet debited - Transaction: ${response.walletTransactionId}, New balance: ${response.newBalance}`,
+            )
+
+            return {
+                success: true,
+                newBalance: BigInt(response.newBalance || "0"),
+            }
+        } catch (error) {
+            this.logger.error(
+                `[gRPC] ❌ Failed to debit wallet for ${data.userId}:`,
+                error,
+            )
+            throw error // This is critical - must throw
+        }
+    }
     async getUserDisplayName(userId: string): Promise<string> {
         const response = await this.grpcClient.callUserService<
             { userId: string },

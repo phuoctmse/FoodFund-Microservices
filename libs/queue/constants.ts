@@ -1,7 +1,7 @@
 export const QUEUE_NAMES = {
     CAMPAIGN_JOBS: "campaign-jobs",
-    // POST_LIKES: "post-likes",
-    // DONATIONS: "donations",
+    POST_LIKES: "post-likes",
+    DONATIONS: "donations",
     // NOTIFICATIONS: "notifications",
 } as const
 

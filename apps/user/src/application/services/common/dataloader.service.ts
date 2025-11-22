@@ -103,6 +103,17 @@ export class DataLoaderService {
         }
     }
 
+    // Badge methods
+    async getUserBadge(userId: string) {
+        const loader = this.dataLoaderFactory.getUserBadgeLoader()
+        return loader.load(userId)
+    }
+
+    async getUserBadges(userIds: string[]) {
+        const loader = this.dataLoaderFactory.getUserBadgeLoader()
+        return loader.loadMany(userIds)
+    }
+
     // Cache management methods
     clearOrganizationCache(organizationId: string) {
         this.dataLoaderFactory.clearOrganizationCache(organizationId)
@@ -114,6 +125,10 @@ export class DataLoaderService {
 
     clearMemberCache(userId: string) {
         this.dataLoaderFactory.clearMemberCache(userId)
+    }
+
+    clearUserBadgeCache(userId: string) {
+        this.dataLoaderFactory.clearUserBadgeCache(userId)
     }
 
     clearAllCaches() {

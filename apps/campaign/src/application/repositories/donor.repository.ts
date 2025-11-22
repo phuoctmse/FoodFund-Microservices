@@ -1,6 +1,9 @@
 import { Injectable } from "@nestjs/common"
 import { Donation, Prisma, PrismaClient } from "../../generated/campaign-client"
-import { TransactionStatus, PaymentAmountStatus } from "../../shared/enum/campaign.enum"
+import {
+    TransactionStatus,
+    PaymentAmountStatus,
+} from "../../shared/enum/campaign.enum"
 import { CreateDonationRepositoryInput } from "../dtos/donation"
 
 @Injectable()
@@ -638,6 +641,35 @@ export class DonorRepository {
                 },
             },
         })
+    }
+
+    async getDonorsByFundraiser(fundraiserId: string): Promise<
+        Array<{
+            donor_id: string
+            donor_name: string | null
+        }>
+    > {
+        const donors = await this.prisma.donation.groupBy({
+            by: ["donor_id", "donor_name"],
+            where: {
+                donor_id: { not: null as any },
+                campaign: {
+                    created_by: fundraiserId,
+                },
+                payment_transactions: {
+                    some: {
+                        status: TransactionStatus.SUCCESS,
+                    },
+                },
+            },
+        })
+
+        return donors
+            .filter((d) => d.donor_id !== null)
+            .map((d) => ({
+                donor_id: d.donor_id!,
+                donor_name: d.donor_name,
+            }))
     }
 
     async getCampaignFollowers(campaignId: string): Promise<string[]> {

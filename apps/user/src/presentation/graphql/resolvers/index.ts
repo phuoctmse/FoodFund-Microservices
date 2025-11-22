@@ -1,5 +1,7 @@
 export * from "./admin/user-admin.resolver"
 export * from "./admin/admin-wallet.resolver"
+export * from "./badge"
+export * from "./common/user-field.resolver"
 export * from "./common/user-mutation.resolver"
 export * from "./common/user-query.resolver"
 export * from "./common/wallet-query.resolver"

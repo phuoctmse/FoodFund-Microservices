@@ -7,10 +7,9 @@ import { User } from "./shared/model/user.model"
 import { EnvModule } from "@libs/env/env.module"
 import { OpenSearchModule } from "@libs/aws-opensearch"
 import { GrpcModule } from "@libs/grpc"
-import { QueueModule, QUEUE_NAMES, BullDatadogModule } from "@libs/queue"
+import { QueueModule, QUEUE_NAMES } from "@libs/queue"
 import { BullBoardModule } from "@bull-board/nestjs"
 import { ExpressAdapter } from "@bull-board/express"
-import { VietQRModule } from "@libs/vietqr"
 import { DatadogModule } from "@libs/observability"
 import { AwsCognitoModule } from "@libs/aws-cognito"
 import { EventEmitterModule } from "@nestjs/event-emitter"
@@ -20,12 +19,8 @@ import { SpacesUploadService } from "@libs/s3-storage"
 import { CampaignCacheService } from "./application/services/campaign/campaign-cache.service"
 import { CampaignService } from "./application/services/campaign/campaign.service"
 import { CampaignSettlementService } from "./application/services/campaign/campaign-settlement.service"
-import {
-    AuthorizationService,
-    UserClientService,
-    UserDataLoader,
-    UserResolver,
-} from "./shared"
+import { CampaignEmailService } from "./application/services/campaign/campaign-email.service"
+import { AuthorizationService, UserClientService, UserDataLoader, UserResolver } from "./shared"
 import { CampaignQueryResolver } from "./presentation/graphql/campaign/queries"
 import { CampaignStatsQueryResolver } from "./presentation/graphql/campaign/queries/campaign-stats-query.resolver"
 import { CampaignMutationResolver } from "./presentation/graphql/campaign/mutations"
@@ -49,6 +44,7 @@ import { DonorService } from "./application/services/donation/donor.service"
 import { DonationWebhookService } from "./application/services/donation/donation-webhook.service"
 import { SepayWebhookService } from "./application/services/donation/sepay-webhook.service"
 import { DonationEmailService } from "./application/services/donation/donation-email.service"
+import { BadgeAwardService } from "./application/services/donation/badge-award.service"
 import { PayosCleanupService } from "./application/services/donation/payos-cleanup.service"
 import { DonationAdminService } from "./application/services/donation/admin"
 import { DonorRepository } from "./application/repositories/donor.repository"
@@ -100,7 +96,6 @@ import {
 } from "./application/builders/notification"
 import { NotificationQueryResolver } from "./presentation/graphql/notification/queries"
 import { NotificationMutationResolver } from "./presentation/graphql/notification/mutations"
-import { BullModule, getQueueToken } from "@nestjs/bull"
 import { PostLikeQueue } from "./application/workers/post-like/post-like.queue"
 import { NotificationQueue } from "./application/workers/notification/notification.queue"
 import { BrevoEmailService } from "@libs/email"
@@ -110,7 +105,6 @@ import {
     PostNotificationHandler,
 } from "./application/handlers"
 import { CampaignFollowerService } from "./application/services/campaign/campaign-follower.service"
-import { Queue } from "bull"
 
 @Module({
     imports: [
@@ -147,18 +141,7 @@ import { Queue } from "bull"
             route: "/admin/queues",
             adapter: ExpressAdapter,
         }),
-        BullDatadogModule.forRootAsync({
-            imports: [
-                BullModule.registerQueue({ name: QUEUE_NAMES.CAMPAIGN_JOBS }),
-            ],
-            inject: [getQueueToken(QUEUE_NAMES.CAMPAIGN_JOBS)],
-            useFactory: (campaignQueue: Queue) => ({
-                serviceName: "campaign-service",
-                queues: [{ name: "campaign-jobs", queue: campaignQueue }],
-            }),
-        }),
         OpenSearchModule,
-        VietQRModule,
         AuthLibModule,
         EventEmitterModule.forRoot({
             wildcard: false,
@@ -190,6 +173,8 @@ import { Queue } from "bull"
         CampaignCacheService,
         CampaignService,
         CampaignSettlementService,
+        CampaignEmailService,
+        BrevoEmailService,
         CampaignFollowerService,
         CampaignCategoryCacheService,
         CampaignCategoryService,
@@ -198,6 +183,7 @@ import { Queue } from "bull"
         DonationWebhookService,
         SepayWebhookService,
         DonationEmailService,
+        BadgeAwardService,
         PayosCleanupService,
         DonationAdminService,
         PostService,

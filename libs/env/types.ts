@@ -95,6 +95,15 @@ export interface DataDogConfig {
     traceSampleRate: number
 }
 
+export interface Badge {
+    firstDonationId: string
+    bronzeId: string
+    silverId: string
+    goldId: string
+    platinumId: string
+    diamondId: string 
+}
+
 // Main environment configuration interface
 export interface EnvironmentConfig {
     nodeEnv: NodeEnv
@@ -148,6 +157,10 @@ export interface EnvironmentConfig {
 
     //Brevo Configuration
     brevo: BrevoConfig
+
+    badge: Badge
+
+    frontEndUrl: string
 }
 
 export interface EnvModuleOptions {

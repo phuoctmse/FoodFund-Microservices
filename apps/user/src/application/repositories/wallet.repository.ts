@@ -549,4 +549,67 @@ export class WalletRepository {
             totalTransactionsThisMonth,
         }
     }
+
+    async debitWallet(data: {
+        userId: string
+        walletType: Wallet_Type
+        amount: bigint
+        transactionType: Transaction_Type
+        campaignId: string | null
+        description?: string
+    }): Promise<WalletTransactionSchema> {
+        return this.prisma.$transaction(async (tx) => {
+            // Get wallet with lock
+            const wallet = await tx.wallet.findFirst({
+                where: {
+                    user_id: data.userId,
+                    wallet_type: data.walletType,
+                },
+            })
+
+            if (!wallet) {
+                throw new Error(
+                    `${data.walletType} wallet not found for user ${data.userId}`,
+                )
+            }
+
+            // Check sufficient balance
+            if (wallet.balance < data.amount) {
+                throw new Error(
+                    `Insufficient balance. Available: ${wallet.balance}, Required: ${data.amount}`,
+                )
+            }
+
+            const balanceBefore = wallet.balance
+            const balanceAfter = balanceBefore - data.amount
+
+            // Create debit transaction (negative amount)
+            const transaction = await tx.wallet_Transaction.create({
+                data: {
+                    wallet_id: wallet.id,
+                    campaign_id: data.campaignId,
+                    payment_transaction_id: null,
+                    amount: -data.amount, // Negative for debit
+                    balance_before: balanceBefore,
+                    balance_after: balanceAfter,
+                    transaction_type: data.transactionType,
+                    description: data.description || "Wallet debit",
+                    gateway: null,
+                    sepay_metadata: {},
+                },
+            })
+
+            // Update wallet balance
+            await tx.wallet.update({
+                where: { id: wallet.id },
+                data: { balance: balanceAfter },
+            })
+
+            this.logger.log(
+                `[debitWallet] ✅ Debited ${data.amount} from ${data.walletType} wallet (User: ${data.userId})`,
+            )
+
+            return this.mapTransactionToSchema(transaction)
+        })
+    }
 }

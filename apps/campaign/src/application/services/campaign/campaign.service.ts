@@ -4,6 +4,7 @@ import {
     forwardRef,
     Inject,
     Injectable,
+    Logger,
 } from "@nestjs/common"
 import { SentryService } from "@libs/observability/sentry.service"
 import { SpacesUploadService } from "libs/s3-storage/spaces-upload.service"
@@ -11,12 +12,15 @@ import { CampaignCacheService } from "./campaign-cache.service"
 import { CampaignRepository } from "../../repositories/campaign.repository"
 import { CampaignCategoryRepository } from "../../repositories/campaign-category.repository"
 import { CampaignPhaseRepository } from "../../repositories/campaign-phase.repository"
+import { DonorRepository } from "../../repositories/donor.repository"
 import {
     AuthorizationService,
     PhaseBudgetValidator,
     Role,
     UserContext,
+    UserClientService,
 } from "@app/campaign/src/shared"
+import { CampaignEmailService } from "./campaign-email.service"
 import { CampaignPhaseService } from "../campaign-phase/campaign-phase.service"
 import {
     CampaignFilterInput,
@@ -60,6 +64,7 @@ interface CoverImageUpdateResult {
 
 @Injectable()
 export class CampaignService {
+    private readonly logger = new Logger(CampaignService.name)
     private readonly SPACES_CDN_ENDPOINT = process.env.SPACES_CDN_ENDPOINT
     private readonly resource = "campaigns"
 
@@ -73,6 +78,9 @@ export class CampaignService {
         private readonly cacheService: CampaignCacheService,
         @Inject(forwardRef(() => CampaignPhaseService))
         private readonly phaseService: CampaignPhaseService,
+        private readonly userClientService: UserClientService,
+        private readonly campaignEmailService: CampaignEmailService,
+        private readonly donorRepository: DonorRepository,
         private readonly eventEmitter: EventEmitter2,
     ) {}
 
@@ -432,6 +440,11 @@ export class CampaignService {
                     updateData.changedStatusAt = new Date()
                 }
 
+                await this.autoTransferWalletToCampaign(campaign, updateData)
+            } else if (newStatus === CampaignStatus.APPROVED) {
+                updateData.changedStatusAt = new Date()
+                
+                await this.autoTransferWalletToCampaign(campaign, updateData)
                 this.eventEmitter.emit("campaign.approved", {
                     campaignId: campaign.id,
                     campaignTitle: campaign.title,
@@ -1374,6 +1387,201 @@ export class CampaignService {
         await this.cacheService.invalidateAll()
 
         return campaign
+    }
+
+    private async autoTransferWalletToCampaign(
+        campaign: Campaign,
+        updateData: any,
+    ): Promise<void> {
+        try {
+            const walletBalance =
+                await this.userClientService.getFundraiserWalletBalance(
+                    campaign.createdBy,
+                )
+
+            if (walletBalance <= BigInt(0)) {
+                this.logger.log(
+                    `[AutoTransfer] No wallet balance for fundraiser ${campaign.createdBy}, skipping`,
+                )
+                return
+            }
+
+            const targetAmount = BigInt(campaign.targetAmount)
+            const currentReceived = BigInt(campaign.receivedAmount)
+            const remainingTarget = targetAmount - currentReceived
+
+            let transferAmount: bigint
+            if (walletBalance >= remainingTarget) {
+                transferAmount = remainingTarget
+            } else {
+                transferAmount = walletBalance
+            }
+
+            if (transferAmount <= BigInt(0)) {
+                this.logger.log(
+                    "[AutoTransfer] Campaign already at/above target, skipping transfer",
+                )
+                return
+            }
+
+            this.logger.log(
+                `[AutoTransfer] Transferring ${transferAmount} from wallet (balance: ${walletBalance}) to campaign ${campaign.id}`,
+            )
+
+            await this.userClientService.debitFundraiserWallet({
+                userId: campaign.createdBy,
+                campaignId: campaign.id,
+                amount: transferAmount,
+                description: `Auto-transfer to campaign "${campaign.title}" on approval`,
+            })
+
+            updateData.receivedAmount =
+                currentReceived + transferAmount
+
+            this.logger.log(
+                `[AutoTransfer] ✅ Successfully transferred ${transferAmount} to campaign ${campaign.id}`,
+            )
+
+            this.sendAutoTransferEmails(
+                campaign,
+                transferAmount,
+                walletBalance - transferAmount,
+            )
+        } catch (error) {
+            this.logger.error(
+                "[AutoTransfer] ❌ Failed to auto-transfer wallet balance:",
+                error,
+            )
+        }
+    }
+
+    private async sendAutoTransferEmails(
+        campaign: Campaign,
+        transferredAmount: bigint,
+        remainingBalance: bigint,
+    ): Promise<void> {
+        try {
+            // Get fundraiser info
+            const fundraiser = await this.userClientService.getUserById(
+                campaign.createdBy,
+            )
+
+            if (!fundraiser) {
+                this.logger.warn(
+                    `[AutoTransfer] Fundraiser not found: ${campaign.createdBy}`,
+                )
+                return
+            }
+
+            await this.campaignEmailService.sendCampaignApprovedWithTransfer({
+                fundraiserEmail: fundraiser.email || "",
+                fundraiserName: fundraiser.fullName || fundraiser.username || "Fundraiser",
+                campaignTitle: campaign.title,
+                campaignId: campaign.id,
+                transferredAmount: transferredAmount.toLocaleString("vi-VN"),
+                walletBalance: remainingBalance.toLocaleString("vi-VN"),
+            })
+
+            await this.sendDonorSurplusEmails(campaign, fundraiser)
+
+            this.logger.log(
+                `[AutoTransfer] ✅ Emails sent for campaign ${campaign.id}`,
+            )
+        } catch (error) {
+            this.logger.error(
+                "[AutoTransfer] Failed to send emails:",
+                error.message,
+            )
+        }
+    }
+
+    private async sendDonorSurplusEmails(
+        newCampaign: Campaign,
+        fundraiser: any,
+    ): Promise<void> {
+        try {
+            const donors = await this.donorRepository.getDonorsByFundraiser(
+                newCampaign.createdBy,
+            )
+
+            if (donors.length === 0) {
+                this.logger.log(
+                    `[AutoTransfer] No previous donors for fundraiser ${newCampaign.createdBy}`,
+                )
+                return
+            }
+
+            this.logger.log(
+                `[AutoTransfer] Fetching details for ${donors.length} donors`,
+            )
+
+            const donorEmailData = await Promise.all(
+                donors.map(async (donor) => {
+                    try {
+                        const donorUser =
+                            await this.userClientService.getUserByCognitoId(
+                                donor.donor_id,
+                            )
+
+                        if (!donorUser || !donorUser.email) {
+                            return null
+                        }
+
+                        return {
+                            email: donorUser.email,
+                            name:
+                                donorUser.fullName ||
+                                donor.donor_name ||
+                                "Donor",
+                            oldCampaignTitle: "chiến dịch trước",
+                            newCampaignTitle: newCampaign.title,
+                            newCampaignId: newCampaign.id,
+                            fundraiserName:
+                                fundraiser.fullName ||
+                                fundraiser.username ||
+                                "Fundraiser",
+                        }
+                    } catch (error) {
+                        this.logger.error(
+                            `[AutoTransfer] Failed to fetch donor ${donor.donor_id}:`,
+                            error.message,
+                        )
+                        return null
+                    }
+                }),
+            )
+
+            // Filter out null values
+            const validDonors = donorEmailData.filter(
+                (d) => d !== null,
+            ) as Array<{
+                email: string
+                name: string
+                oldCampaignTitle: string
+                newCampaignTitle: string
+                newCampaignId: string
+                fundraiserName: string
+            }>
+
+            if (validDonors.length === 0) {
+                this.logger.log(
+                    "[AutoTransfer] No valid donor emails found, skipping",
+                )
+                return
+            }
+
+            // Send batch emails (rate limited: 10 emails/batch, 1s delay)
+            await this.campaignEmailService.sendBatchSurplusEmails(validDonors)
+
+            this.logger.log(
+                `[AutoTransfer] ✅ Sent surplus emails to ${validDonors.length} donors`,
+            )
+        } catch (error) {
+            this.logger.error(
+                "[AutoTransfer] Failed to send donor emails:",
+                error.message,
+            )
+        }
     }
 
     getHealth() {

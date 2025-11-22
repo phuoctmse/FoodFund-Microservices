@@ -186,7 +186,18 @@ export const envConfig = (): EnvironmentConfig => ({
         apiKey: process.env.BREVO_API_KEY as string,
         senderEmail: process.env.BREVO_SENDER_EMAIL as string,
         senderName: process.env.BREVO_SENDER_NAME as string,
-    }
+    },
+
+    badge: {
+        firstDonationId: process.env.BADGE_FIRST_DONATION_ID as string,
+        bronzeId: process.env.BADGE_BRONZE_ID as string,
+        silverId: process.env.BADGE_SILVER_ID as string,
+        goldId: process.env.BADGE_GOLD_ID as string,
+        platinumId: process.env.BADGE_PLATINUM_ID as string,
+        diamondId: process.env.BADGE_DIAMOND_ID as string,
+    },
+
+    frontEndUrl: process.env.FRONTEND_URL as string,
 })
 
 // Utility functions

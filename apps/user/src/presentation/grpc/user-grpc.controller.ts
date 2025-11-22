@@ -1,12 +1,14 @@
 import { Controller, Logger } from "@nestjs/common"
 import { GrpcMethod } from "@nestjs/microservices"
 import {
-    UserCommonRepository,
-    UserAdminRepository,
+    UserRepository,
     WalletRepository,
     OrganizationRepository,
+    BadgeRepository,
+    UserBadgeRepository,
 } from "../../application/repositories"
 import { WalletTransactionService } from "../../application/services/common/wallet-transaction.service"
+import { UserBadgeService } from "../../application/services/badge"
 import { Role } from "@libs/databases"
 import { generateUniqueUsername } from "libs/common"
 import { Transaction_Type, Wallet_Type } from "../../domain/enums/wallet.enum"
@@ -122,6 +124,98 @@ interface ProcessBankTransferOutResponse {
     error?: string
 }
 
+interface AwardBadgeRequest {
+    userId: string
+    badgeId: string
+}
+
+interface AwardBadgeResponse {
+    success: boolean
+    userBadgeId?: string
+    badge?: {
+        id: string
+        name: string
+        description: string
+        iconUrl: string
+        sortOrder: number
+        isActive: boolean
+        createdAt: string
+        updatedAt: string
+    }
+    error?: string
+}
+
+interface GetUserBadgeRequest {
+    userId: string
+}
+
+interface GetUserBadgeResponse {
+    success: boolean
+    badge?: {
+        id: string
+        name: string
+        description: string
+        iconUrl: string
+        sortOrder: number
+        isActive: boolean
+        createdAt: string
+        updatedAt: string
+    }
+    awardedAt?: string
+    error?: string
+}
+
+interface UpdateDonorStatsRequest {
+    donorId: string
+    amountToAdd: string
+    incrementCount: number
+    lastDonationAt: string 
+}
+
+interface UpdateDonorStatsResponse {
+    success: boolean
+    totalDonated?: string
+    donationCount?: number
+    error?: string
+}
+
+interface GetUserWithStatsRequest {
+    id: string
+}
+
+interface GetUserWithStatsResponse {
+    success: boolean
+    id?: string
+    totalDonated?: string
+    donationCount?: number
+    lastDonationAt?: string
+    error?: string
+}
+
+interface GetWalletBalanceRequest {
+    userId: string
+}
+
+interface GetWalletBalanceResponse {
+    success: boolean
+    balance?: string
+    error?: string
+}
+
+interface DebitWalletRequest {
+    userId: string
+    campaignId: string
+    amount: string
+    description?: string
+}
+
+interface DebitWalletResponse {
+    success: boolean
+    walletTransactionId?: string
+    newBalance?: string
+    error?: string
+}
+
 const ROLE_MAP = {
     DONOR: 0,
     FUNDRAISER: 1,
@@ -188,11 +282,12 @@ export class UserGrpcController {
     private readonly logger = new Logger(UserGrpcController.name)
 
     constructor(
-        private readonly userCommonRepository: UserCommonRepository,
-        private readonly userAdminRepository: UserAdminRepository,
+        private readonly userRepository: UserRepository,
         private readonly walletRepository: WalletRepository,
         private readonly organizationRepository: OrganizationRepository,
         private readonly walletTransactionService: WalletTransactionService,
+        private readonly userBadgeService: UserBadgeService,
+        private readonly userBadgeRepository: UserBadgeRepository,
     ) {}
 
     /**
@@ -303,7 +398,7 @@ export class UserGrpcController {
 
             const finalUsername = generateUniqueUsername(email)
 
-            const user = await this.userCommonRepository.createUser({
+            const user = await this.userRepository.createUser({
                 cognito_id: cognitoId,
                 email,
                 user_name: finalUsername,
@@ -333,7 +428,7 @@ export class UserGrpcController {
             }
 
             const user =
-                await this.userCommonRepository.findUserByCognitoId(cognitoId)
+                await this.userRepository.findUserByCognitoId(cognitoId)
 
             if (!user) {
                 return this.createErrorResponse("User not found")
@@ -360,7 +455,7 @@ export class UserGrpcController {
             if (avatarUrl) updateData.avatar_url = avatarUrl
             if (bio) updateData.bio = bio
 
-            const user = await this.userAdminRepository.updateUser(
+            const user = await this.userRepository.updateUser(
                 id,
                 updateData,
             )
@@ -385,7 +480,7 @@ export class UserGrpcController {
             }
 
             const user =
-                await this.userCommonRepository.findUserByCognitoId(cognitoId)
+                await this.userRepository.findUserByCognitoId(cognitoId)
 
             return {
                 exists: !!user,
@@ -412,7 +507,7 @@ export class UserGrpcController {
                 return this.createErrorResponse("Email is required")
             }
 
-            const user = await this.userCommonRepository.findUserByEmail(email)
+            const user = await this.userRepository.findUserByEmail(email)
 
             if (!user) {
                 return this.createErrorResponse("User not found")
@@ -452,7 +547,7 @@ export class UserGrpcController {
             "CreditFundraiserWallet",
             async () => {
                 const user =
-                    await this.userCommonRepository.findUserById(fundraiserId)
+                    await this.userRepository.findUserById(fundraiserId)
                 if (!user) {
                     this.logger.error(
                         `[CreditFundraiserWallet] ❌ Fundraiser ${fundraiserId} not found`,
@@ -516,7 +611,7 @@ export class UserGrpcController {
 
         return this.executeWalletOperation("CreditAdminWallet", async () => {
             // Verify admin user exists
-            const user = await this.userCommonRepository.findUserById(adminId)
+            const user = await this.userRepository.findUserById(adminId)
             if (!user) {
                 throw new Error(`Admin ${adminId} not found`)
             }
@@ -567,7 +662,7 @@ export class UserGrpcController {
             }
         }
 
-        const user = await this.userCommonRepository.findUserBasicInfo(userId)
+        const user = await this.userRepository.findUserBasicInfo(userId)
 
         if (!user) {
             return {
@@ -626,7 +721,7 @@ export class UserGrpcController {
             }
         }
 
-        const user = await this.userCommonRepository.findUserBasicInfo(userId)
+        const user = await this.userRepository.findUserBasicInfo(userId)
 
         if (!user) {
             return {
@@ -831,7 +926,7 @@ export class UserGrpcController {
             }
 
             const users =
-                await this.userCommonRepository.findUsersByIds(userIds)
+                await this.userRepository.findUsersByIds(userIds)
 
             const mappedUsers = users.map((user) => ({
                 id: user.id,
@@ -868,7 +963,7 @@ export class UserGrpcController {
             }
         }
 
-        const user = await this.userCommonRepository.findUserFullName(userId)
+        const user = await this.userRepository.findUserFullName(userId)
 
         if (!user) {
             return {
@@ -883,6 +978,308 @@ export class UserGrpcController {
         return {
             success: true,
             displayName,
+        }
+    }
+
+    @GrpcMethod("UserService", "AwardBadgeToDonor")
+    async awardBadgeToDonor(
+        data: AwardBadgeRequest,
+    ): Promise<AwardBadgeResponse> {
+        const { userId, badgeId } = data
+
+        this.logger.log(
+            `[AwardBadgeToDonor] Awarding badge ${badgeId} to user ${userId}`,
+        )
+
+        if (!userId || !badgeId) {
+            return {
+                success: false,
+                error: "userId and badgeId are required",
+            }
+        }
+
+        try {
+            const userBadge = await this.userBadgeService.awardBadge(
+                userId,
+                badgeId,
+            )
+
+            this.logger.log(
+                `[AwardBadgeToDonor] ✅ Successfully awarded badge ${badgeId} to user ${userId}`,
+            )
+
+            return {
+                success: true,
+                userBadgeId: userBadge.id,
+                badge: {
+                    id: userBadge.badge.id,
+                    name: userBadge.badge.name,
+                    description: userBadge.badge.description,
+                    iconUrl: userBadge.badge.icon_url,
+                    sortOrder: userBadge.badge.sort_order,
+                    isActive: userBadge.badge.is_active,
+                    createdAt: userBadge.badge.created_at.toISOString(),
+                    updatedAt: userBadge.badge.updated_at.toISOString(),
+                },
+            }
+        } catch (error) {
+            this.logger.error(
+                "[AwardBadgeToDonor] ❌ Failed to award badge:",
+                error.stack || error,
+            )
+            return {
+                success: false,
+                error: error.message || "Failed to award badge",
+            }
+        }
+    }
+
+    @GrpcMethod("UserService", "GetUserBadge")
+    async getUserBadge(data: GetUserBadgeRequest): Promise<GetUserBadgeResponse> {
+        const { userId } = data
+
+        this.logger.log(`[GetUserBadge] Fetching badge for user ${userId}`)
+
+        if (!userId) {
+            return {
+                success: false,
+                error: "userId is required",
+            }
+        }
+
+        try {
+            const userBadge = await this.userBadgeRepository.findUserBadge(userId)
+
+            if (!userBadge) {
+                this.logger.log(`[GetUserBadge] User ${userId} has no badge`)
+                return {
+                    success: true,
+                    badge: undefined,
+                    awardedAt: undefined,
+                }
+            }
+
+            this.logger.log(
+                `[GetUserBadge] ✅ Found badge ${userBadge.badge.name} for user ${userId}`,
+            )
+
+            return {
+                success: true,
+                badge: {
+                    id: userBadge.badge.id,
+                    name: userBadge.badge.name,
+                    description: userBadge.badge.description,
+                    iconUrl: userBadge.badge.icon_url,
+                    sortOrder: userBadge.badge.sort_order,
+                    isActive: userBadge.badge.is_active,
+                    createdAt: userBadge.badge.created_at.toISOString(),
+                    updatedAt: userBadge.badge.updated_at.toISOString(),
+                },
+                awardedAt: userBadge.awarded_at.toISOString(),
+            }
+        } catch (error) {
+            this.logger.error(
+                "[GetUserBadge] ❌ Failed to fetch badge:",
+                error.stack || error,
+            )
+            return {
+                success: false,
+                error: error.message || "Failed to fetch badge",
+            }
+        }
+    }
+
+    @GrpcMethod("UserService", "UpdateDonorStats")
+    async updateDonorStats(
+        data: UpdateDonorStatsRequest,
+    ): Promise<UpdateDonorStatsResponse> {
+        const { donorId, amountToAdd, incrementCount, lastDonationAt } = data
+
+        this.logger.log(
+            `[UpdateDonorStats] Updating stats for donor ${donorId} - Amount: ${amountToAdd}, Count: ${incrementCount}`,
+        )
+
+        if (!donorId || !amountToAdd) {
+            return {
+                success: false,
+                error: "donorId and amountToAdd are required",
+            }
+        }
+
+        try {
+            const updatedUser = await this.userRepository.updateDonorStats({
+                donorId,
+                amountToAdd: BigInt(amountToAdd),
+                incrementCount: incrementCount || 1,
+                lastDonationAt: new Date(lastDonationAt),
+            })
+
+            this.logger.log(
+                `[UpdateDonorStats] ✅ Updated donor ${donorId} - Total: ${updatedUser.total_donated}, Count: ${updatedUser.donation_count}`,
+            )
+
+            return {
+                success: true,
+                totalDonated: (updatedUser.total_donated || BigInt(0)).toString(),
+                donationCount: updatedUser.donation_count || 0,
+            }
+        } catch (error) {
+            this.logger.error(
+                "[UpdateDonorStats] ❌ Failed to update stats:",
+                error.stack || error,
+            )
+            return {
+                success: false,
+                error: error.message || "Failed to update donor stats",
+            }
+        }
+    }
+
+    @GrpcMethod("UserService", "GetUserWithStats")
+    async getUserWithStats(
+        data: GetUserWithStatsRequest,
+    ): Promise<GetUserWithStatsResponse> {
+        const { id } = data
+
+        this.logger.log(`[GetUserWithStats] Fetching stats for user ${id}`)
+
+        if (!id) {
+            return {
+                success: false,
+                error: "id is required",
+            }
+        }
+
+        try {
+            const user = await this.userRepository.findUserById(id)
+
+            if (!user) {
+                this.logger.warn(`[GetUserWithStats] User not found: ${id}`)
+                return {
+                    success: false,
+                    error: "User not found",
+                }
+            }
+
+            this.logger.log(
+                `[GetUserWithStats] ✅ Found user ${id} - Total: ${user.total_donated}, Count: ${user.donation_count}`,
+            )
+
+            return {
+                success: true,
+                id: user.id,
+                totalDonated: (user.total_donated || BigInt(0)).toString(),
+                donationCount: user.donation_count || 0,
+                lastDonationAt: user.last_donation_at?.toISOString() || "",
+            }
+        } catch (error) {
+            this.logger.error(
+                "[GetUserWithStats] ❌ Failed to fetch stats:",
+                error.stack || error,
+            )
+            return {
+                success: false,
+                error: error.message || "Failed to fetch user stats",
+            }
+        }
+    }
+
+    @GrpcMethod("UserService", "GetFundraiserWalletBalance")
+    async getFundraiserWalletBalance(
+        data: GetWalletBalanceRequest,
+    ): Promise<GetWalletBalanceResponse> {
+        const { userId } = data
+
+        this.logger.log(
+            `[GetFundraiserWalletBalance] Fetching balance for user ${userId}`,
+        )
+
+        if (!userId) {
+            return {
+                success: false,
+                error: "userId is required",
+            }
+        }
+
+        try {
+            const balance = await this.walletRepository.getWalletBalance(
+                userId,
+                Wallet_Type.FUNDRAISER,
+            )
+
+            this.logger.log(
+                `[GetFundraiserWalletBalance] ✅ Balance: ${balance}`,
+            )
+
+            return {
+                success: true,
+                balance: balance.toString(),
+            }
+        } catch (error) {
+            this.logger.error(
+                "[GetFundraiserWalletBalance] ❌ Failed:",
+                error.stack || error,
+            )
+            return {
+                success: false,
+                error: error.message || "Failed to fetch wallet balance",
+            }
+        }
+    }
+
+    @GrpcMethod("UserService", "DebitFundraiserWallet")
+    async debitFundraiserWallet(
+        data: DebitWalletRequest,
+    ): Promise<DebitWalletResponse> {
+        const { userId, campaignId, amount, description } = data
+
+        this.logger.log(
+            `[DebitFundraiserWallet] Debiting ${amount} from user ${userId} for campaign ${campaignId}`,
+        )
+
+        if (!userId || !campaignId || !amount) {
+            return {
+                success: false,
+                error: "userId, campaignId, and amount are required",
+            }
+        }
+
+        try {
+            const transaction = await this.walletRepository.debitWallet({
+                userId,
+                walletType: Wallet_Type.FUNDRAISER,
+                amount: BigInt(amount),
+                transactionType: Transaction_Type.WITHDRAWAL,
+                campaignId,
+                description:
+                    description ||
+                    `Auto-transfer to campaign ${campaignId} on approval`,
+            })
+
+            // Get new balance
+            const newBalance = await this.walletRepository.getWalletBalance(
+                userId,
+                Wallet_Type.FUNDRAISER,
+            )
+
+            this.logger.log(
+                `[DebitFundraiserWallet] ✅ Debited ${amount}, New balance: ${newBalance}`,
+            )
+
+            return {
+                success: true,
+                walletTransactionId: transaction.id,
+                newBalance: newBalance.toString(),
+            }
+        } catch (error) {
+            this.logger.error(
+                "[DebitFundraiserWallet] ❌ Failed:",
+                error.stack || error,
+            )
+            return {
+                success: false,
+                error: error.message || "Failed to debit wallet",
+            }
         }
     }
 }
