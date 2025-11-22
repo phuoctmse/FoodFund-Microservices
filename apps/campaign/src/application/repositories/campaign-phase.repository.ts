@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common"
 import { PrismaClient } from "../../generated/campaign-client"
 import { CampaignPhaseStatus } from "../../domain/enums/campaign-phase/campaign-phase.enum"
+import { minBigInt } from "../../shared/utils"
 
 export interface CreatePhaseData {
     campaignId: string
@@ -66,22 +67,24 @@ export class CampaignPhaseRepository {
                 campaign_id: campaignId,
                 is_active: true,
             },
-            select: {
-                id: true,
-                campaign_id: true,
-                phase_name: true,
-                location: true,
-                ingredient_purchase_date: true,
-                cooking_date: true,
-                delivery_date: true,
-                status: true,
-                created_at: true,
-                updated_at: true,
-            },
             orderBy: { created_at: "asc" },
+            include: {
+                campaign: {
+                    select: {
+                        received_amount: true,
+                        target_amount: true,
+                    },
+                },
+            },
         })
 
-        return phases.map((phase) => this.mapToGraphQLModel(phase))
+        return phases.map((phase) =>
+            this.mapToGraphQLModelWithFunds(
+                phase,
+                phase.campaign?.received_amount || BigInt(0),
+                phase.campaign?.target_amount || BigInt(0),
+            ),
+        )
     }
 
     async getPhaseStatus(id: string): Promise<CampaignPhaseStatus | null> {
@@ -101,6 +104,7 @@ export class CampaignPhaseRepository {
                     select: {
                         id: true,
                         received_amount: true,
+                        target_amount: true,
                     },
                 },
             },
@@ -111,6 +115,7 @@ export class CampaignPhaseRepository {
         return this.mapToGraphQLModelWithFunds(
             phase,
             phase.campaign.received_amount,
+            phase.campaign?.target_amount || BigInt(0),
         )
     }
 
@@ -227,33 +232,39 @@ export class CampaignPhaseRepository {
     private mapToGraphQLModelWithFunds(
         dbPhase: any,
         campaignReceivedAmount: bigint,
+        campaignTargetAmount?: bigint,
     ) {
         const ingredientPct =
             Number.parseFloat(
                 dbPhase.ingredient_budget_percentage?.toString() || "0",
             ) / 100
         const cookingPct =
-            Number.parseFloat(dbPhase.cooking_budget_percentage?.toString() || "0") /
-            100
+            Number.parseFloat(
+                dbPhase.cooking_budget_percentage?.toString() || "0",
+            ) / 100
         const deliveryPct =
-            Number.parseFloat(dbPhase.delivery_budget_percentage?.toString() || "0") /
-            100
+            Number.parseFloat(
+                dbPhase.delivery_budget_percentage?.toString() || "0",
+            ) / 100
 
-        const receivedAmount = BigInt(campaignReceivedAmount || 0)
+        let fundableAmount = BigInt(campaignReceivedAmount || 0)
+        if (campaignTargetAmount !== undefined) {
+            fundableAmount = minBigInt(fundableAmount, campaignTargetAmount)
+        }
 
         const ingredientFunds =
-            receivedAmount > 0n
-                ? (receivedAmount * BigInt(Math.floor(ingredientPct * 10000))) /
+            fundableAmount > 0n
+                ? (fundableAmount * BigInt(Math.floor(ingredientPct * 10000))) /
                   10000n
                 : 0n
         const cookingFunds =
-            receivedAmount > 0n
-                ? (receivedAmount * BigInt(Math.floor(cookingPct * 10000))) /
+            fundableAmount > 0n
+                ? (fundableAmount * BigInt(Math.floor(cookingPct * 10000))) /
                   10000n
                 : 0n
         const deliveryFunds =
-            receivedAmount > 0n
-                ? (receivedAmount * BigInt(Math.floor(deliveryPct * 10000))) /
+            fundableAmount > 0n
+                ? (fundableAmount * BigInt(Math.floor(deliveryPct * 10000))) /
                   10000n
                 : 0n
 
