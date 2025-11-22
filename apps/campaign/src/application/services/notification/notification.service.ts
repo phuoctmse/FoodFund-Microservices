@@ -288,6 +288,28 @@ export class NotificationService {
         await this.cacheService.setUnreadCount(userContext.userId, freshCount)
     }
 
+    async deleteNotificationByEntityId(
+        entityId: string,
+        userId: string,
+    ): Promise<void> {
+        const deleted =
+            await this.notificationRepository.deleteNotificationByEntityId(
+                entityId,
+                userId,
+                NotificationType.POST_LIKE,
+            )
+
+        if (!deleted) {
+            return
+        }
+
+        await this.cacheService.decrementUnreadCount(userId)
+        await this.cacheService.invalidateNotificationList(userId)
+
+        const freshCount = await this.notificationRepository.getUnreadCount(userId)
+        await this.cacheService.setUnreadCount(userId, freshCount)
+    }
+
     private async updateExistingLikeNotification<T extends NotificationType>(
         input: CreateNotificationInput<T>,
     ): Promise<Notification> {

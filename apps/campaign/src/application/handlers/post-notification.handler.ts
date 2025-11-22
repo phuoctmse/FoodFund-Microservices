@@ -1,12 +1,24 @@
 import { OnEvent } from "@nestjs/event-emitter"
-import { NotificationPriority, NotificationType } from "../../domain/enums/notification"
+import {
+    NotificationPriority,
+    NotificationType,
+} from "../../domain/enums/notification"
 import { NotificationQueue } from "../workers/notification"
 import { Injectable } from "@nestjs/common"
-import { PostCommentEvent, PostLikeEvent, PostReplyEvent } from "../../domain/events"
+import {
+    PostCommentEvent,
+    PostLikeEvent,
+    PostReplyEvent,
+    PostUnlikeEvent,
+} from "../../domain/events"
+import { NotificationService } from "../services/notification"
 
 @Injectable()
 export class PostNotificationHandler {
-    constructor(private readonly notificationQueue: NotificationQueue) {}
+    constructor(
+        private readonly notificationQueue: NotificationQueue,
+        private readonly notificationService: NotificationService,
+    ) {}
 
     @OnEvent("post.liked")
     async handlePostLike(event: PostLikeEvent) {
@@ -27,6 +39,39 @@ export class PostNotificationHandler {
                 postTitle: event.postTitle,
                 likeCount: event.likeCount,
                 latestLikerName: event.likerName,
+            },
+            timestamp: new Date().toISOString(),
+            delaySeconds: 10,
+        })
+    }
+
+    @OnEvent("post.unliked")
+    async handlePostUnlike(event: PostUnlikeEvent) {
+        if (event.unlikerId === event.postAuthorId) {
+            return
+        }
+
+        if (event.likeCount === 0) {
+            await this.notificationService.deleteNotificationByEntityId(
+                event.postId,
+                event.postAuthorId,
+            )
+            return
+        }
+
+        await this.notificationQueue.addNotificationJob({
+            eventId: `post-like-${event.postId}`,
+            priority: NotificationPriority.LOW,
+            type: NotificationType.POST_LIKE,
+            userId: event.postAuthorId,
+            actorId: event.unlikerId,
+            entityType: "POST",
+            entityId: event.postId,
+            data: {
+                postId: event.postId,
+                postTitle: event.postTitle,
+                likeCount: event.likeCount,
+                latestLikerName: event.latestLikerName,
             },
             timestamp: new Date().toISOString(),
             delaySeconds: 10,
