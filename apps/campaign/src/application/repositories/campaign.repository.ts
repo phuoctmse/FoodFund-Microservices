@@ -7,6 +7,7 @@ import {
 } from "../dtos/campaign/request"
 import { CampaignStatus } from "../../domain/enums/campaign/campaign.enum"
 import { Campaign } from "../../domain/entities/campaign.model"
+import { minBigInt } from "../../shared/utils"
 
 export interface FindManyOptions {
     filter?: CampaignFilterInput
@@ -556,7 +557,7 @@ export class CampaignRepository {
                     WHERE
                         campaign_id = ${data.campaignId}
                         AND is_active = true
-                `
+                `,
             )
 
             const campaignWithPhases = await tx.campaign.findUnique({
@@ -663,6 +664,8 @@ export class CampaignRepository {
             : undefined
 
         const receivedAmount = BigInt(dbCampaign.received_amount || 0)
+        const targetAmount = BigInt(dbCampaign.target_amount || 0)
+        const fundableAmount = minBigInt(receivedAmount, targetAmount)
 
         const phases =
             dbCampaign.campaign_phases?.map((phase: any) => {
@@ -680,20 +683,20 @@ export class CampaignRepository {
                     ) / 100
 
                 const ingredientFunds =
-                    receivedAmount > 0n
-                        ? (receivedAmount *
+                    fundableAmount > 0n
+                        ? (fundableAmount *
                               BigInt(Math.floor(ingredientPct * 10000))) /
                           10000n
                         : 0n
                 const cookingFunds =
-                    receivedAmount > 0n
-                        ? (receivedAmount *
+                    fundableAmount > 0n
+                        ? (fundableAmount *
                               BigInt(Math.floor(cookingPct * 10000))) /
                           10000n
                         : 0n
                 const deliveryFunds =
-                    receivedAmount > 0n
-                        ? (receivedAmount *
+                    fundableAmount > 0n
+                        ? (fundableAmount *
                               BigInt(Math.floor(deliveryPct * 10000))) /
                           10000n
                         : 0n

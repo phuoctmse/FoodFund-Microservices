@@ -5,7 +5,11 @@ import {
 } from "@app/campaign/src/application/dtos/notification/response/notification.response"
 import { NotificationService } from "@app/campaign/src/application/services/notification"
 import { Notification } from "@app/campaign/src/domain/entities/notification.model"
-import { CognitoGraphQLGuard, CurrentUser } from "@app/campaign/src/shared"
+import {
+    CognitoGraphQLGuard,
+    createUserContextFromToken,
+    CurrentUser,
+} from "@app/campaign/src/shared"
 import { UseGuards } from "@nestjs/common"
 import { Args, Mutation, Resolver } from "@nestjs/graphql"
 
@@ -19,12 +23,13 @@ export class NotificationMutationResolver {
     })
     @UseGuards(CognitoGraphQLGuard)
     async markAsRead(
-        @CurrentUser() user: any,
+        @CurrentUser("decodedToken") decodedToken: any,
         @Args("notificationId", { type: () => String }) notificationId: string,
     ): Promise<MarkAsReadResponse> {
+        const userContext = createUserContextFromToken(decodedToken)
         const notification = await this.notificationService.markAsRead(
             notificationId,
-            user.userId,
+            userContext,
         )
 
         return {
@@ -40,9 +45,12 @@ export class NotificationMutationResolver {
     })
     @UseGuards(CognitoGraphQLGuard)
     async markAllAsRead(
-        @CurrentUser() user: any,
+        @CurrentUser("decodedToken") decodedToken: any,
     ): Promise<MarkAllAsReadResponse> {
-        const count = await this.notificationService.markAllAsRead(user.userId)
+        const userContext = createUserContextFromToken(decodedToken)
+        const count = await this.notificationService.markAllAsRead(
+            userContext.userId,
+        )
 
         return {
             success: true,
@@ -57,12 +65,13 @@ export class NotificationMutationResolver {
     })
     @UseGuards(CognitoGraphQLGuard)
     async deleteNotification(
-        @CurrentUser() user: any,
+        @CurrentUser("decodedToken") decodedToken: any,
         @Args("notificationId", { type: () => String }) notificationId: string,
     ): Promise<DeleteNotificationResponse> {
+        const userContext = createUserContextFromToken(decodedToken)
         await this.notificationService.deleteNotification(
             notificationId,
-            user.userId,
+            userContext,
         )
 
         return {

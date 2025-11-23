@@ -154,4 +154,26 @@ export class PostLikeRepository {
             likedAt: like.created_at,
         }))
     }
+
+    async getLatestLike(
+        postId: string,
+    ): Promise<{ userId: string; createdAt: Date } | null> {
+        const like = await this.prisma.post_Like.findFirst({
+            where: { post_id: postId },
+            orderBy: { created_at: "desc" },
+            select: {
+                user_id: true,
+                created_at: true,
+            },
+        })
+
+        if (!like) {
+            return null
+        }
+
+        return {
+            userId: like.user_id,
+            createdAt: like.created_at,
+        }
+    }
 }

@@ -34,7 +34,10 @@ export class NotificationService {
                 input.eventId,
             )
             if (isProcessed) {
-                if (input.type === NotificationType.POST_LIKE && input.entityId) {
+                if (
+                    input.type === NotificationType.POST_LIKE &&
+                    input.entityId
+                ) {
                     return await this.updateExistingLikeNotification(input)
                 }
                 throw new Error("Event already processed")
@@ -221,7 +224,7 @@ export class NotificationService {
     ): Promise<Notification> {
         const notification = await this.getNotificationById(id, userContext)
         if (notification.userId !== userContext.userId) {
-            throw new Error("Unauthorized")
+            throw new ForbiddenException("Unauthorized")
         }
 
         if (notification.isRead) {
@@ -240,11 +243,12 @@ export class NotificationService {
         await this.cacheService.decrementUnreadCount(userContext.userId)
         await this.cacheService.invalidateNotificationList(userContext.userId)
 
-        const updatedNotification = await this.getNotificationById(
-            id,
-            userContext,
+        const freshCount = await this.notificationRepository.getUnreadCount(
+            userContext.userId,
         )
-        return updatedNotification
+        await this.cacheService.setUnreadCount(userContext.userId, freshCount)
+
+        return await this.getNotificationById(id, userContext)
     }
 
     async markAllAsRead(userId: string): Promise<number> {
@@ -262,26 +266,65 @@ export class NotificationService {
     ): Promise<void> {
         const notification = await this.getNotificationById(id, userContext)
         if (notification.userId !== userContext.userId) {
-            throw new Error("Unauthorized")
+            throw new ForbiddenException(
+                "Unauthorized to delete this notification",
+            )
+        }
+        const deleted = await this.notificationRepository.deleteNotification(
+            id,
+            userContext.userId,
+        )
+        if (!deleted) {
+            throw new Error("Failed to delete notification")
         }
 
         if (!notification.isRead) {
             await this.cacheService.decrementUnreadCount(userContext.userId)
         }
         await this.cacheService.invalidateNotificationList(userContext.userId)
+        const freshCount = await this.notificationRepository.getUnreadCount(
+            userContext.userId,
+        )
+        await this.cacheService.setUnreadCount(userContext.userId, freshCount)
+    }
+
+    async deleteNotificationByEntityId(
+        entityId: string,
+        userId: string,
+    ): Promise<void> {
+        const deleted =
+            await this.notificationRepository.deleteNotificationByEntityId(
+                entityId,
+                userId,
+                NotificationType.POST_LIKE,
+            )
+
+        if (!deleted) {
+            return
+        }
+
+        await this.cacheService.decrementUnreadCount(userId)
+        await this.cacheService.invalidateNotificationList(userId)
+
+        const freshCount = await this.notificationRepository.getUnreadCount(userId)
+        await this.cacheService.setUnreadCount(userId, freshCount)
     }
 
     private async updateExistingLikeNotification<T extends NotificationType>(
         input: CreateNotificationInput<T>,
     ): Promise<Notification> {
-        const existingNotifications = await this.notificationRepository.findNotifications({
-            userId: input.userId,
-            limit: 50,
-            isRead: false,
-        })
+        const existingNotifications =
+            await this.notificationRepository.findNotifications({
+                userId: input.userId,
+                limit: 50,
+                isRead: false,
+            })
 
         const existingNotification = existingNotifications.items.find(
-            (n) => n.type === NotificationType.POST_LIKE && n.entityId === input.entityId && !n.isRead,
+            (n) =>
+                n.type === NotificationType.POST_LIKE &&
+                n.entityId === input.entityId &&
+                !n.isRead,
         )
 
         if (!existingNotification) {
@@ -305,10 +348,11 @@ export class NotificationService {
             ...input.metadata,
         }
 
-        const updatedNotification = await this.notificationRepository.updateNotificationData(
-            existingNotification.id,
-            updatedData,
-        )
+        const updatedNotification =
+            await this.notificationRepository.updateNotificationData(
+                existingNotification.id,
+                updatedData,
+            )
 
         if (!updatedNotification) {
             throw new Error("Failed to update notification")

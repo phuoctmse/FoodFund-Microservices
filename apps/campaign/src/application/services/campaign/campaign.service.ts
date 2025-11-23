@@ -443,7 +443,7 @@ export class CampaignService {
                 await this.autoTransferWalletToCampaign(campaign, updateData)
             } else if (newStatus === CampaignStatus.APPROVED) {
                 updateData.changedStatusAt = new Date()
-                
+
                 await this.autoTransferWalletToCampaign(campaign, updateData)
                 this.eventEmitter.emit("campaign.approved", {
                     campaignId: campaign.id,
@@ -1435,8 +1435,7 @@ export class CampaignService {
                 description: `Auto-transfer to campaign "${campaign.title}" on approval`,
             })
 
-            updateData.receivedAmount =
-                currentReceived + transferAmount
+            updateData.receivedAmount = currentReceived + transferAmount
 
             this.logger.log(
                 `[AutoTransfer] ✅ Successfully transferred ${transferAmount} to campaign ${campaign.id}`,
@@ -1475,7 +1474,8 @@ export class CampaignService {
 
             await this.campaignEmailService.sendCampaignApprovedWithTransfer({
                 fundraiserEmail: fundraiser.email || "",
-                fundraiserName: fundraiser.fullName || fundraiser.username || "Fundraiser",
+                fundraiserName:
+                    fundraiser.fullName || fundraiser.username || "Fundraiser",
                 campaignTitle: campaign.title,
                 campaignId: campaign.id,
                 transferredAmount: transferredAmount.toLocaleString("vi-VN"),
@@ -1523,14 +1523,14 @@ export class CampaignService {
                                 donor.donor_id,
                             )
 
-                        if (!donorUser || !donorUser.email) {
+                        if (donorUser?.email) {
                             return null
                         }
 
                         return {
-                            email: donorUser.email,
+                            email: donorUser?.email,
                             name:
-                                donorUser.fullName ||
+                                donorUser?.fullName ||
                                 donor.donor_name ||
                                 "Donor",
                             oldCampaignTitle: "chiến dịch trước",

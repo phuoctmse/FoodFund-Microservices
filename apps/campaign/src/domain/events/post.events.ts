@@ -7,6 +7,15 @@ export interface PostLikeEvent {
     likeCount: number
 }
 
+export interface PostUnlikeEvent {
+    postId: string
+    postTitle: string
+    postAuthorId: string
+    unlikerId: string
+    likeCount: number
+    latestLikerName: string
+}
+
 export interface PostCommentEvent {
     commentId: string
     postId: string

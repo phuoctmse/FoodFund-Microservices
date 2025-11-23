@@ -81,12 +81,13 @@ export class NotificationQueryResolver {
     })
     @UseGuards(CognitoGraphQLGuard)
     async getUnreadNotifications(
-        @CurrentUser() user: any,
+        @CurrentUser("decodedToken") decodedToken: any,
         @Args("limit", { type: () => Int, nullable: true, defaultValue: 20 })
             limit: number,
         @Args("cursor", { type: () => String, nullable: true })
             cursor?: string,
     ): Promise<PaginatedNotificationResponse> {
+        const userContext = createUserContextFromToken(decodedToken)
         const filters: NotificationFilters = {
             limit,
             cursor,
@@ -94,7 +95,7 @@ export class NotificationQueryResolver {
         }
 
         const result = await this.notificationService.getNotifications(
-            user.userId,
+            userContext.userId,
             filters,
         )
 

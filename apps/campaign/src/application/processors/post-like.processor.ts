@@ -12,7 +12,7 @@ import { QUEUE_NAMES, BullDatadogService, JOB_TYPES } from "@libs/queue"
 import { PostLikeRepository } from "../repositories/post-like.repository"
 import { PostCacheService } from "../services/post/post-cache.service"
 import { LikeAction, PostLikeJob } from "../../domain/interfaces/post"
-import { PostLikeEvent } from "../../domain/events"
+import { PostLikeEvent, PostUnlikeEvent } from "../../domain/events"
 import { PostRepository } from "../repositories/post.repository"
 import { EventEmitter2 } from "@nestjs/event-emitter"
 import { UserClientService } from "../../shared"
@@ -165,6 +165,28 @@ export class PostLikeProcessor {
             this.postCacheService.deleteCampaignPosts(post.campaignId),
             this.postCacheService.deleteAllPostLists(),
         ])
+
+        if (post.createdBy !== userId) {
+            let latestLikerName = "Someone"
+            if (result.likeCount > 0) {
+                const latestLike =
+                    await this.postLikeRepository.getLatestLike(postId)
+                if (latestLike) {
+                    latestLikerName = await this.userClient.getUserDisplayName(
+                        latestLike.userId,
+                    )
+                }
+            }
+
+            this.eventEmitter.emit("post.unliked", {
+                postId: post.id,
+                postTitle: post.title,
+                postAuthorId: post.createdBy,
+                unlikerId: userId,
+                likeCount: result.likeCount,
+                latestLikerName,
+            } satisfies PostUnlikeEvent)
+        }
     }
 
     @OnQueueActive()

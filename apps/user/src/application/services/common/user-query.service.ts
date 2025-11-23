@@ -44,9 +44,6 @@ export class UserQueryService {
         __typename: string
         id: string
     }): Promise<UserProfileSchema | null> {
-        this.logger.log(
-            `Resolving GraphQL federation reference: ${reference.id}`,
-        )
-        return this.userRepository.findUserById(reference.id) as any
+        return this.userRepository.findUserByCognitoId(reference.id) as any
     }
 }
