@@ -312,6 +312,8 @@ export class InflowTransactionService {
             id: transaction.id,
             campaignPhaseId: transaction.campaign_phase_id,
             receiverId: transaction.receiver_id,
+            ingredientRequestId: transaction.ingredient_request_id,
+            operationRequestId: transaction.operation_request_id,
             transactionType: transaction.transaction_type as InflowTransactionType,
             amount: transaction.amount.toString(),
             status: transaction.status as InflowTransactionStatus,
