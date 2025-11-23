@@ -20,7 +20,7 @@ set -e  # Exit on error
 # Configuration
 NAMESPACE="foodfund-k8s"
 HELM_TIMEOUT="10m" 
-READINESS_TIMEOUT="180s"  
+READINESS_TIMEOUT="600s"  
 STABILIZATION_DELAY=10
 
 echo "=================================================="
@@ -47,9 +47,7 @@ if [[ "${DEPLOY_AUTH}" = "true" ]]; then
             --namespace ${NAMESPACE} \
             --set image.tag=${UNIQUE_TAG} \
             --set image.repository=${DOCKERHUB_USERNAME}/foodfund-auth \
-            --wait \
-            --timeout ${HELM_TIMEOUT} \
-            --atomic \
+            --set image.repository=${DOCKERHUB_USERNAME}/foodfund-auth \
         && echo "✅ auth-service deployed" \
         || echo "❌ auth-service deployment failed"
     ) &
@@ -64,9 +62,7 @@ if [[ "${DEPLOY_USER}" = "true" ]]; then
             --namespace ${NAMESPACE} \
             --set image.tag=${UNIQUE_TAG} \
             --set image.repository=${DOCKERHUB_USERNAME}/foodfund-user \
-            --wait \
-            --timeout ${HELM_TIMEOUT} \
-            --atomic \
+            --set image.repository=${DOCKERHUB_USERNAME}/foodfund-user \
         && echo "✅ user-service deployed" \
         || echo "❌ user-service deployment failed"
     ) &
@@ -81,9 +77,7 @@ if [[ "${DEPLOY_CAMPAIGN}" = "true" ]]; then
             --namespace ${NAMESPACE} \
             --set image.tag=${UNIQUE_TAG} \
             --set image.repository=${DOCKERHUB_USERNAME}/foodfund-campaign \
-            --wait \
-            --timeout ${HELM_TIMEOUT} \
-            --atomic \
+            --set image.repository=${DOCKERHUB_USERNAME}/foodfund-campaign \
         && echo "✅ campaign-service deployed" \
         || {
             echo "❌ campaign-service deployment failed"
@@ -107,9 +101,7 @@ if [[ "${DEPLOY_OPERATION}" = "true" ]]; then
             --namespace ${NAMESPACE} \
             --set image.tag=${UNIQUE_TAG} \
             --set image.repository=${DOCKERHUB_USERNAME}/foodfund-operation \
-            --wait \
-            --timeout ${HELM_TIMEOUT} \
-            --atomic \
+            --set image.repository=${DOCKERHUB_USERNAME}/foodfund-operation \
         && echo "✅ operation-service deployed" \
         || echo "❌ operation-service deployment failed"
     ) &
@@ -191,9 +183,7 @@ if [[ "${DEPLOY_GATEWAY}" = "true" ]]; then
         --namespace ${NAMESPACE} \
         --set image.tag=${UNIQUE_TAG} \
         --set image.repository=${DOCKERHUB_USERNAME}/foodfund-graphql-gateway \
-        --wait \
-        --timeout ${HELM_TIMEOUT} \
-        --atomic
+        --set image.repository=${DOCKERHUB_USERNAME}/foodfund-graphql-gateway
     echo "✅ graphql-gateway deployed"
     echo ""
 fi
