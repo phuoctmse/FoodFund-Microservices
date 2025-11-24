@@ -45,10 +45,13 @@ export class UserResolver {
     @Mutation(() => ChangePasswordResponse)
     @UseGuards(CognitoGraphQLGuard)
     async changePassword(
-        @CurrentUser() { id }: { id: string },
+        @CurrentUser() user: CurrentUserType,
         @Args("input") input: ChangePasswordInput,
     ): Promise<ChangePasswordResponse> {
-        const success = await this.userService.changePassword(id, input)
+        const success = await this.userService.changePassword(
+            user.username,
+            input,
+        )
         return {
             success,
             message: success
