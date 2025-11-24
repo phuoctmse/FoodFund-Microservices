@@ -1,30 +1,29 @@
 import { Args, Int, Query, Resolver } from "@nestjs/graphql"
 import { WalletService } from "../../../../application/services/common/wallet.service"
 import {
-    WalletModel,
-    WalletTransactionModel,
-    WalletWithTransactionsModel,
-} from "../../models/wallet.model"
+    WalletSchema,
+    WalletTransactionSchema,
+} from "../../../../domain/entities"
 
 @Resolver()
 export class WalletQueryResolver {
     constructor(private readonly walletService: WalletService) {}
 
-    @Query(() => WalletModel, {
+    @Query(() => WalletSchema, {
         description: "Get system admin wallet (Public API - No authentication required)",
         nullable: true,
     })
-    async getSystemWallet(): Promise<WalletModel | null> {
+    async getSystemWallet(): Promise<WalletSchema | null> {
         return this.walletService.getSystemWallet()
     }
 
-    @Query(() => WalletModel, {
+    @Query(() => WalletSchema, {
         description: "Get wallet by user ID (Public API - No authentication required)",
         nullable: true,
     })
     async getWallet(
         @Args("userId", { type: () => String }) userId: string,
-    ): Promise<WalletModel | null> {
+    ): Promise<WalletSchema | null> {
         try {
             return await this.walletService.getPublicWallet(userId)
         } catch (error) {
@@ -32,7 +31,7 @@ export class WalletQueryResolver {
         }
     }
 
-    @Query(() => [WalletTransactionModel], {
+    @Query(() => [WalletTransactionSchema], {
         description: "Get wallet transactions by wallet ID (Public API - No authentication required)",
     })
     async getWalletTransactions(
@@ -51,7 +50,7 @@ export class WalletQueryResolver {
             description: "Number of transactions to return",
         })
             limit = 50,
-    ): Promise<WalletTransactionModel[]> {
+    ): Promise<WalletTransactionSchema[]> {
         return this.walletService.getWalletTransactionsByWalletId(
             walletId,
             skip,

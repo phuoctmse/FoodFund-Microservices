@@ -5,7 +5,7 @@ import { CognitoGraphQLGuard } from "@libs/aws-cognito"
 import { Role } from "@libs/databases"
 import { SpacesUploadService } from "@libs/s3-storage"
 import { BadgeService, UserBadgeService } from "../../../../application/services/badge"
-import { Badge, UserBadge } from "../../models/badge.model"
+import { Badge, UserBadge } from "../../../../domain/entities/badge.model"
 import {
     CreateBadgeInput,
     UpdateBadgeInput,

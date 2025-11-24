@@ -1,6 +1,6 @@
 import { Controller, Logger } from "@nestjs/common"
 import { GrpcMethod } from "@nestjs/microservices"
-import { AuthAuthenticationService } from "../../application/services"
+import { AuthenticationService } from "../../application/services"
 import { AwsCognitoService } from "libs/aws-cognito"
 
 // Request/Response interfaces matching proto definitions
@@ -65,7 +65,7 @@ export class AuthGrpcController {
     private readonly logger = new Logger(AuthGrpcController.name)
 
     constructor(
-        private readonly authAuthenticationService: AuthAuthenticationService,
+        private readonly authenticationService: AuthenticationService,
         private readonly cognitoService: AwsCognitoService,
     ) {}
 
@@ -140,7 +140,7 @@ export class AuthGrpcController {
             const { accessToken } = data
 
             const authUser =
-                await this.authAuthenticationService.verifyToken(accessToken)
+                await this.authenticationService.verifyToken(accessToken)
 
             return {
                 success: true,

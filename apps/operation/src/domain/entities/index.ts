@@ -1,6 +1,7 @@
 export * from "./delivery-status-log.model"
 export * from "./delivery-task.model"
 export * from "./expense-proof.model"
+export * from "./inflow-transaction.model"
 export * from "./ingredient-request-item.model"
 export * from "./ingredient-request.model"
 export * from "./meal-batch-ingredient-usage.model"

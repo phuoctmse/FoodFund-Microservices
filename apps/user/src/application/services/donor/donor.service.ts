@@ -23,16 +23,4 @@ export class DonorService {
 
         return user
     }
-
-    // // Donor Business Logic: Get donation stats
-    // async getDonationStats(userId: string) {
-    //     this.logger.log(`Getting donation stats for user: ${userId}`)
-    //     return this.donorRepository.getDonorStats(userId)
-    // }
-
-    // // Public: Get top donors (for leaderboard)
-    // async getTopDonors(limit: number = 10) {
-    //     this.logger.log(`Getting top ${limit} donors`)
-    //     return this.donorRepository.getTopDonors(limit)
-    // }
 }

@@ -2,5 +2,6 @@
     "kiroAgent.configureMCP": "Enabled",
     "[prisma]": {
         "editor.defaultFormatter": "Prisma.prisma"
-    }
+    },
+    "prisma.pinToPrisma6": true
 }

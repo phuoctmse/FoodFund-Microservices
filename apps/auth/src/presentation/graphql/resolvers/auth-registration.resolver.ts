@@ -7,7 +7,7 @@ import {
     ResendCodeResponse,
     AuthHealthResponse,
 } from "../../../domain/entities"
-import { AuthRegistrationService } from "../../../application/services"
+import { RegistrationService } from "../../../application/services"
 import {
     SignUpInput,
     ConfirmSignUpInput,
@@ -17,9 +17,9 @@ import {
 } from "../../../application/dtos"
 
 @Resolver()
-export class AuthRegistrationResolver {
+export class RegistrationResolver {
     constructor(
-        private readonly authRegistrationService: AuthRegistrationService,
+        private readonly registrationService: RegistrationService,
     ) {}
 
     @Query(() => AuthHealthResponse)
@@ -33,35 +33,35 @@ export class AuthRegistrationResolver {
 
     @Mutation(() => SignUpResponse)
     async signUp(@Args("input") input: SignUpInput): Promise<SignUpResponse> {
-        return this.authRegistrationService.signUp(input)
+        return this.registrationService.signUp(input)
     }
 
     @Mutation(() => ConfirmSignUpResponse)
     async confirmSignUp(
         @Args("input") input: ConfirmSignUpInput,
     ): Promise<ConfirmSignUpResponse> {
-        return this.authRegistrationService.confirmSignUp(input)
+        return this.registrationService.confirmSignUp(input)
     }
 
     @Mutation(() => ResendCodeResponse)
     async resendConfirmationCode(
         @Args("input") input: ResendCodeInput,
     ): Promise<ResendCodeResponse> {
-        return this.authRegistrationService.resendConfirmationCode(input.email)
+        return this.registrationService.resendConfirmationCode(input.email)
     }
 
     @Mutation(() => ForgotPasswordResponse)
     async forgotPassword(
         @Args("input") input: ForgotPasswordInput,
     ): Promise<ForgotPasswordResponse> {
-        return this.authRegistrationService.forgotPassword(input.email)
+        return this.registrationService.forgotPassword(input.email)
     }
 
     @Mutation(() => ResetPasswordResponse)
     async confirmForgotPassword(
         @Args("input") input: ConfirmForgotPasswordInput,
     ): Promise<ResetPasswordResponse> {
-        return this.authRegistrationService.confirmForgotPassword(
+        return this.registrationService.confirmForgotPassword(
             input.email,
             input.confirmationCode,
             input.newPassword,

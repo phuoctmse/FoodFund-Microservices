@@ -3,18 +3,18 @@ import { RequireRole } from "@libs/auth"
 import { Role } from "@libs/databases"
 import { WalletService } from "../../../../application/services/common/wallet.service"
 import {
-    WalletModel,
-    WalletListResponse,
-    WalletTransactionModel,
-    WalletWithTransactionsModel,
-    PlatformWalletStatsModel,
-} from "../../models/wallet.model"
+    WalletSchema,
+    WalletListResponseSchema,
+    WalletTransactionSchema,
+    WalletWithTransactionsSchema,
+    PlatformWalletStatsSchema,
+} from "../../../../domain/entities"
 
 @Resolver()
 export class AdminWalletResolver {
     constructor(private readonly walletService: WalletService) {}
 
-    @Query(() => [WalletTransactionModel], {
+    @Query(() => [WalletTransactionSchema], {
         description: "Get system wallet transactions (Admin only)",
     })
     @RequireRole(Role.ADMIN)
@@ -33,11 +33,11 @@ export class AdminWalletResolver {
             description: "Number of transactions to return",
         })
             limit = 50,
-    ): Promise<WalletTransactionModel[]> {
+    ): Promise<WalletTransactionSchema[]> {
         return this.walletService.getSystemWalletTransactions(skip, limit)
     }
 
-    @Query(() => WalletListResponse, {
+    @Query(() => WalletListResponseSchema, {
         description: "Get all fundraiser wallets (Admin only)",
     })
     @RequireRole(Role.ADMIN)
@@ -56,21 +56,21 @@ export class AdminWalletResolver {
             description: "Number of wallets to return",
         })
             take = 50,
-    ): Promise<WalletListResponse> {
+    ): Promise<WalletListResponseSchema> {
         return this.walletService.getAllFundraiserWallets(skip, take)
     }
 
-    @Query(() => WalletModel, {
+    @Query(() => WalletSchema, {
         description: "Get fundraiser wallet by user ID (Admin only)",
     })
     @RequireRole(Role.ADMIN)
     async getFundraiserWallet(
         @Args("userId", { type: () => String }) userId: string,
-    ): Promise<WalletModel> {
+    ): Promise<WalletSchema> {
         return this.walletService.getFundraiserWallet(userId)
     }
 
-    @Query(() => WalletWithTransactionsModel, {
+    @Query(() => WalletWithTransactionsSchema, {
         description:
             "Get fundraiser wallet with transactions by user ID (Admin only)",
     })
@@ -91,7 +91,7 @@ export class AdminWalletResolver {
             description: "Number of transactions to return",
         })
             limit = 50,
-    ): Promise<WalletWithTransactionsModel> {
+    ): Promise<WalletWithTransactionsSchema> {
         return this.walletService.getFundraiserWalletWithTransactions(
             userId,
             skip,
@@ -99,11 +99,11 @@ export class AdminWalletResolver {
         )
     }
 
-    @Query(() => PlatformWalletStatsModel, {
+    @Query(() => PlatformWalletStatsSchema, {
         description: "Get platform-wide wallet statistics (Admin only)",
     })
     @RequireRole(Role.ADMIN)
-    async getPlatformWalletStats(): Promise<PlatformWalletStatsModel> {
+    async getPlatformWalletStats(): Promise<PlatformWalletStatsSchema> {
         return this.walletService.getPlatformWalletStats()
     }
 }

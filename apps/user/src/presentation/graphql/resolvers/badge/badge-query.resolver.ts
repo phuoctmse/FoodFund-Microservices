@@ -3,7 +3,7 @@ import { UseGuards } from "@nestjs/common"
 import { CurrentUser, CurrentUserType } from "@libs/auth"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
 import { BadgeService, UserBadgeService } from "../../../../application/services/badge"
-import { Badge, UserBadge } from "../../models/badge.model"
+import { Badge, UserBadge } from "../../../../domain/entities/badge.model"
 
 @Resolver(() => Badge)
 @UseGuards(CognitoGraphQLGuard)

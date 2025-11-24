@@ -1,15 +1,11 @@
 import { Resolver, Mutation, Args, Query } from "@nestjs/graphql"
-import { UseGuards } from "@nestjs/common"
-
 import { CurrentUser, RequireRole, CurrentUserType } from "libs/auth"
-import { CognitoGraphQLGuard } from "@libs/aws-cognito"
 import {
     CreateOrganizationInput,
     JoinOrganizationInput,
     JoinOrganizationRole,
 } from "@app/user/src/application/dtos"
 import {
-    DonorService,
     OrganizationService,
 } from "@app/user/src/application/services"
 import {
@@ -27,7 +23,6 @@ import { Role } from "@libs/databases"
 @Resolver(() => UserProfileSchema)
 export class DonorProfileResolver {
     constructor(
-        private readonly donorService: DonorService,
         private readonly organizationService: OrganizationService,
     ) {}
 
@@ -76,9 +71,6 @@ export class DonorProfileResolver {
         @CurrentUser() user: CurrentUserType,
         @Args("input") input: JoinOrganizationInput,
     ) {
-        console.debug(user.cognitoId)
-        console.debug(input)
-
         const result = await this.organizationService.requestJoinOrganization(
             user.cognitoId,
             input,

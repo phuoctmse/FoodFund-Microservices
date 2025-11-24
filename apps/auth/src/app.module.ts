@@ -8,16 +8,15 @@ import { AwsCognitoModule } from "@libs/aws-cognito"
 import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 import { GrpcModule } from "@libs/grpc"
 import {
-    AuthRegistrationService,
-    AuthAuthenticationService,
-    AuthUserService,
+    RegistrationService,
+    AuthenticationService,
+    UserService,
     AuthAdminService,
 } from "./application/services"
 import {
-    AuthRegistrationResolver,
-    AuthAuthenticationResolver,
-    AuthUserResolver,
-    AdminResolver,
+    RegistrationResolver,
+    AuthenticationResolver,
+    UserResolver,
 } from "./presentation/graphql/resolvers"
 import { HealthController } from "./presentation/http/controllers"
 import { AuthGrpcController } from "./presentation/grpc"
@@ -56,15 +55,14 @@ import { UserServiceGrpcAdapter } from "./infrastructure/adapters"
     ],
     providers: [
         // Resolvers (Presentation Layer)
-        AuthRegistrationResolver,
-        AuthAuthenticationResolver,
-        AuthUserResolver,
-        AdminResolver,
+        RegistrationResolver,
+        AuthenticationResolver,
+        UserResolver,
 
         // Services (Application Layer)
-        AuthRegistrationService,
-        AuthAuthenticationService,
-        AuthUserService,
+        RegistrationService,
+        AuthenticationService,
+        UserService,
         AuthAdminService,
 
         // Infrastructure Adapters (Dependency Injection)

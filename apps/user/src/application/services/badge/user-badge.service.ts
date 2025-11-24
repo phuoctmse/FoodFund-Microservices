@@ -16,7 +16,6 @@ export class UserBadgeService {
     constructor(
         private readonly userBadgeRepository: UserBadgeRepository,
         private readonly badgeRepository: BadgeRepository,
-        private readonly userRepository: UserRepository,
         private readonly badgeEmailService: BadgeEmailService,
     ) {}
 

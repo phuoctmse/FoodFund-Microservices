@@ -21,8 +21,8 @@ import { envConfig } from "@libs/env"
 import { Role } from "../../domain/enums/role.enum"
 
 @Injectable()
-export class AuthUserService {
-    private readonly logger = new Logger(AuthUserService.name)
+export class UserService {
+    private readonly logger = new Logger(UserService.name)
 
     constructor(
         private readonly awsCognitoService: AwsCognitoService,

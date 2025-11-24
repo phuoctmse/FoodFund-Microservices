@@ -1,5 +1,4 @@
 import {
-    FundraiserService,
     OrganizationService,
 } from "@app/user/src/application/services"
 import {
@@ -15,22 +14,9 @@ import { Resolver, Mutation, Args, Query, Int } from "@nestjs/graphql"
 @Resolver()
 export class FundraiserProfileResolver {
     constructor(
-        private readonly fundraiserService: FundraiserService,
         private readonly organizationService: OrganizationService,
     ) {}
 
-    // @Mutation(() => FundraiserProfileSchema)
-    // @RequireRole(Role.FUNDRAISER)
-    // async updateFundraiserProfile(
-    //     @CurrentUser() user: { cognito_id: string },
-    //     @Args("updateFundraiserProfileInput", new ValidationPipe())
-    //         updateFundraiserProfileInput: UpdateFundraiserProfileInput,
-    // ) {
-    //     return this.fundraiserService.updateProfile(
-    //         user.cognito_id,
-    //         updateFundraiserProfileInput,
-    //     )
-    // }
     @Query(() => OrganizationWithMembers, {
         description:
             "Get the organization that this fundraiser manages with all members",

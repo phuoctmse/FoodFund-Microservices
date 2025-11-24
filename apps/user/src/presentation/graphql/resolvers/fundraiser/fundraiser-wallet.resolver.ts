@@ -3,30 +3,30 @@ import { RequireRole, CurrentUser, CurrentUserType } from "@libs/auth"
 import { Role } from "@libs/databases"
 import { WalletService } from "../../../../application/services/common/wallet.service"
 import {
-    WalletModel,
-    WalletWithTransactionsModel,
-    WalletStatsModel,
-} from "../../models/wallet.model"
+    WalletSchema,
+    WalletWithTransactionsSchema,
+    WalletStatsSchema,
+} from "../../../../domain/entities"
 import { Wallet_Type } from "@app/user/src/domain/enums/wallet.enum"
 
 @Resolver()
 export class FundraiserWalletResolver {
     constructor(private readonly walletService: WalletService) {}
 
-    @Query(() => WalletModel, {
+    @Query(() => WalletSchema, {
         description: "Get my fundraiser wallet",
     })
     @RequireRole(Role.FUNDRAISER)
     async getMyWallet(
         @CurrentUser() user: CurrentUserType,
-    ): Promise<WalletModel> {
+    ): Promise<WalletSchema> {
         return this.walletService.getMyWallet(
             user.cognitoId,
             Wallet_Type.FUNDRAISER,
         )
     }
 
-    @Query(() => WalletWithTransactionsModel, {
+    @Query(() => WalletWithTransactionsSchema, {
         description: "Get my fundraiser wallet with transactions",
     })
     @RequireRole(Role.FUNDRAISER)
@@ -46,7 +46,7 @@ export class FundraiserWalletResolver {
             description: "Number of recent transactions to fetch",
         })
             limit = 50,
-    ): Promise<WalletWithTransactionsModel> {
+    ): Promise<WalletWithTransactionsSchema> {
         return this.walletService.getMyWalletWithTransactions(
             user.cognitoId,
             Wallet_Type.FUNDRAISER,
@@ -55,13 +55,13 @@ export class FundraiserWalletResolver {
         )
     }
 
-    @Query(() => WalletStatsModel, {
+    @Query(() => WalletStatsSchema, {
         description: "Get my fundraiser wallet statistics",
     })
     @RequireRole(Role.FUNDRAISER)
     async getMyWalletStats(
         @CurrentUser() user: CurrentUserType,
-    ): Promise<WalletStatsModel> {
+    ): Promise<WalletStatsSchema> {
         return this.walletService.getMyWalletStats(
             user.cognitoId,
             Wallet_Type.FUNDRAISER,

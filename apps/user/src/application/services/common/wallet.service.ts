@@ -2,15 +2,13 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common"
 import { envConfig } from "@libs/env"
 import { WalletRepository } from "../../repositories/wallet.repository"
 import {
-    WalletModel,
-    WalletTransactionModel,
-    WalletWithTransactionsModel,
-    WalletListResponse,
-    WalletTypeEnum,
-    TransactionTypeEnum,
-    WalletStatsModel,
-    PlatformWalletStatsModel,
-} from "../../../presentation/graphql/models/wallet.model"
+    WalletSchema,
+    WalletTransactionSchema,
+    WalletWithTransactionsSchema,
+    WalletListResponseSchema,
+    WalletStatsSchema,
+    PlatformWalletStatsSchema,
+} from "../../../domain/entities"
 import { Transaction_Type, Wallet_Type } from "@app/user/src/domain/enums/wallet.enum"
 import { UserRepository } from "../../repositories"
 
@@ -29,7 +27,7 @@ export class WalletService {
     async getMyWallet(
         cognitoId: string,
         walletType: Wallet_Type,
-    ): Promise<WalletModel> {
+    ): Promise<WalletSchema> {
         // Get user by cognitoId
         const user = await this.userRepository.findUserByCognitoId(cognitoId)
 
@@ -54,7 +52,7 @@ export class WalletService {
         walletType: Wallet_Type,
         skip = 0,
         limit = 50,
-    ): Promise<WalletWithTransactionsModel> {
+    ): Promise<WalletWithTransactionsSchema> {
         const user = await this.userRepository.findUserByCognitoId(cognitoId)
 
         if (!user) {
@@ -92,7 +90,7 @@ export class WalletService {
     async getAllFundraiserWallets(
         skip = 0,
         take = 50,
-    ): Promise<WalletListResponse> {
+    ): Promise<WalletListResponseSchema> {
         const { wallets, total } =
             await this.walletRepository.findAllByType(
                 Wallet_Type.FUNDRAISER,
@@ -113,7 +111,7 @@ export class WalletService {
         walletId: string,
         skip = 0,
         limit = 50,
-    ): Promise<WalletTransactionModel[]> {
+    ): Promise<WalletTransactionSchema[]> {
         const transactions =
             await this.walletRepository.getTransactionsByWalletId(
                 walletId,
@@ -130,7 +128,7 @@ export class WalletService {
     async getWalletByUserId(
         userId: string,
         walletType: Wallet_Type,
-    ): Promise<WalletModel> {
+    ): Promise<WalletSchema> {
         const wallet = await this.walletRepository.getWallet(userId, walletType)
         return this.mapWalletToModel(wallet)
     }
@@ -139,7 +137,7 @@ export class WalletService {
      * Public: Get wallet by user ID (for public transparency)
      * Returns fundraiser wallet by default for public viewing
      */
-    async getPublicWallet(userId: string): Promise<WalletModel | null> {
+    async getPublicWallet(userId: string): Promise<WalletSchema | null> {
         try {
             // Public API only shows FUNDRAISER wallets for transparency
             return await this.getWalletByUserId(userId, Wallet_Type.FUNDRAISER)
@@ -156,7 +154,7 @@ export class WalletService {
      * Public: Get system admin wallet (for public transparency)
      * Returns the admin wallet of the system admin user
      */
-    async getSystemWallet(): Promise<WalletModel | null> {
+    async getSystemWallet(): Promise<WalletSchema | null> {
         try {
             const config = envConfig()
             const systemAdminId = config.systemAdminId
@@ -193,7 +191,7 @@ export class WalletService {
     async getMyWalletStats(
         cognitoId: string,
         walletType: Wallet_Type,
-    ): Promise<WalletStatsModel> {
+    ): Promise<WalletStatsSchema> {
         const user = await this.userRepository.findUserByCognitoId(cognitoId)
 
         if (!user) {
@@ -220,7 +218,7 @@ export class WalletService {
     /**
      * Admin: Get fundraiser wallet by user ID
      */
-    async getFundraiserWallet(userId: string): Promise<WalletModel> {
+    async getFundraiserWallet(userId: string): Promise<WalletSchema> {
         return this.getWalletByUserId(userId, Wallet_Type.FUNDRAISER)
     }
 
@@ -231,7 +229,7 @@ export class WalletService {
         userId: string,
         skip = 0,
         limit = 50,
-    ): Promise<WalletWithTransactionsModel> {
+    ): Promise<WalletWithTransactionsSchema> {
         const wallet = await this.getWalletByUserId(
             userId,
             Wallet_Type.FUNDRAISER,
@@ -256,7 +254,7 @@ export class WalletService {
     async getSystemWalletTransactions(
         skip = 0,
         limit = 50,
-    ): Promise<WalletTransactionModel[]> {
+    ): Promise<WalletTransactionSchema[]> {
         const systemWallet = await this.getSystemWallet()
 
         if (!systemWallet) {
@@ -276,7 +274,7 @@ export class WalletService {
     /**
      * Admin: Get platform-wide wallet statistics
      */
-    async getPlatformWalletStats(): Promise<PlatformWalletStatsModel> {
+    async getPlatformWalletStats(): Promise<PlatformWalletStatsSchema> {
         const stats = await this.walletRepository.getPlatformStats()
         const systemWallet = await this.getSystemWallet()
 
@@ -290,53 +288,34 @@ export class WalletService {
     }
 
     // Helper methods
-    private mapWalletToModel(wallet: any): WalletModel {
+    private mapWalletToModel(wallet: any): WalletSchema {
+        // Return domain entity directly - GraphQL will handle field name mapping
         return {
             id: wallet.id,
-            userId: wallet.user_id,
-            walletType: this.mapWalletType(wallet.wallet_type),
+            user_id: wallet.user_id, // Keep snake_case for domain entity
+            wallet_type: wallet.wallet_type, // Keep snake_case for domain entity
             balance: wallet.balance.toString(),
-            createdAt: wallet.created_at,
-            updatedAt: wallet.updated_at,
-        }
+            created_at: wallet.created_at,
+            updated_at: wallet.updated_at,
+        } as WalletSchema
     }
 
-    private mapTransactionToModel(tx: any): WalletTransactionModel {
+    private mapTransactionToModel(tx: any): WalletTransactionSchema {
+        // Return domain entity directly - GraphQL will handle field name mapping
         return {
             id: tx.id,
-            walletId: tx.wallet_id,
+            wallet_id: tx.wallet_id, // Keep snake_case for domain entity
+            campaign_id: tx.campaign_id || null,
+            payment_transaction_id: tx.payment_transaction_id || null,
             amount: tx.amount.toString(),
-            transactionType: this.mapTransactionType(tx.transaction_type),
-            campaignId: tx.campaign_id || undefined,
-            paymentTransactionId: tx.payment_transaction_id || undefined,
-            gateway: tx.gateway || undefined,
-            description: tx.description || undefined,
-            createdAt: tx.created_at,
-        }
-    }
-
-    private mapWalletType(type: Wallet_Type): WalletTypeEnum {
-        switch (type) {
-        case Wallet_Type.FUNDRAISER:
-            return WalletTypeEnum.FUNDRAISER
-        case Wallet_Type.ADMIN:
-            return WalletTypeEnum.ADMIN
-        default:
-            return WalletTypeEnum.FUNDRAISER // Default fallback
-        }
-    }
-
-    private mapTransactionType(type: Transaction_Type): TransactionTypeEnum {
-        // Map all transaction types to CREDIT/DEBIT
-        switch (type) {
-        case Transaction_Type.DONATION_RECEIVED:
-        case Transaction_Type.INCOMING_TRANSFER:
-        case Transaction_Type.ADMIN_ADJUSTMENT:
-            return TransactionTypeEnum.CREDIT
-        case Transaction_Type.WITHDRAWAL:
-            return TransactionTypeEnum.DEBIT
-        default:
-            return TransactionTypeEnum.CREDIT // Default fallback
-        }
+            balance_before: tx.balance_before?.toString() || "0",
+            balance_after: tx.balance_after?.toString() || "0",
+            transaction_type: tx.transaction_type, // Keep enum as-is
+            description: tx.description || null,
+            gateway: tx.gateway || null,
+            sepay_metadata: tx.sepay_metadata || null,
+            created_at: tx.created_at,
+            updated_at: tx.updated_at,
+        } as WalletTransactionSchema
     }
 }

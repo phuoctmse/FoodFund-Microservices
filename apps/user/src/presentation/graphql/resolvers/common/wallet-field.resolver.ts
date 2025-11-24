@@ -1,19 +1,27 @@
 import { Parent, ResolveField, Resolver } from "@nestjs/graphql"
-import { WalletModel } from "../../models/wallet.model"
-import { UserProfileSchema } from "../../../../domain/entities/user.model"
+import {
+    WalletSchema,
+    UserProfileSchema,
+    Badge,
+} from "../../../../domain/entities"
 import { UserRepository } from "../../../../application/repositories"
+import { DataLoaderService } from "../../../../application/services"
+import { Role } from "../../../../domain/enums"
 
-@Resolver(() => WalletModel)
+@Resolver(() => WalletSchema)
 export class WalletFieldResolver {
-    constructor(private readonly userRepository: UserRepository) {}
+    constructor(
+        private readonly userRepository: UserRepository,
+        private readonly dataLoaderService: DataLoaderService,
+    ) {}
 
     @ResolveField(() => UserProfileSchema, {
         description: "Resolve user information for the wallet owner",
         nullable: true,
     })
-    async user(@Parent() wallet: WalletModel): Promise<UserProfileSchema | null> {
+    async user(@Parent() wallet: WalletSchema): Promise<UserProfileSchema | null> {
         try {
-            const user = await this.userRepository.findUserById(wallet.userId)
+            const user = await this.userRepository.findUserById(wallet.user_id)
 
             if (!user) {
                 return null
@@ -33,6 +41,27 @@ export class WalletFieldResolver {
                 created_at: user.created_at,
                 updated_at: user.updated_at,
             } as UserProfileSchema
+        } catch (error) {
+            return null
+        }
+    }
+
+    @ResolveField(() => Badge, {
+        description: "Resolve badge for DONOR wallet based on donation amount",
+        nullable: true,
+    })
+    async badge(@Parent() wallet: WalletSchema): Promise<Badge | null> {
+        try {
+            // Get user to check role
+            const user = await this.userRepository.findUserById(wallet.user_id)
+
+            // Only DONOR role can have badges
+            if (!user || user.role !== Role.DONOR) {
+                return null
+            }
+
+            // Use DataLoader to efficiently fetch badge
+            return this.dataLoaderService.getUserBadge(user.id)
         } catch (error) {
             return null
         }

@@ -1,3 +1,5 @@
+export * from "./avatar-upload.input"
+export * from "./avatar-upload.output"
 export * from "./join-organization-role.enum"
 export * from "./organization.input"
 export * from "./profile.input"

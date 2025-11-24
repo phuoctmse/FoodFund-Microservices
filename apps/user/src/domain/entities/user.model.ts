@@ -1,7 +1,7 @@
 import { ObjectType, Field, Directive } from "@nestjs/graphql"
 import { Role } from "../enums/user.enum"
 import { AbstractSchema } from "../../shared/helpers/base.schema"
-import { Badge } from "../../presentation/graphql/models/badge.model"
+import { Badge } from "./badge.model"
 
 @ObjectType("User")
 @Directive("@key(fields: \"id\")")

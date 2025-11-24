@@ -1,26 +1,16 @@
 import {
     Resolver,
     Query,
-    Args,
     ResolveReference,
     ObjectType,
     Field,
-    Int,
 } from "@nestjs/graphql"
-
 import { UseGuards } from "@nestjs/common"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
 import { CurrentUser, CurrentUserType } from "libs/auth"
-import {
-    UserQueryService,
-    OrganizationService,
-} from "@app/user/src/application/services"
+import { UserQueryService } from "@app/user/src/application/services"
 import { UserProfileSchema } from "@app/user/src/domain/entities"
-import {
-    UserHealthResponse,
-    OrganizationListResponse,
-    OrganizationWithMembers,
-} from "@app/user/src/shared/types"
+import { UserHealthResponse } from "@app/user/src/shared/types"
 
 @ObjectType()
 export class RoleProfileResponse {
@@ -35,10 +25,12 @@ export class RoleProfileResponse {
 export class UserQueryResolver {
     constructor(
         private readonly userQueryService: UserQueryService,
-        private readonly organizationService: OrganizationService,
     ) {}
 
-    @Query(() => UserHealthResponse, { name: "userHealth" })
+    @Query(() => UserHealthResponse, {
+        name: "userHealth",
+        description: "Health check endpoint for user service",
+    })
     async userHealth(): Promise<UserHealthResponse> {
         return {
             status: "healthy",
@@ -46,7 +38,11 @@ export class UserQueryResolver {
             timestamp: new Date().toISOString(),
         }
     }
-    @Query(() => RoleProfileResponse, { name: "getMyProfile" })
+
+    @Query(() => RoleProfileResponse, {
+        name: "getMyProfile",
+        description: "Get current user profile with role-based information (requires authentication)",
+    })
     @UseGuards(CognitoGraphQLGuard)
     async getMyProfile(
         @CurrentUser() user: CurrentUserType,
@@ -76,57 +72,6 @@ export class UserQueryResolver {
         }
 
         return response
-    }
-
-    @Query(() => OrganizationListResponse, { name: "listActiveOrganizations" })
-    async listActiveOrganizations(
-        @Args("offset", {
-            type: () => Int,
-            nullable: true,
-            defaultValue: 0,
-            description: "Number of organizations to skip",
-        })
-            offset: number = 0,
-        @Args("limit", {
-            type: () => Int,
-            nullable: true,
-            defaultValue: 10,
-            description: "Number of organizations to return (max 50)",
-        })
-            limit: number = 10,
-    ): Promise<OrganizationListResponse> {
-        const safeLimit = Math.min(Math.max(limit, 1), 50) // Max 50 items per page
-        const safeOffset = Math.max(offset, 0)
-
-        const result =
-            await this.organizationService.getActiveOrganizationsWithMembers({
-                offset: safeOffset,
-                limit: safeLimit,
-            })
-
-        return {
-            success: true,
-            message: `Found ${result.organizations.length} active organization(s) (page ${Math.floor(safeOffset / safeLimit) + 1})`,
-            organizations: result.organizations,
-            total: result.total,
-            offset: safeOffset,
-            limit: safeLimit,
-            hasMore: safeOffset + safeLimit < result.total,
-        }
-    }
-
-    @Query(() => OrganizationWithMembers, {
-        name: "getOrganizationById",
-        description:
-            "Get organization details by ID (public access, only verified organizations)",
-    })
-    async getOrganizationById(
-        @Args("id", {
-            description: "Organization ID",
-        })
-            id: string,
-    ) {
-        return this.organizationService.getOrganizationById(id)
     }
 
     @ResolveReference()
