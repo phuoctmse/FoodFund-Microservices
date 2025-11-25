@@ -6,6 +6,7 @@ import { OperationRequestFilterInput } from "../dtos"
 export interface CreateOperationRequestData {
     campaignPhaseId: string
     userId: string
+    organizationId: string
     title: string
     totalCost: bigint
     expenseType: OperationExpenseType

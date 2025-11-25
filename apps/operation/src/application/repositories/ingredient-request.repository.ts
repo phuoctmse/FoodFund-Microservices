@@ -23,6 +23,7 @@ export class IngredientRequestRepository {
     async create(
         input: CreateIngredientRequestInput,
         kitchenStaffId: string,
+        organizatonId: string
     ): Promise<IngredientRequest> {
         const totalCostBigInt = BigInt(input.totalCost)
 
@@ -30,6 +31,7 @@ export class IngredientRequestRepository {
             data: {
                 campaign_phase_id: input.campaignPhaseId,
                 kitchen_staff_id: kitchenStaffId,
+                organization_id: organizatonId,
                 total_cost: totalCostBigInt,
                 status: "PENDING",
                 items: {
@@ -314,6 +316,7 @@ export class IngredientRequestRepository {
             id: request.id,
             campaignPhaseId: request.campaign_phase_id,
             kitchenStaffId: request.kitchen_staff_id,
+            organizationId: request.organization_id || undefined,
             totalCost: request.total_cost.toString(),
             status: request.status as IngredientRequestStatus,
             changedStatusAt: request.changed_status_at,
@@ -335,6 +338,10 @@ export class IngredientRequestRepository {
             campaignPhase: {
                 __typename: "CampaignPhase",
                 id: request.campaign_phase_id,
+            },
+            organization: {
+                __typename: "Organization",
+                id: request.organization_id,
             },
         } as IngredientRequest
     }

@@ -1,6 +1,7 @@
 import { Field, ObjectType } from "@nestjs/graphql"
 import { BaseSchema, CampaignPhase, User } from "../../shared"
 import { OperationExpenseType, OperationRequestStatus } from "../enums"
+import { Organization } from "../../shared/model"
 
 @ObjectType("OperationRequest")
 export class OperationRequest extends BaseSchema {
@@ -9,6 +10,12 @@ export class OperationRequest extends BaseSchema {
 
     @Field(() => String, { description: "User ID who created this request" })
         userId: string
+
+    @Field(() => String, {
+        nullable: true,
+        description: "Organization ID",
+    })
+        organizationId?: string
 
     @Field(() => String, { description: "Request title" })
         title: string
@@ -46,4 +53,11 @@ export class OperationRequest extends BaseSchema {
 
     @Field(() => CampaignPhase, { nullable: true })
         campaignPhase?: CampaignPhase
+
+    @Field(() => Organization, {
+        nullable: true,
+        description:
+            "Organization bank info (for admin payment processing). Only accessible by admins.",
+    })
+        organization?: Organization
 }

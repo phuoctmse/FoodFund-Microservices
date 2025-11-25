@@ -84,9 +84,28 @@ export class IngredientRequestService extends BaseOperationService {
                 "ingredientFundsAmount",
             )
 
+            const userBasicInfo = await this.grpcClient.callUserService<
+                { userId: string },
+                {
+                    success: boolean
+                    user?: {
+                        id: string
+                        role: string
+                        organizationId: string | null
+                        organizationName: string | null
+                    }
+                    error?: string
+                }
+            >("GetUserBasicInfo", {
+                userId: userContext.userId,
+            })
+
+            const organizationId = userBasicInfo.user?.organizationId || null
+
             const request = await this.repository.create(
                 input,
                 userContext.userId,
+                organizationId || ""
             )
 
             await this.updateCampaignPhaseStatus(

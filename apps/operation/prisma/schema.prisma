@@ -10,36 +10,39 @@ datasource db {
 }
 
 model Ingredient_Request {
-  id                String   @id @default(uuid())
+  id                String                    @id @default(uuid())
   campaign_phase_id String
   kitchen_staff_id  String
-  total_cost        BigInt   @default(0)
+  organization_id   String?
+  total_cost        BigInt                    @default(0)
   status            Ingredient_Request_Status @default(PENDING)
   changed_status_at DateTime?
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  created_at        DateTime                  @default(now())
+  updated_at        DateTime                  @updatedAt
 
   items          Ingredient_Request_Item[]
   expense_proofs Expense_Proof[]
 
   @@index([campaign_phase_id])
   @@index([kitchen_staff_id])
+  @@index([organization_id])
   @@index([status])
   @@index([created_at])
   @@index([campaign_phase_id, status])
+  @@index([organization_id, status])
   @@map("ingredient_requests")
 }
 
 model Ingredient_Request_Item {
-  id                      String @id @default(uuid())
-  request_id              String
-  ingredient_name         String @db.VarChar(100)
-  quantity                String @db.VarChar(50)
-  estimated_unit_price    Int @default(0)
-  estimated_total_price   Int @default(0)
-  supplier                String? @db.VarChar(200)
+  id                    String  @id @default(uuid())
+  request_id            String
+  ingredient_name       String  @db.VarChar(100)
+  quantity              String  @db.VarChar(50)
+  estimated_unit_price  Int     @default(0)
+  estimated_total_price Int     @default(0)
+  supplier              String? @db.VarChar(200)
 
-  request     Ingredient_Request @relation(fields: [request_id], references: [id], onDelete: Cascade)
+  request           Ingredient_Request            @relation(fields: [request_id], references: [id], onDelete: Cascade)
   meal_batch_usages Meal_Batch_Ingredient_Usage[]
 
   @@index([request_id])
@@ -48,15 +51,15 @@ model Ingredient_Request_Item {
 }
 
 model Expense_Proof {
-  id                String   @id @default(uuid())
+  id                String               @id @default(uuid())
   request_id        String
   media             Json
-  amount            BigInt   @default(0)
+  amount            BigInt               @default(0)
   status            Expense_Proof_Status @default(PENDING)
-  admin_note        String?  @db.Text()
+  admin_note        String?              @db.Text()
   changed_status_at DateTime?
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  created_at        DateTime             @default(now())
+  updated_at        DateTime             @updatedAt
 
   request Ingredient_Request @relation(fields: [request_id], references: [id], onDelete: Cascade)
 
@@ -68,38 +71,41 @@ model Expense_Proof {
 }
 
 model Operation_Request {
-  id                String   @id @default(uuid())
+  id                String                   @id @default(uuid())
   campaign_phase_id String
   user_id           String
-  title             String   @db.VarChar(100)
-  total_cost        BigInt   @default(0)
+  organization_id   String?
+  title             String                   @db.VarChar(100)
+  total_cost        BigInt                   @default(0)
   expense_type      Operation_Expense_Type
   status            Operation_Request_Status @default(PENDING)
-  admin_note        String?  @db.Text()
+  admin_note        String?                  @db.Text()
   changed_status_at DateTime?
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  created_at        DateTime                 @default(now())
+  updated_at        DateTime                 @updatedAt
 
   @@index([campaign_phase_id])
   @@index([user_id])
+  @@index([organization_id])
   @@index([expense_type])
   @@index([status])
   @@index([created_at])
   @@index([campaign_phase_id, expense_type, status])
+  @@index([organization_id, status])
   @@map("operation_requests")
 }
 
 model Meal_Batch {
-  id                String   @id @default(uuid())
+  id                String            @id @default(uuid())
   campaign_phase_id String
   kitchen_staff_id  String
-  food_name         String   @db.VarChar(100)
-  quantity          Int      @default(0)
+  food_name         String            @db.VarChar(100)
+  quantity          Int               @default(0)
   media             Json?
   status            Meal_Batch_Status @default(PREPARING)
   cooked_date       DateTime
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  created_at        DateTime          @default(now())
+  updated_at        DateTime          @updatedAt
 
   ingredient_usages Meal_Batch_Ingredient_Usage[]
   delivery_tasks    Delivery_Task[]
@@ -113,12 +119,12 @@ model Meal_Batch {
 }
 
 model Meal_Batch_Ingredient_Usage {
-  id             String @id @default(uuid())
-  meal_batch_id  String
-  ingredient_id  String
+  id            String @id @default(uuid())
+  meal_batch_id String
+  ingredient_id String
 
-  meal_batch        Meal_Batch              @relation(fields: [meal_batch_id], references: [id], onDelete: Cascade)
-  ingredient_item   Ingredient_Request_Item @relation(fields: [ingredient_id], references: [id], onDelete: Cascade)
+  meal_batch      Meal_Batch              @relation(fields: [meal_batch_id], references: [id], onDelete: Cascade)
+  ingredient_item Ingredient_Request_Item @relation(fields: [ingredient_id], references: [id], onDelete: Cascade)
 
   @@index([meal_batch_id])
   @@index([ingredient_id])
@@ -126,15 +132,15 @@ model Meal_Batch_Ingredient_Usage {
 }
 
 model Delivery_Task {
-  id                String   @id @default(uuid())
+  id                String               @id @default(uuid())
   delivery_staff_id String
   meal_batch_id     String
   status            Delivery_Task_Status @default(PENDING)
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+  created_at        DateTime             @default(now())
+  updated_at        DateTime             @updatedAt
 
-  meal_batch   Meal_Batch             @relation(fields: [meal_batch_id], references: [id], onDelete: Cascade)
-  status_logs  Delivery_Status_Log[]
+  meal_batch  Meal_Batch            @relation(fields: [meal_batch_id], references: [id], onDelete: Cascade)
+  status_logs Delivery_Status_Log[]
 
   @@index([delivery_staff_id])
   @@index([meal_batch_id])
@@ -145,12 +151,12 @@ model Delivery_Task {
 }
 
 model Delivery_Status_Log {
-  id               String   @id @default(uuid())
+  id               String               @id @default(uuid())
   delivery_task_id String
   status           Delivery_Task_Status
   changed_by       String
-  note             String?  @db.Text()
-  created_at       DateTime @default(now())
+  note             String?              @db.Text()
+  created_at       DateTime             @default(now())
 
   delivery_task Delivery_Task @relation(fields: [delivery_task_id], references: [id], onDelete: Cascade)
 
@@ -163,19 +169,19 @@ model Delivery_Status_Log {
 }
 
 model Inflow_Transaction {
-  id                String   @id @default(uuid())
-  campaign_phase_id String
+  id                    String                    @id @default(uuid())
+  campaign_phase_id     String
   ingredient_request_id String?
-  operation_request_id String?
-  receiver_id       String
-  transaction_type  Inflow_Transaction_Type
-  proof             String?  @db.Text()
-  amount            BigInt   @default(0)
-  status            Inflow_Transaction_Status @default(PENDING)
-  is_reported       Boolean  @default(false)
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
-  reported_at       DateTime?
+  operation_request_id  String?
+  receiver_id           String
+  transaction_type      Inflow_Transaction_Type
+  proof                 String?                   @db.Text()
+  amount                BigInt                    @default(0)
+  status                Inflow_Transaction_Status @default(PENDING)
+  is_reported           Boolean                   @default(false)
+  created_at            DateTime                  @default(now())
+  updated_at            DateTime                  @updatedAt
+  reported_at           DateTime?
 
   @@index([campaign_phase_id])
   @@index([receiver_id])

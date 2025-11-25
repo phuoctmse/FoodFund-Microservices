@@ -2,6 +2,7 @@ import { Directive, Field, ObjectType } from "@nestjs/graphql"
 import { BaseSchema, CampaignPhase, User } from "../../shared"
 import { IngredientRequestStatus } from "../enums"
 import { IngredientRequestItem } from "./ingredient-request-item.model"
+import { Organization } from "../../shared/model"
 
 @ObjectType("IngredientRequest")
 @Directive("@key(fields: \"id\")")
@@ -15,6 +16,12 @@ export class IngredientRequest extends BaseSchema {
         description: "Kitchen staff user ID who created the request",
     })
         kitchenStaffId: string
+
+    @Field(() => String, {
+        nullable: true,
+        description: "Organization ID",
+    })
+        organizationId?: string
 
     @Field(() => String, {
         description: "Total cost of all items (in VND)",
@@ -50,6 +57,13 @@ export class IngredientRequest extends BaseSchema {
             "Campaign phase this request belongs to (resolved from Campaign service)",
     })
         campaignPhase?: CampaignPhase
+
+    @Field(() => Organization, {
+        nullable: true,
+        description:
+            "Organization bank info (for admin payment processing). Only accessible by admins.",
+    })
+        organization?: Organization
 
     constructor() {
         super()
