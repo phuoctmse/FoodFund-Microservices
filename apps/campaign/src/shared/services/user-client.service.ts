@@ -589,4 +589,29 @@ export class UserClientService {
 
         return response.users
     }
+
+    async getUserBasicInfo(userId: string): Promise<{
+        success: boolean
+        user?: {
+            id: string
+            role: string
+            organizationId: string | null
+            organizationName: string | null
+        }
+        error?: string
+    }> {
+        return this.grpcClient.callUserService<
+            { userId: string },
+            {
+                success: boolean
+                user?: {
+                    id: string
+                    role: string
+                    organizationId: string | null
+                    organizationName: string | null
+                }
+                error?: string
+            }
+        >("GetUserBasicInfo", { userId })
+    }
 }

@@ -4,6 +4,7 @@ import { User } from "../../shared/model/user.model"
 import { CampaignStatus } from "../enums/campaign/campaign.enum"
 import { CampaignCategory } from "./campaign-category.model"
 import { CampaignPhase } from "./campaign-phase.model"
+import { Organization } from "../../shared/model"
 
 @ObjectType("Campaign")
 @Directive("@key(fields: \"id\")")
@@ -51,6 +52,11 @@ export class Campaign extends BaseSchema {
 
     @Field(() => String)
         createdBy: string
+
+    @Field(() => String, {
+        nullable: true,
+    })
+        organizationId?: string
 
     @Field(() => String, {
         nullable: true,
@@ -111,6 +117,13 @@ export class Campaign extends BaseSchema {
         description: "Execution phases for this campaign",
     })
         phases?: CampaignPhase[]
+
+    @Field(() => Organization, {
+        nullable: true,
+        description:
+            "Organization that created this campaign (for federation with User service)",
+    })
+        organization?: Organization
 
     constructor() {
         super()

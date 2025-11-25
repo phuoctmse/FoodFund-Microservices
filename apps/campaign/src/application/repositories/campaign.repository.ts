@@ -8,6 +8,7 @@ import {
 import { CampaignStatus } from "../../domain/enums/campaign/campaign.enum"
 import { Campaign } from "../../domain/entities/campaign.model"
 import { minBigInt } from "../../shared/utils"
+import { Organization } from "../../shared/model"
 
 export interface FindManyOptions {
     filter?: CampaignFilterInput
@@ -26,6 +27,7 @@ export interface CreateCampaignData {
     fundraisingStartDate: Date
     fundraisingEndDate: Date
     createdBy: string
+    organizationId: string
     categoryId?: string
     status?: CampaignStatus
     phases?: Array<{
@@ -122,6 +124,7 @@ export class CampaignRepository {
                     fundraising_start_date: campaignData.fundraisingStartDate,
                     fundraising_end_date: campaignData.fundraisingEndDate,
                     created_by: campaignData.createdBy,
+                    organization_id: campaignData.organizationId,
                     category_id: campaignData.categoryId,
                     status: campaignData.status || CampaignStatus.PENDING,
                     is_active: true,
@@ -663,6 +666,14 @@ export class CampaignRepository {
             }
             : undefined
 
+        const organization: Organization | undefined =
+            dbCampaign.organization_id
+                ? {
+                    __typename: "Organization",
+                    id: dbCampaign.organization_id,
+                }
+                : undefined
+
         const receivedAmount = BigInt(dbCampaign.received_amount || 0)
         const targetAmount = BigInt(dbCampaign.target_amount || 0)
         const fundableAmount = minBigInt(receivedAmount, targetAmount)
@@ -747,6 +758,7 @@ export class CampaignRepository {
             ...disbursementFields,
             isActive: dbCampaign.is_active,
             createdBy: dbCampaign.created_by,
+            organizationId: dbCampaign.organization_id || undefined,
             categoryId: dbCampaign.category_id || undefined,
             changedStatusAt: dbCampaign.changed_status_at || undefined,
             reason: dbCampaign.reason || undefined,
@@ -759,6 +771,7 @@ export class CampaignRepository {
             creator: creator,
             donations: undefined,
             phases: phases,
+            organization: organization,
             ...computedFields,
         } as Campaign
     }

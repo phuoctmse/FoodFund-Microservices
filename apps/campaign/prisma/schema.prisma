@@ -19,6 +19,7 @@ model Campaign {
   status                 Campaign_Status    @default(PENDING)
   is_active              Boolean            @default(true)
   created_by             String
+  organization_id        String?
   created_at             DateTime           @default(now())
   updated_at             DateTime           @updatedAt
   cover_image_file_key   String?
@@ -27,10 +28,10 @@ model Campaign {
   fundraising_end_date   DateTime
   fundraising_start_date DateTime
   changed_status_at      DateTime?
-  reason                 String?
   extension_count        Int                @default(0)
   extension_days         Int                @default(0)
   donation_count         Int                @default(0)
+  reason                 String?
   campaign_phases        Campaign_Phase[]
   category               Campaign_Category? @relation(fields: [category_id], references: [id])
   donations              Donation[]
