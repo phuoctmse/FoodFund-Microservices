@@ -6,6 +6,7 @@ import {
     ExpenseProofMutationResolver,
     ExpenseProofQueryResolver,
     InflowTransactionAdminResolver,
+    InflowTransactionFieldResolver,
     InflowTransactionFundraiserResolver,
     InflowTransactionPublicResolver,
     IngredientRequestMutationResolver,
@@ -23,6 +24,7 @@ import {
     AuthorizationService,
     CampaignPhase,
     CampaignPhaseResolver,
+    Organization,
     User,
     UserResolver,
     UserClientService,
@@ -71,7 +73,7 @@ import { IngredientRequestCacheService } from "./application/services/ingredient
             federationVersion: 2,
             path: "/graphql",
             buildSchemaOptions: {
-                orphanedTypes: [User, CampaignPhase],
+                orphanedTypes: [User, CampaignPhase, Organization],
             },
         }),
         SentryModule.forRoot({
@@ -147,6 +149,7 @@ import { IngredientRequestCacheService } from "./application/services/ingredient
         InflowTransactionAdminResolver,
         InflowTransactionFundraiserResolver,
         InflowTransactionPublicResolver,
+        InflowTransactionFieldResolver,
     ],
 })
 export class AppModule {}

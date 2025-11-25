@@ -270,10 +270,6 @@ export class InflowTransactionService {
         return this.mapToGraphQLModel(transaction)
     }
 
-    /**
-     * Helper: Update linked request to DISBURSED status
-     * SECURITY: Uses direct foreign key IDs to ensure the correct request is updated
-     */
     private async updateLinkedRequestToDisbursed(
         ingredientRequestId: string | null,
         operationRequestId: string | null,
@@ -305,7 +301,8 @@ export class InflowTransactionService {
     }
 
     /**
-     * Map Prisma model to GraphQL model
+     * Map Prisma model to GraphQL model (without conversion)
+     * Used when receiverId is already internal id
      */
     private mapToGraphQLModel(transaction: any): InflowTransaction {
         return {
@@ -323,5 +320,57 @@ export class InflowTransactionService {
             created_at: transaction.created_at,
             updated_at: transaction.updated_at,
         }
+    }
+
+    /**
+     * Map Prisma model to GraphQL model with cognito_id → internal id conversion
+     */
+    private async mapToGraphQLModelWithConversion(transaction: any): Promise<InflowTransaction> {
+        console.log("🔍 [mapToGraphQLModelWithConversion] Input:", {
+            id: transaction.id,
+            campaign_phase_id: transaction.campaign_phase_id,
+            receiver_id: transaction.receiver_id,
+        })
+
+        let internalUserId = transaction.receiver_id
+
+        // Convert cognito_id to internal user id
+        if (transaction.receiver_id) {
+            try {
+                const userResponse = await this.getUserByCognitoId(transaction.receiver_id)
+                internalUserId = userResponse.id
+                console.log("✅ [mapToGraphQLModelWithConversion] Converted cognito_id to internal id:", {
+                    cognitoId: transaction.receiver_id,
+                    internalId: internalUserId,
+                })
+            } catch (error) {
+                console.error("❌ [mapToGraphQLModelWithConversion] Failed to convert:", error)
+                // Keep cognito_id if conversion fails
+            }
+        }
+
+        const mapped = {
+            id: transaction.id,
+            campaignPhaseId: transaction.campaign_phase_id,
+            receiverId: internalUserId,
+            ingredientRequestId: transaction.ingredient_request_id,
+            operationRequestId: transaction.operation_request_id,
+            transactionType: transaction.transaction_type as InflowTransactionType,
+            amount: transaction.amount.toString(),
+            status: transaction.status as InflowTransactionStatus,
+            proof: transaction.proof,
+            isReported: transaction.is_reported,
+            reportedAt: transaction.reported_at,
+            created_at: transaction.created_at,
+            updated_at: transaction.updated_at,
+        }
+
+        console.log("✅ [mapToGraphQLModelWithConversion] Final output:", {
+            id: mapped.id,
+            campaignPhaseId: mapped.campaignPhaseId,
+            receiverId: mapped.receiverId,
+        })
+
+        return mapped
     }
 }

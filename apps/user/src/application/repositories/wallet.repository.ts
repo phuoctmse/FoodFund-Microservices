@@ -367,7 +367,6 @@ export class WalletRepository {
                     wallet_id: wallet.id,
                     transaction_type: {
                         in: [
-                            Transaction_Type.DONATION_RECEIVED,
                             Transaction_Type.INCOMING_TRANSFER,
                             Transaction_Type.ADMIN_ADJUSTMENT,
                         ],
@@ -398,8 +397,7 @@ export class WalletRepository {
                     wallet_id: wallet.id,
                     transaction_type: {
                         in: [
-                            Transaction_Type.DONATION_RECEIVED,
-                            Transaction_Type.INCOMING_TRANSFER,
+                            Transaction_Type.INCOMING_TRANSFER
                         ],
                     },
                     created_at: {

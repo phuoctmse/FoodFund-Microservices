@@ -28,7 +28,6 @@ export class BadgeQueryResolver {
         description: "Get current user's badge",
     })
     async myBadge(@CurrentUser() user: CurrentUserType) {
-        console.log(user)
         return this.userBadgeService.getUserBadge(user.cognitoId)
     }
 }

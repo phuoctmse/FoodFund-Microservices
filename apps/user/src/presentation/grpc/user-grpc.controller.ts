@@ -555,13 +555,11 @@ export class UserGrpcController {
                     throw new Error(`Fundraiser ${fundraiserId} not found`)
                 }
 
-                // Determine transaction type based on context
-                // If gateway is "SYSTEM", it's an admin adjustment (surplus settlement, refund, etc.)
-                // Otherwise, it's a donation received
+
                 const transactionType =
                     gateway === "SYSTEM"
                         ? Transaction_Type.ADMIN_ADJUSTMENT
-                        : Transaction_Type.DONATION_RECEIVED
+                        : Transaction_Type.INCOMING_TRANSFER
 
                 // Credit wallet
                 const transaction = await this.walletRepository.creditWallet({

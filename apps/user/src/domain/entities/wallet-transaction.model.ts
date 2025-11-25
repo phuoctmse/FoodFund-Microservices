@@ -45,7 +45,7 @@ export class WalletTransactionSchema extends AbstractSchema {
 
     @Field(() => Transaction_Type, {
         description:
-            "Type of transaction (DONATION_RECEIVED, INCOMING_TRANSFER, WITHDRAWAL, ADMIN_ADJUSTMENT)",
+            "Type of transaction (INCOMING_TRANSFER, WITHDRAWAL, ADMIN_ADJUSTMENT)",
         name: "transactionType", // GraphQL field name (camelCase)
     })
         transaction_type: Transaction_Type // Database field name (snake_case)
@@ -92,7 +92,6 @@ export class WalletTransactionSchema extends AbstractSchema {
      */
     isCredit(): boolean {
         return (
-            this.transaction_type === Transaction_Type.DONATION_RECEIVED ||
             this.transaction_type === Transaction_Type.INCOMING_TRANSFER ||
             this.transaction_type === Transaction_Type.ADMIN_ADJUSTMENT
         )

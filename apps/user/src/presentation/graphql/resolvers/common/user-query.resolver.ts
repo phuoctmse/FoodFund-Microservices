@@ -8,7 +8,7 @@ import {
 import { UseGuards } from "@nestjs/common"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
 import { CurrentUser, CurrentUserType } from "libs/auth"
-import { UserQueryService } from "@app/user/src/application/services"
+import { UserQueryService, OrganizationService } from "@app/user/src/application/services"
 import { UserProfileSchema } from "@app/user/src/domain/entities"
 import { UserHealthResponse } from "@app/user/src/shared/types"
 

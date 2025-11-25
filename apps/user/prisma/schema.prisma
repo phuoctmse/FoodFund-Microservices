@@ -167,7 +167,6 @@ enum Wallet_Type {
 }
 
 enum Transaction_Type {
-  DONATION_RECEIVED
   INCOMING_TRANSFER
   WITHDRAWAL
   ADMIN_ADJUSTMENT

@@ -6,7 +6,6 @@ export enum Wallet_Type {
 }
 
 export enum Transaction_Type {
-    DONATION_RECEIVED = "DONATION_RECEIVED",
     INCOMING_TRANSFER = "INCOMING_TRANSFER",
     WITHDRAWAL = "WITHDRAWAL",
     ADMIN_ADJUSTMENT = "ADMIN_ADJUSTMENT"

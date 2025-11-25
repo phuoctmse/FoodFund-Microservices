@@ -8,6 +8,7 @@ import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 import { GrpcModule } from "@libs/grpc"
 import { SpacesUploadService } from "@libs/s3-storage"
 import { PrismaClient } from "./generated/user-client"
+import { OrganizationSchema } from "./domain/entities"
 import {
     UserAdminService,
     OrganizationService,
@@ -46,6 +47,7 @@ import {
     BadgeQueryResolver,
     BadgeMutationResolver,
     OrganizationMutationResolver,
+    OrganizationReferenceResolver,
 } from "./presentation/graphql/resolvers"
 import { HealthController } from "./presentation/http/controllers"
 
@@ -69,6 +71,9 @@ import { HealthController } from "./presentation/http/controllers"
             debug: true,
             playground: true,
             federationVersion: 2,
+            buildSchemaOptions: {
+                orphanedTypes: [OrganizationSchema],
+            },
         }),
         AwsCognitoModule.forRoot({
             isGlobal: false,
@@ -129,6 +134,7 @@ import { HealthController } from "./presentation/http/controllers"
         BadgeQueryResolver,
         BadgeMutationResolver,
         OrganizationMutationResolver,
+        OrganizationReferenceResolver,
     ],
     exports: [UserRepository],
 })

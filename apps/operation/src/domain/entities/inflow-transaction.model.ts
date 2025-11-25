@@ -1,5 +1,5 @@
 import { Field, ObjectType } from "@nestjs/graphql"
-import { BaseSchema, CampaignPhase, User } from "../../shared"
+import { BaseSchema, CampaignPhase, User, Organization } from "../../shared"
 import { InflowTransactionStatus, InflowTransactionType } from "../enums"
 
 @ObjectType("InflowTransaction")
@@ -56,4 +56,10 @@ export class InflowTransaction extends BaseSchema {
         description: "Campaign phase this disbursement belongs to",
     })
         campaignPhase?: CampaignPhase
+
+    @Field(() => Organization, {
+        nullable: true,
+        description: "Organization of the fundraiser who receives the disbursement",
+    })
+        organization?: Organization
 }
