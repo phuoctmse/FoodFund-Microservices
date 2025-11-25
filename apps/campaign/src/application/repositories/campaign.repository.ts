@@ -108,7 +108,7 @@ export class CampaignRepository {
         },
     } as const
 
-    constructor(private readonly prisma: PrismaClient) {}
+    constructor(private readonly prisma: PrismaClient) { }
 
     async create(data: CreateCampaignData): Promise<Campaign> {
         const { phases, ...campaignData } = data
@@ -253,6 +253,119 @@ export class CampaignRepository {
         })
 
         return campaign ? this.mapToGraphQLModel(campaign) : null
+    }
+
+    async findApprovedCampaignsToActivateForJob(
+        limit: number = 1000,
+    ): Promise<Pick<Campaign, "id" | "status">[]> {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+
+        const campaigns = await this.prisma.campaign.findMany({
+            where: {
+                is_active: true,
+                status: CampaignStatus.APPROVED,
+                fundraising_start_date: {
+                    lte: today,
+                },
+            },
+            select: {
+                id: true,
+                status: true,
+            },
+            take: limit,
+            orderBy: {
+                fundraising_start_date: "asc",
+            },
+        })
+
+        return campaigns.map((c) => ({
+            id: c.id,
+            status: c.status as CampaignStatus,
+        }))
+    }
+
+    async findActiveCampaignsToCompleteForJob(
+        limit: number = 1000,
+    ): Promise<
+        Pick<
+            Campaign,
+            | "id"
+            | "status"
+            | "receivedAmount"
+            | "targetAmount"
+            | "createdBy"
+            | "title"
+        >[]
+    > {
+        const today = new Date()
+        today.setHours(23, 59, 59, 999)
+
+        const campaigns = await this.prisma.campaign.findMany({
+            where: {
+                is_active: true,
+                status: CampaignStatus.ACTIVE,
+                OR: [
+                    { fundraising_end_date: { lte: today } },
+                    {
+                        received_amount: {
+                            gte: this.prisma.campaign.fields.target_amount,
+                        },
+                    },
+                ],
+            },
+            select: {
+                id: true,
+                status: true,
+                received_amount: true,
+                target_amount: true,
+                created_by: true,
+                title: true,
+            },
+            take: limit,
+            orderBy: { fundraising_end_date: "asc" },
+        })
+
+        return campaigns.map((c) => ({
+            id: c.id,
+            status: c.status as CampaignStatus,
+            receivedAmount: c.received_amount?.toString() ?? "0",
+            targetAmount: c.target_amount?.toString() ?? "0",
+            createdBy: c.created_by,
+            title: c.title,
+        }))
+    }
+
+    async findExpiredCampaignsForJob(
+        limit: number = 1000,
+    ): Promise<Pick<Campaign, "id" | "status">[]> {
+        const today = new Date()
+        today.setHours(23, 59, 59, 999)
+
+        const campaigns = await this.prisma.campaign.findMany({
+            where: {
+                is_active: true,
+                status: {
+                    in: [CampaignStatus.PENDING, CampaignStatus.APPROVED],
+                },
+                fundraising_end_date: {
+                    lte: today,
+                },
+            },
+            select: {
+                id: true,
+                status: true,
+            },
+            take: limit,
+            orderBy: {
+                fundraising_end_date: "asc",
+            },
+        })
+
+        return campaigns.map((c) => ({
+            id: c.id,
+            status: c.status as CampaignStatus,
+        }))
     }
 
     async findActiveCampaignByCreator(creatorId: string): Promise<{
@@ -696,20 +809,20 @@ export class CampaignRepository {
                 const ingredientFunds =
                     fundableAmount > 0n
                         ? (fundableAmount *
-                              BigInt(Math.floor(ingredientPct * 10000))) /
-                          10000n
+                            BigInt(Math.floor(ingredientPct * 10000))) /
+                        10000n
                         : 0n
                 const cookingFunds =
                     fundableAmount > 0n
                         ? (fundableAmount *
-                              BigInt(Math.floor(cookingPct * 10000))) /
-                          10000n
+                            BigInt(Math.floor(cookingPct * 10000))) /
+                        10000n
                         : 0n
                 const deliveryFunds =
                     fundableAmount > 0n
                         ? (fundableAmount *
-                              BigInt(Math.floor(deliveryPct * 10000))) /
-                          10000n
+                            BigInt(Math.floor(deliveryPct * 10000))) /
+                        10000n
                         : 0n
 
                 return {
@@ -830,7 +943,7 @@ export class CampaignRepository {
             daysActive =
                 Math.floor(
                     (todayMidnight.getTime() - startMidnight.getTime()) /
-                        msPerDay,
+                    msPerDay,
                 ) + 1
         }
 
