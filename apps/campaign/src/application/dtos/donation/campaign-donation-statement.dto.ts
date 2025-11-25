@@ -2,68 +2,68 @@ import { Field, ObjectType } from "@nestjs/graphql"
 
 @ObjectType({ description: "Detailed transaction statement for CSV export" })
 export class DonationTransactionStatement {
+    @Field(() => Number, { description: "Sequence number" })
+    no: number
+
     @Field(() => String, { description: "Donation ID" })
-        donationId: string
+    donationId: string
 
     @Field(() => String, { description: "Transaction date and time" })
-        transactionDateTime: string
+    transactionDateTime: string
 
     @Field(() => String, { description: "Donor name (or Anonymous)" })
-        donorName: string
+    donorName: string
 
     @Field(() => String, { description: "Donation amount" })
-        amount: string
+    amount: string
 
     @Field(() => String, { description: "Actual amount received" })
-        receivedAmount: string
-
-    @Field(() => String, { description: "Payment status (SUCCESS/FAILED/PENDING)" })
-        transactionStatus: string
-
-    @Field(() => String, { description: "Payment completion status (COMPLETED/PARTIAL/OVERPAID)" })
-        paymentStatus: string
+    receivedAmount: string
 
     @Field(() => String, { description: "Payment gateway (PAYOS/SEPAY)" })
-        gateway: string
+    gateway: string
 
     @Field(() => String, { description: "Order code / Reference number" })
-        orderCode: string
+    orderCode: string
 
-    @Field(() => String, { nullable: true, description: "Bank account number (if available)" })
-        bankAccountNumber?: string
+    @Field(() => String, { nullable: true, description: "Bank account number (masked)" })
+    bankAccountNumber?: string
 
     @Field(() => String, { nullable: true, description: "Bank name (if available)" })
-        bankName?: string
+    bankName?: string
 
     @Field(() => String, { nullable: true, description: "Transfer description/content" })
-        description?: string
+    description?: string
 
     @Field(() => String, { description: "Campaign ID" })
-        campaignId: string
+    campaignId: string
 
     @Field(() => String, { description: "Campaign title" })
-        campaignTitle: string
+    campaignTitle: string
+
+    @Field(() => String, { nullable: true, description: "Currency (e.g., VND)" })
+    currency?: string
 }
 
 @ObjectType({ description: "Campaign donation statement export response" })
 export class CampaignDonationStatementResponse {
     @Field(() => String, { description: "Campaign ID" })
-        campaignId: string
+    campaignId: string
 
     @Field(() => String, { description: "Campaign title" })
-        campaignTitle: string
+    campaignTitle: string
 
     @Field(() => String, { description: "Total amount received" })
-        totalReceived: string
+    totalReceived: string
 
     @Field(() => Number, { description: "Total number of successful donations" })
-        totalDonations: number
+    totalDonations: number
 
     @Field(() => String, { description: "Statement generation date" })
-        generatedAt: string
+    generatedAt: string
 
     @Field(() => [DonationTransactionStatement], {
         description: "List of all donation transactions",
     })
-        transactions: DonationTransactionStatement[]
+    transactions: DonationTransactionStatement[]
 }

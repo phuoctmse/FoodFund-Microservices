@@ -8,7 +8,7 @@ import { CreateDonationRepositoryInput } from "../dtos/donation"
 
 @Injectable()
 export class DonorRepository {
-    constructor(private readonly prisma: PrismaClient) {}
+    constructor(private readonly prisma: PrismaClient) { }
 
     async create(data: CreateDonationRepositoryInput): Promise<Donation> {
         return this.prisma.donation.create({
@@ -689,5 +689,42 @@ export class DonorRepository {
         return donors
             .map((d) => d.donor_id)
             .filter((id): id is string => id !== null)
+    }
+    async findAllSuccessfulDonations(options?: {
+        skip?: number
+        take?: number
+    }): Promise<Donation[]> {
+        return this.prisma.donation.findMany({
+            where: {
+                payment_transactions: {
+                    some: {
+                        status: TransactionStatus.SUCCESS,
+                    },
+                },
+            },
+            include: {
+                campaign: true,
+                payment_transactions: {
+                    where: {
+                        status: TransactionStatus.SUCCESS,
+                    },
+                },
+            },
+            skip: options?.skip,
+            take: options?.take,
+            orderBy: { created_at: "desc" },
+        })
+    }
+
+    async findAll(options?: { skip?: number; take?: number }): Promise<Donation[]> {
+        return this.prisma.donation.findMany({
+            include: {
+                campaign: true,
+                payment_transactions: true,
+            },
+            orderBy: { created_at: "desc" },
+            skip: options?.skip,
+            take: options?.take,
+        })
     }
 }

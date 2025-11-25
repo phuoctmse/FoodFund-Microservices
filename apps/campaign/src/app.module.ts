@@ -108,6 +108,9 @@ import {
 } from "./application/handlers"
 import { CampaignFollowerService } from "./application/services/campaign/campaign-follower.service"
 
+import { DonationSearchService } from "./application/services/donation/donation-search.service"
+import { DonationSearchResolver } from "./presentation/graphql/donation/donor/queries/donation-search.resolver"
+
 @Module({
     imports: [
         GraphQLSubgraphModule.forRoot({
@@ -253,6 +256,9 @@ import { CampaignFollowerService } from "./application/services/campaign/campaig
         IngredientRequestApprovedBuilder,
         DeliveryTaskAssignedBuilder,
         SystemAnnouncementBuilder,
+
+        DonationSearchService,
+        DonationSearchResolver,
     ],
 })
 export class AppModule { }
