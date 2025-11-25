@@ -16,7 +16,6 @@ import {
     createUserContextFromToken,
     CurrentUser,
 } from "@app/campaign/src/shared"
-import { CampaignStatus } from "@app/campaign/src/domain/enums/campaign/campaign.enum"
 
 @Resolver(() => Campaign)
 @UseInterceptors(SentryInterceptor)

@@ -7,12 +7,7 @@ import {
     CurrentUser,
 } from "@app/operation/src/shared"
 import { UseGuards } from "@nestjs/common"
-import {
-    Args,
-    Int,
-    Query,
-    Resolver,
-} from "@nestjs/graphql"
+import { Args, Int, Query, Resolver } from "@nestjs/graphql"
 
 @Resolver(() => IngredientRequest)
 export class IngredientRequestQueryResolver {
@@ -55,11 +50,7 @@ export class IngredientRequestQueryResolver {
         })
             offset: number = 0,
     ): Promise<IngredientRequest[]> {
-        return this.ingredientRequestService.getRequests(
-            filter,
-            limit,
-            offset,
-        )
+        return this.ingredientRequestService.getRequests(filter, limit, offset)
     }
 
     @Query(() => [IngredientRequest], {
@@ -67,6 +58,7 @@ export class IngredientRequestQueryResolver {
     })
     @UseGuards(CognitoGraphQLGuard)
     async getMyIngredientRequests(
+        @CurrentUser("decodedToken") decodedToken: any,
         @Args("limit", {
             type: () => Int,
             nullable: true,
@@ -79,7 +71,6 @@ export class IngredientRequestQueryResolver {
             defaultValue: 0,
         })
             offset: number = 0,
-        @CurrentUser("decodedToken") decodedToken: any,
     ): Promise<IngredientRequest[]> {
         const userContext = createUserContextFromToken(decodedToken)
         return this.ingredientRequestService.getMyRequests(

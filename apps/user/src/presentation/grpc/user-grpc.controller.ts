@@ -4,7 +4,6 @@ import {
     UserRepository,
     WalletRepository,
     OrganizationRepository,
-    BadgeRepository,
     UserBadgeRepository,
 } from "../../application/repositories"
 import { WalletTransactionService } from "../../application/services/common/wallet-transaction.service"
@@ -169,7 +168,7 @@ interface UpdateDonorStatsRequest {
     donorId: string
     amountToAdd: string
     incrementCount: number
-    lastDonationAt: string 
+    lastDonationAt: string
 }
 
 interface UpdateDonorStatsResponse {
@@ -455,10 +454,7 @@ export class UserGrpcController {
             if (avatarUrl) updateData.avatar_url = avatarUrl
             if (bio) updateData.bio = bio
 
-            const user = await this.userRepository.updateUser(
-                id,
-                updateData,
-            )
+            const user = await this.userRepository.updateUser(id, updateData)
 
             return this.createSuccessResponse(user)
         } catch (error) {
@@ -554,7 +550,6 @@ export class UserGrpcController {
                     )
                     throw new Error(`Fundraiser ${fundraiserId} not found`)
                 }
-
 
                 const transactionType =
                     gateway === "SYSTEM"
@@ -923,8 +918,7 @@ export class UserGrpcController {
                 }
             }
 
-            const users =
-                await this.userRepository.findUsersByIds(userIds)
+            const users = await this.userRepository.findUsersByIds(userIds)
 
             const mappedUsers = users.map((user) => ({
                 id: user.id,
@@ -1033,7 +1027,9 @@ export class UserGrpcController {
     }
 
     @GrpcMethod("UserService", "GetUserBadge")
-    async getUserBadge(data: GetUserBadgeRequest): Promise<GetUserBadgeResponse> {
+    async getUserBadge(
+        data: GetUserBadgeRequest,
+    ): Promise<GetUserBadgeResponse> {
         const { userId } = data
 
         this.logger.log(`[GetUserBadge] Fetching badge for user ${userId}`)
@@ -1046,7 +1042,8 @@ export class UserGrpcController {
         }
 
         try {
-            const userBadge = await this.userBadgeRepository.findUserBadge(userId)
+            const userBadge =
+                await this.userBadgeRepository.findUserBadge(userId)
 
             if (!userBadge) {
                 this.logger.log(`[GetUserBadge] User ${userId} has no badge`)
@@ -1118,7 +1115,9 @@ export class UserGrpcController {
 
             return {
                 success: true,
-                totalDonated: (updatedUser.total_donated || BigInt(0)).toString(),
+                totalDonated: (
+                    updatedUser.total_donated || BigInt(0)
+                ).toString(),
                 donationCount: updatedUser.donation_count || 0,
             }
         } catch (error) {

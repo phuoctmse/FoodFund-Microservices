@@ -1,5 +1,4 @@
-import { ObjectType, Field } from "@nestjs/graphql"
-import { Directive } from "@nestjs/graphql"
+import { ObjectType, Field, Directive } from "@nestjs/graphql"
 import { VerificationStatus } from "../enums/user.enum"
 import { UserProfileSchema } from "./user.model"
 import { AbstractSchema } from "../../shared/helpers/base.schema"

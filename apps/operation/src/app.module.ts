@@ -24,7 +24,6 @@ import {
     AuthorizationService,
     CampaignPhase,
     CampaignPhaseResolver,
-    Organization,
     User,
     UserResolver,
     UserClientService,
@@ -63,6 +62,7 @@ import {
 import { MealBatchService } from "./application/services/meal-batch/meal-batch.service"
 import { DeliveryTaskCacheService } from "./application/services/delivery-task"
 import { IngredientRequestCacheService } from "./application/services/ingredient-request"
+import { Organization } from "./shared/model"
 
 @Module({
     imports: [
@@ -94,10 +94,7 @@ import { IngredientRequestCacheService } from "./application/services/ingredient
         }),
         GrpcModule,
     ],
-    controllers: [
-        HealthController,
-        OperationGrpcController,
-    ],
+    controllers: [HealthController, OperationGrpcController],
     providers: [
         PrismaOperationService,
         {

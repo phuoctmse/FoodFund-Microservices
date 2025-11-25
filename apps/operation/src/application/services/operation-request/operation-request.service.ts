@@ -83,9 +83,28 @@ export class OperationRequestService extends BaseOperationService {
                 budgetType,
             )
 
+            const userBasicInfo = await this.grpcClient.callUserService<
+                { userId: string },
+                {
+                    success: boolean
+                    user?: {
+                        id: string
+                        role: string
+                        organizationId: string | null
+                        organizationName: string | null
+                    }
+                    error?: string
+                }
+            >("GetUserBasicInfo", {
+                userId: userContext.userId,
+            })
+
+            const organizationId = userBasicInfo.user?.organizationId || null
+
             const createData: CreateOperationRequestData = {
                 campaignPhaseId: input.campaignPhaseId,
                 userId: userContext.userId,
+                organizationId: organizationId || "",
                 title: input.title.trim(),
                 totalCost: totalCostBigInt,
                 expenseType: input.expenseType,
@@ -379,11 +398,6 @@ export class OperationRequestService extends BaseOperationService {
         }
     }
 
-    // ==================== Private Helper Methods ====================
-
-    /**
-     * Get campaign phase status based on expense type
-     */
     private getPhaseStatusForRequestType(
         expenseType: OperationExpenseType,
     ): string {
@@ -395,9 +409,6 @@ export class OperationRequestService extends BaseOperationService {
         return statusMap[expenseType]
     }
 
-    /**
-     * Get budget type field name based on expense type
-     */
     private getBudgetTypeForExpenseType(
         expenseType: OperationExpenseType,
     ): "cookingFundsAmount" | "deliveryFundsAmount" {
@@ -412,9 +423,6 @@ export class OperationRequestService extends BaseOperationService {
         return budgetMap[expenseType]
     }
 
-    /**
-     * Validate user role for expense type
-     */
     private validateRoleForExpenseType(
         role: Role,
         expenseType: OperationExpenseType,
@@ -439,9 +447,6 @@ export class OperationRequestService extends BaseOperationService {
         }
     }
 
-    /**
-     * Validate status transition
-     */
     private validateStatusTransition(
         currentStatus: OperationRequestStatus,
         newStatus: OperationRequestStatus,
@@ -472,13 +477,11 @@ export class OperationRequestService extends BaseOperationService {
         }
     }
 
-    /**
-     * Map database record to GraphQL model
-     */
     private mapToGraphQLModel(data: any): OperationRequest {
         return {
             id: data.id,
             campaignPhaseId: data.campaign_phase_id,
+            organizationId: data.organization_id || undefined,
             userId: data.user_id,
             title: data.title,
             totalCost: data.total_cost.toString(),
@@ -495,6 +498,10 @@ export class OperationRequestService extends BaseOperationService {
             campaignPhase: {
                 __typename: "CampaignPhase",
                 id: data.campaign_phase_id,
+            },
+            organization: {
+                __typename: "Organization",
+                id: data.organization_id,
             },
         }
     }
