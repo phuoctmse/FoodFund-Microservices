@@ -37,9 +37,6 @@ export class CampaignSchedulerService {
         private readonly userClientService: UserClientService,
     ) {}
 
-    /**
-     * Activate approved campaigns that have reached their fundraising start date
-     */
     async activateApprovedCampaigns(): Promise<JobExecutionResult> {
         return this.executeJobWithProfiling(
             "ACTIVATE_APPROVED_CAMPAIGNS",
@@ -54,9 +51,6 @@ export class CampaignSchedulerService {
         )
     }
 
-    /**
-     * Move active campaigns to AWAITING_DISBURSEMENT when they reach end date or target
-     */
     async completeActiveCampaigns(): Promise<JobExecutionResult> {
         return this.executeJobWithProfiling(
             "COMPLETE_ACTIVE_CAMPAIGNS",
@@ -71,9 +65,6 @@ export class CampaignSchedulerService {
         )
     }
 
-    /**
-     * Handle expired campaigns (PENDING -> REJECTED, APPROVED -> CANCELLED)
-     */
     async handleExpiredCampaigns(): Promise<JobExecutionResult> {
         return this.executeJobWithProfiling(
             "HANDLE_EXPIRED_CAMPAIGNS",
@@ -133,13 +124,14 @@ export class CampaignSchedulerService {
         }
     }
 
-    private async processCampaignBatch(
-        campaigns: Campaign[],
-        processor: (campaign: Campaign) => Promise<StatusTransitionResult>,
+    private async processCampaignBatch<
+        T extends { id: string; status: CampaignStatus },
+    >(
+        campaigns: T[],
+        processor: (campaign: T) => Promise<StatusTransitionResult>,
         operation: string,
     ): Promise<StatusTransitionResult[]> {
         if (campaigns.length === 0) {
-            this.logger.debug(`No campaigns found for ${operation}`)
             return []
         }
 
@@ -181,9 +173,11 @@ export class CampaignSchedulerService {
     /**
      * Process single batch with proper concurrency control
      */
-    private async processSingleBatch(
-        campaigns: Campaign[],
-        processor: (campaign: Campaign) => Promise<StatusTransitionResult>,
+    private async processSingleBatch<
+        T extends { id: string; status: CampaignStatus },
+    >(
+        campaigns: T[],
+        processor: (campaign: T) => Promise<StatusTransitionResult>,
         operation: string,
     ): Promise<StatusTransitionResult[]> {
         const batchPromises = campaigns.map(async (campaign, index) => {
@@ -229,75 +223,29 @@ export class CampaignSchedulerService {
         })
     }
 
-    /**
-     * Find campaigns ready for activation with optimized query
-     */
-    private async findApprovedCampaignsToActivate(): Promise<Campaign[]> {
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-
-        const campaigns = await this.campaignRepository.findMany({
-            filter: { status: [CampaignStatus.APPROVED] },
-            limit: this.BATCH_CONFIG.maxCampaigns,
-        })
-
-        return campaigns.filter((campaign) => {
-            const startDate = new Date(campaign.fundraisingStartDate)
-            startDate.setHours(0, 0, 0, 0)
-            return startDate <= today
-        })
+    private async findApprovedCampaignsToActivate() {
+        return this.campaignRepository.findApprovedCampaignsToActivateForJob(
+            this.BATCH_CONFIG.maxCampaigns,
+        )
     }
 
-    /**
-     * Find campaigns ready for completion (move to AWAITING_DISBURSEMENT)
-     */
-    private async findActiveCampaignsToComplete(): Promise<Campaign[]> {
-        const today = new Date()
-        today.setHours(23, 59, 59, 999)
-
-        const campaigns = await this.campaignRepository.findMany({
-            filter: { status: [CampaignStatus.ACTIVE] },
-            limit: this.BATCH_CONFIG.maxCampaigns,
-        })
-
-        return campaigns.filter((campaign) => {
-            const endDate = new Date(campaign.fundraisingEndDate)
-            endDate.setHours(23, 59, 59, 999)
-
-            const targetReached =
-                BigInt(campaign.receivedAmount) >= BigInt(campaign.targetAmount)
-            const dateExpired = endDate <= today
-
-            return targetReached || dateExpired
-        })
+    private async findActiveCampaignsToComplete() {
+        return this.campaignRepository.findActiveCampaignsToCompleteForJob(
+            this.BATCH_CONFIG.maxCampaigns,
+        )
     }
 
-    /**
-     * Find expired campaigns
-     */
-    private async findExpiredCampaigns(): Promise<Campaign[]> {
-        const today = new Date()
-        today.setHours(23, 59, 59, 999)
-
-        const campaigns = await this.campaignRepository.findMany({
-            filter: {
-                status: [CampaignStatus.PENDING, CampaignStatus.APPROVED],
-            },
-            limit: this.BATCH_CONFIG.maxCampaigns,
-        })
-
-        return campaigns.filter((campaign) => {
-            const endDate = new Date(campaign.fundraisingEndDate)
-            endDate.setHours(23, 59, 59, 999)
-            return endDate <= today
-        })
+    private async findExpiredCampaigns() {
+        return this.campaignRepository.findExpiredCampaignsForJob(
+            this.BATCH_CONFIG.maxCampaigns,
+        )
     }
 
     /**
      * Campaign processors with proper error handling
      */
     private async activateCampaign(
-        campaign: Campaign,
+        campaign: Pick<Campaign, "id" | "status">,
     ): Promise<StatusTransitionResult> {
         try {
             await this.campaignRepository.update(campaign.id, {
@@ -330,18 +278,34 @@ export class CampaignSchedulerService {
     }
 
     private async completeCampaign(
-        campaign: Campaign,
+        campaign: Pick<
+            Campaign,
+            | "id"
+            | "status"
+            | "receivedAmount"
+            | "targetAmount"
+            | "createdBy"
+            | "title"
+        >,
     ): Promise<StatusTransitionResult> {
         try {
-            const fundingPercentage = 
-                (Number(campaign.receivedAmount) / Number(campaign.targetAmount)) * 100
+            const receivedAmount = BigInt(campaign.receivedAmount || 0)
+            const targetAmount = BigInt(campaign.targetAmount || 0)
+
+            const fundingPercentage =
+                targetAmount > 0n
+                    ? (Number(receivedAmount) * 100) / Number(targetAmount)
+                    : 0
 
             let newStatus: CampaignStatus
             let reason: string
 
-            if (fundingPercentage >= 50 && fundingPercentage < 100) {
+            if (fundingPercentage >= 50) {
                 newStatus = CampaignStatus.PROCESSING
-                reason = "PARTIAL_FUNDING_SUCCESS"
+                reason =
+                    fundingPercentage >= 100
+                        ? "FULL_FUNDING_REACHED"
+                        : "PARTIAL_FUNDING_SUCCESS"
 
                 this.logger.log(
                     `Campaign ${campaign.id} reached ${fundingPercentage.toFixed(2)}% funding - Moving to PROCESSING`,
@@ -351,14 +315,18 @@ export class CampaignSchedulerService {
                 reason = "INSUFFICIENT_FUNDING"
 
                 this.logger.log(
-                    `Campaign ${campaign.id} only reached ${fundingPercentage.toFixed(2)}% funding - Pooling funds to fundraiser wallet`,
+                    `Campaign ${campaign.id} only reached ${fundingPercentage.toFixed(2)}% funding - Moving to ENDED and pooling funds`,
                 )
 
-                await this.poolFundsToFundraiser(campaign)
+                if (receivedAmount > 0n) {
+                    await this.poolFundsToFundraiser(campaign)
+                }
             }
 
             await this.campaignRepository.update(campaign.id, {
                 status: newStatus,
+                completedAt:
+                    newStatus === CampaignStatus.ENDED ? new Date() : undefined,
             })
 
             return {
@@ -386,11 +354,17 @@ export class CampaignSchedulerService {
         }
     }
 
-    private async poolFundsToFundraiser(campaign: Campaign): Promise<void> {
+    private async poolFundsToFundraiser(
+        campaign: Pick<
+            Campaign,
+            "id" | "createdBy" | "title" | "receivedAmount" | "targetAmount"
+        >,
+    ): Promise<void> {
         try {
-            const fundraiserUser = await this.userClientService.getUserByCognitoId(
-                campaign.createdBy,
-            )
+            const fundraiserUser =
+                await this.userClientService.getUserByCognitoId(
+                    campaign.createdBy,
+                )
 
             if (!fundraiserUser) {
                 throw new Error(
@@ -421,7 +395,7 @@ export class CampaignSchedulerService {
     }
 
     private async handleExpiredCampaign(
-        campaign: Campaign,
+        campaign: Pick<Campaign, "id" | "status">,
     ): Promise<StatusTransitionResult> {
         try {
             let newStatus: CampaignStatus
