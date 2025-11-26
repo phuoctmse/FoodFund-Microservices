@@ -7,7 +7,7 @@ import { WalletSchema, WalletTransactionSchema } from "../../domain/entities"
 export class WalletRepository {
     private readonly logger = new Logger(WalletRepository.name)
 
-    constructor(private readonly prisma: PrismaClient) {}
+    constructor(private readonly prisma: PrismaClient) { }
 
     /**
      * Map Prisma wallet transaction to domain model
@@ -609,5 +609,19 @@ export class WalletRepository {
 
             return this.mapTransactionToSchema(transaction)
         })
+    }
+    async findAllTransactions(options?: {
+        skip?: number
+        take?: number
+    }): Promise<WalletTransactionSchema[]> {
+        const transactions = await this.prisma.wallet_Transaction.findMany({
+            skip: options?.skip,
+            take: options?.take,
+            orderBy: {
+                created_at: "desc",
+            },
+        })
+
+        return transactions.map((tx) => this.mapTransactionToSchema(tx))
     }
 }

@@ -4,10 +4,16 @@ import {
     WalletSchema,
     WalletTransactionSchema,
 } from "../../../../domain/entities"
+import { WalletTransactionSearchService } from "../../../../application/services/common/wallet-transaction-search.service"
+import { SearchWalletTransactionInput } from "../../../dtos/search-wallet-transaction.input"
+import { WalletTransactionSearchResult } from "../../../dtos/wallet-transaction-search-result.dto"
 
 @Resolver()
 export class WalletQueryResolver {
-    constructor(private readonly walletService: WalletService) {}
+    constructor(
+        private readonly walletService: WalletService,
+        private readonly walletTransactionSearchService: WalletTransactionSearchService,
+    ) { }
 
     @Query(() => WalletSchema, {
         description: "Get system admin wallet (Public API - No authentication required)",
@@ -42,19 +48,28 @@ export class WalletQueryResolver {
             defaultValue: 0,
             description: "Number of transactions to skip",
         })
-            skip = 0,
+        skip = 0,
         @Args("limit", {
             type: () => Int,
             nullable: true,
             defaultValue: 50,
             description: "Number of transactions to return",
         })
-            limit = 50,
+        limit = 50,
     ): Promise<WalletTransactionSchema[]> {
         return this.walletService.getWalletTransactionsByWalletId(
             walletId,
             skip,
             limit,
         )
+    }
+
+    @Query(() => WalletTransactionSearchResult, {
+        description: "Search wallet transactions using OpenSearch",
+    })
+    async searchWalletTransactions(
+        @Args("input") input: SearchWalletTransactionInput,
+    ): Promise<WalletTransactionSearchResult> {
+        return this.walletTransactionSearchService.search(input)
     }
 }

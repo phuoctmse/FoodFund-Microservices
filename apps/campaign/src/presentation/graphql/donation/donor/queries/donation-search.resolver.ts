@@ -42,7 +42,7 @@ export class DonationSearchResolver {
         // Enforce SUCCESS status for statements
         input.status = "SUCCESS"
 
-        const result = await this.donationSearchService.search(input)
+        const result = await this.donationSearchService.search(input, "receivedAmount")
 
         const totalReceived = result.items.reduce(
             (sum: number, item: any) => sum + parseFloat(item.amount),

@@ -1,4 +1,4 @@
-import { Directive, Field, ObjectType, Int } from "@nestjs/graphql"
+import { Directive, Field, Int, ObjectType } from "@nestjs/graphql"
 
 @ObjectType()
 @Directive("@shareable")

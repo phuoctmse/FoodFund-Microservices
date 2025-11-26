@@ -169,7 +169,7 @@ interface UpdateDonorStatsRequest {
     donorId: string
     amountToAdd: string
     incrementCount: number
-    lastDonationAt: string 
+    lastDonationAt: string
 }
 
 interface UpdateDonorStatsResponse {
@@ -288,7 +288,7 @@ export class UserGrpcController {
         private readonly walletTransactionService: WalletTransactionService,
         private readonly userBadgeService: UserBadgeService,
         private readonly userBadgeRepository: UserBadgeRepository,
-    ) {}
+    ) { }
 
     /**
      * Helper: Map user entity to gRPC response format

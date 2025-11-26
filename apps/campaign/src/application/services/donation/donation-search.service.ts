@@ -123,7 +123,7 @@ export class DonationSearchService implements OnModuleInit {
         }
     }
 
-    async search(input: SearchDonationInput) {
+    async search(input: SearchDonationInput, amountField: string = "amount") {
         const {
             query,
             campaignId,
@@ -161,9 +161,7 @@ export class DonationSearchService implements OnModuleInit {
             const range: any = {}
             if (minAmount) range.gte = minAmount
             if (maxAmount) range.lte = maxAmount
-            // Note: Range query on keyword field (amount) might not work as expected for numbers
-            // OpenSearch can handle numeric strings in range if configured, but ideally should be numeric type
-            // For now, assuming basic filtering. If precision needed, mapping should be changed to long/double.
+            must.push({ range: { [amountField]: range } })
         }
 
         if (startDate || endDate) {
@@ -179,7 +177,6 @@ export class DonationSearchService implements OnModuleInit {
         } else if (sortBy === "OLDEST") {
             sort.push({ created_at: "asc" })
         } else if (sortBy === "HIGHEST_AMOUNT") {
-            // Sort by keyword string might be inaccurate (lexicographical), but acceptable for now
             sort.push({ amount: "desc" })
         } else if (sortBy === "LOWEST_AMOUNT") {
             sort.push({ amount: "asc" })

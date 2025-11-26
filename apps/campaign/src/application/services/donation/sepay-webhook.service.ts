@@ -239,7 +239,7 @@ export class SepayWebhookService {
                 paymentTransactionId: paymentTransaction.id,
                 amount: BigInt(payload.transferAmount),
                 gateway: "SEPAY", // For logging/description only, NOT stored in Wallet_Transaction
-                description: `Partial payment via Sepay - Order ${orderCode} | Ref: ${payload.referenceCode}`,
+                description: `Thanh toán qua Sepay - Đơn hàng ${orderCode} | Ref: ${payload.referenceCode}`,
             })
 
             this.logger.log(
@@ -320,7 +320,7 @@ export class SepayWebhookService {
                 donation_id: donationId,
                 amount: BigInt(payload.transferAmount),
                 gateway: "SEPAY",
-                description: `Supplementary payment via Sepay | Ref: ${payload.referenceCode}`,
+                description: `Thanh toán qua Sepay | Ref: ${payload.referenceCode}`,
                 sepay_metadata: {
                     sepayId: payload.id,
                     referenceCode: payload.referenceCode,
@@ -375,7 +375,7 @@ export class SepayWebhookService {
                 paymentTransactionId: result.payment.id,
                 amount: BigInt(payload.transferAmount),
                 gateway: "SEPAY", // For logging only
-                description: `Supplementary payment via Sepay | Ref: ${payload.referenceCode}`,
+                description: `Thanh toán qua Sepay | Ref: ${payload.referenceCode}`,
             })
 
             this.logger.log(
@@ -523,7 +523,7 @@ export class SepayWebhookService {
      * Build description from Sepay payload
      */
     private buildDescription(payload: SepayWebhookPayload): string {
-        return `Sepay incoming transfer - Ref: ${payload.referenceCode} | Content: ${payload.content} | Bank: ${payload.gateway}`
+        return `Chuyển khoản đến Sepay - Ref: ${payload.referenceCode} | Content: ${payload.content} | Bank: ${payload.gateway}`
     }
 
     /**

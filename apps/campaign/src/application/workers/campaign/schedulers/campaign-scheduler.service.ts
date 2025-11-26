@@ -35,7 +35,7 @@ export class CampaignSchedulerService {
         private readonly campaignRepository: CampaignRepository,
         private readonly sentryService: SentryService,
         private readonly userClientService: UserClientService,
-    ) {}
+    ) { }
 
     /**
      * Activate approved campaigns that have reached their fundraising start date
@@ -333,7 +333,7 @@ export class CampaignSchedulerService {
         campaign: Campaign,
     ): Promise<StatusTransitionResult> {
         try {
-            const fundingPercentage = 
+            const fundingPercentage =
                 (Number(campaign.receivedAmount) / Number(campaign.targetAmount)) * 100
 
             let newStatus: CampaignStatus
@@ -405,7 +405,7 @@ export class CampaignSchedulerService {
                 paymentTransactionId: "",
                 amount: BigInt(campaign.receivedAmount),
                 gateway: "SYSTEM",
-                description: `Pooled funds from campaign "${campaign.title}" (Received: ${campaign.receivedAmount.toString()} VND, Target: ${campaign.targetAmount.toString()} VND)`,
+                description: `Quỹ chung từ chiến dịch "${campaign.title}" (Nhận được: ${campaign.receivedAmount.toString()} VND, Mục Tiêu: ${campaign.targetAmount.toString()} VND)`,
             })
 
             this.logger.log(

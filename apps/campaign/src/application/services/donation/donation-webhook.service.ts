@@ -239,7 +239,7 @@ export class DonationWebhookService {
                 paymentTransactionId: paymentTransaction.id,
                 amount: actualAmountReceived,
                 gateway: "PAYOS",
-                description: `Donation from ${donation.donor_name || "Anonymous"} - Order ${orderCode}`,
+                description: `Ủng hộ từ ${donation.donor_name || "Anonymous"} - Đơn hàng ${orderCode}`,
             })
 
             this.logger.log(

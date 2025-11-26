@@ -20,7 +20,7 @@ registerEnumType(CampaignSortBy, {
     name: "CampaignSortBy",
 })
 
-import { IsEnum, IsInt, IsNumber, IsOptional, IsString, IsUUID, Min } from "class-validator"
+import { IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min } from "class-validator"
 
 @InputType()
 export class SearchCampaignInput {
