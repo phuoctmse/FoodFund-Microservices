@@ -1,17 +1,17 @@
 import { Injectable, Logger } from "@nestjs/common"
 import { AwsCognitoService } from "libs/aws-cognito"
-import { ConfirmSignUpInput, SignUpInput } from "../dtos"
+import { ConfirmSignUpInput, SignUpInput } from "../../dtos"
 import {
     SignUpResponse,
     ConfirmSignUpResponse,
     ForgotPasswordResponse,
     ResetPasswordResponse,
     ResendCodeResponse,
-} from "../../domain/entities"
-import { AuthErrorHelper } from "../../shared/helpers"
+} from "../../../domain/entities"
+import { AuthErrorHelper } from "../../../shared/helpers"
 import { GrpcClientService } from "libs/grpc"
 import { generateUniqueUsername, SagaOrchestrator } from "libs/common"
-import { Role } from "../../domain/enums/role.enum"
+import { Role } from "../../../domain/enums/role.enum"
 import { SentryService } from "libs/observability"
 
 @Injectable()
@@ -22,7 +22,7 @@ export class RegistrationService {
         private readonly awsCognitoService: AwsCognitoService,
         private readonly grpcClient: GrpcClientService,
         private readonly sentryService: SentryService,
-    ) {}
+    ) { }
 
     async signUp(input: SignUpInput): Promise<SignUpResponse> {
         const username = generateUniqueUsername(input.email)

@@ -6,214 +6,52 @@ import {
     OrganizationRepository,
     UserBadgeRepository,
 } from "../../application/repositories"
-import { WalletTransactionService } from "../../application/services/common/wallet-transaction.service"
 import { UserBadgeService } from "../../application/services/badge"
 import { Role } from "@libs/databases"
 import { generateUniqueUsername } from "libs/common"
 import { Transaction_Type, Wallet_Type } from "../../domain/enums/wallet.enum"
+import { WalletTransactionService } from "../../application/services"
 
-interface CreateUserRequest {
-    cognitoId: string
-    email: string
-    username?: string
-    fullName: string
-    role?: string
-    cognitoAttributes?: {
-        avatarUrl?: string
-        bio?: string
-    }
-}
-
-interface CreateUserResponse {
-    success: boolean
-    user: any | null
-    error: string | null
-}
-
-interface GetUserRequest {
-    cognitoId: string
-}
-
-interface GetUserResponse {
-    success: boolean
-    user: any | null
-    error: string | null
-}
-
-interface UpdateUserRequest {
-    id: string
-    fullName?: string
-    avatarUrl?: string
-    phoneNumber?: string
-    address?: string
-    bio?: string
-}
-
-interface UpdateUserResponse {
-    success: boolean
-    user: any | null
-    error: string | null
-}
-
-interface UserExistsRequest {
-    cognitoId: string
-}
-
-interface UserExistsResponse {
-    exists: boolean
-    userId?: string
-    error: string | null
-}
-
-interface GetUserByEmailRequest {
-    email: string
-}
-
-interface GetUserByEmailResponse {
-    success: boolean
-    user: any | null
-    error: string | null
-}
-
-interface HealthResponse {
-    status: string
-    service: string
-    timestamp: string
-    uptime: number
-}
-
-interface CreditAdminWalletRequest {
-    adminId: string
-    campaignId: string | null
-    paymentTransactionId: string | null
-    amount: string
-    gateway: string
-    description?: string
-    sepayMetadata?: string
-}
-
-interface CreditFundraiserWalletRequest {
-    fundraiserId: string
-    campaignId: string | null
-    paymentTransactionId: string | null
-    amount: string
-    gateway: string
-    description?: string
-}
-
-interface CreditWalletResponse {
-    success: boolean
-    walletTransactionId?: string
-    error?: string
-}
-
-interface ProcessBankTransferOutRequest {
-    sepayId: number
-    amount: string // gRPC uses string for bigint
-    gateway: string
-    referenceCode: string
-    content: string
-    transactionDate: string
-    description: string
-}
-
-interface ProcessBankTransferOutResponse {
-    success: boolean
-    walletTransactionId?: string
-    error?: string
-}
-
-interface AwardBadgeRequest {
-    userId: string
-    badgeId: string
-}
-
-interface AwardBadgeResponse {
-    success: boolean
-    userBadgeId?: string
-    badge?: {
-        id: string
-        name: string
-        description: string
-        iconUrl: string
-        sortOrder: number
-        isActive: boolean
-        createdAt: string
-        updatedAt: string
-    }
-    error?: string
-}
-
-interface GetUserBadgeRequest {
-    userId: string
-}
-
-interface GetUserBadgeResponse {
-    success: boolean
-    badge?: {
-        id: string
-        name: string
-        description: string
-        iconUrl: string
-        sortOrder: number
-        isActive: boolean
-        createdAt: string
-        updatedAt: string
-    }
-    awardedAt?: string
-    error?: string
-}
-
-interface UpdateDonorStatsRequest {
-    donorId: string
-    amountToAdd: string
-    incrementCount: number
-    lastDonationAt: string
-}
-
-interface UpdateDonorStatsResponse {
-    success: boolean
-    totalDonated?: string
-    donationCount?: number
-    error?: string
-}
-
-interface GetUserWithStatsRequest {
-    id: string
-}
-
-interface GetUserWithStatsResponse {
-    success: boolean
-    id?: string
-    totalDonated?: string
-    donationCount?: number
-    lastDonationAt?: string
-    error?: string
-}
-
-interface GetWalletBalanceRequest {
-    userId: string
-}
-
-interface GetWalletBalanceResponse {
-    success: boolean
-    balance?: string
-    error?: string
-}
-
-interface DebitWalletRequest {
-    userId: string
-    campaignId: string
-    amount: string
-    description?: string
-}
-
-interface DebitWalletResponse {
-    success: boolean
-    walletTransactionId?: string
-    newBalance?: string
-    error?: string
-}
+import {
+    CreateUserRequest,
+    CreateUserResponse,
+    GetUserRequest,
+    GetUserResponse,
+    UpdateUserRequest,
+    UpdateUserResponse,
+    UserExistsRequest,
+    UserExistsResponse,
+    GetUserByEmailRequest,
+    GetUserByEmailResponse,
+    HealthResponse,
+    CreditAdminWalletRequest,
+    CreditFundraiserWalletRequest,
+    CreditWalletResponse,
+    ProcessBankTransferOutRequest,
+    ProcessBankTransferOutResponse,
+    AwardBadgeRequest,
+    AwardBadgeResponse,
+    GetUserBadgeRequest,
+    GetUserBadgeResponse,
+    UpdateDonorStatsRequest,
+    UpdateDonorStatsResponse,
+    GetUserWithStatsRequest,
+    GetUserWithStatsResponse,
+    GetWalletBalanceRequest,
+    GetWalletBalanceResponse,
+    DebitWalletRequest,
+    DebitWalletResponse,
+    GetUserBasicInfoRequest,
+    GetUserBasicInfoResponse,
+    GetUserOrganizationRequest,
+    GetUserOrganizationResponse,
+    GetUsersByIdsRequest,
+    GetUsersByIdsResponse,
+    GetUserDisplayNameRequest,
+    GetUserDisplayNameResponse,
+    GetWalletTransactionsByPaymentIdRequest,
+    GetWalletTransactionsByPaymentIdResponse,
+} from "../../application/dtos/user-grpc.dto"
 
 const ROLE_MAP = {
     DONOR: 0,
@@ -221,59 +59,6 @@ const ROLE_MAP = {
     KITCHEN_STAFF: 2,
     DELIVERY_STAFF: 3,
     ADMIN: 4,
-}
-
-interface GetUserBasicInfoRequest {
-    userId: string
-}
-
-interface GetUserBasicInfoResponse {
-    success: boolean
-    user?: {
-        id: string
-        role: string
-        organizationId: string | null
-        organizationName: string | null
-    }
-    error?: string
-}
-
-interface GetUserOrganizationRequest {
-    userId: string
-}
-
-interface GetUserOrganizationResponse {
-    success: boolean
-    organization?: {
-        id: string
-        name: string
-    }
-    error?: string
-}
-
-interface GetUsersByIdsRequest {
-    userIds: string[]
-}
-
-interface GetUsersByIdsResponse {
-    success: boolean
-    users: Array<{
-        id: string
-        fullName: string
-        username: string
-        avatarUrl: string
-    }>
-    error?: string
-}
-
-interface GetUserDisplayNameRequest {
-    userId: string
-}
-
-interface GetUserDisplayNameResponse {
-    success: boolean
-    displayName: string
-    error?: string
 }
 
 @Controller()
@@ -287,7 +72,7 @@ export class UserGrpcController {
         private readonly walletTransactionService: WalletTransactionService,
         private readonly userBadgeService: UserBadgeService,
         private readonly userBadgeRepository: UserBadgeRepository,
-    ) {}
+    ) { }
 
     /**
      * Helper: Map user entity to gRPC response format
@@ -777,21 +562,9 @@ export class UserGrpcController {
     }
 
     @GrpcMethod("UserService", "GetWalletTransactionsByPaymentId")
-    async getWalletTransactionsByPaymentId(data: {
-        paymentTransactionId: string
-    }): Promise<{
-        success: boolean
-        transactions?: Array<{
-            id: string
-            amount: string
-            transactionType: string
-            gateway: string | null
-            reference: string | null
-            description: string | null
-            createdAt: string
-        }>
-        error?: string
-    }> {
+    async getWalletTransactionsByPaymentId(
+        data: GetWalletTransactionsByPaymentIdRequest,
+    ): Promise<GetWalletTransactionsByPaymentIdResponse> {
         try {
             const { paymentTransactionId } = data
 

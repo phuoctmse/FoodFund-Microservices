@@ -7,20 +7,20 @@ import {
     SignInResponse,
     RefreshTokenResponse,
     SignOutResponse,
-} from "../../../domain/entities"
-import { SignInInput, RefreshTokenInput } from "../../../application/dtos"
+} from "../../../../domain/entities"
+import { SignInInput, RefreshTokenInput } from "../../../../application/dtos"
 import { CognitoGraphQLGuard } from "libs/aws-cognito/guards"
 import {
     AuthenticationService,
     UserService,
-} from "../../../application/services"
+} from "../../../../application/services"
 
 @Resolver()
 export class AuthenticationResolver {
     constructor(
         private readonly authenticationService: AuthenticationService,
         private readonly userService: UserService,
-    ) {}
+    ) { }
 
     @Mutation(() => SignOutResponse)
     @UseGuards(CognitoGraphQLGuard)
@@ -58,7 +58,6 @@ export class AuthenticationResolver {
     }
 
     @Mutation(() => RefreshTokenResponse)
-    @UseGuards(CognitoGraphQLGuard)
     async refreshToken(
         @Args("input") input: RefreshTokenInput,
     ): Promise<RefreshTokenResponse> {

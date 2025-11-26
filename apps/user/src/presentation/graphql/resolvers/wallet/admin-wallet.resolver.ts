@@ -1,7 +1,7 @@
-import { Args, Int, Query, Resolver } from "@nestjs/graphql"
+import { Args, Int, Mutation, Query, Resolver } from "@nestjs/graphql"
 import { RequireRole } from "@libs/auth"
 import { Role } from "@libs/databases"
-import { WalletService } from "../../../../application/services/common/wallet.service"
+import { WalletService } from "@app/user/src/application/services"
 import {
     WalletSchema,
     WalletListResponseSchema,
@@ -9,10 +9,15 @@ import {
     WalletWithTransactionsSchema,
     PlatformWalletStatsSchema,
 } from "../../../../domain/entities"
+import { SyncResult } from "../../../../application/dtos/sync-result.dto"
+import { WalletTransactionSearchService } from "@app/user/src/application/services"
 
 @Resolver()
 export class AdminWalletResolver {
-    constructor(private readonly walletService: WalletService) {}
+    constructor(
+        private readonly walletService: WalletService,
+        private readonly walletTransactionSearchService: WalletTransactionSearchService,
+    ) { }
 
     @Query(() => [WalletTransactionSchema], {
         description: "Get system wallet transactions (Admin only)",
@@ -106,4 +111,13 @@ export class AdminWalletResolver {
     async getPlatformWalletStats(): Promise<PlatformWalletStatsSchema> {
         return this.walletService.getPlatformWalletStats()
     }
+
+    @Mutation(() => SyncResult, {
+        description: "Sync all wallet transactions to OpenSearch (Admin only)",
+    })
+    @RequireRole(Role.ADMIN)
+    async syncWalletTransactions(): Promise<SyncResult> {
+        return this.walletTransactionSearchService.syncAll()
+    }
 }
+

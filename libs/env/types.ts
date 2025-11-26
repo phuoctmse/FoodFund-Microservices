@@ -57,6 +57,8 @@ export interface AwsConfig {
     secretAccessKey: string
     awsOpenSearchEndpoint: string
     awsSqsQueueUrl: string
+    opensearchUsername?: string
+    opensearchPassword?: string
 }
 
 export interface RedisConfig {
@@ -101,7 +103,7 @@ export interface Badge {
     silverId: string
     goldId: string
     platinumId: string
-    diamondId: string 
+    diamondId: string
 }
 
 // Main environment configuration interface

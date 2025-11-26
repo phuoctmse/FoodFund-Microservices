@@ -2,15 +2,15 @@ import { Injectable, Logger, UnauthorizedException, Inject } from "@nestjs/commo
 import { AwsCognitoService } from "libs/aws-cognito"
 import { CognitoUser } from "libs/aws-cognito/aws-cognito.types"
 import { GetUserCommandOutput } from "@aws-sdk/client-cognito-identity-provider"
-import { SignInInput, RefreshTokenInput } from "../dtos"
+import { SignInInput, RefreshTokenInput } from "../../dtos"
 import {
     AuthUser,
     SignInResponse,
     RefreshTokenResponse,
     SignOutResponse,
-} from "../../domain/entities"
-import { IUserService, USER_SERVICE_TOKEN } from "../../domain/interfaces"
-import { AuthErrorHelper } from "../../shared/helpers"
+} from "../../../domain/entities"
+import { IUserService, USER_SERVICE_TOKEN } from "../../../domain/interfaces"
+import { AuthErrorHelper } from "../../../shared/helpers"
 
 @Injectable()
 export class AuthenticationService {
@@ -20,7 +20,7 @@ export class AuthenticationService {
         private readonly awsCognitoService: AwsCognitoService,
         @Inject(USER_SERVICE_TOKEN)
         private readonly userService: IUserService,
-    ) {}
+    ) { }
 
     async signIn(input: SignInInput): Promise<SignInResponse> {
         try {

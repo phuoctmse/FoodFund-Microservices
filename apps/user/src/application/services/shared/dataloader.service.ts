@@ -3,9 +3,8 @@ import { DataLoaderFactory } from "./dataloader.factory"
 
 @Injectable()
 export class DataLoaderService {
-    constructor(private readonly dataLoaderFactory: DataLoaderFactory) {}
+    constructor(private readonly dataLoaderFactory: DataLoaderFactory) { }
 
-    // Organization methods
     async getOrganizationById(organizationId: string) {
         const loader = this.dataLoaderFactory.getOrganizationLoader()
         return loader.load(organizationId)
@@ -16,7 +15,6 @@ export class DataLoaderService {
         return loader.loadMany(organizationIds)
     }
 
-    // Organization member methods
     async getOrganizationMembersByUserId(userId: string) {
         const loader = this.dataLoaderFactory.getOrganizationMemberLoader()
         return loader.load(userId)
@@ -27,7 +25,6 @@ export class DataLoaderService {
         return loader.loadMany(userIds)
     }
 
-    // User organization methods (for Fundraisers)
     async getUserOrganization(userId: string) {
         const loader = this.dataLoaderFactory.getUserOrganizationLoader()
         return loader.load(userId)
@@ -38,7 +35,6 @@ export class DataLoaderService {
         return loader.loadMany(userIds)
     }
 
-    // User methods
     async getUserById(userId: string) {
         const loader = this.dataLoaderFactory.getUserLoader()
         return loader.load(userId)
@@ -49,7 +45,6 @@ export class DataLoaderService {
         return loader.loadMany(userIds)
     }
 
-    // Advanced methods with combined data
     async getFundraiserProfileWithOrganization(userId: string) {
         const [user, organization] = await Promise.all([
             this.getUserById(userId),
@@ -69,7 +64,6 @@ export class DataLoaderService {
             this.getOrganizationMembersByUserId(userId),
         ])
 
-        // Get organization details for the member
         const organizationId = organizationMembers[0]?.organization_id
         const organization = organizationId
             ? await this.getOrganizationById(organizationId)
@@ -89,7 +83,6 @@ export class DataLoaderService {
             this.getOrganizationMembersByUserId(userId),
         ])
 
-        // Get organization details for the member
         const organizationId = organizationMembers[0]?.organization_id
         const organization = organizationId
             ? await this.getOrganizationById(organizationId)
@@ -103,7 +96,6 @@ export class DataLoaderService {
         }
     }
 
-    // Badge methods
     async getUserBadge(userId: string) {
         const loader = this.dataLoaderFactory.getUserBadgeLoader()
         return loader.load(userId)
@@ -114,7 +106,6 @@ export class DataLoaderService {
         return loader.loadMany(userIds)
     }
 
-    // Cache management methods
     clearOrganizationCache(organizationId: string) {
         this.dataLoaderFactory.clearOrganizationCache(organizationId)
     }

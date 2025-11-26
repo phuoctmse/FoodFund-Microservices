@@ -1,9 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common"
-import { AuthUser, CreateStaffAccountResponse } from "../../domain/entities"
+import { AuthUser, CreateStaffAccountResponse } from "../../../domain/entities"
 import { AwsCognitoService } from "libs/aws-cognito"
-import { AuthErrorHelper } from "../../shared/helpers"
+import { AuthErrorHelper } from "../../../shared/helpers"
 import { GrpcClientService } from "libs/grpc"
-import { Role } from "../../domain/enums/role.enum"
+import { Role } from "../../../domain/enums/role.enum"
 
 @Injectable()
 export class AuthAdminService {
@@ -12,7 +12,7 @@ export class AuthAdminService {
     constructor(
         private readonly awsCognitoService: AwsCognitoService,
         private readonly grpcClient: GrpcClientService,
-    ) {}
+    ) { }
 
     private mapRoleToProtoEnum(role: Role): number {
         switch (role) {

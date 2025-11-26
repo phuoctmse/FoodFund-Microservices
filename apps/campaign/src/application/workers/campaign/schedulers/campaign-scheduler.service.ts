@@ -35,7 +35,7 @@ export class CampaignSchedulerService {
         private readonly campaignRepository: CampaignRepository,
         private readonly sentryService: SentryService,
         private readonly userClientService: UserClientService,
-    ) {}
+    ) { }
 
     async activateApprovedCampaigns(): Promise<JobExecutionResult> {
         return this.executeJobWithProfiling(
@@ -379,7 +379,7 @@ export class CampaignSchedulerService {
                 paymentTransactionId: "",
                 amount: BigInt(campaign.receivedAmount),
                 gateway: "SYSTEM",
-                description: `Pooled funds from campaign "${campaign.title}" (Received: ${campaign.receivedAmount.toString()} VND, Target: ${campaign.targetAmount.toString()} VND)`,
+                description: `Quỹ chung từ chiến dịch "${campaign.title}" (Nhận được: ${campaign.receivedAmount.toString()} VND, Mục Tiêu: ${campaign.targetAmount.toString()} VND)`,
             })
 
             this.logger.log(

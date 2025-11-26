@@ -11,7 +11,7 @@ export class CampaignSettlementService {
     constructor(
         private readonly prisma: PrismaClient,
         private readonly userClientService: UserClientService,
-    ) {}
+    ) { }
 
     @OnEvent("campaign.surplus.detected")
     async handleSurplusDetected(payload: { campaignId: string; surplus: string }) {
@@ -112,10 +112,10 @@ export class CampaignSettlementService {
             await this.userClientService.creditFundraiserWallet({
                 fundraiserId: fundraiserUser.id,
                 campaignId: campaign.id,
-                paymentTransactionId: "", 
-                amount: surplus, 
-                gateway: "SYSTEM", 
-                description: `Campaign surplus settlement: ${campaign.title} (Surplus: ${surplus.toString()} VND)`,
+                paymentTransactionId: "",
+                amount: surplus,
+                gateway: "SYSTEM",
+                description: `Ngân sách tồn dư của chiến dịch: ${campaign.title} (Tồn dư: ${surplus.toString()} VND)`,
             })
 
             // Step 3: Update campaign status to COMPLETED

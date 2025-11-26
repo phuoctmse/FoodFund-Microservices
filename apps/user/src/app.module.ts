@@ -6,6 +6,7 @@ import { EnvModule } from "@libs/env/env.module"
 import { AwsCognitoModule } from "@libs/aws-cognito"
 import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 import { GrpcModule } from "@libs/grpc"
+import { OpenSearchModule } from "@libs/aws-opensearch"
 import { SpacesUploadService } from "@libs/s3-storage"
 import { PrismaClient } from "./generated/user-client"
 import { OrganizationSchema } from "./domain/entities"
@@ -19,7 +20,8 @@ import {
     UserMutationService,
     WalletService,
 } from "./application/services"
-import { WalletTransactionService } from "./application/services/common/wallet-transaction.service"
+import { WalletTransactionService } from "./application/services/wallet/wallet-transaction.service"
+import { WalletTransactionSearchService } from "./application/services/wallet/wallet-transaction-search.service"
 import { BadgeService, UserBadgeService } from "./application/services/badge"
 import { BadgeEmailService } from "./application/services/badge/badge-email.service"
 import { BrevoEmailService } from "@libs/email"
@@ -67,6 +69,7 @@ import { HealthController } from "./presentation/http/controllers"
             version: process.env.SERVICE_VERSION || "1.0.0",
         }),
         GrpcModule,
+        OpenSearchModule,
         GraphQLSubgraphModule.forRoot({
             debug: true,
             playground: true,
@@ -113,6 +116,7 @@ import { HealthController } from "./presentation/http/controllers"
         UserMutationService,
         WalletService,
         WalletTransactionService,
+        WalletTransactionSearchService,
         BadgeService,
         UserBadgeService,
         BadgeEmailService,
@@ -138,4 +142,4 @@ import { HealthController } from "./presentation/http/controllers"
     ],
     exports: [UserRepository],
 })
-export class AppModule {}
+export class AppModule { }

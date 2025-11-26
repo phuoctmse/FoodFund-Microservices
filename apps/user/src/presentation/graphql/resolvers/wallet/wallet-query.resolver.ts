@@ -1,13 +1,19 @@
 import { Args, Int, Query, Resolver } from "@nestjs/graphql"
-import { WalletService } from "../../../../application/services/common/wallet.service"
+import { WalletService } from "@app/user/src/application/services"
 import {
     WalletSchema,
     WalletTransactionSchema,
 } from "../../../../domain/entities"
+import { WalletTransactionSearchResult } from "../../../../application/dtos/wallet-transaction-search-result.dto"
+import { WalletTransactionSearchService } from "@app/user/src/application/services"
+import { SearchWalletTransactionInput } from "@app/user/src/application/dtos"
 
 @Resolver()
 export class WalletQueryResolver {
-    constructor(private readonly walletService: WalletService) {}
+    constructor(
+        private readonly walletService: WalletService,
+        private readonly walletTransactionSearchService: WalletTransactionSearchService,
+    ) { }
 
     @Query(() => WalletSchema, {
         description: "Get system admin wallet (Public API - No authentication required)",
@@ -56,5 +62,14 @@ export class WalletQueryResolver {
             skip,
             limit,
         )
+    }
+
+    @Query(() => WalletTransactionSearchResult, {
+        description: "Search wallet transactions using OpenSearch",
+    })
+    async searchWalletTransactions(
+        @Args("input") input: SearchWalletTransactionInput,
+    ): Promise<WalletTransactionSearchResult> {
+        return this.walletTransactionSearchService.search(input)
     }
 }

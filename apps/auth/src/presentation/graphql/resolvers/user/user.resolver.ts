@@ -11,20 +11,20 @@ import {
     CheckPasswordResponse,
     GoogleAuthResponse,
     ChangePasswordResponse,
-} from "../../../domain/entities"
+} from "../../../../domain/entities"
 import {
     ChangePasswordInput,
     CheckCurrentPasswordInput,
     GoogleAuthInput,
-} from "../../../application/dtos/auth.input"
+} from "../../../../application/dtos/auth.input"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
 import { UseGuards } from "@nestjs/common"
 import { CurrentUser, CurrentUserType } from "libs/auth"
-import { UserService } from "../../../application/services"
+import { UserService } from "../../../../application/services"
 
 @Resolver(() => AuthUser)
 export class UserResolver {
-    constructor(private readonly userService: UserService) {}
+    constructor(private readonly userService: UserService) { }
 
     @Query(() => AuthUser, { nullable: true })
     async getUserByCognitoId(

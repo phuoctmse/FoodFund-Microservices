@@ -7,19 +7,20 @@ import { DonorRepository } from "../../repositories/donor.repository"
 import { CampaignStatus } from "@app/campaign/src/domain/enums/campaign/campaign.enum"
 import { DonationEmailService } from "./donation-email.service"
 import { BadgeAwardService } from "./badge-award.service"
+import { DonationSearchService } from "./donation-search.service"
 
 interface SepayWebhookPayload {
-    id: number 
-    gateway: string 
-    transactionDate: string 
-    accountNumber: string 
+    id: number
+    gateway: string
+    transactionDate: string
+    accountNumber: string
     code: string | null
-    content: string 
-    transferType: string 
-    transferAmount: number 
-    accumulated: number 
+    content: string
+    transferType: string
+    transferAmount: number
+    accumulated: number
     subAccount: string | null
-    referenceCode: string 
+    referenceCode: string
     description: string
 }
 
@@ -34,7 +35,8 @@ export class SepayWebhookService {
         private readonly eventEmitter: EventEmitter2,
         private readonly donationEmailService: DonationEmailService,
         private readonly badgeAwardService: BadgeAwardService,
-    ) {}
+        private readonly donationSearchService: DonationSearchService,
+    ) { }
 
     async handleSepayWebhook(payload: SepayWebhookPayload): Promise<void> {
         this.logger.log("[Sepay] Received webhook:", {
@@ -199,6 +201,31 @@ export class SepayWebhookService {
                 `[Sepay→Admin] ✅ Payment updated to SUCCESS with PARTIAL status - orderCode=${orderCode}, amount=${payload.transferAmount}/${paymentTransaction.amount}`,
             )
 
+            // Update OpenSearch index
+            if (donation) {
+                await this.donationSearchService.indexDonation({
+                    ...donation,
+                    amount: donation.amount.toString(),
+                    status: "SUCCESS", // Or PARTIAL if we had that status
+                    orderCode: orderCode.toString(),
+                    transactionDatetime: new Date(payload.transactionDate),
+                    created_at: donation.created_at,
+                    updated_at: new Date(),
+                    campaignTitle: result.campaign.title,
+                    description: payload.description,
+                    gateway: "SEPAY",
+                    paymentStatus: "PARTIAL", // Or COMPLETED if amount matches
+                    receivedAmount: payload.transferAmount.toString(),
+                    bankName: payload.gateway || "",
+                    bankAccount: payload.subAccount || "",
+                    currency: "VND",
+                    errorCode: "00",
+                    errorDescription: "Success",
+                    processedByWebhook: true,
+                    sepayMetadata: payload,
+                } as any)
+            }
+
             // 🆕 Check for campaign surplus and emit event
             this.checkAndEmitSurplusEvent(result.campaign)
 
@@ -212,7 +239,7 @@ export class SepayWebhookService {
                 paymentTransactionId: paymentTransaction.id,
                 amount: BigInt(payload.transferAmount),
                 gateway: "SEPAY", // For logging/description only, NOT stored in Wallet_Transaction
-                description: `Partial payment via Sepay - Order ${orderCode} | Ref: ${payload.referenceCode}`,
+                description: `Thanh toán qua Sepay - Đơn hàng ${orderCode} | Ref: ${payload.referenceCode}`,
             })
 
             this.logger.log(
@@ -230,16 +257,16 @@ export class SepayWebhookService {
             // Step 5: Update donor cached stats and award badge
             if (donation.donor_id) {
                 const donor = await this.userClientService.getUserByCognitoId(donation.donor_id)
-                
+
                 if (donor) {
                     await this.userClientService.updateDonorStats({
-                        donorId: donor.id, 
+                        donorId: donor.id,
                         amountToAdd: BigInt(payload.transferAmount),
                         incrementCount: 1,
                         lastDonationAt: new Date(),
                     })
 
-                    this.awardBadgeAsync(donor.id) 
+                    this.awardBadgeAsync(donor.id)
                 } else {
                     this.logger.warn(
                         `[Sepay→Admin] Donor not found for cognito_id: ${donation.donor_id}`,
@@ -293,7 +320,7 @@ export class SepayWebhookService {
                 donation_id: donationId,
                 amount: BigInt(payload.transferAmount),
                 gateway: "SEPAY",
-                description: `Supplementary payment via Sepay | Ref: ${payload.referenceCode}`,
+                description: `Thanh toán qua Sepay | Ref: ${payload.referenceCode}`,
                 sepay_metadata: {
                     sepayId: payload.id,
                     referenceCode: payload.referenceCode,
@@ -310,6 +337,31 @@ export class SepayWebhookService {
                 `[Sepay→Admin] ✅ Supplementary payment created - Payment ID: ${result.payment.id}, amount=${payload.transferAmount}`,
             )
 
+            // Update OpenSearch index
+            if (donation) {
+                await this.donationSearchService.indexDonation({
+                    ...donation,
+                    amount: donation.amount.toString(),
+                    status: "SUCCESS",
+                    orderCode: originalPayment.order_code?.toString() || "",
+                    transactionDatetime: new Date(payload.transactionDate),
+                    created_at: donation.created_at,
+                    updated_at: new Date(),
+                    campaignTitle: result.campaign.title,
+                    description: payload.description,
+                    gateway: "SEPAY",
+                    paymentStatus: "COMPLETED", // Supplementary is usually completed
+                    receivedAmount: payload.transferAmount.toString(),
+                    bankName: payload.gateway || "",
+                    bankAccount: payload.subAccount || "",
+                    currency: "VND",
+                    errorCode: "00",
+                    errorDescription: "Success",
+                    processedByWebhook: true,
+                    sepayMetadata: payload,
+                } as any)
+            }
+
             // 🆕 Check for campaign surplus and emit event
             this.checkAndEmitSurplusEvent(result.campaign)
 
@@ -323,7 +375,7 @@ export class SepayWebhookService {
                 paymentTransactionId: result.payment.id,
                 amount: BigInt(payload.transferAmount),
                 gateway: "SEPAY", // For logging only
-                description: `Supplementary payment via Sepay | Ref: ${payload.referenceCode}`,
+                description: `Thanh toán qua Sepay | Ref: ${payload.referenceCode}`,
             })
 
             this.logger.log(
@@ -341,16 +393,16 @@ export class SepayWebhookService {
             // Step 5: Update donor cached stats and award badge
             if (donation.donor_id) {
                 const donor = await this.userClientService.getUserByCognitoId(donation.donor_id)
-                
+
                 if (donor) {
                     await this.userClientService.updateDonorStats({
-                        donorId: donor.id, 
+                        donorId: donor.id,
                         amountToAdd: BigInt(payload.transferAmount),
                         incrementCount: 1,
                         lastDonationAt: new Date(),
                     })
 
-                    this.awardBadgeAsync(donor.id) 
+                    this.awardBadgeAsync(donor.id)
                 } else {
                     this.logger.warn(
                         `[Sepay→Admin] Donor not found for cognito_id: ${donation.donor_id}`,
@@ -389,13 +441,13 @@ export class SepayWebhookService {
                 `[Sepay→Admin] Routing non-donation transfer to Admin Wallet - Admin ID: ${adminUserId}`,
             )
 
-           
+
             await this.userClientService.creditAdminWallet({
                 adminId: adminUserId,
-                campaignId: null, 
-                paymentTransactionId: null, 
+                campaignId: null,
+                paymentTransactionId: null,
                 amount: BigInt(payload.transferAmount),
-                gateway: "SEPAY", 
+                gateway: "SEPAY",
                 description: this.buildDescription(payload),
                 sepayMetadata: {
                     sepayId: payload.id,
@@ -443,17 +495,17 @@ export class SepayWebhookService {
         try {
             const sixteenDigitPattern = /\b(\d{16})\b/g
             const matches = content.match(sixteenDigitPattern)
-            
+
             if (matches && matches.length > 0) {
                 // If multiple 16-digit numbers, take the first one
                 const orderCode = matches[0]
-                
+
                 this.logger.debug(
                     `[Sepay] Extracted orderCode: ${orderCode} from content: "${content}"`,
                 )
                 return orderCode
             }
-            
+
             this.logger.debug(
                 `[Sepay] No 16-digit orderCode found in content: "${content}"`,
             )
@@ -471,7 +523,7 @@ export class SepayWebhookService {
      * Build description from Sepay payload
      */
     private buildDescription(payload: SepayWebhookPayload): string {
-        return `Sepay incoming transfer - Ref: ${payload.referenceCode} | Content: ${payload.content} | Bank: ${payload.gateway}`
+        return `Chuyển khoản đến Sepay - Ref: ${payload.referenceCode} | Content: ${payload.content} | Bank: ${payload.gateway}`
     }
 
     /**
@@ -488,13 +540,13 @@ export class SepayWebhookService {
             const exists = await this.redisService.exists(cacheKey)
 
             if (exists) {
-                return true 
+                return true
             }
 
             const ttl = 7 * 24 * 60 * 60 // 7 days in seconds
             await this.redisService.set(cacheKey, "processed", { ex: ttl })
 
-            return false 
+            return false
         } catch (error) {
             this.logger.error(
                 `[Sepay] Failed to check idempotency for ${sepayId}:`,

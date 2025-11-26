@@ -1,7 +1,7 @@
 import { Args, Int, Query, Resolver } from "@nestjs/graphql"
 import { RequireRole, CurrentUser, CurrentUserType } from "@libs/auth"
 import { Role } from "@libs/databases"
-import { WalletService } from "../../../../application/services/common/wallet.service"
+import { WalletService } from "@app/user/src/application/services"
 import {
     WalletSchema,
     WalletWithTransactionsSchema,
@@ -11,7 +11,7 @@ import { Wallet_Type } from "@app/user/src/domain/enums/wallet.enum"
 
 @Resolver()
 export class FundraiserWalletResolver {
-    constructor(private readonly walletService: WalletService) {}
+    constructor(private readonly walletService: WalletService) { }
 
     @Query(() => WalletSchema, {
         description: "Get my fundraiser wallet",

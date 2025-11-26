@@ -16,6 +16,8 @@ import { CampaignStatus } from "@app/campaign/src/domain/enums/campaign/campaign
 import { Donation } from "@app/campaign/src/domain/entities/donation.model"
 import { CampaignDonationInfo } from "../../dtos/donation/campaign-donation-info.dto"
 
+import { DonationSearchService } from "./donation-search.service"
+
 @Injectable()
 export class DonorService {
     private readonly logger = new Logger(DonorService.name)
@@ -27,7 +29,8 @@ export class DonorService {
         private readonly userClientService: UserClientService,
         private readonly userDataLoader: UserDataLoader,
         private readonly eventEmitter: EventEmitter2,
-    ) {}
+        private readonly donationSearchService: DonationSearchService,
+    ) { }
 
     private getPayOS(): PayOS {
         if (!this.payOS) {
@@ -186,14 +189,21 @@ export class DonorService {
                 payment_link_id: paymentLinkResponse.paymentLinkId,
             })
 
-            this.logger.log(
-                `[PayOS] Payment link created for donation ${donation.id}`,
-                {
-                    orderCode,
-                    amount: donationAmount.toString(),
-                    donorId,
-                },
-            )
+
+            await this.donationSearchService.indexDonation({
+                ...donation,
+                amount: donation.amount.toString(),
+                status: "PENDING",
+                orderCode: orderCode.toString(),
+                transactionDatetime: new Date(),
+                created_at: donation.created_at,
+                updated_at: donation.created_at,
+                campaignTitle: campaign.title,
+                description: paymentData.description,
+                gateway: "PAYOS",
+                paymentStatus: "PENDING",
+                currency: "VND",
+            } as any)
 
             // Note: Async processing now handled by BullMQ queues
             // Webhook processing will handle payment confirmation
@@ -471,7 +481,7 @@ export class DonorService {
         this.logger.log(`options: ${JSON.stringify(options, null, 2)}`)
         this.logger.log(`filter: ${JSON.stringify(options?.filter, null, 2)}`)
         this.logger.log("===========================================")
-        
+
         // Query Payment_Transaction directly for transparency
         // Shows all individual payments (initial + supplementary)
         const paymentTransactions =
@@ -696,6 +706,7 @@ export class DonorService {
                 }
 
                 transactions.push({
+                    no: transactions.length + 1,
                     donationId: donationWithTx.id,
                     transactionDateTime: tx.transaction_datetime
                         ? new Date(tx.transaction_datetime).toISOString()
@@ -703,8 +714,6 @@ export class DonorService {
                     donorName,
                     amount: tx.amount.toString(),
                     receivedAmount: tx.received_amount.toString(),
-                    transactionStatus: tx.status,
-                    paymentStatus: tx.payment_status,
                     gateway: tx.gateway || "UNKNOWN",
                     orderCode: tx.order_code?.toString() || "",
                     bankAccountNumber,

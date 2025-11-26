@@ -1,3 +1,3 @@
-export * from "./auth-authentication.resolver"
-export * from "./auth-registration.resolver"
-export * from "./auth-user.resolver"
+export * from "./authentication/authentication.resolver"
+export * from "./registration/registration.resolver"
+export * from "./user/user.resolver"

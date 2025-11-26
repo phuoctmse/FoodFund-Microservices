@@ -6,21 +6,21 @@ import {
     ResetPasswordResponse,
     ResendCodeResponse,
     AuthHealthResponse,
-} from "../../../domain/entities"
-import { RegistrationService } from "../../../application/services"
+} from "../../../../domain/entities"
+import { RegistrationService } from "../../../../application/services"
 import {
     SignUpInput,
     ConfirmSignUpInput,
     ForgotPasswordInput,
     ConfirmForgotPasswordInput,
     ResendCodeInput,
-} from "../../../application/dtos"
+} from "../../../../application/dtos"
 
 @Resolver()
 export class RegistrationResolver {
     constructor(
         private readonly registrationService: RegistrationService,
-    ) {}
+    ) { }
 
     @Query(() => AuthHealthResponse)
     async authHealth(): Promise<AuthHealthResponse> {

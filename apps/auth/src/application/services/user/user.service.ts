@@ -7,18 +7,18 @@ import {
     AuthResponse,
     CheckPasswordResponse,
     GoogleAuthResponse,
-} from "../../domain/entities"
-import { AuthErrorHelper } from "../../shared/helpers"
+} from "../../../domain/entities"
+import { AuthErrorHelper } from "../../../shared/helpers"
 import { randomBytes } from "node:crypto"
 
 import {
     ChangePasswordInput,
     CheckCurrentPasswordInput,
     GoogleAuthInput,
-} from "../dtos/auth.input"
+} from "../../dtos/auth.input"
 import { GrpcClientService } from "libs/grpc"
 import { envConfig } from "@libs/env"
-import { Role } from "../../domain/enums/role.enum"
+import { Role } from "../../../domain/enums/role.enum"
 
 @Injectable()
 export class UserService {
@@ -27,7 +27,7 @@ export class UserService {
     constructor(
         private readonly awsCognitoService: AwsCognitoService,
         private readonly grpcClientService: GrpcClientService,
-    ) {}
+    ) { }
 
     async getUserById(id: string): Promise<AuthUser | null> {
         try {

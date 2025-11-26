@@ -29,7 +29,7 @@ export class WalletTransactionService {
 
     constructor(
         private readonly walletRepository: WalletRepository,
-    ) {}
+    ) { }
 
     async processBankTransferOut(
         payload: SepayWebhookPayload,
@@ -84,7 +84,7 @@ export class WalletTransactionService {
                 balanceAfter,
                 transactionType: Transaction_Type.WITHDRAWAL,
                 gateway: payload.gateway,
-                description: `Bank transfer OUT - ${payload.description || payload.content}`,
+                description: `Chuyển khoản ra tài khoản ngân hàng - ${payload.description || payload.content}`,
                 sepayMetadata: payload,
             })
 

@@ -7,10 +7,16 @@ import { CampaignService } from "@app/campaign/src/application/services/campaign
 import { CampaignFilterInput, CampaignSortOrder } from "@app/campaign/src/application/dtos/campaign/request"
 import { createUserContextFromToken, CurrentUser } from "@app/campaign/src/shared"
 
+import { CampaignSearchService } from "@app/campaign/src/application/services/campaign/campaign-search.service"
+import { CampaignSortBy } from "@app/campaign/src/application/dtos/campaign/request/search-campaign.input"
+
 @Resolver(() => Campaign)
 @UseInterceptors(SentryInterceptor)
 export class CampaignQueryResolver {
-    constructor(private readonly campaignService: CampaignService) {}
+    constructor(
+        private readonly campaignService: CampaignService,
+        private readonly campaignSearchService: CampaignSearchService,
+    ) { }
 
     @Query(() => [Campaign], {
         description: "Get campaigns with filtering, search, and pagination",
@@ -43,13 +49,31 @@ export class CampaignQueryResolver {
     ): Promise<Campaign[]> {
         const safeLimit = Math.min(Math.max(limit, 1), 100)
         const safeOffset = Math.max(offset, 0)
-        return this.campaignService.getCampaigns(
-            filter,
-            search,
-            sortBy,
-            safeLimit,
-            safeOffset,
-        )
+        const page = Math.floor(safeOffset / safeLimit) + 1
+
+        try {
+            const result = await this.campaignSearchService.search({
+                query: search,
+                categoryId: filter?.categoryId,
+                creatorId: filter?.creatorId,
+                status: filter?.status,
+                sortBy: sortBy as unknown as CampaignSortBy,
+                page,
+                limit: safeLimit,
+            })
+            return result.items
+        } catch (error) {
+            console.warn(
+                `OpenSearch failed, falling back to database. Error: ${error.message}`,
+            )
+            return this.campaignService.getCampaigns(
+                filter,
+                search,
+                sortBy,
+                safeLimit,
+                safeOffset,
+            )
+        }
     }
 
     @Query(() => Campaign, {

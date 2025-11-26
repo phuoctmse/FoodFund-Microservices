@@ -29,6 +29,8 @@ interface PayOSWebhookData {
     virtualAccountNumber?: string
 }
 
+import { DonationSearchService } from "./donation-search.service"
+
 @Injectable()
 export class DonationWebhookService {
     private readonly logger = new Logger(DonationWebhookService.name)
@@ -41,7 +43,8 @@ export class DonationWebhookService {
         private readonly donationEmailService: DonationEmailService,
         private readonly badgeAwardService: BadgeAwardService,
         private readonly campaignFollowerService: CampaignFollowerService,
-    ) {}
+        private readonly donationSearchService: DonationSearchService,
+    ) { }
 
     private getPayOS(): PayOS {
         if (!this.payOS) {
@@ -169,11 +172,36 @@ export class DonationWebhookService {
                     },
                 })
 
+            // Update OpenSearch index
+            if (paymentTransaction.donation) {
+                await this.donationSearchService.indexDonation({
+                    ...paymentTransaction.donation,
+                    amount: paymentTransaction.donation.amount.toString(),
+                    status: "SUCCESS", // Or use result.payment.status
+                    orderCode: orderCode.toString(),
+                    transactionDatetime: new Date(webhookData.transactionDateTime),
+                    created_at: paymentTransaction.donation.created_at,
+                    updated_at: new Date(),
+                    campaignTitle: result.campaign.title,
+                    description: webhookData.desc,
+                    gateway: "PAYOS",
+                    paymentStatus: "COMPLETED",
+                    receivedAmount: actualAmountReceived.toString(),
+                    bankName: webhookData.counterAccountBankName || "",
+                    bankAccount: webhookData.counterAccountNumber || "",
+                    currency: "VND",
+                    errorCode: "00",
+                    errorDescription: "Success",
+                    processedByWebhook: true,
+                    payosMetadata: webhookData,
+                } as any)
+            }
+
             this.logger.log(
                 `[PayOS] ✅ Payment transaction updated - Order ${orderCode}, Amount Paid: ${actualAmountReceived}`,
             )
 
-            // 🆕 Check for campaign surplus and emit event
+            // Check for campaign surplus and emit event
             const { campaign } = result
             if (
                 campaign.received_amount > campaign.target_amount &&
@@ -211,7 +239,7 @@ export class DonationWebhookService {
                 paymentTransactionId: paymentTransaction.id,
                 amount: actualAmountReceived,
                 gateway: "PAYOS",
-                description: `Donation from ${donation.donor_name || "Anonymous"} - Order ${orderCode}`,
+                description: `Ủng hộ từ ${donation.donor_name || "Anonymous"} - Đơn hàng ${orderCode}`,
             })
 
             this.logger.log(
@@ -266,7 +294,6 @@ export class DonationWebhookService {
         try {
             await this.badgeAwardService.checkAndAwardBadge(donorId)
         } catch (error) {
-            // Non-blocking: Just log error, don't throw
             this.logger.error(
                 `[Badge] Failed to award badge to donor ${donorId}:`,
                 error.message,
@@ -289,6 +316,27 @@ export class DonationWebhookService {
                 error_code: errorCode,
                 error_description: errorDescription,
             })
+
+            // Update OpenSearch index
+            if (paymentTransaction.donation) {
+                await this.donationSearchService.indexDonation({
+                    ...paymentTransaction.donation,
+                    amount: paymentTransaction.donation.amount.toString(),
+                    status: "FAILED",
+                    orderCode: orderCode.toString(),
+                    transactionDatetime: paymentTransaction.created_at,
+                    created_at: paymentTransaction.donation.created_at,
+                    updated_at: new Date(),
+                    campaignTitle: paymentTransaction.donation.campaign?.title || "",
+                    description: errorDescription,
+                    gateway: "PAYOS",
+                    paymentStatus: "FAILED",
+                    currency: "VND",
+                    errorCode: errorCode || "FAILED",
+                    errorDescription: errorDescription,
+                    processedByWebhook: true,
+                } as any)
+            }
 
             this.logger.warn(`[PayOS] ⚠️ Payment failed - Order ${orderCode}`, {
                 errorCode,

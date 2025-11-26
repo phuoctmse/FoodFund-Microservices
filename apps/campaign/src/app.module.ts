@@ -16,6 +16,7 @@ import { PrismaCampaignService } from "./infrastructure/database/prisma-campaign
 import { PrismaClient } from "./generated/campaign-client"
 import { SpacesUploadService } from "@libs/s3-storage"
 import { CampaignCacheService } from "./application/services/campaign/campaign-cache.service"
+import { CampaignSearchService } from "./application/services/campaign/campaign-search.service"
 import { CampaignService } from "./application/services/campaign/campaign.service"
 import { CampaignSettlementService } from "./application/services/campaign/campaign-settlement.service"
 import { CampaignEmailService } from "./application/services/campaign/campaign-email.service"
@@ -27,6 +28,7 @@ import {
     UserResolver,
 } from "./shared"
 import { CampaignQueryResolver } from "./presentation/graphql/campaign/queries"
+import { CampaignSearchResolver } from "./presentation/graphql/campaign/queries/campaign-search.resolver"
 import { CampaignStatsQueryResolver } from "./presentation/graphql/campaign/queries/campaign-stats-query.resolver"
 import { CampaignMutationResolver } from "./presentation/graphql/campaign/mutations"
 import { CampaignRepository } from "./application/repositories/campaign.repository"
@@ -112,6 +114,9 @@ import {
 import { CampaignFollowerService } from "./application/services/campaign/campaign-follower.service"
 import { Organization } from "./shared/model"
 
+import { DonationSearchService } from "./application/services/donation/donation-search.service"
+import { DonationSearchResolver } from "./presentation/graphql/donation/donor/queries/donation-search.resolver"
+
 @Module({
     imports: [
         GraphQLSubgraphModule.forRoot({
@@ -177,6 +182,7 @@ import { Organization } from "./shared/model"
         AuthorizationService,
         CampaignSchedulerService,
         CampaignCacheService,
+        CampaignSearchService,
         CampaignService,
         CampaignSettlementService,
         CampaignEmailService,
@@ -201,6 +207,7 @@ import { Organization } from "./shared/model"
 
         UserResolver,
         CampaignQueryResolver,
+        CampaignSearchResolver,
         CampaignStatsQueryResolver,
         CampaignMutationResolver,
         CampaignCategoryQueryResolver,
@@ -255,6 +262,9 @@ import { Organization } from "./shared/model"
         IngredientRequestApprovedBuilder,
         DeliveryTaskAssignedBuilder,
         SystemAnnouncementBuilder,
+
+        DonationSearchService,
+        DonationSearchResolver,
     ],
 })
-export class AppModule {}
+export class AppModule { }

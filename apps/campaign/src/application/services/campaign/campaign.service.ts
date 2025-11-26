@@ -21,6 +21,7 @@ import {
     UserClientService,
 } from "@app/campaign/src/shared"
 import { CampaignEmailService } from "./campaign-email.service"
+import { CampaignSearchService } from "./campaign-search.service"
 import { CampaignPhaseService } from "../campaign-phase/campaign-phase.service"
 import {
     CampaignFilterInput,
@@ -83,8 +84,8 @@ export class CampaignService {
         private readonly campaignEmailService: CampaignEmailService,
         private readonly donorRepository: DonorRepository,
         private readonly eventEmitter: EventEmitter2,
-        private readonly grpcClient: GrpcClientService,
-    ) {}
+        private readonly campaignSearchService: CampaignSearchService,
+    ) { }
 
     async generateCampaignImageUploadUrl(
         input: GenerateUploadUrlInput,
@@ -254,6 +255,8 @@ export class CampaignService {
                 input.categoryId,
             )
 
+            await this.campaignSearchService.indexCampaign(campaign)
+
             return campaign
         } catch (error) {
             this.sentryService.captureError(error as Error, {
@@ -385,6 +388,8 @@ export class CampaignService {
                     coverImageResult.oldFileKeyToDelete,
                 )
             }
+
+            await this.campaignSearchService.indexCampaign(updatedCampaign)
 
             return updatedCampaign
         } catch (error) {
@@ -519,6 +524,8 @@ export class CampaignService {
                 campaign.categoryId,
             )
 
+            await this.campaignSearchService.indexCampaign(updatedCampaign)
+
             return updatedCampaign
         } catch (error) {
             this.sentryService.captureError(error as Error, {
@@ -602,6 +609,8 @@ export class CampaignService {
                 ),
             ])
 
+            await this.campaignSearchService.indexCampaign(updatedCampaign)
+
             return updatedCampaign
         } catch (error) {
             this.sentryService.captureError(error as Error, {
@@ -665,6 +674,8 @@ export class CampaignService {
                     campaign.coverImageFileKey,
                 )
             }
+
+            await this.campaignSearchService.removeCampaign(id)
 
             return result
         } catch (error) {
@@ -1020,14 +1031,14 @@ export class CampaignService {
         const averageDonationAmount =
             aggregates.totalDonations > 0
                 ? Number(aggregates.totalReceivedAmount) /
-                  aggregates.totalDonations
+                aggregates.totalDonations
                 : 0
 
         const fundingRate =
             Number(aggregates.totalTargetAmount) > 0
                 ? (Number(aggregates.totalReceivedAmount) /
-                      Number(aggregates.totalTargetAmount)) *
-                  100
+                    Number(aggregates.totalTargetAmount)) *
+                100
                 : 0
 
         return {
@@ -1201,7 +1212,7 @@ export class CampaignService {
         const fundingRate =
             Number(totalTargetAmount) > 0
                 ? (Number(totalReceivedAmount) / Number(totalTargetAmount)) *
-                  100
+                100
                 : 0
 
         return {

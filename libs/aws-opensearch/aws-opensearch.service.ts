@@ -31,10 +31,9 @@ export interface BulkIndexOptions {
 export class OpenSearchService implements OnModuleInit {
     private readonly logger = new Logger(OpenSearchService.name)
     private client: Client | null = null
-    // credential provider can be async; keep reference for signer
     private credentialsProvider: AwsCredentialIdentityProvider | null = null
 
-    constructor() {}
+    constructor() { }
 
     async onModuleInit() {
         const env = envConfig()
@@ -51,32 +50,47 @@ export class OpenSearchService implements OnModuleInit {
         try {
             const accessKeyId = env.aws.accessKeyId
             const secretAccessKey = env.aws.secretAccessKey
+            const username = env.aws.opensearchUsername
+            const password = env.aws.opensearchPassword
 
-            if (accessKeyId && secretAccessKey) {
-                this.logger.log("Using explicit AWS credentials from config")
-                this.credentialsProvider = async () =>
-                    ({
-                        accessKeyId,
-                        secretAccessKey,
-                    }) as any
+            if (username && password) {
+                this.logger.log("Using Basic Authentication for OpenSearch")
+                this.client = new Client({
+                    node: endpoint,
+                    auth: {
+                        username,
+                        password,
+                    },
+                    ssl: { rejectUnauthorized: true },
+                    requestTimeout: 60000,
+                })
             } else {
-                this.logger.log("Using AWS default credential provider chain")
-                this.credentialsProvider = defaultProvider()
-            }
+                if (accessKeyId && secretAccessKey) {
+                    this.logger.log("Using explicit AWS credentials from config")
+                    this.credentialsProvider = async () =>
+                        ({
+                            accessKeyId,
+                            secretAccessKey,
+                        }) as any
+                } else {
+                    this.logger.log("Using AWS default credential provider chain")
+                    this.credentialsProvider = defaultProvider()
+                }
 
-            // Build client using AwsSigv4Signer which accepts an async credential provider
-            this.client = new Client({
-                ...AwsSigv4Signer({
-                    region,
-                    service: "es",
-                    // @ts-expect-error allow async credentials provider for AwsSigv4Signer
-                    credentials: this
-                        .credentialsProvider as AwsCredentialIdentityProvider,
-                }),
-                node: endpoint,
-                requestTimeout: 60000,
-                ssl: { rejectUnauthorized: true },
-            })
+                // Build client using AwsSigv4Signer which accepts an async credential provider
+                this.client = new Client({
+                    ...AwsSigv4Signer({
+                        region,
+                        service: "es",
+                        // @ts-expect-error allow async credentials provider for AwsSigv4Signer
+                        credentials: this
+                            .credentialsProvider as AwsCredentialIdentityProvider,
+                    }),
+                    node: endpoint,
+                    requestTimeout: 60000,
+                    ssl: { rejectUnauthorized: true },
+                })
+            }
 
             this.logger.log(
                 `OpenSearch client initialized for endpoint: ${endpoint}`,
@@ -335,6 +349,24 @@ export class OpenSearchService implements OnModuleInit {
         } catch (error) {
             this.logger.error(`Delete index error for ${index}`, error)
             throw error
+        }
+    }
+
+    async count(index: string, query?: any): Promise<number> {
+        if (!this.isAvailable()) {
+            this.logger.warn("OpenSearch not available, returning 0 count")
+            return 0
+        }
+
+        try {
+            const response = await this.client!.count({
+                index,
+                body: query ? { query } : undefined,
+            })
+            return response.body.count
+        } catch (error) {
+            this.logger.error(`Count error for ${index}`, error)
+            return 0
         }
     }
 }

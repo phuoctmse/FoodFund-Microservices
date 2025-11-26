@@ -9,15 +9,15 @@ import { UserProfileSchema } from "./user.model"
 export class WalletSchema extends AbstractSchema {
     @Field(() => String, {
         description: "User ID who owns this wallet",
-        name: "userId", // GraphQL field name (camelCase)
+        name: "userId",
     })
-        user_id: string // Database field name (snake_case)
+        user_id: string
 
     @Field(() => Wallet_Type, {
         description: "Type of wallet (FUNDRAISER or ADMIN)",
-        name: "walletType", // GraphQL field name (camelCase)
+        name: "walletType",
     })
-        wallet_type: Wallet_Type // Database field name (snake_case)
+        wallet_type: Wallet_Type
 
     @Field(() => String, {
         description: "Current balance in VND (as BigInt string)",
@@ -27,33 +27,16 @@ export class WalletSchema extends AbstractSchema {
     @Field(() => [WalletTransactionSchema], {
         nullable: true,
         description: "Transaction history for this wallet",
-        name: "transactions", // GraphQL field name (camelCase)
+        name: "transactions",
     })
-        Wallet_Transaction?: WalletTransactionSchema[] // Database relation name
+        Wallet_Transaction?: WalletTransactionSchema[]
 
     @Field(() => UserProfileSchema, {
         nullable: true,
         description: "User who owns this wallet",
     })
-        user?: UserProfileSchema // For field resolver
+        user?: UserProfileSchema
 
-    /**
-     * Helper method to get balance as BigInt
-     */
-    getBalanceAsBigInt(): bigint {
-        return BigInt(this.balance)
-    }
-
-    /**
-     * Helper method to format balance for display
-     */
-    getFormattedBalance(): string {
-        const balanceNumber = Number(this.balance)
-        return new Intl.NumberFormat("vi-VN", {
-            style: "currency",
-            currency: "VND",
-        }).format(balanceNumber)
-    }
 }
 
 // Response types for GraphQL
@@ -107,6 +90,9 @@ export class PlatformWalletStatsSchema {
 
     @Field(() => Number, { description: "Total transactions this month" })
         totalTransactionsThisMonth: number
+
+    @Field(() => Number, { description: "Total number of users" })
+        totalUsers: number
 }
 
 @ObjectType({ description: "List of wallets for admin view" })

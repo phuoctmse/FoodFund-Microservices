@@ -7,9 +7,7 @@ import {
 
 import { PrismaClient } from "../../../generated/user-client"
 import { AwsCognitoService } from "@libs/aws-cognito"
-import { DataLoaderService } from "../common"
 
-import { SagaOrchestrator } from "@libs/common"
 import {
     UserErrorHelper,
     DonorErrorHelper,
@@ -27,6 +25,7 @@ import {
     CreateOrganizationInput,
     JoinOrganizationInput,
 } from "../../dtos"
+import { DataLoaderService } from "../shared/dataloader.service"
 
 // Interface for pagination options
 interface PaginationOptions {
@@ -58,11 +57,9 @@ export class OrganizationService {
         private readonly organizationDataLoader: DataLoaderService,
         private readonly prisma: PrismaClient,
         private readonly walletRepository: WalletRepository,
-    ) {}
+    ) { }
 
-    /**
-     * Convert JoinOrganizationRole to Role enum for database storage
-     */
+
     private convertJoinRoleToRole(joinRole: JoinOrganizationRole): Role {
         switch (joinRole) {
         case JoinOrganizationRole.KITCHEN_STAFF:
@@ -82,7 +79,7 @@ export class OrganizationService {
      */
     private normalizeVietnameseName(name: string): string {
         if (!name) return ""
-        
+
         return name
             .trim()
             .toUpperCase()
@@ -96,7 +93,6 @@ export class OrganizationService {
         cognitoId: string,
         data: CreateOrganizationInput,
     ) {
-        // Validate user exists and has correct role
         UserErrorHelper.validateRequiredString(cognitoId, "cognitoId")
 
         const user = await this.userRepository.findUserById(cognitoId)
@@ -104,12 +100,10 @@ export class OrganizationService {
             UserErrorHelper.throwUserNotFound(cognitoId)
         }
 
-        // Validate bank account name matches representative name if bank account is provided
-        // Normalize both names to handle Vietnamese accents and case differences
         if (data.bank_account_name && data.bank_account_name.trim() !== "") {
             const normalizedBankName = this.normalizeVietnameseName(data.bank_account_name)
             const normalizedRepName = this.normalizeVietnameseName(data.representative_name)
-            
+
             if (normalizedBankName !== normalizedRepName) {
                 DonorErrorHelper.throwOrganizationBankAccountMismatch()
             }
@@ -119,18 +113,17 @@ export class OrganizationService {
             DonorErrorHelper.throwCannotCreateOrganizationAsNonDonor(user.role)
         }
 
-        // Check if user already has an organization (any status)
         const existingOrg = await this.userRepository.findUserOrganizationAnyStatus(
             user.id,
         )
-        
+
         if (existingOrg) {
             if (existingOrg.status === VerificationStatus.VERIFIED) {
                 throw new BadRequestException(
                     "You already have a verified organization. Each user can only create one organization.",
                 )
             }
-            
+
             if (existingOrg.status === VerificationStatus.PENDING) {
                 throw new BadRequestException(
                     "You already have a pending organization request. Please wait for admin approval or cancel the existing request.",
@@ -162,7 +155,6 @@ export class OrganizationService {
     }
 
     async getFundraiserOrganization(cognitoId: string) {
-        // Get user by cognito ID
         const user = await this.userRepository.findUserById(cognitoId)
         if (!user) {
             UserErrorHelper.throwUserNotFound(cognitoId)
@@ -172,7 +164,6 @@ export class OrganizationService {
             UserErrorHelper.throwUnauthorizedRole(user.role, [Role.FUNDRAISER])
         }
 
-        // Get organization where user is the representative
         const organization =
             await this.organizationRepository.findOrganizationByRepresentativeId(
                 user.id,
@@ -183,10 +174,9 @@ export class OrganizationService {
             )
         }
 
-        // Transform data for GraphQL response
         const transformedOrganization = {
             ...organization,
-            representative: organization.user, // Map user to representative for GraphQL
+            representative: organization.user,
             members: organization.Organization_Member.map((member) => ({
                 id: member.id,
                 member: member.member,
@@ -208,9 +198,6 @@ export class OrganizationService {
      * Uses Prisma Transaction for database operations + Saga pattern for Cognito sync
      */
     async approveOrganizationRequest(organizationId: string) {
-        // ========================================
-        // VALIDATION
-        // ========================================
         const organization =
             await this.organizationRepository.findOrganizationById(
                 organizationId,
@@ -227,16 +214,12 @@ export class OrganizationService {
         }
 
         try {
-            // ========================================
-            // DATABASE TRANSACTION (Steps 1-4)
-            // ========================================
             this.logger.log(
                 `[TRANSACTION] Starting approval for organization: ${organizationId}`,
             )
 
             const updatedOrganization = await this.prisma.$transaction(
                 async (tx) => {
-                    // Step 1: Update organization status to VERIFIED
                     this.logger.debug(
                         "[TRANSACTION] Step 1: Updating organization status",
                     )
@@ -249,7 +232,6 @@ export class OrganizationService {
                         },
                     })
 
-                    // Step 2: Update user role to FUNDRAISER
                     this.logger.debug(
                         "[TRANSACTION] Step 2: Updating user role to FUNDRAISER",
                     )
@@ -258,7 +240,6 @@ export class OrganizationService {
                         data: { role: Role.FUNDRAISER },
                     })
 
-                    // Step 3: Create organization member with VERIFIED status
                     this.logger.debug(
                         "[TRANSACTION] Step 3: Creating organization member",
                     )
@@ -271,7 +252,6 @@ export class OrganizationService {
                         },
                     })
 
-                    // Step 4: Create FUNDRAISER wallet for the representative
                     this.logger.debug(
                         "[TRANSACTION] Step 4: Creating FUNDRAISER wallet",
                     )
@@ -291,9 +271,6 @@ export class OrganizationService {
                 },
             )
 
-            // ========================================
-            // EXTERNAL SERVICE (Step 5) - Outside transaction
-            // ========================================
             if (organization.user.cognito_id) {
                 this.logger.debug(
                     "[SAGA] Step 5: Updating Cognito custom:role attribute",
@@ -322,10 +299,6 @@ export class OrganizationService {
         }
     }
 
-    /**
-     * Update Cognito role with retry mechanism
-     * Retries up to 3 times with exponential backoff
-     */
     private async updateCognitoRoleWithRetry(
         cognitoId: string,
         role: Role,
@@ -336,13 +309,12 @@ export class OrganizationService {
                 await this.awsCognitoService.updateUserAttributes(cognitoId, {
                     "custom:role": role,
                 })
-                return // Success
+                return
             } catch (error) {
                 const errorMessage =
                     error instanceof Error ? error.message : String(error)
 
                 if (attempt === maxRetries) {
-                    // Final attempt failed
                     this.logger.error(
                         `[SAGA] Failed to update Cognito role after ${maxRetries} attempts`,
                         {
@@ -358,7 +330,6 @@ export class OrganizationService {
                     )
                 }
 
-                // Wait before retry (exponential backoff)
                 const delayMs = Math.pow(2, attempt) * 1000
                 this.logger.warn(
                     `[SAGA] Cognito update attempt ${attempt} failed, retrying in ${delayMs}ms...`,
@@ -368,9 +339,6 @@ export class OrganizationService {
         }
     }
 
-    /**
-     * Delay helper for retry mechanism
-     */
     private delay(ms: number): Promise<void> {
         return new Promise((resolve) => setTimeout(resolve, ms))
     }
@@ -425,7 +393,6 @@ export class OrganizationService {
             user.id,
         )
 
-        // Map user field to representative field for GraphQL response
         return organizations.map((org) => ({
             ...org,
             representative: org.user,
@@ -436,10 +403,8 @@ export class OrganizationService {
         cognitoId: string,
         data: JoinOrganizationInput,
     ) {
-        // Convert JoinOrganizationRole to Role for validation and storage
         const roleForDatabase = this.convertJoinRoleToRole(data.requested_role)
 
-        // Check if user exists and is a DONOR
         const user = await this.userRepository.findUserById(cognitoId)
         if (!user) {
             UserErrorHelper.throwUserNotFound(cognitoId)
@@ -449,7 +414,6 @@ export class OrganizationService {
             DonorErrorHelper.throwCannotJoinAsNonDonor(user.role)
         }
 
-        // Check if organization exists and is verified
         const organization =
             await this.organizationRepository.findOrganizationById(
                 data.organization_id,
@@ -462,7 +426,6 @@ export class OrganizationService {
             throw new BadRequestException("Organization is not verified")
         }
 
-        // Check if user already has any join request or membership in any organization
         const existingRequest =
             await this.organizationRepository.checkExistingJoinRequestInAnyOrganization(
                 user.id,
@@ -484,7 +447,6 @@ export class OrganizationService {
         fundraiserCognitoId: string,
         options?: PaginationOptions,
     ): Promise<PaginatedJoinRequestsResponse> {
-        // Get the fundraiser user to get their database ID
         const fundraiserUser =
             await this.userRepository.findUserById(fundraiserCognitoId)
         if (!fundraiserUser) {
@@ -497,7 +459,6 @@ export class OrganizationService {
             )
         }
 
-        // Find the organization where this user is the representative
         const organization = await this.userRepository.findUserOrganization(
             fundraiserUser.id,
         )
@@ -507,7 +468,6 @@ export class OrganizationService {
             )
         }
 
-        // Get join requests for this organization with pagination
         const result =
             await this.organizationRepository.findJoinRequestsByOrganizationWithPagination(
                 organization!.id, // Use non-null assertion since we checked above
@@ -521,14 +481,7 @@ export class OrganizationService {
         return result
     }
 
-    /**
-     * Approve join request with transaction
-     * Uses Prisma Transaction for database operations + Saga pattern for Cognito sync
-     */
     async approveJoinRequest(requestId: string, fundraiserCognitoId: string) {
-        // ========================================
-        // VALIDATION
-        // ========================================
         const fundraiserUser =
             await this.userRepository.findUserById(fundraiserCognitoId)
         if (!fundraiserUser) {
@@ -541,7 +494,6 @@ export class OrganizationService {
             throw new NotFoundException("Join request not found")
         }
 
-        // Verify authorization
         if (joinRequest.organization.representative_id !== fundraiserUser.id) {
             throw new BadRequestException(
                 "You are not authorized to approve this request",
@@ -555,16 +507,12 @@ export class OrganizationService {
         }
 
         try {
-            // ========================================
-            // DATABASE TRANSACTION (Steps 1-2)
-            // ========================================
             this.logger.log(
                 `[TRANSACTION] Starting approval for join request: ${requestId}`,
             )
 
             const updatedRequest = await this.prisma.$transaction(
                 async (tx) => {
-                    // Step 1: Update join request status to VERIFIED
                     this.logger.debug(
                         "[TRANSACTION] Step 1: Updating join request status",
                     )
@@ -578,7 +526,6 @@ export class OrganizationService {
                             },
                         })
 
-                    // Step 2: Update user role to the requested role
                     this.logger.debug(
                         `[TRANSACTION] Step 2: Updating user role to ${joinRequest.member_role}`,
                     )
@@ -595,9 +542,6 @@ export class OrganizationService {
                 },
             )
 
-            // ========================================
-            // EXTERNAL SERVICE (Step 3) - Outside transaction
-            // ========================================
             if (joinRequest.member.cognito_id) {
                 this.logger.debug(
                     "[SAGA] Step 3: Updating Cognito custom:role attribute",
@@ -627,7 +571,6 @@ export class OrganizationService {
     }
 
     async rejectJoinRequest(requestId: string, fundraiserCognitoId: string) {
-        // Get the fundraiser user to get their database ID
         const fundraiserUser =
             await this.userRepository.findUserById(fundraiserCognitoId)
         if (!fundraiserUser) {
@@ -640,7 +583,6 @@ export class OrganizationService {
             throw new NotFoundException("Join request not found")
         }
 
-        // Verify that the fundraiser is the representative of this organization
         if (joinRequest.organization.representative_id !== fundraiserUser.id) {
             throw new BadRequestException(
                 "You are not authorized to reject this request",
@@ -660,7 +602,6 @@ export class OrganizationService {
     }
 
     async getMyJoinRequests(cognitoId: string) {
-        // Get all join requests made by the user
         const user = await this.userRepository.findUserById(cognitoId)
         if (!user) {
             return null
@@ -669,7 +610,6 @@ export class OrganizationService {
     }
 
     async cancelJoinRequest(cognitoId: string) {
-        // Get user by cognito ID
         const user = await this.userRepository.findUserByCognitoId(cognitoId)
         if (!user) {
             UserErrorHelper.throwUserNotFound(cognitoId)
@@ -679,7 +619,6 @@ export class OrganizationService {
             DonorErrorHelper.throwCannotJoinAsNonDonor(user.role)
         }
 
-        // Find user's pending join request
         const pendingRequest =
             await this.organizationRepository.findPendingJoinRequest(user.id)
         if (!pendingRequest) {
@@ -693,7 +632,6 @@ export class OrganizationService {
             )
         }
 
-        // Delete the join request
         await this.organizationRepository.deleteJoinRequest(pendingRequest.id)
 
         return {
@@ -703,13 +641,7 @@ export class OrganizationService {
         }
     }
 
-    /**
-     * Cancel organization creation request
-     * Only allows cancelling PENDING or REJECTED requests
-     * Updates status to CANCELLED instead of deleting
-     */
     async cancelOrganizationRequest(cognitoId: string, reason?: string) {
-        // Get user by cognito ID
         const user = await this.userRepository.findUserByCognitoId(cognitoId)
         if (!user) {
             UserErrorHelper.throwUserNotFound(cognitoId)
@@ -721,7 +653,6 @@ export class OrganizationService {
             )
         }
 
-        // Find user's organization request (any status)
         const organizationRequest =
             await this.userRepository.findUserOrganizationAnyStatus(user.id)
 
@@ -731,7 +662,6 @@ export class OrganizationService {
             )
         }
 
-        // Only allow cancelling PENDING or REJECTED requests
         if (organizationRequest.status === VerificationStatus.VERIFIED) {
             throw new BadRequestException(
                 "Cannot cancel a verified organization. Please contact support if you need to deactivate your organization.",
@@ -753,7 +683,6 @@ export class OrganizationService {
             )
         }
 
-        // Update organization status to CANCELLED with reason
         const cancelledOrg = await this.organizationRepository.cancelOrganizationRequest(
             organizationRequest.id,
             reason,
@@ -774,18 +703,15 @@ export class OrganizationService {
             throw new NotFoundException("User not found")
         }
 
-        // Use DataLoader to get user's organization with members
         return this.organizationDataLoader.getUserOrganization(user.id)
     }
 
-    // Optimized method for FUNDRAISER profile with organization data
     async getFundraiserProfile(cognito_id: string) {
         const user = await this.userRepository.findUserByCognitoId(cognito_id)
         if (!user) {
             throw new NotFoundException("User not found")
         }
 
-        // Use DataLoader to get user's organization with all members
         const organization =
             await this.organizationDataLoader.getUserOrganization(user.id)
         if (!organization) {
@@ -811,7 +737,6 @@ export class OrganizationService {
                 },
             )
 
-        // Map organizations to include required fields for GraphQL
         const mappedOrganizations = result.organizations.map((org) => ({
             ...org,
             members:
@@ -827,7 +752,7 @@ export class OrganizationService {
                 org.Organization_Member?.filter(
                     (member) => member.status === "VERIFIED",
                 ).length || 0,
-            representative: org.user, // Map user to representative
+            representative: org.user,
         }))
 
         return {
@@ -836,10 +761,6 @@ export class OrganizationService {
         }
     }
 
-    /**
-     * Get organization by ID (public access)
-     * Only returns verified/active organizations
-     */
     async getOrganizationById(organizationId: string) {
         const organization =
             await this.organizationRepository.findOrganizationWithMembers(
@@ -850,14 +771,12 @@ export class OrganizationService {
             throw new NotFoundException("Organization not found")
         }
 
-        // Only return verified organizations to public
         if (organization.status !== VerificationStatus.VERIFIED) {
             throw new NotFoundException(
                 "Organization not found or not yet verified",
             )
         }
 
-        // Map to include member counts and format for GraphQL
         return {
             ...organization,
             members:
@@ -873,7 +792,7 @@ export class OrganizationService {
                 organization.Organization_Member?.filter(
                     (member) => member.status === VerificationStatus.VERIFIED,
                 ).length || 0,
-            representative: organization.user, // Map user to representative
+            representative: organization.user,
         }
     }
 
@@ -886,15 +805,11 @@ export class OrganizationService {
         }
         previousRole: string
     }> {
-        // ========================================
-        // VALIDATION
-        // ========================================
         const user = await this.userRepository.findUserById(cognitoId)
         if (!user) {
             UserErrorHelper.throwUserNotFound(cognitoId)
         }
 
-        // Only staff members can leave (KITCHEN_STAFF, DELIVERY_STAFF)
         const staffRoles: Role[] = [Role.KITCHEN_STAFF, Role.DELIVERY_STAFF]
         if (!staffRoles.includes(user.role as Role)) {
             throw new BadRequestException(
@@ -902,7 +817,6 @@ export class OrganizationService {
             )
         }
 
-        // Find user's organization membership
         const memberRecord =
             await this.organizationRepository.findVerifiedMembershipByUserId(
                 user.id,
@@ -921,15 +835,11 @@ export class OrganizationService {
         const previousRole = user.role
 
         try {
-            // ========================================
-            // DATABASE TRANSACTION (Steps 1-2)
-            // ========================================
             this.logger.log(
                 `[TRANSACTION] Starting self-leave for user: ${user.id}`,
             )
 
             await this.prisma.$transaction(async (tx) => {
-                // Step 1: Delete organization member record
                 this.logger.debug(
                     "[TRANSACTION] Step 1: Removing user from organization",
                 )
@@ -937,7 +847,6 @@ export class OrganizationService {
                     where: { id: memberRecord.id },
                 })
 
-                // Step 2: Update user role back to DONOR
                 this.logger.debug(
                     "[TRANSACTION] Step 2: Updating user role back to DONOR",
                 )
@@ -951,9 +860,6 @@ export class OrganizationService {
                 )
             })
 
-            // ========================================
-            // EXTERNAL SERVICE (Step 3) - Outside transaction
-            // ========================================
             if (user.cognito_id) {
                 this.logger.debug(
                     "[SAGA] Step 3: Updating Cognito custom:role attribute back to DONOR",
@@ -987,10 +893,6 @@ export class OrganizationService {
         }
     }
 
-    /**
-     * Remove staff member from organization with transaction
-     * Uses Prisma Transaction for database operations + Saga pattern for Cognito sync
-     */
     async removeStaffMember(
         memberId: string,
         fundraiserCognitoId: string,

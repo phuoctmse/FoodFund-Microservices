@@ -2,6 +2,9 @@ import { Field, ObjectType } from "@nestjs/graphql"
 
 @ObjectType({ description: "Detailed transaction statement for CSV export" })
 export class DonationTransactionStatement {
+    @Field(() => Number, { description: "Sequence number" })
+        no: number
+
     @Field(() => String, { description: "Donation ID" })
         donationId: string
 
@@ -17,19 +20,13 @@ export class DonationTransactionStatement {
     @Field(() => String, { description: "Actual amount received" })
         receivedAmount: string
 
-    @Field(() => String, { description: "Payment status (SUCCESS/FAILED/PENDING)" })
-        transactionStatus: string
-
-    @Field(() => String, { description: "Payment completion status (COMPLETED/PARTIAL/OVERPAID)" })
-        paymentStatus: string
-
     @Field(() => String, { description: "Payment gateway (PAYOS/SEPAY)" })
         gateway: string
 
     @Field(() => String, { description: "Order code / Reference number" })
         orderCode: string
 
-    @Field(() => String, { nullable: true, description: "Bank account number (if available)" })
+    @Field(() => String, { nullable: true, description: "Bank account number (masked)" })
         bankAccountNumber?: string
 
     @Field(() => String, { nullable: true, description: "Bank name (if available)" })
@@ -43,6 +40,9 @@ export class DonationTransactionStatement {
 
     @Field(() => String, { description: "Campaign title" })
         campaignTitle: string
+
+    @Field(() => String, { nullable: true, description: "Currency (e.g., VND)" })
+        currency?: string
 }
 
 @ObjectType({ description: "Campaign donation statement export response" })
