@@ -20,7 +20,7 @@ export class AuthenticationResolver {
     constructor(
         private readonly authenticationService: AuthenticationService,
         private readonly userService: UserService,
-    ) {}
+    ) { }
 
     @Mutation(() => SignOutResponse)
     @UseGuards(CognitoGraphQLGuard)
@@ -58,7 +58,6 @@ export class AuthenticationResolver {
     }
 
     @Mutation(() => RefreshTokenResponse)
-    @UseGuards(CognitoGraphQLGuard)
     async refreshToken(
         @Args("input") input: RefreshTokenInput,
     ): Promise<RefreshTokenResponse> {

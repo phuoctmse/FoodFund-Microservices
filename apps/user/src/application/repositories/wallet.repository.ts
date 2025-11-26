@@ -494,6 +494,7 @@ export class WalletRepository {
         totalFundraisers: number
         totalTransactionsToday: number
         totalTransactionsThisMonth: number
+        totalUsers: number
     }> {
         // Get all fundraiser wallets
         const fundraiserWallets = await this.prisma.wallet.findMany({
@@ -521,30 +522,31 @@ export class WalletRepository {
         startOfMonth.setHours(0, 0, 0, 0)
 
         // Count transactions today
-        const totalTransactionsToday =
-            await this.prisma.wallet_Transaction.count({
-                where: {
-                    created_at: {
-                        gte: startOfToday,
+        const [totalTransactionsToday, totalTransactionsThisMonth, totalUsers] =
+            await Promise.all([
+                this.prisma.wallet_Transaction.count({
+                    where: {
+                        created_at: {
+                            gte: startOfToday,
+                        },
                     },
-                },
-            })
-
-        // Count transactions this month
-        const totalTransactionsThisMonth =
-            await this.prisma.wallet_Transaction.count({
-                where: {
-                    created_at: {
-                        gte: startOfMonth,
+                }),
+                this.prisma.wallet_Transaction.count({
+                    where: {
+                        created_at: {
+                            gte: startOfMonth,
+                        },
                     },
-                },
-            })
+                }),
+                this.prisma.user.count(),
+            ])
 
         return {
             totalFundraiserBalance,
             totalFundraisers: fundraiserWallets.length,
             totalTransactionsToday,
             totalTransactionsThisMonth,
+            totalUsers,
         }
     }
 

@@ -19,7 +19,7 @@ export class WalletService {
     constructor(
         private readonly walletRepository: WalletRepository,
         private readonly userRepository: UserRepository,
-    ) {}
+    ) { }
 
     /**
      * Get wallet for current user (fundraiser)
@@ -284,6 +284,7 @@ export class WalletService {
             totalFundraisers: stats.totalFundraisers,
             totalTransactionsToday: stats.totalTransactionsToday,
             totalTransactionsThisMonth: stats.totalTransactionsThisMonth,
+            totalUsers: stats.totalUsers,
         }
     }
 

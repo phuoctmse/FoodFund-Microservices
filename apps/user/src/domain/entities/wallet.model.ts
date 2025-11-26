@@ -90,6 +90,9 @@ export class PlatformWalletStatsSchema {
 
     @Field(() => Number, { description: "Total transactions this month" })
     totalTransactionsThisMonth: number
+
+    @Field(() => Number, { description: "Total number of users" })
+    totalUsers: number
 }
 
 @ObjectType({ description: "List of wallets for admin view" })
