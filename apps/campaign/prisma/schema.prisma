@@ -10,32 +10,35 @@ datasource db {
 }
 
 model Campaign {
-  id                     String             @id @default(uuid())
+  id                     String                  @id @default(uuid())
   title                  String
   description            String
   cover_image            String
-  target_amount          BigInt             @default(0)
-  received_amount        BigInt             @default(0)
-  status                 Campaign_Status    @default(PENDING)
-  is_active              Boolean            @default(true)
+  target_amount          BigInt                  @default(0)
+  received_amount        BigInt                  @default(0)
+  status                 Campaign_Status         @default(PENDING)
+  previous_status        Campaign_Status?
+  is_active              Boolean                 @default(true)
   created_by             String
   organization_id        String?
-  created_at             DateTime           @default(now())
-  updated_at             DateTime           @updatedAt
+  created_at             DateTime                @default(now())
+  updated_at             DateTime                @updatedAt
   cover_image_file_key   String?
   category_id            String?
   completed_at           DateTime?
   fundraising_end_date   DateTime
   fundraising_start_date DateTime
   changed_status_at      DateTime?
-  extension_count        Int                @default(0)
-  extension_days         Int                @default(0)
-  donation_count         Int                @default(0)
+  extension_count        Int                     @default(0)
+  extension_days         Int                     @default(0)
+  donation_count         Int                     @default(0)
   reason                 String?
+  cancelled_at           DateTime?
   campaign_phases        Campaign_Phase[]
-  category               Campaign_Category? @relation(fields: [category_id], references: [id])
+  category               Campaign_Category?      @relation(fields: [category_id], references: [id])
   donations              Donation[]
   posts                  Post[]
+  reassignments          Campaign_Reassignment[]
 
   @@index([status])
   @@index([created_by])
@@ -74,6 +77,30 @@ model Campaign_Phase {
   @@index([cooking_date])
   @@index([delivery_date])
   @@map("campaign_phases")
+}
+
+model Campaign_Reassignment {
+  id              String              @id @default(uuid())
+  campaign_id     String
+  organization_id String
+  status          Reassignment_Status @default(PENDING)
+  assigned_at     DateTime            @default(now())
+  expires_at      DateTime
+  responded_at    DateTime?
+  response_note   String?
+  created_at      DateTime            @default(now())
+  updated_at      DateTime            @updatedAt
+
+  campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+
+  @@unique([campaign_id, organization_id])
+  @@index([campaign_id])
+  @@index([organization_id])
+  @@index([status])
+  @@index([expires_at])
+  @@index([organization_id, status])
+  @@index([campaign_id, status])
+  @@map("campaign_reassignments")
 }
 
 model Campaign_Category {
@@ -278,6 +305,14 @@ enum Campaign_Phase_Status {
   COMPLETED
   CANCELLED
   FAILED
+}
+
+enum Reassignment_Status {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+  CANCELLED
 }
 
 enum Transaction_Status {

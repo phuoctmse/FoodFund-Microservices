@@ -271,3 +271,36 @@ export interface GetWalletTransactionsByPaymentIdResponse {
     }>
     error?: string
 }
+
+export interface GetVerifiedOrganizationsRequest {}
+
+export interface VerifiedOrganizationInfo {
+    id: string
+    name: string
+    representativeId: string
+    representativeName: string
+    activityField: string
+    address: string
+    phoneNumber: string
+    email: string
+}
+
+export interface GetVerifiedOrganizationsResponse {
+    success: boolean
+    organizations: VerifiedOrganizationInfo[]
+    error?: string
+}
+
+export interface GetOrganizationByIdRequest {
+    organizationId: string
+}
+
+export interface GetOrganizationByIdResponse {
+    success: boolean
+    organization?: {
+        id: string
+        name: string
+        representativeId: string
+    }
+    error?: string
+}

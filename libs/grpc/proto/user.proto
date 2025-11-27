@@ -34,6 +34,8 @@ service UserService {
   rpc GetUserOrganization(GetUserOrganizationRequest) returns (GetUserOrganizationResponse);
   rpc GetUsersByIds(GetUsersByIdsRequest) returns (GetUsersByIdsResponse);
   rpc GetUserDisplayName(GetUserDisplayNameRequest) returns (GetUserDisplayNameResponse);
+  rpc GetVerifiedOrganizations(GetVerifiedOrganizationsRequest) returns (GetVerifiedOrganizationsResponse);
+  rpc GetOrganizationById(GetOrganizationByIdRequest) returns (GetOrganizationByIdResponse);
 
   // Process bank transfer out (for withdrawal/payout)
   rpc ProcessBankTransferOut(ProcessBankTransferOutRequest) returns (ProcessBankTransferOutResponse);
@@ -355,4 +357,39 @@ message GetUserDisplayNameResponse {
   bool success = 1;
   string display_name = 2;
   string error = 3;
+}
+
+message GetVerifiedOrganizationsRequest {}
+
+message GetVerifiedOrganizationsResponse {
+  bool success = 1;
+  repeated VerifiedOrganizationInfo organizations = 2;
+  string error = 3;
+}
+
+message VerifiedOrganizationInfo {
+  string id = 1;
+  string name = 2;
+  string representative_id = 3;
+  string representative_name = 4;
+  string activity_field = 5;
+  string address = 6;
+  string phone_number = 7;
+  string email = 8;
+}
+
+message GetOrganizationByIdRequest {
+  string organization_id = 1;
+}
+
+message GetOrganizationByIdResponse {
+  bool success = 1;
+  OrganizationBasicInfo organization = 2;
+  string error = 3;
+}
+
+message OrganizationBasicInfo {
+  string id = 1;
+  string name = 2;
+  string representative_id = 3;
 }

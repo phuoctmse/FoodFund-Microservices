@@ -17,6 +17,7 @@ import {
 } from "../../dtos/notification/request"
 import { Notification } from "@app/campaign/src/domain/entities/notification.model"
 import { UserContext } from "@app/campaign/src/shared"
+import { NotificationDataMap } from "@app/campaign/src/domain/interfaces/notification"
 
 @Injectable()
 export class NotificationService {
@@ -26,7 +27,9 @@ export class NotificationService {
         private readonly cacheService: NotificationCacheService,
     ) {}
 
-    async createNotification<T extends NotificationType>(
+    async createNotification<
+        T extends NotificationType & keyof NotificationDataMap,
+    >(
         input: CreateNotificationInput<T>,
     ): Promise<Notification> {
         if (input.eventId) {
@@ -100,7 +103,9 @@ export class NotificationService {
         return savedNotification
     }
 
-    async createBulkNotifications<T extends NotificationType>(
+    async createBulkNotifications<
+        T extends NotificationType & keyof NotificationDataMap,
+    >(
         inputs: CreateNotificationInput<T>[],
     ): Promise<Notification[]> {
         const notifications: Notification[] = []
@@ -310,7 +315,9 @@ export class NotificationService {
         await this.cacheService.setUnreadCount(userId, freshCount)
     }
 
-    private async updateExistingLikeNotification<T extends NotificationType>(
+    private async updateExistingLikeNotification<
+        T extends NotificationType & keyof NotificationDataMap,
+    >(
         input: CreateNotificationInput<T>,
     ): Promise<Notification> {
         const existingNotifications =
@@ -397,6 +404,10 @@ export class NotificationService {
             [NotificationType.INGREDIENT_REQUEST_APPROVED]:
                 "INGREDIENT_REQUEST",
             [NotificationType.DELIVERY_TASK_ASSIGNED]: "DELIVERY_TASK",
+            [NotificationType.CAMPAIGN_REASSIGNMENT_PENDING]: "CAMPAIGN",
+            [NotificationType.CAMPAIGN_OWNERSHIP_TRANSFERRED]: "CAMPAIGN",
+            [NotificationType.CAMPAIGN_OWNERSHIP_RECEIVED]: "CAMPAIGN",
+            [NotificationType.CAMPAIGN_REASSIGNMENT_EXPIRED]: "CAMPAIGN",
             [NotificationType.SYSTEM_ANNOUNCEMENT]: "SYSTEM",
         }
 
