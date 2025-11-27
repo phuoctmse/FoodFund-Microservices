@@ -226,20 +226,20 @@ export class DonationSearchService implements OnModuleInit {
 
     @Cron(CronExpression.EVERY_MINUTE)
     async syncAll() {
-        this.logger.log("Starting scheduled sync of donations to OpenSearch...")
-        const allDonations = await this.donorRepository.findAll()
+        this.logger.log("Starting scheduled donation sync...")
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+        const donations = await this.donorRepository.findRecentlyUpdated(fiveMinutesAgo)
 
-        if (!allDonations || allDonations.length === 0) {
-            this.logger.log("No donations found to sync.")
-            return
+        if (donations.length === 0) {
+            return { successCount: 0, failCount: 0 }
         }
 
-        this.logger.log(`Found ${allDonations.length} donations to sync`)
+        this.logger.log(`Found ${donations.length} donations to sync`)
 
         let successCount = 0
         let failCount = 0
 
-        for (const donation of allDonations) {
+        for (const donation of donations) {
             try {
                 await this.indexDonation(donation)
                 successCount++

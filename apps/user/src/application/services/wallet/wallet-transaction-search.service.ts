@@ -190,35 +190,32 @@ export class WalletTransactionSearchService implements OnModuleInit {
 
     @Cron(CronExpression.EVERY_MINUTE)
     async syncAll() {
-        this.logger.log("Starting full sync of wallet transactions to OpenSearch...")
-        let successCount = 0
-        let failCount = 0
-        const batchSize = 100
-        let skip = 0
+        this.logger.log("Starting scheduled wallet transaction sync...")
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+        const transactions = await this.walletRepository.findRecentlyUpdatedTransactions(fiveMinutesAgo)
 
-        while (true) {
-            const transactions = await this.walletRepository.findAllTransactions({
-                skip,
-                take: batchSize,
-            })
-
-            if (transactions.length === 0) break
-
-            for (const tx of transactions) {
-                try {
-                    await this.indexTransaction(tx)
-                    successCount++
-                } catch (error) {
-                    failCount++
-                    this.logger.error(`Failed to sync transaction ${tx.id}`, error)
-                }
-            }
-
-            skip += batchSize
-            this.logger.log(`Synced ${successCount} transactions so far...`)
+        if (transactions.length === 0) {
+            return { successCount: 0, failCount: 0 }
         }
 
-        this.logger.log(`Sync completed. Success: ${successCount}, Failed: ${failCount}`)
+        this.logger.log(`Found ${transactions.length} wallet transactions to sync`)
+
+        let successCount = 0
+        let failCount = 0
+
+        for (const transaction of transactions) {
+            try {
+                await this.indexTransaction(transaction)
+                successCount++
+            } catch (error) {
+                this.logger.error(`Failed to sync wallet transaction ${transaction.id}`, error)
+                failCount++
+            }
+        }
+
+        this.logger.log(
+            `Sync completed. Success: ${successCount}, Failed: ${failCount}`,
+        )
         return { successCount, failCount }
     }
 }

@@ -699,4 +699,25 @@ export class DonorRepository {
             take: options?.take,
         })
     }
+
+    async findRecentlyUpdated(since: Date): Promise<Donation[]> {
+        return this.prisma.donation.findMany({
+            where: {
+                OR: [
+                    { created_at: { gte: since } },
+                    {
+                        payment_transactions: {
+                            some: {
+                                updated_at: { gte: since },
+                            },
+                        },
+                    },
+                ],
+            },
+            include: {
+                campaign: true,
+                payment_transactions: true,
+            },
+        })
+    }
 }

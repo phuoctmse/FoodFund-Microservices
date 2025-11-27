@@ -310,14 +310,20 @@ export class CampaignSearchService implements OnModuleInit {
 
     @Cron(CronExpression.EVERY_MINUTE)
     async syncAll() {
-        this.logger.log("Starting full sync of campaigns to OpenSearch...")
-        const allCampaigns = await this.campaignRepository.findAll()
-        this.logger.log(`Found ${allCampaigns.length} campaigns to sync`)
+        this.logger.log("Starting scheduled campaign sync...")
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+        const campaigns = await this.campaignRepository.findRecentlyUpdated(fiveMinutesAgo)
+
+        if (campaigns.length === 0) {
+            return { successCount: 0, failCount: 0 }
+        }
+
+        this.logger.log(`Found ${campaigns.length} campaigns to sync`)
 
         let successCount = 0
         let failCount = 0
 
-        for (const campaign of allCampaigns) {
+        for (const campaign of campaigns) {
             try {
                 await this.indexCampaign(campaign)
                 successCount++
