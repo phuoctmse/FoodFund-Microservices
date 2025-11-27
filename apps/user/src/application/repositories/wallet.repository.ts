@@ -626,4 +626,19 @@ export class WalletRepository {
 
         return transactions.map((tx) => this.mapTransactionToSchema(tx))
     }
+
+    async findRecentlyUpdatedTransactions(since: Date): Promise<WalletTransactionSchema[]> {
+        const transactions = await this.prisma.wallet_Transaction.findMany({
+            where: {
+                created_at: {
+                    gte: since,
+                },
+            },
+            orderBy: {
+                created_at: "desc",
+            },
+        })
+
+        return transactions.map((tx) => this.mapTransactionToSchema(tx))
+    }
 }

@@ -1,8 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common"
+import { Cron, CronExpression } from "@nestjs/schedule"
 import { OpenSearchService } from "@libs/aws-opensearch"
-import { Donation } from "../../../domain/entities/donation.model"
-import { DonationSortBy, SearchDonationInput } from "../../dtos/campaign/request/search-donation.input"
 import { DonorRepository } from "../../repositories/donor.repository"
+import { SearchDonationInput } from "../../dtos/campaign/request/search-donation.input"
 
 @Injectable()
 export class DonationSearchService implements OnModuleInit {
@@ -20,102 +20,137 @@ export class DonationSearchService implements OnModuleInit {
 
     private async createIndexIfNotExists() {
         const exists = await this.openSearchService.indexExists(this.indexName)
-        if (exists) {
-            try {
-                await (this.openSearchService as any).client.indices.putMapping({
-                    index: this.indexName,
-                    body: {
-                        properties: {
-                            campaignTitle: { type: "text", analyzer: "standard" },
-                            description: { type: "text", analyzer: "standard" },
-                            gateway: { type: "keyword" },
-                            paymentStatus: { type: "keyword" },
-                            receivedAmount: { type: "keyword" },
-                            bankName: { type: "text", analyzer: "standard" },
-                            bankAccount: { type: "keyword" },
-                            currency: { type: "keyword" },
-                            errorCode: { type: "keyword" },
-                            errorDescription: { type: "text", analyzer: "standard" },
-                            refundedAt: { type: "date" },
-                            processedByWebhook: { type: "boolean" },
-                            payosMetadata: { type: "text" }, // Store as text for full searchability
-                            sepayMetadata: { type: "text" },
-                        }
-                    }
-                })
-                this.logger.log(`Updated mapping for index ${this.indexName}`)
-            } catch (error) {
-                this.logger.error(`Failed to update mapping for index ${this.indexName}`, error)
-            }
-            return
-        }
+        if (exists) return
 
-        await this.openSearchService.createIndex(this.indexName, {
-            mappings: {
-                properties: {
-                    id: { type: "keyword" },
-                    donorId: { type: "keyword" },
-                    donorName: { type: "text", analyzer: "standard" },
-                    campaignId: { type: "keyword" },
-                    campaignTitle: { type: "text", analyzer: "standard" },
-                    amount: { type: "keyword" },
-                    isAnonymous: { type: "boolean" },
-                    status: { type: "keyword" },
-                    orderCode: { type: "keyword" },
-                    transactionDatetime: { type: "date" },
-                    description: { type: "text", analyzer: "standard" },
-                    gateway: { type: "keyword" },
-                    paymentStatus: { type: "keyword" },
-                    receivedAmount: { type: "keyword" },
-                    bankName: { type: "text", analyzer: "standard" },
-                    bankAccount: { type: "keyword" },
-                    currency: { type: "keyword" },
-                    errorCode: { type: "keyword" },
-                    errorDescription: { type: "text", analyzer: "standard" },
-                    refundedAt: { type: "date" },
-                    processedByWebhook: { type: "boolean" },
-                    payosMetadata: { type: "text" },
-                    sepayMetadata: { type: "text" },
-                    created_at: { type: "date" },
-                    updated_at: { type: "date" },
+        const mappings = {
+            properties: {
+                id: { type: "keyword" },
+                campaignId: {
+                    type: "text",
+                    fields: {
+                        keyword: {
+                            type: "keyword",
+                            ignore_above: 256,
+                        },
+                    },
+                },
+                campaignTitle: { type: "text", analyzer: "standard" },
+                donorName: { type: "text", analyzer: "standard" },
+                donorEmail: {
+                    type: "text",
+                    fields: {
+                        keyword: {
+                            type: "keyword",
+                            ignore_above: 256,
+                        },
+                    },
+                },
+                amount: { type: "double" },
+                currency: {
+                    type: "text",
+                    fields: {
+                        keyword: {
+                            type: "keyword",
+                            ignore_above: 256,
+                        },
+                    },
+                },
+                transactionCode: {
+                    type: "text",
+                    fields: {
+                        keyword: {
+                            type: "keyword",
+                            ignore_above: 256,
+                        },
+                    },
+                },
+                status: {
+                    type: "text",
+                    fields: {
+                        keyword: {
+                            type: "keyword",
+                            ignore_above: 256,
+                        },
+                    },
+                },
+                paymentMethod: {
+                    type: "text",
+                    fields: {
+                        keyword: {
+                            type: "keyword",
+                            ignore_above: 256,
+                        },
+                    },
+                },
+                isAnonymous: { type: "boolean" },
+                message: { type: "text" },
+                createdAt: { type: "date" },
+                paymentTransactions: {
+                    type: "nested",
+                    properties: {
+                        id: { type: "keyword" },
+                        amount: { type: "double" },
+                        method: { type: "keyword" },
+                        status: { type: "keyword" },
+                        transactionCode: { type: "keyword" },
+                        gateway: { type: "keyword" },
+                        bankName: { type: "keyword" },
+                        bankAccount: { type: "keyword" },
+                        createdAt: { type: "date" },
+                    },
                 },
             },
-        })
-        this.logger.log(`Created index ${this.indexName}`)
+        }
+
+        await this.openSearchService.createIndex(this.indexName, mappings)
+        this.logger.log(`Index ${this.indexName} created`)
     }
 
     async indexDonation(donation: any) {
         try {
+            const transactions = donation.payment_transactions || []
+            const successfulTx = transactions.find((tx: any) => tx.status === "SUCCESS")
+            const mainTx = successfulTx || transactions[0] || {}
+
+            const receivedAmount = successfulTx ? parseFloat(successfulTx.amount.toString()) : 0
+            const status = successfulTx ? "SUCCESS" : (mainTx.status || "PENDING")
+
+            const body = {
+                id: donation.id,
+                campaignId: donation.campaign_id,
+                campaignTitle: donation.campaign?.title || "",
+                donorName: donation.is_anonymous ? "Anonymous" : (donation.donor_name || "Guest"),
+                donorEmail: donation.donor_email,
+                amount: parseFloat(donation.amount.toString()),
+                receivedAmount: receivedAmount,
+                currency: mainTx.currency || "VND",
+                transactionCode: mainTx.order_code ? mainTx.order_code.toString() : (mainTx.external_transaction_id || ""),
+                status: status,
+                paymentMethod: mainTx.payment_method || "UNKNOWN",
+                gateway: mainTx.gateway || "UNKNOWN",
+                isAnonymous: donation.is_anonymous,
+                message: donation.message,
+                createdAt: donation.created_at,
+                paymentTransactions: transactions.map((tx) => {
+                    const sepayMetadata = tx.sepay_metadata ? (typeof tx.sepay_metadata === "string" ? JSON.parse(tx.sepay_metadata) : tx.sepay_metadata) : {}
+                    return {
+                        id: tx.id,
+                        amount: parseFloat(tx.amount.toString()),
+                        method: tx.payment_method,
+                        status: tx.status,
+                        transactionCode: tx.order_code ? tx.order_code.toString() : (tx.external_transaction_id || ""),
+                        gateway: tx.gateway,
+                        bankName: sepayMetadata.bank_name || null,
+                        bankAccount: sepayMetadata.bank_account || null,
+                        createdAt: tx.created_at,
+                    }
+                }),
+            }
+
             await this.openSearchService.indexDocument({
                 index: this.indexName,
                 id: donation.id,
-                body: {
-                    id: donation.id,
-                    donorId: donation.donor_id || donation.donorId,
-                    donorName: donation.donor_name || donation.donorName,
-                    campaignId: donation.campaign_id || donation.campaignId,
-                    campaignTitle: donation.campaignTitle || "",
-                    amount: donation.amount.toString(),
-                    isAnonymous: donation.is_anonymous || donation.isAnonymous,
-                    status: donation.status,
-                    orderCode: donation.orderCode || "",
-                    transactionDatetime: donation.transactionDatetime,
-                    description: donation.description || "",
-                    gateway: donation.gateway || "UNKNOWN",
-                    paymentStatus: donation.paymentStatus || "PENDING",
-                    receivedAmount: donation.receivedAmount || "0",
-                    bankName: donation.bankName || "",
-                    bankAccount: donation.bankAccount || "",
-                    currency: donation.currency || "VND",
-                    errorCode: donation.errorCode || "",
-                    errorDescription: donation.errorDescription || "",
-                    refundedAt: donation.refundedAt || null,
-                    processedByWebhook: donation.processedByWebhook || false,
-                    payosMetadata: donation.payosMetadata ? JSON.stringify(donation.payosMetadata) : "",
-                    sepayMetadata: donation.sepayMetadata ? JSON.stringify(donation.sepayMetadata) : "",
-                    created_at: donation.created_at,
-                    updated_at: donation.updated_at,
-                }
+                body,
             })
             this.logger.log(`Indexed donation ${donation.id}`)
         } catch (error) {
@@ -123,192 +158,95 @@ export class DonationSearchService implements OnModuleInit {
         }
     }
 
-    async search(input: SearchDonationInput, amountField: string = "amount") {
+    async search(input: SearchDonationInput, sortByField: string = "createdAt") {
         const {
-            query,
             campaignId,
+            donorEmail,
             status,
-            minAmount,
-            maxAmount,
             startDate,
             endDate,
-            sortBy,
+            minAmount,
+            maxAmount,
             page = 1,
             limit = 10,
         } = input
 
         const must: any[] = []
+        const filter: any[] = []
 
-        if (query) {
-            must.push({
-                multi_match: {
-                    query,
-                    fields: ["donorName", "orderCode", "campaignTitle", "description", "bankName", "bankAccount", "errorDescription"],
-                    fuzziness: "AUTO",
-                },
-            })
-        }
-
-        if (campaignId) {
-            must.push({ term: { campaignId } })
-        }
-
-        if (status) {
-            must.push({ term: { status } })
-        }
-
-        if (minAmount || maxAmount) {
-            const range: any = {}
-            if (minAmount) range.gte = minAmount
-            if (maxAmount) range.lte = maxAmount
-            must.push({ range: { [amountField]: range } })
-        }
+        if (campaignId) must.push({ term: { "campaignId.keyword": campaignId } })
+        if (donorEmail) must.push({ term: { "donorEmail.keyword": donorEmail } })
+        if (status) must.push({ term: { "status.keyword": status } })
 
         if (startDate || endDate) {
             const range: any = {}
             if (startDate) range.gte = startDate
             if (endDate) range.lte = endDate
-            must.push({ range: { created_at: range } })
+            filter.push({ range: { createdAt: range } })
         }
 
-        const sort: any[] = []
-        if (sortBy === "NEWEST") {
-            sort.push({ created_at: "desc" })
-        } else if (sortBy === "OLDEST") {
-            sort.push({ created_at: "asc" })
-        } else if (sortBy === "HIGHEST_AMOUNT") {
-            sort.push({ amount: "desc" })
-        } else if (sortBy === "LOWEST_AMOUNT") {
-            sort.push({ amount: "asc" })
-        } else {
-            sort.push({ created_at: "desc" })
+        if (minAmount != null || maxAmount != null) {
+            const range: any = {}
+            if (minAmount != null) range.gte = minAmount
+            if (maxAmount != null) range.lte = maxAmount
+            filter.push({ range: { amount: range } })
         }
 
         const from = (page - 1) * limit
 
-        const result = await this.openSearchService.search({
+        // Aggregation to calculate total amount
+        const aggs = {
+            totalAmount: {
+                sum: { field: "amount" }
+            }
+        }
+
+        const searchBody = {
             index: this.indexName,
+            query: {
+                bool: { must, filter },
+            },
             from,
             size: limit,
-            query: {
-                bool: {
-                    must,
-                },
-            },
-            sort,
-        })
+            sort: [{ [sortByField]: "desc" }],
+            aggs,
+        }
+
+        const result = await this.openSearchService.search(searchBody)
 
         return {
-            items: result.hits.map((hit: any) => ({
-                id: hit.id,
-                ...hit,
-            })),
+            items: result.hits.map((hit: any) => hit),
             total: result.total,
+            totalAmount: result.aggregations?.totalAmount?.value || 0,
             page,
             limit,
             totalPages: Math.ceil(result.total / limit),
         }
     }
 
-    async removeDonation(id: string) {
-        try {
-            await this.openSearchService.deleteDocument(this.indexName, id)
-            this.logger.log(`Removed donation ${id} from index`)
-        } catch (error) {
-            this.logger.error(`Failed to remove donation ${id}`, error)
-        }
-    }
-
+    @Cron(CronExpression.EVERY_MINUTE)
     async syncAll() {
-        this.logger.log("Starting full sync of donations to OpenSearch...")
+        this.logger.log("Starting scheduled donation sync...")
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+        const donations = await this.donorRepository.findRecentlyUpdated(fiveMinutesAgo)
+
+        if (donations.length === 0) {
+            return { successCount: 0, failCount: 0 }
+        }
+
+        this.logger.log(`Found ${donations.length} donations to sync`)
+
         let successCount = 0
         let failCount = 0
-        const batchSize = 100
-        let skip = 0
 
-        while (true) {
-            const donations = await this.donorRepository.findAll({
-                skip,
-                take: batchSize,
-            })
-
-            if (donations.length === 0) break
-
-            for (const donation of donations as any[]) {
-                try {
-                    const transactions = donation.payment_transactions || []
-                    // Prioritize SUCCESS, then latest
-                    const successTx = transactions.find((t: any) => t.status === "SUCCESS")
-                    const latestTx = transactions[transactions.length - 1]
-                    const activeTx = successTx || latestTx
-
-                    // Extract bank info from metadata
-                    let bankName = ""
-                    let bankAccount = ""
-                    const gateway = activeTx?.gateway || "UNKNOWN"
-                    const paymentStatus = activeTx?.payment_status || "PENDING"
-                    const receivedAmount = activeTx?.received_amount?.toString() || "0"
-                    const currency = activeTx?.currency || "VND"
-                    const errorCode = activeTx?.error_code || ""
-                    const errorDescription = activeTx?.error_description || ""
-                    const refundedAt = activeTx?.refunded_at || null
-                    const processedByWebhook = activeTx?.processed_by_webhook || false
-                    const payosMetadata = activeTx?.payos_metadata || null
-                    const sepayMetadata = activeTx?.sepay_metadata || null
-
-                    if (activeTx) {
-                        if (activeTx.gateway === "PAYOS" && activeTx.payos_metadata) {
-                            // payos_metadata is Json, need to cast or access safely
-                            const meta = activeTx.payos_metadata as any
-                            bankName = meta.counter_account_bank_name || ""
-                            bankAccount = meta.counter_account_number || ""
-                        } else if (activeTx.gateway === "SEPAY" && activeTx.sepay_metadata) {
-                            const meta = activeTx.sepay_metadata as any
-                            bankName = meta.bank_name || ""
-                            bankAccount = meta.sub_account || "" // Or reference code?
-                        }
-                    }
-
-                    const mappedDonation: any = {
-                        id: donation.id,
-                        donorId: donation.donor_id,
-                        donorName: donation.donor_name,
-                        campaignId: donation.campaign_id,
-                        campaignTitle: donation.campaign?.title || "",
-                        amount: donation.amount.toString(),
-                        isAnonymous: donation.is_anonymous,
-                        status: activeTx?.status || "PENDING",
-                        orderCode: activeTx?.order_code?.toString() || "",
-                        transactionDatetime: activeTx?.created_at || donation.created_at,
-                        created_at: donation.created_at,
-                        updated_at: donation.updated_at,
-                        description: activeTx?.description || "",
-                        gateway,
-                        paymentStatus,
-                        receivedAmount,
-                        bankName,
-                        bankAccount,
-                        currency,
-                        errorCode,
-                        errorDescription,
-                        refundedAt,
-                        processedByWebhook,
-                        payosMetadata,
-                        sepayMetadata,
-                    }
-                    await this.indexDonation(mappedDonation)
-                    successCount++
-                } catch (error) {
-                    this.logger.error(
-                        `Failed to sync donation ${donation.id}`,
-                        error,
-                    )
-                    failCount++
-                }
+        for (const donation of donations) {
+            try {
+                await this.indexDonation(donation)
+                successCount++
+            } catch (error) {
+                this.logger.error(`Failed to sync donation ${donation.id}`, error)
+                failCount++
             }
-
-            skip += batchSize
-            this.logger.log(`Synced ${successCount} donations so far...`)
         }
 
         this.logger.log(

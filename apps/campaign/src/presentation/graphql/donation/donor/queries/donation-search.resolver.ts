@@ -1,10 +1,9 @@
-import { Args, Query, Resolver, Mutation } from "@nestjs/graphql"
+import { Args, Query, Resolver } from "@nestjs/graphql"
 import { UseInterceptors } from "@nestjs/common"
 import { SentryInterceptor } from "@libs/observability/sentry.interceptor"
 import { DonationSearchService } from "../../../../../application/services/donation/donation-search.service"
 import { SearchDonationInput } from "../../../../../application/dtos/campaign/request/search-donation.input"
 import { CampaignDonationSummary, CampaignDonationStatementResponse } from "../../../../../application/dtos/donation"
-import { SyncResult } from "../../../../../application/dtos/donation/sync-result.dto"
 
 @Resolver()
 @UseInterceptors(SentryInterceptor)
@@ -20,7 +19,7 @@ export class DonationSearchResolver {
         const result = await this.donationSearchService.search(input)
 
         return result.items.map((item: any) => ({
-            id: item.id,
+            id: item.donationId,
             donorId: item.donorId,
             donorName: item.donorName,
             campaignId: item.campaignId,
@@ -39,15 +38,11 @@ export class DonationSearchResolver {
     async searchDonationStatements(
         @Args("input") input: SearchDonationInput,
     ): Promise<CampaignDonationStatementResponse> {
-        // Enforce SUCCESS status for statements
         input.status = "SUCCESS"
 
         const result = await this.donationSearchService.search(input, "receivedAmount")
 
-        const totalReceived = result.items.reduce(
-            (sum: number, item: any) => sum + parseFloat(item.amount),
-            0,
-        )
+        const totalReceived = (result as any).totalAmount || 0
 
         const page = input.page || 1
         const limit = input.limit || 10
@@ -58,39 +53,37 @@ export class DonationSearchResolver {
             totalReceived: totalReceived.toString(),
             totalDonations: result.total,
             generatedAt: new Date().toISOString(),
-            transactions: result.items.map((item: any, index: number) => {
-                // Mask bank account: ****1234
-                let maskedBankAccount = ""
-                if (item.bankAccount && item.bankAccount.length > 4) {
-                    maskedBankAccount = "****" + item.bankAccount.slice(-4)
-                } else {
-                    maskedBankAccount = item.bankAccount || ""
-                }
+            transactions: result.items.flatMap((item: any) => {
+                return (item.paymentTransactions || []).map((tx: any) => {
+                    let maskedBankAccount = ""
+                    const bankAccount = tx.bankAccount || ""
+                    if (bankAccount && bankAccount.length > 4) {
+                        maskedBankAccount = "****" + bankAccount.slice(-4)
+                    } else {
+                        maskedBankAccount = bankAccount
+                    }
 
-                return {
-                    no: (page - 1) * limit + index + 1,
-                    donationId: item.id,
-                    transactionDateTime: item.transactionDatetime,
-                    donorName: item.donorName,
-                    amount: item.amount,
-                    receivedAmount: item.receivedAmount || item.amount,
-                    gateway: item.gateway || "UNKNOWN",
-                    orderCode: item.orderCode,
-                    description: item.description,
-                    campaignId: item.campaignId,
-                    campaignTitle: item.campaignTitle,
-                    bankName: item.bankName,
-                    bankAccountNumber: maskedBankAccount,
-                    currency: item.currency,
-                }
-            }),
+                    return {
+                        donationId: item.id,
+                        transactionDateTime: tx.createdAt || item.createdAt,
+                        donorName: item.donorName,
+                        amount: item.amount, // Donation amount
+                        receivedAmount: tx.amount, // Transaction amount
+                        gateway: tx.gateway || "UNKNOWN",
+                        orderCode: tx.transactionCode || item.transactionCode,
+                        description: item.message,
+                        campaignId: item.campaignId,
+                        campaignTitle: item.campaignTitle,
+                        bankName: tx.bankName,
+                        bankAccountNumber: maskedBankAccount,
+                        currency: item.currency,
+                        // status: tx.status, // Commented out to avoid potential DTO mismatch if field doesn't exist
+                    }
+                })
+            }).map((tx: any, index: number) => ({
+                ...tx,
+                no: (page - 1) * limit + index + 1,
+            })),
         }
-    }
-
-    @Mutation(() => SyncResult, {
-        description: "Sync all donations to OpenSearch (Admin only)",
-    })
-    async syncDonations(): Promise<SyncResult> {
-        return this.donationSearchService.syncAll()
     }
 }

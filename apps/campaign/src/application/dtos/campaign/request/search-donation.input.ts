@@ -46,6 +46,11 @@ export class SearchDonationInput {
     @IsString()
         status?: string
 
+    @Field(() => String, { nullable: true })
+    @IsOptional()
+    @IsString()
+        donorEmail?: string
+
     @Field(() => Date, { nullable: true })
     @IsOptional()
         startDate?: Date

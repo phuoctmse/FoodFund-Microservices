@@ -12,6 +12,7 @@ export interface SearchOptions {
     from?: number
     size?: number
     sort?: any[]
+    aggs?: any
 }
 
 export interface IndexDocumentOptions {
@@ -117,7 +118,7 @@ export class OpenSearchService implements OnModuleInit {
 
     async search<T = any>(
         options: SearchOptions,
-    ): Promise<{ hits: T[]; total: number }> {
+    ): Promise<{ hits: T[]; total: number; aggregations?: any }> {
         if (!this.isAvailable()) {
             this.logger.warn(
                 "OpenSearch not available, returning empty results",
@@ -125,7 +126,7 @@ export class OpenSearchService implements OnModuleInit {
             return { hits: [], total: 0 }
         }
 
-        const { index, query, from = 0, size = 10, sort } = options
+        const { index, query, from = 0, size = 10, sort, aggs } = options
 
         try {
             const response = await this.client!.search({
@@ -135,6 +136,7 @@ export class OpenSearchService implements OnModuleInit {
                     from,
                     size,
                     ...(sort && { sort }),
+                    ...(aggs && { aggs }),
                 },
             })
 
@@ -149,7 +151,7 @@ export class OpenSearchService implements OnModuleInit {
                     ? response.body.hits.total.value || 0
                     : response.body.hits.total || 0
 
-            return { hits, total }
+            return { hits, total, aggregations: response.body.aggregations }
         } catch (error: any) {
             this.logger.error(`Search error in index ${index}`, error.message)
 

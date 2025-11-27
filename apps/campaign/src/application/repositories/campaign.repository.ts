@@ -255,6 +255,19 @@ export class CampaignRepository {
         return campaigns.map((c) => this.mapToGraphQLModel(c))
     }
 
+    async findRecentlyUpdated(since: Date): Promise<Campaign[]> {
+        const campaigns = await this.prisma.campaign.findMany({
+            where: {
+                is_active: true,
+                updated_at: {
+                    gte: since,
+                },
+            },
+            include: this.CAMPAIGN_JOIN_FIELDS,
+        })
+        return campaigns.map((c) => this.mapToGraphQLModel(c))
+    }
+
     async findById(id: string): Promise<Campaign | null> {
         const campaign = await this.prisma.campaign.findUnique({
             where: { id, is_active: true },

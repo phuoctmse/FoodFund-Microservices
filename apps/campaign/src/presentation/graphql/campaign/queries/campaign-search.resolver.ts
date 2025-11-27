@@ -31,6 +31,7 @@ export class CampaignSearchResolver {
     async searchCampaigns(
         @Args("input") input: SearchCampaignInput,
     ): Promise<SearchCampaignResponse> {
+        console.log(input)
         return this.campaignSearchService.search(input)
     }
 

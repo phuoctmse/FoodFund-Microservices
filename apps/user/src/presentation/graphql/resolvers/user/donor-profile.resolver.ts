@@ -24,7 +24,7 @@ import { Role } from "@libs/databases"
 export class DonorProfileResolver {
     constructor(
         private readonly organizationService: OrganizationService,
-    ) {}
+    ) { }
 
     @Mutation(() => OrganizationActionResponse)
     @RequireRole(Role.DONOR)
@@ -37,7 +37,6 @@ export class DonorProfileResolver {
             input,
         )
 
-        // Map user field to representative field for GraphQL response
         const mappedResult = {
             ...result,
             representative: result.user,

@@ -83,10 +83,10 @@ export class OrganizationService {
         return name
             .trim()
             .toUpperCase()
-            .normalize("NFD") // Decompose accented characters
-            .replace(/[\u0300-\u036f]/g, "") // Remove diacritics
-            .replace(/Đ/g, "D") // Replace Đ
-            .replace(/đ/g, "D") // Replace đ
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/Đ/g, "D")
+            .replace(/đ/g, "D")
     }
 
     async requestCreateOrganization(
@@ -95,7 +95,7 @@ export class OrganizationService {
     ) {
         UserErrorHelper.validateRequiredString(cognitoId, "cognitoId")
 
-        const user = await this.userRepository.findUserById(cognitoId)
+        const user = await this.userRepository.findUserByCognitoId(cognitoId)
         if (!user) {
             UserErrorHelper.throwUserNotFound(cognitoId)
         }

@@ -76,7 +76,6 @@ export class DonationWebhookService {
             amount,
         })
 
-        // Find payment transaction by order_code
         const paymentTransaction =
             await this.donorRepository.findPaymentTransactionByOrderCode(
                 BigInt(orderCode),
@@ -89,9 +88,6 @@ export class DonationWebhookService {
             return
         }
 
-        // CRITICAL: Check if Sepay already handled this payment (PARTIAL payments < amount)
-        // If gateway is "SEPAY", it means Sepay already processed this PARTIAL payment
-        // PayOS should NOT process this even if webhook arrives
         if (paymentTransaction.gateway === "SEPAY") {
             this.logger.log(
                 `[PayOS] ⚠️ Skipping - Payment already processed by Sepay (PARTIAL payment) - orderCode=${orderCode}`,
@@ -99,10 +95,6 @@ export class DonationWebhookService {
             return
         }
 
-        // Idempotency check: Already processed by PayOS webhook?
-        // This check comes AFTER gateway check because:
-        // - If gateway=SEPAY, PayOS should never process (even if processed_by_webhook=false)
-        // - If gateway=PAYOS and processed_by_webhook=true, skip to prevent duplicate
         if (
             paymentTransaction.processed_by_webhook &&
             paymentTransaction.gateway === "PAYOS"
@@ -113,12 +105,9 @@ export class DonationWebhookService {
             return
         }
 
-        // Update payment status based on webhook code
         if (code === "00") {
-            // ✅ Payment successful
             await this.processSuccessfulPayment(paymentTransaction, webhookData)
         } else {
-            // ❌ Payment failed
             await this.processFailedPayment(paymentTransaction, code, desc)
         }
     }
@@ -130,12 +119,9 @@ export class DonationWebhookService {
         const { orderCode, amount, amountPaid } = webhookData
 
         try {
-            // Use amountPaid (actual received) instead of amount (payment link amount)
             const actualAmountReceived = BigInt(amountPaid || amount)
             const originalAmount = paymentTransaction.amount
 
-            // CRITICAL: PayOS should only handle COMPLETED/OVERPAID (>= amount)
-            // PARTIAL payments (< amount) should be handled by Sepay
             if (actualAmountReceived < originalAmount) {
                 this.logger.warn(
                     `[PayOS] ⚠️ PARTIAL payment detected (${actualAmountReceived}/${originalAmount}) - This should be handled by Sepay. Skipping PayOS processing.`,
@@ -147,7 +133,6 @@ export class DonationWebhookService {
                 `[PayOS] Processing ${actualAmountReceived === originalAmount ? "COMPLETED" : "OVERPAID"} payment - ${actualAmountReceived}/${originalAmount}`,
             )
 
-            // Step 1: Update payment transaction with PayOS data and actual amount
             const result =
                 await this.donorRepository.updatePaymentTransactionSuccess({
                     order_code: BigInt(orderCode),
@@ -172,12 +157,11 @@ export class DonationWebhookService {
                     },
                 })
 
-            // Update OpenSearch index
             if (paymentTransaction.donation) {
                 await this.donationSearchService.indexDonation({
                     ...paymentTransaction.donation,
                     amount: paymentTransaction.donation.amount.toString(),
-                    status: "SUCCESS", // Or use result.payment.status
+                    status: "SUCCESS", 
                     orderCode: orderCode.toString(),
                     transactionDatetime: new Date(webhookData.transactionDateTime),
                     created_at: paymentTransaction.donation.created_at,
@@ -201,7 +185,6 @@ export class DonationWebhookService {
                 `[PayOS] ✅ Payment transaction updated - Order ${orderCode}, Amount Paid: ${actualAmountReceived}`,
             )
 
-            // Check for campaign surplus and emit event
             const { campaign } = result
             if (
                 campaign.received_amount > campaign.target_amount &&
@@ -218,7 +201,6 @@ export class DonationWebhookService {
                 })
             }
 
-            // Step 2: Get donation and campaign info
             const donation = paymentTransaction.donation
             if (!donation) {
                 this.logger.error(
@@ -229,10 +211,8 @@ export class DonationWebhookService {
 
             const campaignId = donation.campaign_id
 
-            // Step 3: Get system admin ID from environment
             const adminUserId = this.getSystemAdminId()
 
-            // Step 4: Credit Admin Wallet with ACTUAL amount received
             await this.userClientService.creditAdminWallet({
                 adminId: adminUserId,
                 campaignId: campaignId,
@@ -246,7 +226,6 @@ export class DonationWebhookService {
                 `[PayOS] ✅ Admin wallet credited - Order ${orderCode}, Amount: ${actualAmountReceived} (Original: ${paymentTransaction.amount})`,
             )
 
-            // Step 5: Send donation confirmation email (if donor is not anonymous)
             await this.donationEmailService.sendDonationConfirmation(
                 donation,
                 actualAmountReceived,
@@ -254,24 +233,20 @@ export class DonationWebhookService {
                 "PayOS",
             )
 
-            // Step 6: Update donor cached stats and award badge
             if (donation.donor_id) {
-                // Get user database ID from cognito_id
                 const donor = await this.userClientService.getUserByCognitoId(
                     donation.donor_id,
                 )
 
                 if (donor) {
-                    // Update cached stats (via gRPC)
                     await this.userClientService.updateDonorStats({
-                        donorId: donor.id, // Use database ID, not cognito_id
+                        donorId: donor.id,
                         amountToAdd: actualAmountReceived,
                         incrementCount: 1,
                         lastDonationAt: new Date(),
                     })
 
-                    // Award badge (non-blocking, uses cached data)
-                    this.awardBadgeAsync(donor.id) // Use database ID, not cognito_id
+                    this.awardBadgeAsync(donor.id)
                 } else {
                     this.logger.warn(
                         `[PayOS] Donor not found for cognito_id: ${donation.donor_id}`,
@@ -317,7 +292,6 @@ export class DonationWebhookService {
                 error_description: errorDescription,
             })
 
-            // Update OpenSearch index
             if (paymentTransaction.donation) {
                 await this.donationSearchService.indexDonation({
                     ...paymentTransaction.donation,
@@ -351,9 +325,6 @@ export class DonationWebhookService {
         }
     }
 
-    /**
-     * Get system admin user ID from environment
-     */
     private getSystemAdminId(): string {
         const adminId = envConfig().systemAdminId || "admin-system-001"
         return adminId
