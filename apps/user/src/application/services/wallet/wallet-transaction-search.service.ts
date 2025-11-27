@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common"
+import { Cron, CronExpression } from "@nestjs/schedule"
 import { OpenSearchService } from "@libs/aws-opensearch"
 import { WalletRepository } from "../../repositories/wallet.repository"
 import { SearchWalletTransactionInput } from "../../dtos/search-wallet-transaction.input"
@@ -187,6 +188,7 @@ export class WalletTransactionSearchService implements OnModuleInit {
         }
     }
 
+    @Cron(CronExpression.EVERY_MINUTE)
     async syncAll() {
         this.logger.log("Starting full sync of wallet transactions to OpenSearch...")
         let successCount = 0

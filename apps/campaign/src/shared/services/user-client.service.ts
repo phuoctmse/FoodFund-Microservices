@@ -63,7 +63,6 @@ export class UserClientService {
 
     async getUserByCognitoId(cognitoId: string): Promise<UserProfile | null> {
         try {
-            // Use GetUser method with cognitoId parameter (camelCase per gRPC convention)
             const response = await this.grpcClient.callUserService<
                 { id?: string; cognitoId?: string },
                 {
@@ -110,16 +109,12 @@ export class UserClientService {
         return user?.fullName || user?.username || null
     }
 
-    /**
-     * Batch fetch users by IDs (for optimization)
-     * Returns a map of userId -> userName
-     */
+
     async getUserNamesByIds(userIds: string[]): Promise<Map<string, string>> {
         const userNameMap = new Map<string, string>()
 
         if (userIds.length === 0) return userNameMap
 
-        // Fetch users in parallel (batch)
         const userPromises = userIds.map((userId) =>
             this.getUserById(userId).catch((error) => {
                 this.logger.warn(`Failed to fetch user ${userId}:`, error)
@@ -129,7 +124,6 @@ export class UserClientService {
 
         const users = await Promise.all(userPromises)
 
-        // Build map
         users.forEach((user, index) => {
             if (user) {
                 const userName =
@@ -141,10 +135,6 @@ export class UserClientService {
         return userNameMap
     }
 
-    /**
-     * Credit Fundraiser Wallet after successful PayOS payment
-     * Calls User service via gRPC to create wallet transaction
-     */
     async creditFundraiserWallet(data: {
         fundraiserId: string
         campaignId: string
@@ -163,7 +153,7 @@ export class UserClientService {
                     fundraiserId: string
                     campaignId: string
                     paymentTransactionId: string
-                    amount: string // gRPC uses string for bigint
+                    amount: string 
                     gateway: string
                     description?: string
                 },
@@ -178,11 +168,11 @@ export class UserClientService {
                     fundraiserId: data.fundraiserId,
                     campaignId: data.campaignId,
                     paymentTransactionId: data.paymentTransactionId,
-                    amount: data.amount.toString(), // Convert bigint to string for gRPC
+                    amount: data.amount.toString(), 
                     gateway: data.gateway,
                     description: data.description,
                 },
-                { timeout: 5000, retries: 3 }, // Higher timeout for wallet operations
+                { timeout: 5000, retries: 3 }, 
             )
 
             this.logger.debug(
@@ -207,10 +197,6 @@ export class UserClientService {
         }
     }
 
-    /**
-     * Credit Admin Wallet for Sepay incoming transfers (catch-all)
-     * Calls User service via gRPC to create wallet transaction for Admin
-     */
     async creditAdminWallet(data: {
         adminId: string
         campaignId: string | null
@@ -239,10 +225,10 @@ export class UserClientService {
                     adminId: string
                     campaignId: string | null
                     paymentTransactionId: string | null
-                    amount: string // gRPC uses string for bigint
+                    amount: string
                     gateway: string
                     description?: string
-                    sepayMetadata?: string // JSONB as string
+                    sepayMetadata?: string
                 },
                 {
                     success: boolean
@@ -255,14 +241,14 @@ export class UserClientService {
                     adminId: data.adminId,
                     campaignId: data.campaignId,
                     paymentTransactionId: data.paymentTransactionId,
-                    amount: data.amount.toString(), // Convert bigint to string for gRPC
+                    amount: data.amount.toString(), 
                     gateway: data.gateway,
                     description: data.description,
                     sepayMetadata: data.sepayMetadata
                         ? JSON.stringify(data.sepayMetadata)
-                        : undefined, // Serialize JSONB to string
+                        : undefined, 
                 },
-                { timeout: 5000, retries: 3 }, // Higher timeout for wallet operations
+                { timeout: 5000, retries: 3 }, 
             )
 
             if (!response.success) {
@@ -283,10 +269,7 @@ export class UserClientService {
         }
     }
 
-    /**
-     * Get wallet transactions by payment transaction ID
-     * Fetches all wallet credit transactions linked to a specific payment
-     */
+
     async getWalletTransactionsByPaymentId(
         paymentTransactionId: string,
     ): Promise<
@@ -316,7 +299,7 @@ export class UserClientService {
                         gateway: string | null
                         reference: string | null
                         description: string | null
-                        createdAt: string // ISO date string
+                        createdAt: string 
                     }>
                     error?: string
                 }
@@ -342,14 +325,10 @@ export class UserClientService {
                 `[gRPC] Failed to fetch wallet transactions for payment ${paymentTransactionId}:`,
                 error,
             )
-            return [] // Return empty array on error (non-critical)
+            return [] 
         }
     }
 
-    /**
-     * Process bank transfer OUT (withdrawal from admin wallet)
-     * Calls User service via gRPC to process Sepay outgoing transfer
-     */
     async processBankTransferOut(data: {
         sepayId: number
         amount: bigint
@@ -425,9 +404,9 @@ export class UserClientService {
             const response = await this.grpcClient.callUserService<
                 {
                     donorId: string
-                    amountToAdd: string // BigInt as string
+                    amountToAdd: string 
                     incrementCount: number
-                    lastDonationAt: string // ISO timestamp
+                    lastDonationAt: string 
                 },
                 {
                     success: boolean
@@ -494,13 +473,10 @@ export class UserClientService {
                 `[gRPC] ❌ Failed to get wallet balance for ${userId}:`,
                 error,
             )
-            return BigInt(0) // Return 0 on error
+            return BigInt(0) 
         }
     }
 
-    /**
-     * Debit fundraiser wallet (for campaign auto-transfer)
-     */
     async debitFundraiserWallet(data: {
         userId: string
         campaignId: string
@@ -553,7 +529,7 @@ export class UserClientService {
                 `[gRPC] ❌ Failed to debit wallet for ${data.userId}:`,
                 error,
             )
-            throw error // This is critical - must throw
+            throw error
         }
     }
     async getUserDisplayName(userId: string): Promise<string> {

@@ -1,4 +1,3 @@
-// cSpell:words payos PAYOS sepay SEPAY
 import { EnvironmentConfig, NodeEnv, Container, GrpcService } from "./types"
 import {
     DEFAULT_HEALTH_PORT,

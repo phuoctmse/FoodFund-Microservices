@@ -48,20 +48,17 @@ export class SepayWebhookService {
             transferType: payload.transferType,
         })
 
-        // Handle outgoing transfers (bank withdrawals)
         if (payload.transferType === "out") {
             this.logger.log(`[Sepay] Processing outgoing transfer: ${payload.id}`)
             await this.handleOutgoingTransfer(payload)
             return
         }
 
-        // Only process incoming transfers below this point
         if (payload.transferType !== "in") {
             this.logger.log(`[Sepay] Ignoring unknown transfer type: ${payload.transferType}`)
             return
         }
 
-        // Check idempotency: Already processed?
         const isDuplicate = await this.checkIdempotency(
             payload.id,
             payload.referenceCode,
@@ -71,14 +68,11 @@ export class SepayWebhookService {
             return
         }
 
-        // Extract orderCode to check for PayOS payment
         const orderCode = this.extractOrderCodeFromContent(payload.content)
 
         if (orderCode) {
-            // OrderCode found - check if PayOS will handle this
             await this.handlePayOSRelatedTransfer(payload, orderCode)
         } else {
-            // No orderCode - regular Sepay transfer
             this.logger.log(
                 "[Sepay] No orderCode detected - routing to Admin Wallet",
             )
@@ -86,9 +80,6 @@ export class SepayWebhookService {
         }
     }
 
-    /**
-     * Handle Sepay transfer that has orderCode (PayOS-related)
-     */
     private async handlePayOSRelatedTransfer(
         payload: SepayWebhookPayload,
         orderCode: string,
@@ -98,7 +89,6 @@ export class SepayWebhookService {
                 `[Sepay] Detected orderCode=${orderCode}, checking payment status`,
             )
 
-            // IDEMPOTENCY: Check if this sepayId already processed
             const existingPayment = await this.donorRepository.findPaymentBySepayId(payload.id)
             if (existingPayment) {
                 this.logger.log(
@@ -123,7 +113,6 @@ export class SepayWebhookService {
             const sepayAmount = BigInt(payload.transferAmount)
             const originalAmount = paymentTransaction.amount
 
-            // Case 1: Sepay amount >= original amount
             if (sepayAmount >= originalAmount) {
                 this.logger.log(
                     `[Sepay] ⚠️ Skipping - Sepay amount (${sepayAmount}) >= original (${originalAmount}). PayOS webhook will handle this to avoid duplicate.`,
@@ -131,7 +120,6 @@ export class SepayWebhookService {
                 return
             }
 
-            // Case 2: Original payment NOT processed yet (PENDING)
             if (!paymentTransaction.processed_by_webhook) {
                 this.logger.log(
                     `[Sepay] 💰 Processing initial PARTIAL payment - ${sepayAmount}/${originalAmount}`,
@@ -140,7 +128,6 @@ export class SepayWebhookService {
                 return
             }
 
-            // Case 3: Original payment already processed (SUCCESS)
             this.logger.log(
                 `[Sepay] 💰 Processing SUPPLEMENTARY payment - amount=${sepayAmount} (original already processed)`,
             )
@@ -158,10 +145,6 @@ export class SepayWebhookService {
         }
     }
 
-    /**
-     * Process PARTIAL payment to Admin Wallet
-     * Update payment_transaction and credit Admin Wallet
-     */
     private async processPartialPaymentToAdmin(
         payload: SepayWebhookPayload,
         paymentTransaction: any,
@@ -179,10 +162,9 @@ export class SepayWebhookService {
 
             const campaignId = donation.campaign_id
 
-            // Step 1: Update payment_transaction to SUCCESS with PARTIAL status
             const result = await this.donorRepository.updatePaymentTransactionSuccess({
                 order_code: BigInt(orderCode),
-                amount_paid: BigInt(payload.transferAmount), // Actual amount (< original)
+                amount_paid: BigInt(payload.transferAmount),
                 gateway: "SEPAY",
                 processed_by_webhook: true,
                 sepay_metadata: {
@@ -201,12 +183,11 @@ export class SepayWebhookService {
                 `[Sepay→Admin] ✅ Payment updated to SUCCESS with PARTIAL status - orderCode=${orderCode}, amount=${payload.transferAmount}/${paymentTransaction.amount}`,
             )
 
-            // Update OpenSearch index
             if (donation) {
                 await this.donationSearchService.indexDonation({
                     ...donation,
                     amount: donation.amount.toString(),
-                    status: "SUCCESS", // Or PARTIAL if we had that status
+                    status: "SUCCESS",
                     orderCode: orderCode.toString(),
                     transactionDatetime: new Date(payload.transactionDate),
                     created_at: donation.created_at,
@@ -214,7 +195,7 @@ export class SepayWebhookService {
                     campaignTitle: result.campaign.title,
                     description: payload.description,
                     gateway: "SEPAY",
-                    paymentStatus: "PARTIAL", // Or COMPLETED if amount matches
+                    paymentStatus: "PARTIAL",
                     receivedAmount: payload.transferAmount.toString(),
                     bankName: payload.gateway || "",
                     bankAccount: payload.subAccount || "",
@@ -226,19 +207,16 @@ export class SepayWebhookService {
                 } as any)
             }
 
-            // 🆕 Check for campaign surplus and emit event
             this.checkAndEmitSurplusEvent(result.campaign)
 
-            // Step 2: Get system admin ID
             const adminUserId = this.getSystemAdminId()
 
-            // Step 3: Credit Admin Wallet with actual amount
             await this.userClientService.creditAdminWallet({
                 adminId: adminUserId,
                 campaignId: campaignId,
                 paymentTransactionId: paymentTransaction.id,
                 amount: BigInt(payload.transferAmount),
-                gateway: "SEPAY", // For logging/description only, NOT stored in Wallet_Transaction
+                gateway: "SEPAY", 
                 description: `Thanh toán qua Sepay - Đơn hàng ${orderCode} | Ref: ${payload.referenceCode}`,
             })
 
@@ -246,7 +224,6 @@ export class SepayWebhookService {
                 `[Sepay→Admin] ✅ Admin wallet credited - orderCode=${orderCode}, amount=${payload.transferAmount}`,
             )
 
-            // Step 4: Send donation confirmation email (if donor is not anonymous)
             await this.donationEmailService.sendDonationConfirmation(
                 donation,
                 BigInt(payload.transferAmount),
@@ -254,7 +231,6 @@ export class SepayWebhookService {
                 "Sepay",
             )
 
-            // Step 5: Update donor cached stats and award badge
             if (donation.donor_id) {
                 const donor = await this.userClientService.getUserByCognitoId(donation.donor_id)
 
@@ -286,7 +262,6 @@ export class SepayWebhookService {
         try {
             await this.badgeAwardService.checkAndAwardBadge(donorId)
         } catch (error) {
-            // Non-blocking: Just log error, don't throw
             this.logger.error(
                 `[Badge] Failed to award badge to donor ${donorId}:`,
                 error.message,
@@ -294,10 +269,6 @@ export class SepayWebhookService {
         }
     }
 
-    /**
-     * Process SUPPLEMENTARY payment (additional transfer for same donation)
-     * Creates NEW Payment_Transaction record (without order_code)
-     */
     private async processSupplementaryPayment(
         payload: SepayWebhookPayload,
         originalPayment: any,
@@ -519,17 +490,10 @@ export class SepayWebhookService {
         }
     }
 
-    /**
-     * Build description from Sepay payload
-     */
     private buildDescription(payload: SepayWebhookPayload): string {
         return `Chuyển khoản đến Sepay - Ref: ${payload.referenceCode} | Content: ${payload.content} | Bank: ${payload.gateway}`
     }
 
-    /**
-     * Check if webhook already processed (idempotency)
-     * Uses Redis cache with 7-day TTL
-     */
     private async checkIdempotency(
         sepayId: number,
         referenceCode: string,

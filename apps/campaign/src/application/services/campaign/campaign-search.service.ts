@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common"
+import { Cron, CronExpression } from "@nestjs/schedule"
 import { OpenSearchService } from "@libs/aws-opensearch"
 import { Campaign } from "../../../domain/entities/campaign.model"
 import { CampaignSortBy, SearchCampaignInput } from "../../dtos/campaign/request/search-campaign.input"
@@ -33,14 +34,60 @@ export class CampaignSearchService implements OnModuleInit {
         const exists = await this.openSearchService.indexExists(this.indexName)
         if (exists) return
 
+        const settings = {
+            analysis: {
+                normalizer: {
+                    lowercase_normalizer: {
+                        type: "custom",
+                        char_filter: [],
+                        filter: ["lowercase"],
+                    },
+                },
+            },
+        }
+
         const mappings = {
             properties: {
                 id: { type: "keyword" },
-                title: { type: "text", analyzer: "standard" },
+                title: {
+                    type: "text",
+                    analyzer: "standard",
+                    fields: {
+                        keyword: {
+                            type: "keyword",
+                            ignore_above: 256,
+                            normalizer: "lowercase_normalizer",
+                        },
+                    },
+                },
                 description: { type: "text", analyzer: "standard" },
-                categoryId: { type: "keyword" },
-                creatorId: { type: "keyword" },
-                status: { type: "keyword" },
+                categoryId: {
+                    type: "text",
+                    fields: {
+                        keyword: {
+                            type: "keyword",
+                            ignore_above: 256,
+                        },
+                    },
+                },
+                creatorId: {
+                    type: "text",
+                    fields: {
+                        keyword: {
+                            type: "keyword",
+                            ignore_above: 256,
+                        },
+                    },
+                },
+                status: {
+                    type: "text",
+                    fields: {
+                        keyword: {
+                            type: "keyword",
+                            ignore_above: 256,
+                        },
+                    },
+                },
                 targetAmount: { type: "double" },
                 receivedAmount: { type: "double" },
                 donationCount: { type: "integer" },
@@ -64,7 +111,7 @@ export class CampaignSearchService implements OnModuleInit {
             },
         }
 
-        await this.openSearchService.createIndex(this.indexName, mappings)
+        await this.openSearchService.createIndex(this.indexName, mappings, settings)
         this.logger.log(`Index ${this.indexName} created`)
     }
 
@@ -134,10 +181,22 @@ export class CampaignSearchService implements OnModuleInit {
 
         if (query) {
             must.push({
-                multi_match: {
-                    query,
-                    fields: ["title^3", "description", "category.title", "phases.location"],
-                    fuzziness: "AUTO",
+                bool: {
+                    should: [
+                        {
+                            multi_match: {
+                                query,
+                                fields: ["title^3", "description", "category.title", "phases.location"],
+                                fuzziness: "AUTO",
+                            },
+                        },
+                        {
+                            wildcard: {
+                                "title.keyword": `*${query.toLowerCase()}*`,
+                            },
+                        },
+                    ],
+                    minimum_should_match: 1,
                 },
             })
         } else {
@@ -145,60 +204,60 @@ export class CampaignSearchService implements OnModuleInit {
         }
 
         if (categoryId) {
-            filter.push({ term: { categoryId } })
+            filter.push({ term: { "categoryId.keyword": categoryId } })
         }
 
         if (creatorId) {
-            filter.push({ term: { creatorId } })
+            filter.push({ term: { "creatorId.keyword": creatorId } })
         }
 
         if (status && status.length > 0) {
-            filter.push({ terms: { status } })
+            filter.push({ terms: { "status.keyword": status } })
         }
 
-        if (minTargetAmount !== undefined || maxTargetAmount !== undefined) {
+        if (minTargetAmount != null || maxTargetAmount != null) {
             const range: any = {}
-            if (minTargetAmount !== undefined) range.gte = minTargetAmount
-            if (maxTargetAmount !== undefined) range.lte = maxTargetAmount
+            if (minTargetAmount != null) range.gte = minTargetAmount
+            if (maxTargetAmount != null) range.lte = maxTargetAmount
             filter.push({ range: { targetAmount: range } })
         }
 
         const sort: any[] = []
         if (sortBy) {
             switch (sortBy) {
-            case CampaignSortBy.NEWEST:
-            case CampaignSortBy.NEWEST_FIRST:
-                sort.push({ createdAt: "desc" })
-                break
-            case CampaignSortBy.OLDEST:
-            case CampaignSortBy.OLDEST_FIRST:
-                sort.push({ createdAt: "asc" })
-                break
-            case CampaignSortBy.MOST_FUNDED:
-                sort.push({ fundingProgress: "desc" })
-                break
-            case CampaignSortBy.LEAST_FUNDED:
-                sort.push({ fundingProgress: "asc" })
-                break
-            case CampaignSortBy.ENDING_SOON:
-                sort.push({ fundraisingEndDate: "asc" })
-                break
-            case CampaignSortBy.TARGET_AMOUNT_ASC:
-                sort.push({ targetAmount: "asc" })
-                break
-            case CampaignSortBy.TARGET_AMOUNT_DESC:
-                sort.push({ targetAmount: "desc" })
-                break
-            case CampaignSortBy.MOST_DONATED:
-                sort.push({ donationCount: "desc" })
-                break
-            case CampaignSortBy.LEAST_DONATED:
-                sort.push({ donationCount: "asc" })
-                break
-            case CampaignSortBy.ACTIVE_FIRST:
-                sort.push({ status: "asc" })
-                sort.push({ createdAt: "desc" })
-                break
+                case CampaignSortBy.NEWEST:
+                case CampaignSortBy.NEWEST_FIRST:
+                    sort.push({ createdAt: "desc" })
+                    break
+                case CampaignSortBy.OLDEST:
+                case CampaignSortBy.OLDEST_FIRST:
+                    sort.push({ createdAt: "asc" })
+                    break
+                case CampaignSortBy.MOST_FUNDED:
+                    sort.push({ fundingProgress: "desc" })
+                    break
+                case CampaignSortBy.LEAST_FUNDED:
+                    sort.push({ fundingProgress: "asc" })
+                    break
+                case CampaignSortBy.ENDING_SOON:
+                    sort.push({ fundraisingEndDate: "asc" })
+                    break
+                case CampaignSortBy.TARGET_AMOUNT_ASC:
+                    sort.push({ targetAmount: "asc" })
+                    break
+                case CampaignSortBy.TARGET_AMOUNT_DESC:
+                    sort.push({ targetAmount: "desc" })
+                    break
+                case CampaignSortBy.MOST_DONATED:
+                    sort.push({ donationCount: "desc" })
+                    break
+                case CampaignSortBy.LEAST_DONATED:
+                    sort.push({ donationCount: "asc" })
+                    break
+                case CampaignSortBy.ACTIVE_FIRST:
+                    sort.push({ status: "asc" })
+                    sort.push({ createdAt: "desc" })
+                    break
             }
         } else {
             sort.push({ createdAt: "desc" })
@@ -206,7 +265,7 @@ export class CampaignSearchService implements OnModuleInit {
 
         const from = (page - 1) * limit
 
-        const result = await this.openSearchService.search({
+        const searchBody = {
             index: this.indexName,
             query: {
                 bool: {
@@ -217,7 +276,9 @@ export class CampaignSearchService implements OnModuleInit {
             from,
             size: limit,
             sort,
-        })
+        }
+
+        const result = await this.openSearchService.search(searchBody)
 
         return {
             items: result.hits.map((hit: any) => {
@@ -247,6 +308,7 @@ export class CampaignSearchService implements OnModuleInit {
         }
     }
 
+    @Cron(CronExpression.EVERY_MINUTE)
     async syncAll() {
         this.logger.log("Starting full sync of campaigns to OpenSearch...")
         const allCampaigns = await this.campaignRepository.findAll()

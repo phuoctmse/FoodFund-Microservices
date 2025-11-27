@@ -11,8 +11,8 @@ import {
 interface PayOSWebhookPayload {
     data: {
         orderCode: number
-        amount: number // Payment link amount (original request)
-        amountPaid?: number // Actual amount paid by user (may differ from amount)
+        amount: number
+        amountPaid?: number 
         description: string
         accountNumber: string
         reference: string
@@ -59,9 +59,6 @@ export class DonationWebhookController {
                 error.stack,
             )
 
-            // IMPORTANT: Always return 200 OK to PayOS
-            // This prevents PayOS from retrying the webhook
-            // We log the error for manual review instead
             return {
                 success: true,
                 message: "Webhook received",

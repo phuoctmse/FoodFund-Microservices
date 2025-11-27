@@ -3,6 +3,7 @@ import { envConfig } from "libs/env"
 import { SentryModule } from "libs/observability/sentry.module"
 import { DatadogModule } from "@libs/observability/datadog"
 import { EnvModule } from "@libs/env/env.module"
+import { ScheduleModule } from "@nestjs/schedule"
 import { AwsCognitoModule } from "@libs/aws-cognito"
 import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 import { GrpcModule } from "@libs/grpc"
@@ -82,6 +83,7 @@ import { HealthController } from "./presentation/http/controllers"
             isGlobal: false,
             mockMode: false,
         }),
+        ScheduleModule.forRoot(),
     ],
     controllers: [
         // Presentation - HTTP Controllers

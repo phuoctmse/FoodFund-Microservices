@@ -11,10 +11,9 @@ import { CreateBadgeInput, UpdateBadgeInput } from "../../dtos/badge.input"
 export class BadgeService {
     private readonly logger = new Logger(BadgeService.name)
 
-    constructor(private readonly badgeRepository: BadgeRepository) {}
+    constructor(private readonly badgeRepository: BadgeRepository) { }
 
     async createBadge(data: CreateBadgeInput) {
-        // Validate unique sort_order
         if (data.sort_order !== undefined) {
             const existingBadge =
                 await this.badgeRepository.findBadgeBySortOrder(
@@ -49,12 +48,11 @@ export class BadgeService {
             throw new NotFoundException(`Badge with ID ${id} not found`)
         }
 
-        // Validate unique sort_order (if being updated)
         if (data.sort_order !== undefined) {
             const existingBadge =
                 await this.badgeRepository.findBadgeBySortOrder(
                     data.sort_order,
-                    id, // Exclude current badge
+                    id,
                 )
             if (existingBadge) {
                 throw new BadRequestException(
@@ -73,7 +71,6 @@ export class BadgeService {
             throw new NotFoundException(`Badge with ID ${id} not found`)
         }
 
-        // Check if badge is assigned to any users
         const userCount = await this.badgeRepository.countBadges()
         if (userCount > 0) {
             throw new BadRequestException(

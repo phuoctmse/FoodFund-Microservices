@@ -101,9 +101,6 @@ export class WalletTransactionService {
         }
     }
 
-    /**
-     * Get system admin wallet
-     */
     private async getSystemAdminWallet() {
         const adminWallets = await this.walletRepository.findAllByType(
             Wallet_Type.ADMIN,
