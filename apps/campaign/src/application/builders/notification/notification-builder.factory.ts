@@ -22,6 +22,7 @@ import {
     NotificationBuilder,
     NotificationBuilderContext,
     NotificationBuilderResult,
+    NotificationDataMap,
 } from "@app/campaign/src/domain/interfaces/notification"
 
 @Injectable()
@@ -92,7 +93,7 @@ export class NotificationBuilderFactory {
         )
     }
 
-    build<T extends NotificationType>(
+    build<T extends NotificationType & keyof NotificationDataMap>(
         context: NotificationBuilderContext<T>,
     ): NotificationBuilderResult {
         const builder = this.builders.get(context.type)
@@ -104,7 +105,7 @@ export class NotificationBuilderFactory {
         return result
     }
 
-    getBuilder<T extends NotificationType>(
+    getBuilder<T extends NotificationType & keyof NotificationDataMap>(
         type: T,
     ): NotificationBuilder<T> | undefined {
         return this.builders.get(type)

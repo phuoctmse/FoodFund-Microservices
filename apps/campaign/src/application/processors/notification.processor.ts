@@ -31,7 +31,7 @@ export class NotificationProcessor {
         const startTime = Date.now()
 
         try {
-            await this.notificationService.createNotification({
+            const notificationInput = {
                 userId: job.data.userId,
                 type: job.data.type,
                 data: job.data.data as any,
@@ -43,7 +43,9 @@ export class NotificationProcessor {
                     queueJobId: job.id?.toString(),
                     processedAt: new Date().toISOString(),
                 },
-            })
+            }
+
+            await this.notificationService.createNotification(notificationInput as any)
 
             const duration = Date.now() - startTime
             this.datadogService.trackJobComplete(

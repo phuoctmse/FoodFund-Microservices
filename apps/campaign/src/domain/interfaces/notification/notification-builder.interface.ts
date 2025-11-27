@@ -1,7 +1,9 @@
 import { NotificationType } from "@app/campaign/src/domain/enums/notification"
 import { NotificationDataMap } from "./notification-data.interface"
 
-export interface NotificationBuilderContext<T extends NotificationType> {
+export interface NotificationBuilderContext<
+    T extends NotificationType & keyof NotificationDataMap,
+> {
     type: T
     data: NotificationDataMap[T]
     userId: string
@@ -16,7 +18,9 @@ export interface NotificationBuilderResult {
     metadata?: Record<string, any>
 }
 
-export abstract class NotificationBuilder<T extends NotificationType> {
+export abstract class NotificationBuilder<
+    T extends NotificationType & keyof NotificationDataMap,
+> {
     abstract readonly type: T
 
     abstract build(
