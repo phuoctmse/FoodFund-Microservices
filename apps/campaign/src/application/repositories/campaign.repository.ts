@@ -7,7 +7,7 @@ import {
 } from "../dtos/campaign/request"
 import { CampaignStatus } from "../../domain/enums/campaign/campaign.enum"
 import { Campaign } from "../../domain/entities/campaign.model"
-import { minBigInt } from "../../shared/utils"
+import { generateRandomSuffix, generateSlug, generateUniqueSlug, minBigInt } from "../../shared/utils"
 import { Organization } from "../../shared/model"
 
 export interface FindManyOptions {
@@ -20,6 +20,7 @@ export interface FindManyOptions {
 
 export interface CreateCampaignData {
     title: string
+    slug?: string
     description: string
     coverImage: string
     coverImageFileKey?: string
@@ -113,11 +114,13 @@ export class CampaignRepository {
 
     async create(data: CreateCampaignData): Promise<Campaign> {
         const { phases, ...campaignData } = data
+        const slug = await this.generateUniqueSlug(campaignData.title)
 
         const result = await this.prisma.$transaction(async (tx) => {
             const campaign = await tx.campaign.create({
                 data: {
                     title: campaignData.title,
+                    slug,
                     description: campaignData.description,
                     cover_image: campaignData.coverImage,
                     cover_image_file_key: campaignData.coverImageFileKey,
@@ -427,6 +430,59 @@ export class CampaignRepository {
                 status: campaign.status as CampaignStatus,
             }
             : null
+    }
+
+    async findBySlug(slug: string): Promise<Campaign | null> {
+        const campaign = await this.prisma.campaign.findUnique({
+            where: { slug, is_active: true },
+            include: this.CAMPAIGN_JOIN_FIELDS,
+        })
+
+        return campaign ? this.mapToGraphQLModel(campaign) : null
+    }
+
+    async slugExists(slug: string): Promise<boolean> {
+        const count = await this.prisma.campaign.count({
+            where: { slug },
+        })
+        return count > 0
+    }
+
+    async generateUniqueSlug(title: string): Promise<string> {
+        const baseSlug = generateSlug(title)
+
+        if (!baseSlug) {
+            return `campaign-${generateRandomSuffix(8)}`
+        }
+
+        const exists = await this.slugExists(baseSlug)
+        if (!exists) {
+            return baseSlug
+        }
+
+        for (let i = 0; i < 5; i++) {
+            const uniqueSlug = generateUniqueSlug(
+                baseSlug,
+                generateRandomSuffix(6),
+            )
+            const suffixExists = await this.slugExists(uniqueSlug)
+            if (!suffixExists) {
+                return uniqueSlug
+            }
+        }
+
+        return generateUniqueSlug(baseSlug, Date.now().toString(36))
+    }
+
+    async updateSlug(id: string, newTitle: string): Promise<string> {
+        const newSlug = await this.generateUniqueSlug(newTitle)
+
+        await this.prisma.campaign.update({
+            where: { id, is_active: true },
+            data: { slug: newSlug },
+        })
+
+        return newSlug
     }
 
     async getTotalCampaigns(categoryId?: string): Promise<number> {
@@ -883,6 +939,7 @@ export class CampaignRepository {
         return {
             id: dbCampaign.id,
             title: dbCampaign.title,
+            slug: dbCampaign.slug,
             description: dbCampaign.description,
             coverImage: dbCampaign.cover_image,
             coverImageFileKey: dbCampaign.cover_image_file_key || undefined,

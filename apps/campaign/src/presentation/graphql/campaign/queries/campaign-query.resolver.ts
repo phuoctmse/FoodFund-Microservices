@@ -4,8 +4,14 @@ import { UseGuards, UseInterceptors } from "@nestjs/common"
 import { CognitoGraphQLGuard } from "@libs/aws-cognito"
 import { Campaign } from "@app/campaign/src/domain/entities/campaign.model"
 import { CampaignService } from "@app/campaign/src/application/services/campaign/campaign.service"
-import { CampaignFilterInput, CampaignSortOrder } from "@app/campaign/src/application/dtos/campaign/request"
-import { createUserContextFromToken, CurrentUser } from "@app/campaign/src/shared"
+import {
+    CampaignFilterInput,
+    CampaignSortOrder,
+} from "@app/campaign/src/application/dtos/campaign/request"
+import {
+    createUserContextFromToken,
+    CurrentUser,
+} from "@app/campaign/src/shared"
 
 import { CampaignSearchService } from "@app/campaign/src/application/services/campaign/campaign-search.service"
 import { CampaignSortBy } from "@app/campaign/src/application/dtos/campaign/request/search-campaign.input"
@@ -16,7 +22,7 @@ export class CampaignQueryResolver {
     constructor(
         private readonly campaignService: CampaignService,
         private readonly campaignSearchService: CampaignSearchService,
-    ) { }
+    ) {}
 
     @Query(() => [Campaign], {
         description: "Get campaigns with filtering, search, and pagination",
@@ -84,6 +90,20 @@ export class CampaignQueryResolver {
         @Args("id", { type: () => String }) id: string,
     ): Promise<Campaign | null> {
         return await this.campaignService.findCampaignById(id)
+    }
+
+    @Query(() => Campaign, {
+        description: "Get campaign by URL-friendly slug",
+        nullable: true,
+    })
+    async campaignBySlug(
+        @Args("slug", {
+            type: () => String,
+            description: "URL-friendly slug (e.g., 'chien-dich-com-tu-thien')",
+        })
+            slug: string,
+    ): Promise<Campaign | null> {
+        return await this.campaignService.findCampaignBySlug(slug)
     }
 
     @Query(() => [Campaign], {

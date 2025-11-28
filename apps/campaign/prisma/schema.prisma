@@ -12,6 +12,7 @@ datasource db {
 model Campaign {
   id                     String                  @id @default(uuid())
   title                  String
+  slug                   String?                  @unique
   description            String
   cover_image            String
   target_amount          BigInt                  @default(0)
@@ -49,6 +50,7 @@ model Campaign {
   @@index([category_id])
   @@index([status, fundraising_end_date])
   @@index([donation_count])
+  @@index([slug])
   @@map("campaigns")
 }
 

@@ -1,6 +1,10 @@
 import { Injectable } from "@nestjs/common"
 import { RedisService } from "@libs/redis"
-import { CampaignFilterInput, CampaignSortOrder } from "../../dtos/campaign/request"
+import {
+    CampaignFilterInput,
+    CampaignSortOrder,
+} from "../../dtos/campaign/request"
+import { CampaignStatsResponse } from "../../dtos/campaign/response/campaign-stats.response"
 import { Campaign } from "@app/campaign/src/domain/entities/campaign.model"
 import { BaseCacheService } from "@app/campaign/src/shared/services"
 
@@ -29,6 +33,7 @@ export class CampaignCacheService extends BaseCacheService<Campaign> {
 
     protected readonly KEYS = {
         SINGLE: "campaign",
+        SLUG: "campaign:slug",
         LIST: "campaigns:list",
         USER: "campaigns:user",
         CATEGORY: "campaigns:category",
@@ -60,6 +65,25 @@ export class CampaignCacheService extends BaseCacheService<Campaign> {
 
     async deleteCampaign(id: string): Promise<void> {
         return this.deleteSingle(this.KEYS.SINGLE, id)
+    }
+
+    // ==================== Campaign by Slug ====================
+
+    async getCampaignBySlug(slug: string): Promise<Campaign | null> {
+        return this.getSingle(this.KEYS.SLUG, slug)
+    }
+
+    async setCampaignBySlug(slug: string, campaign: Campaign): Promise<void> {
+        return this.setSingle(
+            this.KEYS.SLUG,
+            slug,
+            campaign,
+            this.TTL.SINGLE_CAMPAIGN,
+        )
+    }
+
+    async deleteCampaignBySlug(slug: string): Promise<void> {
+        return this.deleteSingle(this.KEYS.SLUG, slug)
     }
 
     // ==================== Campaign Lists ====================
@@ -166,11 +190,16 @@ export class CampaignCacheService extends BaseCacheService<Campaign> {
 
     // ==================== Platform Stats ====================
 
-    async getPlatformStats(filter: string): Promise<any | null> {
+    async getPlatformStats(
+        filter: string,
+    ): Promise<CampaignStatsResponse | null> {
         return this.getStats(this.KEYS.PLATFORM_STATS, filter)
     }
 
-    async setPlatformStats(filter: string, stats: any): Promise<void> {
+    async setPlatformStats(
+        filter: string,
+        stats: CampaignStatsResponse,
+    ): Promise<void> {
         return this.setStats(
             this.KEYS.PLATFORM_STATS,
             stats,
@@ -204,11 +233,16 @@ export class CampaignCacheService extends BaseCacheService<Campaign> {
 
     // ==================== Category Stats ====================
 
-    async getCategoryStats(categoryId: string): Promise<any | null> {
+    async getCategoryStats(
+        categoryId: string,
+    ): Promise<CampaignStatsResponse | null> {
         return this.getStats(this.KEYS.CATEGORY_STATS, categoryId)
     }
 
-    async setCategoryStats(categoryId: string, stats: any): Promise<void> {
+    async setCategoryStats(
+        categoryId: string,
+        stats: CampaignStatsResponse,
+    ): Promise<void> {
         return this.setStats(
             this.KEYS.CATEGORY_STATS,
             stats,
@@ -223,11 +257,16 @@ export class CampaignCacheService extends BaseCacheService<Campaign> {
 
     // ==================== User Stats ====================
 
-    async getUserCampaignStats(userId: string): Promise<any | null> {
+    async getUserCampaignStats(
+        userId: string,
+    ): Promise<CampaignStatsResponse | null> {
         return this.getStats(this.KEYS.USER_STATS, userId)
     }
 
-    async setUserCampaignStats(userId: string, stats: any): Promise<void> {
+    async setUserCampaignStats(
+        userId: string,
+        stats: CampaignStatsResponse,
+    ): Promise<void> {
         return this.setStats(
             this.KEYS.USER_STATS,
             stats,
@@ -245,6 +284,7 @@ export class CampaignCacheService extends BaseCacheService<Campaign> {
     async invalidateAll(
         campaignId?: string,
         userId?: string,
+        slug?: string,
         categoryId?: string,
     ): Promise<void> {
         const operations: Promise<void>[] = [
@@ -254,6 +294,10 @@ export class CampaignCacheService extends BaseCacheService<Campaign> {
 
         if (campaignId) {
             operations.push(this.deleteCampaign(campaignId))
+        }
+
+        if (slug) {
+            operations.push(this.deleteCampaignBySlug(slug))
         }
 
         if (userId) {

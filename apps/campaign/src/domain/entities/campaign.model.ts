@@ -13,6 +13,9 @@ export class Campaign extends BaseSchema {
         title: string
 
     @Field(() => String)
+        slug: string
+
+    @Field(() => String)
         description: string
 
     @Field(() => String)
