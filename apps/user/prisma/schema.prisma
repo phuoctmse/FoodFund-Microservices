@@ -92,7 +92,7 @@ model User_Badge {
   id         String   @id @default(uuid())
   user_id    String   @unique
   user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  badge_id   String   @unique
+  badge_id   String   
   badge      Badge    @relation(fields: [badge_id], references: [id], onDelete: Cascade)
   awarded_at DateTime @default(now())
 
