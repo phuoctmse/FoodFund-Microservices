@@ -20,8 +20,9 @@ model Ingredient_Request {
   created_at        DateTime                  @default(now())
   updated_at        DateTime                  @updatedAt
 
-  items          Ingredient_Request_Item[]
-  expense_proofs Expense_Proof[]
+  items              Ingredient_Request_Item[]
+  expense_proofs     Expense_Proof[]
+  inflowTransactions Inflow_Transaction[]
 
   @@index([campaign_phase_id])
   @@index([kitchen_staff_id])
@@ -71,18 +72,19 @@ model Expense_Proof {
 }
 
 model Operation_Request {
-  id                String                   @id @default(uuid())
-  campaign_phase_id String
-  user_id           String
-  organization_id   String?
-  title             String                   @db.VarChar(100)
-  total_cost        BigInt                   @default(0)
-  expense_type      Operation_Expense_Type
-  status            Operation_Request_Status @default(PENDING)
-  admin_note        String?                  @db.Text()
-  changed_status_at DateTime?
-  created_at        DateTime                 @default(now())
-  updated_at        DateTime                 @updatedAt
+  id                 String                   @id @default(uuid())
+  campaign_phase_id  String
+  user_id            String
+  organization_id    String?
+  title              String                   @db.VarChar(100)
+  total_cost         BigInt                   @default(0)
+  expense_type       Operation_Expense_Type
+  status             Operation_Request_Status @default(PENDING)
+  admin_note         String?                  @db.Text()
+  changed_status_at  DateTime?
+  created_at         DateTime                 @default(now())
+  updated_at         DateTime                 @updatedAt
+  inflowTransactions Inflow_Transaction[]
 
   @@index([campaign_phase_id])
   @@index([user_id])
@@ -182,6 +184,9 @@ model Inflow_Transaction {
   created_at            DateTime                  @default(now())
   updated_at            DateTime                  @updatedAt
   reported_at           DateTime?
+
+  ingredient_request Ingredient_Request? @relation(fields: [ingredient_request_id], references: [id])
+  operation_request  Operation_Request?  @relation(fields: [operation_request_id], references: [id])
 
   @@index([campaign_phase_id])
   @@index([receiver_id])
