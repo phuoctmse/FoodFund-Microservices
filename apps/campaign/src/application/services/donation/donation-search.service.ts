@@ -16,7 +16,13 @@ export class DonationSearchService implements OnModuleInit {
 
     async onModuleInit() {
         await this.createIndexIfNotExists()
+        // await this.syncAllData()
     }
+
+    // async syncAllData() {
+    //     this.logger.log("Forcing full data sync on module init...")
+    //     await this.syncAll(new Date("2000-01-01"))
+    // }
 
     private async createIndexIfNotExists() {
         const exists = await this.openSearchService.indexExists(this.indexName)
@@ -112,7 +118,10 @@ export class DonationSearchService implements OnModuleInit {
             const successfulTx = transactions.find((tx: any) => tx.status === "SUCCESS")
             const mainTx = successfulTx || transactions[0] || {}
 
-            const receivedAmount = successfulTx ? parseFloat(successfulTx.amount.toString()) : 0
+            // received_amount is the actual money transferred
+            const txReceivedAmount = successfulTx ? (successfulTx.received_amount || successfulTx.receivedAmount) : 0
+            const receivedAmount = txReceivedAmount ? parseFloat(txReceivedAmount.toString()) : 0
+
             const status = successfulTx ? "SUCCESS" : (mainTx.status || "PENDING")
 
             const body = {
@@ -121,8 +130,8 @@ export class DonationSearchService implements OnModuleInit {
                 campaignTitle: donation.campaign?.title || "",
                 donorName: donation.is_anonymous ? "Anonymous" : (donation.donor_name || "Guest"),
                 donorEmail: donation.donor_email,
-                amount: parseFloat(donation.amount.toString()),
-                receivedAmount: receivedAmount,
+                amount: parseFloat(donation.amount.toString()), // Order amount
+                receivedAmount: receivedAmount, // Actual received amount
                 currency: mainTx.currency || "VND",
                 transactionCode: mainTx.order_code ? mainTx.order_code.toString() : (mainTx.external_transaction_id || ""),
                 status: status,
@@ -133,9 +142,12 @@ export class DonationSearchService implements OnModuleInit {
                 createdAt: donation.created_at,
                 paymentTransactions: transactions.map((tx) => {
                     const sepayMetadata = tx.sepay_metadata ? (typeof tx.sepay_metadata === "string" ? JSON.parse(tx.sepay_metadata) : tx.sepay_metadata) : {}
+                    const txRecv = (tx.received_amount || tx.receivedAmount)
                     return {
                         id: tx.id,
-                        amount: parseFloat(tx.amount.toString()),
+                        // For statements, we care about the received amount. 
+                        // Since we can't change index schema easily, we store received_amount in 'amount' field for the transaction.
+                        amount: txRecv ? parseFloat(txRecv.toString()) : 0,
                         method: tx.payment_method,
                         status: tx.status,
                         transactionCode: tx.order_code ? tx.order_code.toString() : (tx.external_transaction_id || ""),
@@ -158,7 +170,7 @@ export class DonationSearchService implements OnModuleInit {
         }
     }
 
-    async search(input: SearchDonationInput, sortByField: string = "createdAt") {
+    async search(input: SearchDonationInput, sortByField: string = "createdAt", aggField: string = "amount") {
         const {
             campaignId,
             donorEmail,
@@ -197,7 +209,7 @@ export class DonationSearchService implements OnModuleInit {
         // Aggregation to calculate total amount
         const aggs = {
             totalAmount: {
-                sum: { field: "amount" }
+                sum: { field: aggField }
             }
         }
 
@@ -225,10 +237,10 @@ export class DonationSearchService implements OnModuleInit {
     }
 
     @Cron(CronExpression.EVERY_MINUTE)
-    async syncAll() {
+    async syncAll(since?: Date) {
         this.logger.log("Starting scheduled donation sync...")
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
-        const donations = await this.donorRepository.findRecentlyUpdated(fiveMinutesAgo)
+        const syncSince = since || new Date(Date.now() - 5 * 60 * 1000)
+        const donations = await this.donorRepository.findRecentlyUpdated(syncSince)
 
         if (donations.length === 0) {
             return { successCount: 0, failCount: 0 }

@@ -62,6 +62,12 @@ export class UserProfileSchema extends AbstractSchema {
     })
         badge?: Badge
 
+    @Field(() => String, {
+        nullable: true,
+        description: "User's cognito id",
+    })
+        cognito_id?: string
+
     __typename?: string
 
     constructor() {

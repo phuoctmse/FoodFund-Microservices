@@ -786,6 +786,7 @@ export class OrganizationService {
                     member_role: member.member_role,
                     status: member.status,
                     joined_at: member.joined_at,
+                    cognito_id: member.member.cognito_id,
                 })) || [],
             total_members: organization.Organization_Member?.length || 0,
             active_members:
