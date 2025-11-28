@@ -11,17 +11,17 @@ import {
     Role,
     UserContext,
 } from "@app/operation/src/shared"
-import {
-    CreateIngredientRequestInput,
-    IngredientRequestFilterInput,
-    UpdateIngredientRequestStatusInput,
-} from "../../dtos"
 import { IngredientRequest } from "@app/operation/src/domain"
 import { IngredientRequestStatus } from "@app/operation/src/domain/enums"
 import { GrpcClientService } from "@libs/grpc"
 import { IngredientRequestCacheService } from "./ingredient-request-cache.service"
 import { BaseOperationService } from "@app/operation/src/shared/services"
 import { BudgetValidationHelper } from "@app/operation/src/shared/helpers"
+import {
+    CreateIngredientRequestInput,
+    IngredientRequestFilterInput,
+    UpdateIngredientRequestStatusInput,
+} from "../../dtos/ingredient-request/request/ingredient-request.input"
 
 @Injectable()
 export class IngredientRequestService extends BaseOperationService {
@@ -105,7 +105,7 @@ export class IngredientRequestService extends BaseOperationService {
             const request = await this.repository.create(
                 input,
                 userContext.userId,
-                organizationId || ""
+                organizationId || "",
             )
 
             await this.updateCampaignPhaseStatus(
@@ -251,6 +251,39 @@ export class IngredientRequestService extends BaseOperationService {
             this.sentryService.captureError(error as Error, {
                 operation: "IngredientRequestService.getMyRequests",
                 userId: userContext.userId,
+            })
+            throw error
+        }
+    }
+
+    async getStats(userContext: UserContext): Promise<{
+        totalRequests: number
+        pendingCount: number
+        approvedCount: number
+        rejectedCount: number
+        disbursedCount: number
+    }> {
+        try {
+            this.authService.requireAdmin(
+                userContext,
+                "view ingredient request statistics",
+            )
+
+            const cachedStats = await this.cacheService.getRequestStats()
+
+            if (cachedStats) {
+                return cachedStats
+            }
+
+            const stats = await this.repository.getStats()
+
+            await this.cacheService.setRequestStats(stats)
+
+            return stats
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "IngredientRequestService.getStats",
+                adminId: userContext.userId,
             })
             throw error
         }

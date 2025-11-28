@@ -1,8 +1,8 @@
-import { IngredientRequestFilterInput } from "../../dtos"
 import { Injectable } from "@nestjs/common"
 import { RedisService } from "@libs/redis"
 import { IngredientRequest } from "@app/operation/src/domain"
 import { BaseCacheService } from "@app/operation/src/shared/services"
+import { IngredientRequestFilterInput } from "../../dtos/ingredient-request/request/ingredient-request.input"
 
 export interface IngredientRequestListCacheKey {
     filter?: IngredientRequestFilterInput
@@ -152,6 +152,7 @@ export class IngredientRequestCacheService extends BaseCacheService<IngredientRe
         pendingCount: number
         approvedCount: number
         rejectedCount: number
+        disbursedCount: number
     } | null> {
         return this.getStats(this.KEYS.STATS)
     }
@@ -161,6 +162,7 @@ export class IngredientRequestCacheService extends BaseCacheService<IngredientRe
         pendingCount: number
         approvedCount: number
         rejectedCount: number
+        disbursedCount: number
     }): Promise<void> {
         return this.setStats(this.KEYS.STATS, stats, this.TTL.STATS)
     }
