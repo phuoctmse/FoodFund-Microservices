@@ -151,13 +151,19 @@ export function generateSlug(text: string, maxLength: number = 100): string {
 
     let slug = text.trim().toLowerCase()
 
+    const PROCESSING_MAX = 1024
+    if (slug.length > PROCESSING_MAX) {
+        slug = slug.substring(0, PROCESSING_MAX)
+    }
+
     slug = removeVietnameseDiacritics(slug)
 
     slug = slug
         .replaceAll(/[^a-z0-9\s-]/g, "")
         .replaceAll(/\s+/g, "-")
         .replaceAll(/-+/g, "-")
-        .replaceAll(/(^-+)|(-+$)/g, "")
+        .replaceAll(/^-+/g, "")
+        .replaceAll(/-+$/g, "")
 
     if (slug.length > maxLength) {
         slug = slug.substring(0, maxLength)
