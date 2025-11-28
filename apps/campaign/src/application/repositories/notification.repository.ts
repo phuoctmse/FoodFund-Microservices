@@ -36,7 +36,7 @@ export class NotificationRepository {
             data: {
                 user_id: data.userId,
                 actor_id: data.actorId,
-                type: data.type,
+                type: data.type as any,
                 entity_type: data.entityType as any,
                 entity_id: data.entityId,
                 data: data.data as any,
@@ -216,7 +216,7 @@ export class NotificationRepository {
             where: {
                 user_id: userId,
                 entity_id: entityId,
-                type: type,
+                type: type as any,
                 is_read: false,
             },
             select: { id: true, created_at: true, is_read: true },

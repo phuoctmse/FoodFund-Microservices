@@ -57,6 +57,7 @@ export interface UpdateCampaignData {
     extensionCount?: number
     extensionDays?: number
     donationCount?: number
+    reason?: string
 }
 
 export interface ExtendCampaignData {
@@ -108,7 +109,7 @@ export class CampaignRepository {
         },
     } as const
 
-    constructor(private readonly prisma: PrismaClient) { }
+    constructor(private readonly prisma: PrismaClient) {}
 
     async create(data: CreateCampaignData): Promise<Campaign> {
         const { phases, ...campaignData } = data
@@ -656,6 +657,7 @@ export class CampaignRepository {
             updateData.extension_days = data.extensionDays
         if (data.donationCount !== undefined)
             updateData.donation_count = data.donationCount
+        if (data.reason !== undefined) updateData.reason = data.reason
 
         const campaign = await this.prisma.campaign.update({
             where: { id, is_active: true },
@@ -830,20 +832,20 @@ export class CampaignRepository {
                 const ingredientFunds =
                     fundableAmount > 0n
                         ? (fundableAmount *
-                            BigInt(Math.floor(ingredientPct * 10000))) /
-                        10000n
+                              BigInt(Math.floor(ingredientPct * 10000))) /
+                          10000n
                         : 0n
                 const cookingFunds =
                     fundableAmount > 0n
                         ? (fundableAmount *
-                            BigInt(Math.floor(cookingPct * 10000))) /
-                        10000n
+                              BigInt(Math.floor(cookingPct * 10000))) /
+                          10000n
                         : 0n
                 const deliveryFunds =
                     fundableAmount > 0n
                         ? (fundableAmount *
-                            BigInt(Math.floor(deliveryPct * 10000))) /
-                        10000n
+                              BigInt(Math.floor(deliveryPct * 10000))) /
+                          10000n
                         : 0n
 
                 return {
@@ -964,7 +966,7 @@ export class CampaignRepository {
             daysActive =
                 Math.floor(
                     (todayMidnight.getTime() - startMidnight.getTime()) /
-                    msPerDay,
+                        msPerDay,
                 ) + 1
         }
 

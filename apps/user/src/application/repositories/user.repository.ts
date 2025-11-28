@@ -64,7 +64,7 @@ export class UserRepository {
         }
 
         return this.prisma.user.findUnique({
-            where: { cognito_id },
+            where: { cognito_id, is_active: true },
         })
     }
 

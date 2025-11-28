@@ -51,6 +51,10 @@ import {
     GetUserDisplayNameResponse,
     GetWalletTransactionsByPaymentIdRequest,
     GetWalletTransactionsByPaymentIdResponse,
+    GetOrganizationByIdRequest,
+    GetOrganizationByIdResponse,
+    GetVerifiedOrganizationsRequest,
+    GetVerifiedOrganizationsResponse,
 } from "../../application/dtos/user-grpc.dto"
 
 const ROLE_MAP = {
@@ -72,7 +76,7 @@ export class UserGrpcController {
         private readonly walletTransactionService: WalletTransactionService,
         private readonly userBadgeService: UserBadgeService,
         private readonly userBadgeRepository: UserBadgeRepository,
-    ) { }
+    ) {}
 
     /**
      * Helper: Map user entity to gRPC response format
@@ -1049,6 +1053,85 @@ export class UserGrpcController {
             return {
                 success: false,
                 error: error.message || "Failed to debit wallet",
+            }
+        }
+    }
+
+    @GrpcMethod("UserService", "GetVerifiedOrganizations")
+    async getVerifiedOrganizations(
+        data: GetVerifiedOrganizationsRequest,
+    ): Promise<GetVerifiedOrganizationsResponse> {
+        try {
+            const organizations =
+                await this.organizationRepository.findAllOrganizations({
+                    status: "VERIFIED",
+                })
+
+            return {
+                success: true,
+                organizations: organizations.map((org) => ({
+                    id: org.id,
+                    name: org.name,
+                    representativeId: org.representative_id,
+                    representativeName: org.user?.full_name || "",
+                    activityField: org.activity_field || "",
+                    address: org.address || "",
+                    phoneNumber: org.phone_number || "",
+                    email: org.email || "",
+                })) as any,
+            }
+        } catch (error) {
+            this.logger.error("[GetVerifiedOrganizations] Failed:", error)
+            return {
+                success: false,
+                organizations: [],
+                error: error.message,
+            }
+        }
+    }
+
+    @GrpcMethod("UserService", "GetOrganizationById")
+    async getOrganizationById(
+        data: GetOrganizationByIdRequest,
+    ): Promise<GetOrganizationByIdResponse> {
+        const { organizationId } = data
+
+        if (!organizationId) {
+            return {
+                success: false,
+                error: "Organization ID is required",
+            }
+        }
+
+        try {
+            const organization =
+                await this.organizationRepository.findOrganizationById(
+                    organizationId,
+                )
+
+            if (!organization) {
+                return {
+                    success: false,
+                    error: `Organization ${organizationId} not found`,
+                }
+            }
+
+            return {
+                success: true,
+                organization: {
+                    id: organization.id,
+                    name: organization.name,
+                    representativeId: organization.representative_id,
+                },
+            }
+        } catch (error) {
+            this.logger.error(
+                `[GetOrganizationById] Failed for ${organizationId}:`,
+                error,
+            )
+            return {
+                success: false,
+                error: error.message,
             }
         }
     }

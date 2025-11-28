@@ -15,6 +15,33 @@ export interface UserDisplayInfo {
     avatarUrl: string
 }
 
+export interface OrganizationInfo {
+    id: string
+    name: string
+    representativeId: string
+    representativeName: string
+    activityField?: string
+    address?: string
+    phoneNumber?: string
+    email?: string
+}
+
+export interface GetVerifiedOrganizationsResponse {
+    success: boolean
+    organizations: OrganizationInfo[]
+    error?: string
+}
+
+export interface GetOrganizationByIdResponse {
+    success: boolean
+    organization?: {
+        id: string
+        name: string
+        representativeId: string
+    }
+    error?: string
+}
+
 @Injectable()
 export class UserClientService {
     private readonly logger = new Logger(UserClientService.name)
@@ -589,5 +616,100 @@ export class UserClientService {
                 error?: string
             }
         >("GetUserBasicInfo", { userId })
+    }
+
+    async getVerifiedOrganizations(): Promise<GetVerifiedOrganizationsResponse> {
+        try {
+            const response = await this.grpcClient.callUserService<
+                Record<string, never>,
+                {
+                    success: boolean
+                    organizations?: Array<{
+                        id: string
+                        name: string
+                        representativeId: string
+                        representativeName: string
+                        activityField: string
+                        address: string
+                        phoneNumber: string
+                        email: string
+                    }>
+                    error?: string
+                }
+            >("GetVerifiedOrganizations", {}, { timeout: 5000, retries: 2 })
+
+            if (!response.success) {
+                this.logger.warn(
+                    `[gRPC] GetVerifiedOrganizations failed: ${response.error}`,
+                )
+                return {
+                    success: false,
+                    organizations: [],
+                    error: response.error,
+                }
+            }
+
+            return {
+                success: true,
+                organizations: response.organizations || [],
+            }
+        } catch (error) {
+            this.logger.error(
+                "[gRPC] Error calling GetVerifiedOrganizations:",
+                error,
+            )
+            return {
+                success: false,
+                organizations: [],
+                error: error.message,
+            }
+        }
+    }
+
+    async getOrganizationById(
+        organizationId: string,
+    ): Promise<GetOrganizationByIdResponse> {
+        try {
+            const response = await this.grpcClient.callUserService<
+                { organizationId: string },
+                {
+                    success: boolean
+                    organization?: {
+                        id: string
+                        name: string
+                        representativeId: string
+                    }
+                    error?: string
+                }
+            >(
+                "GetOrganizationById",
+                { organizationId },
+                { timeout: 3000, retries: 2 },
+            )
+
+            if (!response.success) {
+                this.logger.warn(
+                    `[gRPC] GetOrganizationById failed: ${response.error}`,
+                )
+                return {
+                    success: false,
+                    error: response.error,
+                }
+            }
+
+            return {
+                success: true,
+                organization: response.organization,
+            }
+        } catch (error) {
+            this.logger.error(
+                `[gRPC] Error calling GetOrganizationById for ${organizationId}:`,
+                error,
+            )
+            return {
+                success: false,
+                error: error.message,
+            }
+        }
     }
 }

@@ -18,15 +18,15 @@ async function bootstrap() {
     const app = await NestFactory.create(AppModule, {
         bufferLogs: true,
     })
-
+    const env = envConfig()
     const sentryService = app.get(SentryService)
     const datadogInterceptor = app.get(DatadogInterceptor)
 
     app.useGlobalPipes(new CustomValidationPipe())
-    app.useGlobalFilters(new GraphQLExceptionFilter(sentryService))
+    if(process.env.NODE_ENV === "production") {
+        app.useGlobalFilters(new GraphQLExceptionFilter(sentryService))
+    }
     app.useGlobalInterceptors(datadogInterceptor)
-
-    const env = envConfig()
     const grpcPort = env.grpc.campaign?.port || 50003
     const grpcUrl = env.grpc.campaign?.url || "localhost:50003"
     const port = env.containers["campaigns-subgraph"]?.port || 8004

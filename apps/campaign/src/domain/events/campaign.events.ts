@@ -27,6 +27,7 @@ export interface CampaignCancelledEvent {
     campaignTitle: string
     fundraiserId: string
     reason?: string
+    previousStatus: string
 }
 
 export interface CampaignDonationReceivedEvent {

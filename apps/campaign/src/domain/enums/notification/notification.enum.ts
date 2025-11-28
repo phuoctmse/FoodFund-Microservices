@@ -7,6 +7,10 @@ export enum NotificationType {
     CAMPAIGN_CANCELLED = "CAMPAIGN_CANCELLED",
     CAMPAIGN_DONATION_RECEIVED = "CAMPAIGN_DONATION_RECEIVED",
     CAMPAIGN_NEW_POST = "CAMPAIGN_NEW_POST",
+    CAMPAIGN_REASSIGNMENT_PENDING = "CAMPAIGN_REASSIGNMENT_PENDING",
+    CAMPAIGN_OWNERSHIP_TRANSFERRED = "CAMPAIGN_OWNERSHIP_TRANSFERRED",
+    CAMPAIGN_OWNERSHIP_RECEIVED = "CAMPAIGN_OWNERSHIP_RECEIVED",
+    CAMPAIGN_REASSIGNMENT_EXPIRED = "CAMPAIGN_REASSIGNMENT_EXPIRED",
 
     POST_COMMENT = "POST_COMMENT",
     POST_REPLY = "POST_REPLY",
@@ -136,10 +140,10 @@ registerEnumType(NotificationStatus, {
     },
 })
 
-/**
- * Priority mapping for notification types
- */
-export const NOTIFICATION_PRIORITY_MAP: Record<NotificationType, NotificationPriority> = {
+export const NOTIFICATION_PRIORITY_MAP: Record<
+    NotificationType,
+    NotificationPriority
+> = {
     // High priority
     [NotificationType.CAMPAIGN_APPROVED]: NotificationPriority.HIGH,
     [NotificationType.CAMPAIGN_REJECTED]: NotificationPriority.HIGH,
@@ -148,6 +152,10 @@ export const NOTIFICATION_PRIORITY_MAP: Record<NotificationType, NotificationPri
     [NotificationType.INGREDIENT_REQUEST_APPROVED]: NotificationPriority.HIGH,
     [NotificationType.DELIVERY_TASK_ASSIGNED]: NotificationPriority.HIGH,
     [NotificationType.SYSTEM_ANNOUNCEMENT]: NotificationPriority.HIGH,
+    [NotificationType.CAMPAIGN_REASSIGNMENT_PENDING]: NotificationPriority.HIGH,
+    [NotificationType.CAMPAIGN_REASSIGNMENT_EXPIRED]: NotificationPriority.HIGH,
+    [NotificationType.CAMPAIGN_OWNERSHIP_RECEIVED]: NotificationPriority.HIGH,
+    [NotificationType.CAMPAIGN_OWNERSHIP_TRANSFERRED]: NotificationPriority.HIGH,
 
     // Medium priority
     [NotificationType.CAMPAIGN_DONATION_RECEIVED]: NotificationPriority.MEDIUM,
@@ -159,6 +167,7 @@ export const NOTIFICATION_PRIORITY_MAP: Record<NotificationType, NotificationPri
     [NotificationType.POST_LIKE]: NotificationPriority.LOW,
 }
 
-export const NOTIFICATION_DELAY_MAP: Partial<Record<NotificationType, number>> = {
-    [NotificationType.POST_LIKE]: 10,
-}
+export const NOTIFICATION_DELAY_MAP: Partial<Record<NotificationType, number>> =
+    {
+        [NotificationType.POST_LIKE]: 10,
+    }

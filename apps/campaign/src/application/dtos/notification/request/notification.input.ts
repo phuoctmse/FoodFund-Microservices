@@ -1,10 +1,15 @@
 import { Field, InputType, Int } from "@nestjs/graphql"
 import { IsBoolean, IsInt, IsOptional, IsString, Min } from "class-validator"
-import { NotificationPriority, NotificationType } from "@app/campaign/src/domain/enums/notification"
+import {
+    NotificationPriority,
+    NotificationType,
+} from "@app/campaign/src/domain/enums/notification"
 import { Notification } from "@app/campaign/src/domain/entities/notification.model"
 import { NotificationDataMap } from "@app/campaign/src/domain/interfaces/notification"
 
-export interface CreateNotificationInput<T extends NotificationType> {
+export interface CreateNotificationInput<
+    T extends NotificationType & keyof NotificationDataMap,
+> {
     userId: string
     type: T
     data: NotificationDataMap[T]

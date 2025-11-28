@@ -25,7 +25,6 @@ import {
     User,
     UserClientService,
     UserDataLoader,
-    UserResolver,
 } from "./shared"
 import { CampaignQueryResolver } from "./presentation/graphql/campaign/queries"
 import { CampaignSearchResolver } from "./presentation/graphql/campaign/queries/campaign-search.resolver"
@@ -116,6 +115,11 @@ import { Organization } from "./shared/model"
 
 import { DonationSearchService } from "./application/services/donation/donation-search.service"
 import { DonationSearchResolver } from "./presentation/graphql/donation/donor/queries/donation-search.resolver"
+import { CampaignReassignmentService } from "./application/services/campaign-reassignment"
+import { CampaignReassignmentRepository } from "./application/repositories/campaign-reassignment.repository"
+import { ReassignmentQueryResolver } from "./presentation/graphql/campaign-reassignment/queries"
+import { ReassignmentMutationResolver } from "./presentation/graphql/campaign-reassignment/mutations"
+import { ReassignmentExpiryJob } from "./application/workers/campaign-reassignment/campaign-reassignment-expiry.job"
 
 @Module({
     imports: [
@@ -191,6 +195,7 @@ import { DonationSearchResolver } from "./presentation/graphql/donation/donor/qu
         CampaignCategoryCacheService,
         CampaignCategoryService,
         CampaignPhaseService,
+        CampaignReassignmentService,
         DonorService,
         DonationWebhookService,
         SepayWebhookService,
@@ -205,7 +210,6 @@ import { DonationSearchResolver } from "./presentation/graphql/donation/donor/qu
         NotificationService,
         NotificationCacheService,
 
-        UserResolver,
         CampaignQueryResolver,
         CampaignSearchResolver,
         CampaignStatsQueryResolver,
@@ -214,6 +218,8 @@ import { DonationSearchResolver } from "./presentation/graphql/donation/donor/qu
         CampaignCategoryMutationResolver,
         CampaignPhaseQueryResolver,
         CampaignPhaseMutationResolver,
+        ReassignmentQueryResolver,
+        ReassignmentMutationResolver,
         DonorMutationResolver,
         DonorQueryResolver,
         AdminQueryResolver,
@@ -230,6 +236,7 @@ import { DonationSearchResolver } from "./presentation/graphql/donation/donor/qu
         CampaignRepository,
         CampaignCategoryRepository,
         CampaignPhaseRepository,
+        CampaignReassignmentRepository,
         DonorRepository,
         PostRepository,
         PostLikeRepository,
@@ -237,6 +244,7 @@ import { DonationSearchResolver } from "./presentation/graphql/donation/donor/qu
         NotificationRepository,
 
         CampaignStatusJob,
+        ReassignmentExpiryJob,
         PostLikeProcessor,
         NotificationProcessor,
         PostLikeQueue,
@@ -267,4 +275,4 @@ import { DonationSearchResolver } from "./presentation/graphql/donation/donor/qu
         DonationSearchResolver,
     ],
 })
-export class AppModule { }
+export class AppModule {}
