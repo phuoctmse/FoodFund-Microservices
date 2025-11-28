@@ -37,13 +37,36 @@ function removeVietnameseDiacritics(str: string): string {
 }
 
 /**
+ * Removes leading hyphens from a string
+ * O(n) time complexity, no regex backtracking
+ */
+function trimLeadingHyphens(str: string): string {
+    let i = 0
+    while (i < str.length && str[i] === "-") {
+        i++
+    }
+    return str.substring(i)
+}
+
+/**
+ * Removes trailing hyphens from a string
+ * O(n) time complexity, no regex backtracking
+ */
+function trimTrailingHyphens(str: string): string {
+    let i = str.length - 1
+    while (i >= 0 && str[i] === "-") {
+        i--
+    }
+    return str.substring(0, i + 1)
+}
+
+/**
  * Generates a URL-friendly slug from text
  * @param text - Input text to convert to slug
  * @param maxLength - Maximum length of the slug (default: 100)
  * @returns URL-safe slug string
  *
- * Security: Input is limited to 1024 chars before regex processing
- * All regex patterns used are linear-time safe (no ReDoS vulnerability)
+ * Security: No ReDoS vulnerability - uses safe regex patterns and string operations
  */
 export function generateSlug(text: string, maxLength: number = 100): string {
     if (!text || typeof text !== "string") {
@@ -57,17 +80,12 @@ export function generateSlug(text: string, maxLength: number = 100): string {
         slug = slug.substring(0, PROCESSING_MAX)
     }
 
-    // Remove Vietnamese diacritics
     slug = removeVietnameseDiacritics(slug)
-    // Remove non-alphanumeric characters (except spaces and hyphens)
     slug = slug.replaceAll(/[^a-z0-9\s-]/g, "")
-    // Replace spaces with hyphens
     slug = slug.replaceAll(/\s+/g, "-")
-    // Collapse multiple hyphens
     slug = slug.replaceAll(/-+/g, "-")
-    // Remove leading hyphens
-    slug = slug.replace(/^-+/, "")
-    slug = slug.replace(/-+$/, "")
+    slug = trimLeadingHyphens(slug)
+    slug = trimTrailingHyphens(slug)
 
     if (slug.length > maxLength) {
         slug = slug.substring(0, maxLength)
@@ -75,6 +93,7 @@ export function generateSlug(text: string, maxLength: number = 100): string {
         if (lastHyphen > maxLength * 0.7) {
             slug = slug.substring(0, lastHyphen)
         }
+        slug = trimTrailingHyphens(slug)
     }
 
     return slug
