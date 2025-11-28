@@ -6,7 +6,7 @@ import { SentryService } from "@libs/observability/sentry.service"
 import { GraphQLExceptionFilter } from "@libs/exceptions"
 import { envConfig } from "@libs/env"
 import { DatadogInterceptor, initDatadogTracer } from "@libs/observability"
-import { join } from "path"
+import { join } from "node:path"
 
 initDatadogTracer({
     serviceName: "campaign-service",

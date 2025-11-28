@@ -10,8 +10,8 @@ import {
     MaxLength,
     ValidateNested,
 } from "class-validator"
-import { CreateIngredientRequestItemInput } from "../ingredient-request-item"
 import { IngredientRequestSortOrder } from "@app/operation/src/domain/enums/ingredient-request"
+import { CreateIngredientRequestItemInput } from "../../ingredient-request-item"
 
 @InputType()
 export class CreateIngredientRequestInput {

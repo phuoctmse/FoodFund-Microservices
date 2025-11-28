@@ -1,4 +1,5 @@
-import { IngredientRequestFilterInput } from "@app/operation/src/application/dtos"
+import { IngredientRequestFilterInput } from "@app/operation/src/application/dtos/ingredient-request/request/ingredient-request.input"
+import { IngredientRequestStatsResponse } from "@app/operation/src/application/dtos/ingredient-request/response"
 import { IngredientRequestService } from "@app/operation/src/application/services"
 import { IngredientRequest } from "@app/operation/src/domain/entities"
 import {
@@ -78,5 +79,16 @@ export class IngredientRequestQueryResolver {
             limit,
             offset,
         )
+    }
+
+    @Query(() => IngredientRequestStatsResponse, {
+        description: "Get ingredient request statistics (Admin only)",
+    })
+    @UseGuards(CognitoGraphQLGuard)
+    async getIngredientRequestStats(
+        @CurrentUser("decodedToken") decodedToken: any,
+    ): Promise<IngredientRequestStatsResponse> {
+        const userContext = createUserContextFromToken(decodedToken)
+        return this.ingredientRequestService.getStats(userContext)
     }
 }

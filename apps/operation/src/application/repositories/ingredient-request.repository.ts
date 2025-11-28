@@ -6,11 +6,11 @@ import {
 } from "../../domain/enums"
 import { Prisma, PrismaClient } from "../../generated/operation-client"
 import { SentryService } from "@libs/observability"
+import { GrpcClientService } from "@libs/grpc"
 import {
     CreateIngredientRequestInput,
     IngredientRequestFilterInput,
-} from "../dtos"
-import { GrpcClientService } from "@libs/grpc"
+} from "../dtos/ingredient-request/request/ingredient-request.input"
 
 @Injectable()
 export class IngredientRequestRepository {
@@ -23,7 +23,7 @@ export class IngredientRequestRepository {
     async create(
         input: CreateIngredientRequestInput,
         kitchenStaffId: string,
-        organizatonId: string
+        organizatonId: string,
     ): Promise<IngredientRequest> {
         const totalCostBigInt = BigInt(input.totalCost)
 
@@ -264,6 +264,39 @@ export class IngredientRequestRepository {
         }
 
         return response.campaignId
+    }
+
+    async getStats(): Promise<{
+        totalRequests: number
+        pendingCount: number
+        approvedCount: number
+        rejectedCount: number
+        disbursedCount: number
+    }> {
+        const [total, pending, approved, rejected, disbursed] =
+            await Promise.all([
+                this.prisma.ingredient_Request.count(),
+                this.prisma.ingredient_Request.count({
+                    where: { status: IngredientRequestStatus.PENDING },
+                }),
+                this.prisma.ingredient_Request.count({
+                    where: { status: IngredientRequestStatus.APPROVED },
+                }),
+                this.prisma.ingredient_Request.count({
+                    where: { status: IngredientRequestStatus.REJECTED },
+                }),
+                this.prisma.ingredient_Request.count({
+                    where: { status: IngredientRequestStatus.DISBURSED },
+                }),
+            ])
+
+        return {
+            totalRequests: total,
+            pendingCount: pending,
+            approvedCount: approved,
+            rejectedCount: rejected,
+            disbursedCount: disbursed,
+        }
     }
 
     async updateStatus(

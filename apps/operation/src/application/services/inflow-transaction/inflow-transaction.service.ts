@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common"
-import { AuthorizationService, Role } from "@app/operation/src/shared"
+import { Role } from "@app/operation/src/shared"
 import { GrpcClientService } from "@libs/grpc"
 import { SentryService } from "@libs/observability"
 import { CurrentUserType } from "@libs/auth"
@@ -8,7 +8,6 @@ import {
     CreateInflowTransactionInput,
     DisbursementConfirmationStatus,
     InflowTransactionListResponse,
-    UpdateIngredientRequestStatusInput,
 } from "../../dtos"
 import { InflowTransaction, InflowTransactionStatus, InflowTransactionType, IngredientRequestStatus } from "../../../domain"
 import { InflowTransactionRepository } from "../../repositories"
