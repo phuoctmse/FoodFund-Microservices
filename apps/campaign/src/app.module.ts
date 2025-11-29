@@ -105,7 +105,7 @@ import { NotificationMutationResolver } from "./presentation/graphql/notificatio
 import { PostLikeQueue } from "./application/workers/post-like/post-like.queue"
 import { NotificationQueue } from "./application/workers/notification/notification.queue"
 import { BrevoEmailService } from "@libs/email"
-import { NotificationProcessor } from "./application/processors"
+import { NotificationProcessor, OutboxProcessor } from "./application/processors"
 import {
     CampaignNotificationHandler,
     PostNotificationHandler,
@@ -120,6 +120,7 @@ import { CampaignReassignmentRepository } from "./application/repositories/campa
 import { ReassignmentQueryResolver } from "./presentation/graphql/campaign-reassignment/queries"
 import { ReassignmentMutationResolver } from "./presentation/graphql/campaign-reassignment/mutations"
 import { ReassignmentExpiryJob } from "./application/workers/campaign-reassignment/campaign-reassignment-expiry.job"
+import { OutBoxRepository } from "./application/repositories/outbox.repository"
 
 @Module({
     imports: [
@@ -242,6 +243,7 @@ import { ReassignmentExpiryJob } from "./application/workers/campaign-reassignme
         PostLikeRepository,
         PostCommentRepository,
         NotificationRepository,
+        OutBoxRepository,
 
         CampaignStatusJob,
         ReassignmentExpiryJob,
@@ -249,6 +251,7 @@ import { ReassignmentExpiryJob } from "./application/workers/campaign-reassignme
         NotificationProcessor,
         PostLikeQueue,
         NotificationQueue,
+        OutboxProcessor,
 
         UserDataLoader,
         PostLikeDataLoader,
@@ -275,4 +278,4 @@ import { ReassignmentExpiryJob } from "./application/workers/campaign-reassignme
         DonationSearchResolver,
     ],
 })
-export class AppModule {}
+export class AppModule { }

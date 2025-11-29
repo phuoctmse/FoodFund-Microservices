@@ -7,7 +7,6 @@ import { DonorRepository } from "../../repositories/donor.repository"
 import { CampaignStatus } from "@app/campaign/src/domain/enums/campaign/campaign.enum"
 import { DonationEmailService } from "./donation-email.service"
 import { BadgeAwardService } from "./badge-award.service"
-import { DonationSearchService } from "./donation-search.service"
 
 interface SepayWebhookPayload {
     id: number
@@ -35,7 +34,6 @@ export class SepayWebhookService {
         private readonly eventEmitter: EventEmitter2,
         private readonly donationEmailService: DonationEmailService,
         private readonly badgeAwardService: BadgeAwardService,
-        private readonly donationSearchService: DonationSearchService,
     ) { }
 
     async handleSepayWebhook(payload: SepayWebhookPayload): Promise<void> {
@@ -160,9 +158,17 @@ export class SepayWebhookService {
                 return
             }
 
-            const campaignId = donation.campaign_id
+            const outboxPayload = {
+                orderCode: orderCode,
+                amount: payload.transferAmount.toString(),
+                paymentTransactionId: paymentTransaction.id,
+                donorId: donation.donor_id,
+                campaignId: donation.campaign_id,
+                donorName: donation.donor_name,
+                gateway: "SEPAY"
+            }
 
-            const result = await this.donorRepository.updatePaymentTransactionSuccess({
+            await this.donorRepository.updatePaymentTransactionSuccess({
                 order_code: BigInt(orderCode),
                 amount_paid: BigInt(payload.transferAmount),
                 gateway: "SEPAY",
@@ -177,78 +183,58 @@ export class SepayWebhookService {
                     sub_account: payload.subAccount,
                     description: payload.description,
                 },
-            })
-
-            this.logger.log(
-                `[Sepay→Admin] ✅ Payment updated to SUCCESS with PARTIAL status - orderCode=${orderCode}, amount=${payload.transferAmount}/${paymentTransaction.amount}`,
-            )
-
-            if (donation) {
-                await this.donationSearchService.indexDonation({
-                    ...donation,
-                    amount: donation.amount.toString(),
-                    status: "SUCCESS",
-                    orderCode: orderCode.toString(),
-                    transactionDatetime: new Date(payload.transactionDate),
-                    created_at: donation.created_at,
-                    updated_at: new Date(),
-                    campaignTitle: result.campaign.title,
-                    description: payload.description,
-                    gateway: "SEPAY",
-                    paymentStatus: "PARTIAL",
-                    receivedAmount: payload.transferAmount.toString(),
-                    bankName: payload.gateway || "",
-                    bankAccount: payload.subAccount || "",
-                    currency: "VND",
-                    errorCode: "00",
-                    errorDescription: "Success",
-                    processedByWebhook: true,
-                    sepayMetadata: payload,
-                } as any)
-            }
-
-            this.checkAndEmitSurplusEvent(result.campaign)
-
-            const adminUserId = this.getSystemAdminId()
-
-            await this.userClientService.creditAdminWallet({
-                adminId: adminUserId,
-                campaignId: campaignId,
-                paymentTransactionId: paymentTransaction.id,
-                amount: BigInt(payload.transferAmount),
-                gateway: "SEPAY", 
-                description: `Thanh toán qua Sepay - Đơn hàng ${orderCode} | Ref: ${payload.referenceCode}`,
-            })
-
-            this.logger.log(
-                `[Sepay→Admin] ✅ Admin wallet credited - orderCode=${orderCode}, amount=${payload.transferAmount}`,
-            )
-
-            await this.donationEmailService.sendDonationConfirmation(
-                donation,
-                BigInt(payload.transferAmount),
-                donation.campaign,
-                "Sepay",
-            )
-
-            if (donation.donor_id) {
-                const donor = await this.userClientService.getUserByCognitoId(donation.donor_id)
-
-                if (donor) {
-                    await this.userClientService.updateDonorStats({
-                        donorId: donor.id,
-                        amountToAdd: BigInt(payload.transferAmount),
-                        incrementCount: 1,
-                        lastDonationAt: new Date(),
-                    })
-
-                    this.awardBadgeAsync(donor.id)
-                } else {
-                    this.logger.warn(
-                        `[Sepay→Admin] Donor not found for cognito_id: ${donation.donor_id}`,
-                    )
+                outbox_event: {
+                    event_type: "DONATION_PAYMENT_SUCCEEDED",
+                    payload: outboxPayload
                 }
-            }
+            })
+
+            this.logger.log(
+                `[Sepay→Admin] ✅ Payment updated & Outbox event created - orderCode=${orderCode}`,
+            )
+
+            // this.checkAndEmitSurplusEvent(result.campaign)
+
+            // const adminUserId = this.getSystemAdminId()
+
+            // await this.userClientService.creditAdminWallet({
+            //     adminId: adminUserId,
+            //     campaignId: campaignId,
+            //     paymentTransactionId: paymentTransaction.id,
+            //     amount: BigInt(payload.transferAmount),
+            //     gateway: "SEPAY",
+            //     description: `Thanh toán qua Sepay - Đơn hàng ${orderCode} | Ref: ${payload.referenceCode}`,
+            // })
+
+            // this.logger.log(
+            //     `[Sepay→Admin] ✅ Admin wallet credited - orderCode=${orderCode}, amount=${payload.transferAmount}`,
+            // )
+
+            // await this.donationEmailService.sendDonationConfirmation(
+            //     donation,
+            //     BigInt(payload.transferAmount),
+            //     donation.campaign,
+            //     "Sepay",
+            // )
+
+            // if (donation.donor_id) {
+            //     const donor = await this.userClientService.getUserByCognitoId(donation.donor_id)
+
+            //     if (donor) {
+            //         await this.userClientService.updateDonorStats({
+            //             donorId: donor.id,
+            //             amountToAdd: BigInt(payload.transferAmount),
+            //             incrementCount: 1,
+            //             lastDonationAt: new Date(),
+            //         })
+
+            //         this.awardBadgeAsync(donor.id)
+            //     } else {
+            //         this.logger.warn(
+            //             `[Sepay→Admin] Donor not found for cognito_id: ${donation.donor_id}`,
+            //         )
+            //     }
+            // }
         } catch (error) {
             this.logger.error(
                 `[Sepay→Admin] ❌ Failed to process partial payment - orderCode=${orderCode}`,
@@ -283,11 +269,18 @@ export class SepayWebhookService {
                 return
             }
 
-            const campaignId = donation.campaign_id
+            const outboxPayload = {
+                orderCode: "SUPPLEMENTARY",
+                amount: payload.transferAmount.toString(),
+                paymentTransactionId: "",
+                donorId: donation.donor_id,
+                campaignId: donation.campaign_id,
+                donorName: donation.donor_name,
+                gateway: "SEPAY"
+            }
             const donationId = donation.id
 
-            // Step 1: Create NEW Payment_Transaction (supplementary payment)
-            const result = await this.donorRepository.createSupplementaryPayment({
+            await this.donorRepository.createSupplementaryPayment({
                 donation_id: donationId,
                 amount: BigInt(payload.transferAmount),
                 gateway: "SEPAY",
@@ -302,103 +295,22 @@ export class SepayWebhookService {
                     subAccount: payload.subAccount,
                     description: payload.description,
                 },
-            })
-
-            this.logger.log(
-                `[Sepay→Admin] ✅ Supplementary payment created - Payment ID: ${result.payment.id}, amount=${payload.transferAmount}`,
-            )
-
-            // Update OpenSearch index
-            if (donation) {
-                await this.donationSearchService.indexDonation({
-                    ...donation,
-                    amount: donation.amount.toString(),
-                    status: "SUCCESS",
-                    orderCode: originalPayment.order_code?.toString() || "",
-                    transactionDatetime: new Date(payload.transactionDate),
-                    created_at: donation.created_at,
-                    updated_at: new Date(),
-                    campaignTitle: result.campaign.title,
-                    description: payload.description,
-                    gateway: "SEPAY",
-                    paymentStatus: "COMPLETED", // Supplementary is usually completed
-                    receivedAmount: payload.transferAmount.toString(),
-                    bankName: payload.gateway || "",
-                    bankAccount: payload.subAccount || "",
-                    currency: "VND",
-                    errorCode: "00",
-                    errorDescription: "Success",
-                    processedByWebhook: true,
-                    sepayMetadata: payload,
-                } as any)
-            }
-
-            // 🆕 Check for campaign surplus and emit event
-            this.checkAndEmitSurplusEvent(result.campaign)
-
-            // Step 2: Get system admin ID
-            const adminUserId = this.getSystemAdminId()
-
-            // Step 3: Credit Admin Wallet
-            await this.userClientService.creditAdminWallet({
-                adminId: adminUserId,
-                campaignId: campaignId,
-                paymentTransactionId: result.payment.id,
-                amount: BigInt(payload.transferAmount),
-                gateway: "SEPAY", // For logging only
-                description: `Thanh toán qua Sepay | Ref: ${payload.referenceCode}`,
-            })
-
-            this.logger.log(
-                `[Sepay→Admin] ✅ Admin wallet credited for supplementary payment - amount=${payload.transferAmount}`,
-            )
-
-            // Step 4: Send donation confirmation email (if donor is not anonymous)
-            await this.donationEmailService.sendDonationConfirmation(
-                donation,
-                BigInt(payload.transferAmount),
-                result.campaign,
-                "Sepay",
-            )
-
-            // Step 5: Update donor cached stats and award badge
-            if (donation.donor_id) {
-                const donor = await this.userClientService.getUserByCognitoId(donation.donor_id)
-
-                if (donor) {
-                    await this.userClientService.updateDonorStats({
-                        donorId: donor.id,
-                        amountToAdd: BigInt(payload.transferAmount),
-                        incrementCount: 1,
-                        lastDonationAt: new Date(),
-                    })
-
-                    this.awardBadgeAsync(donor.id)
-                } else {
-                    this.logger.warn(
-                        `[Sepay→Admin] Donor not found for cognito_id: ${donation.donor_id}`,
-                    )
+                outbox_event: {
+                    event_type: "DONATION_PAYMENT_SUCCEEDED",
+                    payload: outboxPayload
                 }
-            }
+            })
+
+            this.logger.log(
+                "[Sepay→Admin] ✅ Supplementary payment created & Outbox event created",
+            )
+
         } catch (error) {
             this.logger.error(
                 "[Sepay→Admin] ❌ Failed to process supplementary payment",
                 error.stack,
             )
             throw error
-        }
-    }
-
-    private checkAndEmitSurplusEvent(campaign: any): void {
-        if (campaign.received_amount > campaign.target_amount && campaign.status === CampaignStatus.ACTIVE) {
-            const surplus = campaign.received_amount - campaign.target_amount
-            this.logger.log(
-                `[Sepay→Admin] 🎯 Surplus detected for campaign ${campaign.id} - Surplus: ${surplus.toString()} VND`,
-            )
-            this.eventEmitter.emit("campaign.surplus.detected", {
-                campaignId: campaign.id,
-                surplus: surplus.toString(),
-            })
         }
     }
 

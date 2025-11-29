@@ -3,6 +3,7 @@ import { PrismaClient } from "@app/campaign/src/generated/campaign-client"
 import { UserClientService } from "@app/campaign/src/shared"
 import { Injectable, Logger } from "@nestjs/common"
 import { OnEvent } from "@nestjs/event-emitter"
+import * as crypto from "crypto"
 
 @Injectable()
 export class CampaignSettlementService {
@@ -43,7 +44,6 @@ export class CampaignSettlementService {
                 return
             }
 
-            // Verify campaign is still ACTIVE and has surplus
             if (campaign.status !== CampaignStatus.ACTIVE) {
                 this.logger.warn(
                     `[EVENT] Campaign ${payload.campaignId} is not ACTIVE (status: ${campaign.status}). Skipping settlement.`,
@@ -58,7 +58,6 @@ export class CampaignSettlementService {
                 return
             }
 
-            // Execute settlement
             await this.settleCampaignSurplus(campaign)
 
             this.logger.log("===========================================")
@@ -88,9 +87,7 @@ export class CampaignSettlementService {
         )
         this.logger.log(`  - Surplus: ${surplus.toString()} VND`)
 
-        // Use transaction to ensure atomicity and prevent race conditions
         await this.prisma.$transaction(async (tx) => {
-            // Step 1: Get fundraiser user ID from cognito_id
             this.logger.debug(
                 `[SETTLEMENT] Step 1: Getting fundraiser user ID for cognito_id ${campaign.created_by}`,
             )
@@ -104,32 +101,56 @@ export class CampaignSettlementService {
                 `[SETTLEMENT] Found fundraiser user ID: ${fundraiserUser.id}`,
             )
 
-            // Step 2: Credit fundraiser wallet via gRPC
+            // Step 2: Update campaign status to COMPLETED
+            // IMPORTANT: Add status: ACTIVE to where clause to prevent race conditions
             this.logger.debug(
-                `[SETTLEMENT] Step 2: Crediting fundraiser wallet for user ${fundraiserUser.id}`,
+                "[SETTLEMENT] Step 2: Updating campaign status to COMPLETED",
             )
 
-            await this.userClientService.creditFundraiserWallet({
-                fundraiserId: fundraiserUser.id,
-                campaignId: campaign.id,
-                paymentTransactionId: "",
-                amount: surplus,
-                gateway: "SYSTEM",
-                description: `Ngân sách tồn dư của chiến dịch: ${campaign.title} (Tồn dư: ${surplus.toString()} VND)`,
-            })
+            try {
+                await tx.campaign.update({
+                    where: {
+                        id: campaign.id,
+                        status: CampaignStatus.ACTIVE
+                    },
+                    data: {
+                        status: CampaignStatus.PROCESSING,
+                        changed_status_at: new Date(),
+                        updated_at: new Date(),
+                        previous_status: CampaignStatus.ACTIVE
+                    },
+                })
+            } catch (error) {
+                if (error.code === "P2025") {
+                    this.logger.warn(`[SETTLEMENT] Campaign ${campaign.id} is no longer ACTIVE. Skipping settlement to prevent duplicate.`)
+                    return
+                }
+                throw error
+            }
 
-            // Step 3: Update campaign status to COMPLETED
             this.logger.debug(
-                "[SETTLEMENT] Step 3: Updating campaign status to COMPLETED",
+                "[SETTLEMENT] Step 3: Creating Outbox Event for Surplus Settlement",
             )
 
-            await tx.campaign.update({
-                where: { id: campaign.id },
+            const settlementId = crypto.randomUUID()
+
+            await tx.outboxEvent.create({
                 data: {
-                    status: CampaignStatus.PROCESSING,
-                    completed_at: new Date(),
+                    aggregate_id: campaign.id,
+                    event_type: "CAMPAIGN_SURPLUS_SETTLED",
+                    payload: {
+                        campaignId: campaign.id,
+                        campaignTitle: campaign.title,
+                        fundraiserId: fundraiserUser.id,
+                        surplus: surplus.toString(),
+                        timestamp: new Date(),
+                        settlementId: settlementId,
+                    },
+                    status: "PENDING",
                 },
             })
+        }, {
+            timeout: 20000
         })
 
         this.logger.log(

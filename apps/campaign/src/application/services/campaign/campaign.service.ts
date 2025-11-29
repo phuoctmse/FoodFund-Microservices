@@ -255,8 +255,6 @@ export class CampaignService {
                 input.categoryId,
             )
 
-            await this.campaignSearchService.indexCampaign(campaign)
-
             return campaign
         } catch (error) {
             this.sentryService.captureError(error as Error, {
@@ -407,8 +405,6 @@ export class CampaignService {
                 )
             }
 
-            await this.campaignSearchService.indexCampaign(updatedCampaign)
-
             return updatedCampaign
         } catch (error) {
             this.sentryService.captureError(error as Error, {
@@ -547,8 +543,6 @@ export class CampaignService {
                 campaign.categoryId,
             )
 
-            await this.campaignSearchService.indexCampaign(updatedCampaign)
-
             return updatedCampaign
         } catch (error) {
             this.sentryService.captureError(error as Error, {
@@ -632,8 +626,6 @@ export class CampaignService {
                     campaign.categoryId,
                 ),
             ])
-
-            await this.campaignSearchService.indexCampaign(updatedCampaign)
 
             return updatedCampaign
         } catch (error) {

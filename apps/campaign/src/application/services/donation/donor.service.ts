@@ -189,22 +189,6 @@ export class DonorService {
                 payment_link_id: paymentLinkResponse.paymentLinkId,
             })
 
-
-            await this.donationSearchService.indexDonation({
-                ...donation,
-                amount: donation.amount.toString(),
-                status: "PENDING",
-                orderCode: orderCode.toString(),
-                transactionDatetime: new Date(),
-                created_at: donation.created_at,
-                updated_at: donation.created_at,
-                campaignTitle: campaign.title,
-                description: paymentData.description,
-                gateway: "PAYOS",
-                paymentStatus: "PENDING",
-                currency: "VND",
-            } as any)
-
             // Note: Async processing now handled by BullMQ queues
             // Webhook processing will handle payment confirmation
 

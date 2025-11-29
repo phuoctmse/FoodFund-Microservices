@@ -206,7 +206,6 @@ export class DonationSearchService implements OnModuleInit {
 
         const from = (page - 1) * limit
 
-        // Aggregation to calculate total amount
         const aggs = {
             totalAmount: {
                 sum: { field: aggField }

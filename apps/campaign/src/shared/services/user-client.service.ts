@@ -46,7 +46,7 @@ export interface GetOrganizationByIdResponse {
 export class UserClientService {
     private readonly logger = new Logger(UserClientService.name)
 
-    constructor(private readonly grpcClient: GrpcClientService) {}
+    constructor(private readonly grpcClient: GrpcClientService) { }
 
     async getUserById(userId: string): Promise<UserProfile | null> {
         try {
@@ -106,7 +106,7 @@ export class UserClientService {
             >(
                 "GetUser",
                 { cognitoId: cognitoId },
-                { timeout: 3000, retries: 2 },
+                { timeout: 10000, retries: 2 },
             )
 
             if (!response.success || !response.user) {
@@ -180,7 +180,7 @@ export class UserClientService {
                     fundraiserId: string
                     campaignId: string
                     paymentTransactionId: string
-                    amount: string 
+                    amount: string
                     gateway: string
                     description?: string
                 },
@@ -195,11 +195,11 @@ export class UserClientService {
                     fundraiserId: data.fundraiserId,
                     campaignId: data.campaignId,
                     paymentTransactionId: data.paymentTransactionId,
-                    amount: data.amount.toString(), 
+                    amount: data.amount.toString(),
                     gateway: data.gateway,
                     description: data.description,
                 },
-                { timeout: 5000, retries: 3 }, 
+                { timeout: 5000, retries: 3 },
             )
 
             this.logger.debug(
@@ -268,14 +268,14 @@ export class UserClientService {
                     adminId: data.adminId,
                     campaignId: data.campaignId,
                     paymentTransactionId: data.paymentTransactionId,
-                    amount: data.amount.toString(), 
+                    amount: data.amount.toString(),
                     gateway: data.gateway,
                     description: data.description,
                     sepayMetadata: data.sepayMetadata
                         ? JSON.stringify(data.sepayMetadata)
-                        : undefined, 
+                        : undefined,
                 },
-                { timeout: 5000, retries: 3 }, 
+                { timeout: 5000, retries: 3 },
             )
 
             if (!response.success) {
@@ -326,7 +326,7 @@ export class UserClientService {
                         gateway: string | null
                         reference: string | null
                         description: string | null
-                        createdAt: string 
+                        createdAt: string
                     }>
                     error?: string
                 }
@@ -352,7 +352,7 @@ export class UserClientService {
                 `[gRPC] Failed to fetch wallet transactions for payment ${paymentTransactionId}:`,
                 error,
             )
-            return [] 
+            return []
         }
     }
 
@@ -431,9 +431,9 @@ export class UserClientService {
             const response = await this.grpcClient.callUserService<
                 {
                     donorId: string
-                    amountToAdd: string 
+                    amountToAdd: string
                     incrementCount: number
-                    lastDonationAt: string 
+                    lastDonationAt: string
                 },
                 {
                     success: boolean
@@ -500,7 +500,7 @@ export class UserClientService {
                 `[gRPC] ❌ Failed to get wallet balance for ${userId}:`,
                 error,
             )
-            return BigInt(0) 
+            return BigInt(0)
         }
     }
 

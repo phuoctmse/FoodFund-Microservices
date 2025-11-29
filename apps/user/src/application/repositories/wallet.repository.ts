@@ -9,9 +9,6 @@ export class WalletRepository {
 
     constructor(private readonly prisma: PrismaClient) { }
 
-    /**
-     * Map Prisma wallet transaction to domain model
-     */
     private mapTransactionToSchema(tx: any): WalletTransactionSchema {
         const schema = new WalletTransactionSchema()
         schema.id = tx.id
@@ -26,7 +23,7 @@ export class WalletRepository {
         schema.gateway = tx.gateway
         schema.sepay_metadata = tx.sepay_metadata
         schema.created_at = tx.created_at
-        schema.updated_at = tx.created_at // Wallet transactions don't have updated_at
+        schema.updated_at = tx.created_at
         return schema
     }
 
@@ -47,21 +44,16 @@ export class WalletRepository {
             throw new Error(errorMessage)
         }
 
-        // Map Prisma result to domain model
         return {
             ...wallet,
             balance: wallet.balance.toString(),
         } as WalletSchema
     }
 
-    /**
-     * Create wallet for a user (explicit creation only)
-     */
     async createWallet(
         userId: string,
         walletType: Wallet_Type,
     ): Promise<WalletSchema> {
-        // Check if wallet already exists
         const existing = await this.prisma.wallet.findFirst({
             where: {
                 user_id: userId,
@@ -85,17 +77,12 @@ export class WalletRepository {
 
         this.logger.log(`Created new ${walletType} wallet for user ${userId}`)
 
-        // Map Prisma result to domain model
         return {
             ...wallet,
             balance: wallet.balance.toString(),
         } as WalletSchema
     }
 
-    /**
-     * Credit wallet with transaction
-     * Implements idempotency to prevent duplicate credits for same gateway+payment combination
-     */
     async creditWallet(data: {
         userId: string
         walletType: Wallet_Type

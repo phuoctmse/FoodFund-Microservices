@@ -3,8 +3,10 @@ import { Donation, Prisma, PrismaClient } from "../../generated/campaign-client"
 import {
     TransactionStatus,
     PaymentAmountStatus,
+    PaymentStatus,
 } from "../../shared/enum/campaign.enum"
 import { CreateDonationRepositoryInput } from "../dtos/donation"
+import { OutboxStatus } from "../../domain/enums/outbox/outbox.enum"
 
 @Injectable()
 export class DonorRepository {
@@ -28,10 +30,6 @@ export class DonorRepository {
         })
     }
 
-    /**
-     * Find PENDING PayOS payment links created before a given threshold
-     * Only transactions with a stored payment_link_id OR order_code will be returned
-     */
     async findPendingPayosLinksBefore(
         before: Date,
         take = 500,
@@ -390,6 +388,10 @@ export class DonorRepository {
             sub_account: string | null
             description: string
         }
+        outbox_event?: {
+            event_type: string
+            payload: any
+        }
     }) {
         return this.prisma.$transaction(async (tx) => {
             const originalPayment = await tx.payment_Transaction.findUnique({
@@ -459,8 +461,19 @@ export class DonorRepository {
                 },
             })
 
+            if (data.outbox_event) {
+                await tx.outboxEvent.create({
+                    data: {
+                        aggregate_id: data.order_code.toString(),
+                        event_type: data.outbox_event.event_type,
+                        payload: data.outbox_event.payload,
+                        status: OutboxStatus.PENDING
+                    }
+                })
+            }
+
             return { payment, campaign: updatedCampaign }
-        })
+        }, { timeout: 20000 })
     }
 
     async updatePaymentTransactionFailed(data: {
@@ -510,6 +523,7 @@ export class DonorRepository {
                 include: {
                     donation: {
                         include: {
+                            campaign: true,
                             payment_transactions: {
                                 orderBy: {
                                     created_at: "desc",
@@ -530,6 +544,10 @@ export class DonorRepository {
         description?: string
         payos_metadata?: any
         sepay_metadata?: any
+        outbox_event?: {
+            event_type: string
+            payload: any
+        }
     }) {
         return this.prisma.$transaction(async (tx) => {
             const payment = await tx.payment_Transaction.create({
@@ -540,7 +558,7 @@ export class DonorRepository {
                     received_amount: data.amount,
                     description: data.description,
                     status: TransactionStatus.SUCCESS,
-                    payment_status: "COMPLETED",
+                    payment_status: PaymentAmountStatus.COMPLETED,
                     gateway: data.gateway,
                     processed_by_webhook: true,
                     payos_metadata: data.payos_metadata,
@@ -575,7 +593,23 @@ export class DonorRepository {
                 },
             })
 
+            if (data.outbox_event) {
+                await tx.outboxEvent.create({
+                    data: {
+                        aggregate_id: payment.id,
+                        event_type: data.outbox_event.event_type,
+                        payload: {
+                            ...data.outbox_event.payload,
+                            paymentTransactionId: payment.id
+                        },
+                        status: OutboxStatus.PENDING
+                    }
+                })
+            }
+
             return { payment, campaign: updatedCampaign }
+        }, {
+            timeout: 20000
         })
     }
 

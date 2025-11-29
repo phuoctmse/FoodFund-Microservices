@@ -30,7 +30,7 @@ export class WalletTransactionSearchService implements OnModuleInit {
                             description: { type: "text", analyzer: "standard" },
                             gateway: { type: "keyword" },
                             transactionType: { type: "keyword" },
-                            amount: { type: "keyword" }, // Stored as string to preserve BigInt precision
+                            amount: { type: "keyword" },
                             balanceBefore: { type: "keyword" },
                             balanceAfter: { type: "keyword" },
                         }
@@ -55,7 +55,7 @@ export class WalletTransactionSearchService implements OnModuleInit {
                 transactionType: { type: "keyword" },
                 description: { type: "text", analyzer: "standard" },
                 gateway: { type: "keyword" },
-                sepayMetadata: { type: "text" }, // Store as text
+                sepayMetadata: { type: "text" },
                 created_at: { type: "date" },
                 updated_at: { type: "date" },
             },

@@ -260,6 +260,21 @@ model Notification {
   @@map("notifications")
 }
 
+model OutboxEvent {
+  id           String       @id @default(uuid())
+  aggregate_id String
+  event_type   String
+  payload      Json
+  status       OutboxStatus @default(PENDING)
+  retry_count  Int          @default(0)
+  created_at   DateTime     @default(now())
+  processed_at DateTime?
+  error_log    String?
+
+  @@index([status, created_at])
+  @@map("outbox_events")
+}
+
 enum Notification_Type {
   CAMPAIGN_APPROVED
   CAMPAIGN_REJECTED
@@ -329,4 +344,11 @@ enum Payment_Amount_Status {
   PARTIAL
   COMPLETED
   OVERPAID
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
 }
