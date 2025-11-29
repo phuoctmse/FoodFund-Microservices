@@ -6,8 +6,14 @@ import {
 import { SentryService } from "@libs/observability/sentry.service"
 import { CampaignCategoryRepository } from "../../repositories/campaign-category.repository"
 import { CampaignCategoryCacheService } from "./campaign-category-cache.service"
-import { AuthorizationService, createUserContextFromToken } from "@app/campaign/src/shared"
-import { CreateCampaignCategoryInput, UpdateCampaignCategoryInput } from "../../dtos/campaign-category/request"
+import {
+    AuthorizationService,
+    createUserContextFromToken,
+} from "@app/campaign/src/shared"
+import {
+    CreateCampaignCategoryInput,
+    UpdateCampaignCategoryInput,
+} from "../../dtos/campaign-category/request"
 import { CampaignCategory } from "@app/campaign/src/domain/entities/campaign-category.model"
 
 @Injectable()
@@ -82,27 +88,6 @@ export class CampaignCategoryService {
                     service: "campaign-category-service",
                 })
             }
-            throw error
-        }
-    }
-
-    async getCategories(): Promise<CampaignCategory[]> {
-        try {
-            const cached = await this.cacheService.getAllActiveCategories()
-            if (cached) {
-                return cached
-            }
-            const categories = await this.categoryRepository.findMany({
-                limit: 100,
-                includeInactive: false,
-            })
-            await this.cacheService.setAllActiveCategories(categories)
-            return categories
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "getCategories",
-                service: "campaign-category-service",
-            })
             throw error
         }
     }
