@@ -19,8 +19,6 @@ export class CampaignSearchService implements OnModuleInit {
     async onModuleInit() {
         try {
             await this.createIndexIfNotExists()
-
-            // Debug: Check document count
             const count = await this.openSearchService.count(this.indexName)
             this.logger.log(`Current document count in '${this.indexName}': ${count}`)
         } catch (error) {
@@ -85,6 +83,7 @@ export class CampaignSearchService implements OnModuleInit {
                         keyword: {
                             type: "keyword",
                             ignore_above: 256,
+                            normalizer: "lowercase_normalizer",
                         },
                     },
                 },
@@ -309,9 +308,9 @@ export class CampaignSearchService implements OnModuleInit {
     }
 
     @Cron(CronExpression.EVERY_MINUTE)
-    async syncAll() {
+    async syncAll(since?: Date) {
         this.logger.log("Starting scheduled campaign sync...")
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+        const fiveMinutesAgo = since || new Date(Date.now() - 5 * 60 * 1000)
         const campaigns = await this.campaignRepository.findRecentlyUpdated(fiveMinutesAgo)
 
         if (campaigns.length === 0) {

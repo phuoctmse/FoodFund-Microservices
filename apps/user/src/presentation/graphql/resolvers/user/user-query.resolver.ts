@@ -25,7 +25,7 @@ export class RoleProfileResponse {
 export class UserQueryResolver {
     constructor(
         private readonly userQueryService: UserQueryService,
-    ) {}
+    ) { }
 
     @Query(() => UserHealthResponse, {
         name: "userHealth",
@@ -65,10 +65,15 @@ export class UserQueryResolver {
             throw new Error("User not found in database")
         }
 
+        console.debug(userInfo)
+
         const role = userInfo.role
         const response: RoleProfileResponse = {
             message: `Profile for ${role.toLowerCase()} user`,
-            userProfile: userInfo,
+            userProfile: {
+                ...userInfo,
+                badge: (userInfo as any).User_Badge?.badge || null,
+            },
         }
 
         return response

@@ -16,6 +16,8 @@ export class WalletTransactionSearchService implements OnModuleInit {
 
     async onModuleInit() {
         await this.createIndexIfNotExists()
+        // this.logger.log("Forcing full wallet transaction sync on module init...")
+        // await this.syncAll(new Date(0))
     }
 
     private async createIndexIfNotExists() {
@@ -189,9 +191,9 @@ export class WalletTransactionSearchService implements OnModuleInit {
     }
 
     @Cron(CronExpression.EVERY_MINUTE)
-    async syncAll() {
+    async syncAll(since?: Date) {
         this.logger.log("Starting scheduled wallet transaction sync...")
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+        const fiveMinutesAgo = since || new Date(Date.now() - 5 * 60 * 1000)
         const transactions = await this.walletRepository.findRecentlyUpdatedTransactions(fiveMinutesAgo)
 
         if (transactions.length === 0) {

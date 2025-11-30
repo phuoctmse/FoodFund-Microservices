@@ -16,13 +16,9 @@ export class DonationSearchService implements OnModuleInit {
 
     async onModuleInit() {
         await this.createIndexIfNotExists()
-        // await this.syncAllData()
+        // this.logger.log("Forcing full donation sync on module init...")
+        // await this.syncAll(new Date(0))
     }
-
-    // async syncAllData() {
-    //     this.logger.log("Forcing full data sync on module init...")
-    //     await this.syncAll(new Date("2000-01-01"))
-    // }
 
     private async createIndexIfNotExists() {
         const exists = await this.openSearchService.indexExists(this.indexName)
