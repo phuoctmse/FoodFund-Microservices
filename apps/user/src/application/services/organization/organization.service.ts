@@ -155,7 +155,7 @@ export class OrganizationService {
     }
 
     async getFundraiserOrganization(cognitoId: string) {
-        const user = await this.userRepository.findUserById(cognitoId)
+        const user = await this.userRepository.findUserByCognitoId(cognitoId)
         if (!user) {
             UserErrorHelper.throwUserNotFound(cognitoId)
         }
@@ -405,7 +405,7 @@ export class OrganizationService {
     ) {
         const roleForDatabase = this.convertJoinRoleToRole(data.requested_role)
 
-        const user = await this.userRepository.findUserById(cognitoId)
+        const user = await this.userRepository.findUserByCognitoId(cognitoId)
         if (!user) {
             UserErrorHelper.throwUserNotFound(cognitoId)
         }
@@ -448,7 +448,7 @@ export class OrganizationService {
         options?: PaginationOptions,
     ): Promise<PaginatedJoinRequestsResponse> {
         const fundraiserUser =
-            await this.userRepository.findUserById(fundraiserCognitoId)
+            await this.userRepository.findUserByCognitoId(fundraiserCognitoId)
         if (!fundraiserUser) {
             UserErrorHelper.throwUserNotFound(fundraiserCognitoId)
         }
@@ -483,7 +483,7 @@ export class OrganizationService {
 
     async approveJoinRequest(requestId: string, fundraiserCognitoId: string) {
         const fundraiserUser =
-            await this.userRepository.findUserById(fundraiserCognitoId)
+            await this.userRepository.findUserByCognitoId(fundraiserCognitoId)
         if (!fundraiserUser) {
             UserErrorHelper.throwUserNotFound(fundraiserCognitoId)
         }
@@ -572,7 +572,7 @@ export class OrganizationService {
 
     async rejectJoinRequest(requestId: string, fundraiserCognitoId: string) {
         const fundraiserUser =
-            await this.userRepository.findUserById(fundraiserCognitoId)
+            await this.userRepository.findUserByCognitoId(fundraiserCognitoId)
         if (!fundraiserUser) {
             UserErrorHelper.throwUserNotFound(fundraiserCognitoId)
         }
@@ -602,7 +602,7 @@ export class OrganizationService {
     }
 
     async getMyJoinRequests(cognitoId: string) {
-        const user = await this.userRepository.findUserById(cognitoId)
+        const user = await this.userRepository.findUserByCognitoId(cognitoId)
         if (!user) {
             return null
         }
@@ -806,7 +806,7 @@ export class OrganizationService {
         }
         previousRole: string
     }> {
-        const user = await this.userRepository.findUserById(cognitoId)
+        const user = await this.userRepository.findUserByCognitoId(cognitoId)
         if (!user) {
             UserErrorHelper.throwUserNotFound(cognitoId)
         }
@@ -952,7 +952,7 @@ export class OrganizationService {
 
     private async validateFundraiserUser(fundraiserCognitoId: string) {
         const fundraiserUser =
-            await this.userRepository.findUserById(fundraiserCognitoId)
+            await this.userRepository.findUserByCognitoId(fundraiserCognitoId)
         if (!fundraiserUser) {
             UserErrorHelper.throwUserNotFound(fundraiserCognitoId)
         }
@@ -1009,11 +1009,15 @@ export class OrganizationService {
             this.logger.debug(
                 "[TRANSACTION] Step 1: Removing member from organization",
             )
-            await tx.organization_Member.delete({ where: { id: memberId } })
+            await tx.organization_Member.update({
+                where: { id: memberId },
+                data: { status: VerificationStatus.REJECTED, left_at: new Date() },
+            })
 
             this.logger.debug(
                 "[TRANSACTION] Step 2: Updating user role back to DONOR",
             )
+
             await tx.user.update({
                 where: { id: memberUserId },
                 data: { role: Role.DONOR },

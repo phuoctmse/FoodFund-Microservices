@@ -111,19 +111,18 @@ export class SepayWebhookService {
             const sepayAmount = BigInt(payload.transferAmount)
             const originalAmount = paymentTransaction.amount
 
-            if (sepayAmount >= originalAmount) {
-                this.logger.log(
-                    `[Sepay] ⚠️ Skipping - Sepay amount (${sepayAmount}) >= original (${originalAmount}). PayOS webhook will handle this to avoid duplicate.`,
-                )
-                return
-            }
-
             if (!paymentTransaction.processed_by_webhook) {
                 this.logger.log(
-                    `[Sepay] 💰 Processing initial PARTIAL payment - ${sepayAmount}/${originalAmount}`,
+                    `[Sepay] 💰 Processing initial payment - ${sepayAmount}/${originalAmount}`,
                 )
                 await this.processPartialPaymentToAdmin(payload, paymentTransaction, orderCode)
                 return
+            }
+
+            if (paymentTransaction.gateway === "PAYOS") {
+                this.logger.warn(
+                    "[Sepay] ⚠️ Original payment was PayOS. Processing this Sepay event as SUPPLEMENTARY. Ensure this is not a duplicate bank transaction!",
+                )
             }
 
             this.logger.log(
@@ -168,11 +167,14 @@ export class SepayWebhookService {
                 gateway: "SEPAY"
             }
 
+            const description = this.extractDescriptionFromContent(payload.content, orderCode)
+
             await this.donorRepository.updatePaymentTransactionSuccess({
                 order_code: BigInt(orderCode),
                 amount_paid: BigInt(payload.transferAmount),
                 gateway: "SEPAY",
                 processed_by_webhook: true,
+                description: description,
                 sepay_metadata: {
                     sepay_id: payload.id,
                     reference_code: payload.referenceCode,
@@ -192,49 +194,6 @@ export class SepayWebhookService {
             this.logger.log(
                 `[Sepay→Admin] ✅ Payment updated & Outbox event created - orderCode=${orderCode}`,
             )
-
-            // this.checkAndEmitSurplusEvent(result.campaign)
-
-            // const adminUserId = this.getSystemAdminId()
-
-            // await this.userClientService.creditAdminWallet({
-            //     adminId: adminUserId,
-            //     campaignId: campaignId,
-            //     paymentTransactionId: paymentTransaction.id,
-            //     amount: BigInt(payload.transferAmount),
-            //     gateway: "SEPAY",
-            //     description: `Thanh toán qua Sepay - Đơn hàng ${orderCode} | Ref: ${payload.referenceCode}`,
-            // })
-
-            // this.logger.log(
-            //     `[Sepay→Admin] ✅ Admin wallet credited - orderCode=${orderCode}, amount=${payload.transferAmount}`,
-            // )
-
-            // await this.donationEmailService.sendDonationConfirmation(
-            //     donation,
-            //     BigInt(payload.transferAmount),
-            //     donation.campaign,
-            //     "Sepay",
-            // )
-
-            // if (donation.donor_id) {
-            //     const donor = await this.userClientService.getUserByCognitoId(donation.donor_id)
-
-            //     if (donor) {
-            //         await this.userClientService.updateDonorStats({
-            //             donorId: donor.id,
-            //             amountToAdd: BigInt(payload.transferAmount),
-            //             incrementCount: 1,
-            //             lastDonationAt: new Date(),
-            //         })
-
-            //         this.awardBadgeAsync(donor.id)
-            //     } else {
-            //         this.logger.warn(
-            //             `[Sepay→Admin] Donor not found for cognito_id: ${donation.donor_id}`,
-            //         )
-            //     }
-            // }
         } catch (error) {
             this.logger.error(
                 `[Sepay→Admin] ❌ Failed to process partial payment - orderCode=${orderCode}`,
@@ -279,12 +238,14 @@ export class SepayWebhookService {
                 gateway: "SEPAY"
             }
             const donationId = donation.id
+            const orderCode = this.extractOrderCodeFromContent(payload.content)
+            const description = this.extractDescriptionFromContent(payload.content, orderCode)
 
             await this.donorRepository.createSupplementaryPayment({
                 donation_id: donationId,
                 amount: BigInt(payload.transferAmount),
                 gateway: "SEPAY",
-                description: `Thanh toán qua Sepay | Ref: ${payload.referenceCode}`,
+                description: description,
                 sepay_metadata: {
                     sepayId: payload.id,
                     referenceCode: payload.referenceCode,
@@ -324,6 +285,8 @@ export class SepayWebhookService {
                 `[Sepay→Admin] Routing non-donation transfer to Admin Wallet - Admin ID: ${adminUserId}`,
             )
 
+            const orderCode = this.extractOrderCodeFromContent(payload.content)
+            const description = this.extractDescriptionFromContent(payload.content, orderCode)
 
             await this.userClientService.creditAdminWallet({
                 adminId: adminUserId,
@@ -331,7 +294,7 @@ export class SepayWebhookService {
                 paymentTransactionId: null,
                 amount: BigInt(payload.transferAmount),
                 gateway: "SEPAY",
-                description: this.buildDescription(payload),
+                description: description,
                 sepayMetadata: {
                     sepayId: payload.id,
                     referenceCode: payload.referenceCode,
@@ -372,7 +335,7 @@ export class SepayWebhookService {
      * Example: 1762653025868727
      * 
      * Sepay content example:
-     * "ZP253130089790 251109000580175 CSF3FD8XUZ2 1762653025868727 GD 089790-110925 08:51:02"
+     * "ZP253130089790 251109000580175 CSF3FD8XUZ2 1764492295009511 GD 089790-110925 08:51:02"
      */
     private extractOrderCodeFromContent(content: string): string | null {
         try {
@@ -402,8 +365,28 @@ export class SepayWebhookService {
         }
     }
 
-    private buildDescription(payload: SepayWebhookPayload): string {
-        return `Chuyển khoản đến Sepay - Ref: ${payload.referenceCode} | Content: ${payload.content} | Bank: ${payload.gateway}`
+    private extractDescriptionFromContent(content: string, orderCode: string | null): string {
+        if (!orderCode) {
+            return content
+        }
+
+        try {
+            // Pattern: [Word] [OrderCode]
+            // Example: "CS42CZBAZ98 1764492295009511"
+            const pattern = new RegExp(`\\b(\\S+)\\s+${orderCode}\\b`)
+            const match = content.match(pattern)
+
+            if (match && match[1]) {
+                const description = `${match[1]} ${orderCode}`
+                this.logger.debug(`[Sepay] Extracted description: "${description}"`)
+                return description
+            }
+
+            return content
+        } catch (error) {
+            this.logger.warn("[Sepay] Failed to extract description, using full content", error)
+            return content
+        }
     }
 
     private async checkIdempotency(

@@ -178,17 +178,6 @@ export class DonorService {
             const paymentLinkResponse =
                 await payOS.paymentRequests.create(paymentData)
 
-            // Create payment transaction record
-            await this.donorRepository.createPaymentTransaction({
-                donation_id: donation.id,
-                order_code: BigInt(orderCode),
-                amount: donationAmount,
-                description: paymentData.description,
-                checkout_url: paymentLinkResponse.checkoutUrl,
-                qr_code: paymentLinkResponse.qrCode,
-                payment_link_id: paymentLinkResponse.paymentLinkId,
-            })
-
             // Note: Async processing now handled by BullMQ queues
             // Webhook processing will handle payment confirmation
 
@@ -200,6 +189,16 @@ export class DonorService {
             const qrDescription = this.extractDescriptionFromQR(
                 paymentLinkResponse.qrCode,
             )
+
+            await this.donorRepository.createPaymentTransaction({
+                donation_id: donation.id,
+                order_code: BigInt(orderCode),
+                amount: donationAmount,
+                description: qrDescription as string,
+                checkout_url: paymentLinkResponse.checkoutUrl,
+                qr_code: paymentLinkResponse.qrCode,
+                payment_link_id: paymentLinkResponse.paymentLinkId,
+            })
 
             return {
                 donationId: donation.id,

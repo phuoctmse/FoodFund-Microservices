@@ -346,6 +346,19 @@ export class DonorRepository {
         })
     }
 
+    async findPaymentTransactionById(id: string) {
+        return this.prisma.payment_Transaction.findUnique({
+            where: { id },
+            include: {
+                donation: {
+                    include: {
+                        campaign: true,
+                    },
+                },
+            },
+        })
+    }
+
     /**
      * Find payment transaction by order code
      */
@@ -388,6 +401,7 @@ export class DonorRepository {
             sub_account: string | null
             description: string
         }
+        description?: string
         outbox_event?: {
             event_type: string
             payload: any
@@ -430,6 +444,7 @@ export class DonorRepository {
                     processed_by_webhook: data.processed_by_webhook,
                     payos_metadata: data.payos_metadata,
                     sepay_metadata: data.sepay_metadata,
+                    description: data.description, // Update description
                     updated_at: new Date(),
                 },
                 include: {

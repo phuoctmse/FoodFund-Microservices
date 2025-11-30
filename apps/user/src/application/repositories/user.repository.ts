@@ -11,7 +11,7 @@ import {
 
 @Injectable()
 export class UserRepository {
-    constructor(private readonly prisma: PrismaClient) {}
+    constructor(private readonly prisma: PrismaClient) { }
 
     // User CRUD operations
     async createUser(data: CreateUserInput) {
@@ -102,6 +102,11 @@ export class UserRepository {
         return this.prisma.user.findUnique({
             where: { cognito_id },
             include: {
+                User_Badge: {
+                    include: {
+                        badge: true,
+                    },
+                },
                 Organizations: {
                     include: {
                         Organization_Member: true,

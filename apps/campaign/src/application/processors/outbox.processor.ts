@@ -75,16 +75,31 @@ export class OutboxProcessor {
             donorId, campaignId, donorName, gateway
         } = payload
 
+        let description = `Ủng hộ từ ${donorName || "Anonymous"} - Đơn hàng ${orderCode}`
+        let donation
+
+        if (paymentTransactionId) {
+            const transaction = await this.donorRepository.findPaymentTransactionById(paymentTransactionId)
+            if (transaction) {
+                if (transaction.description) {
+                    description = transaction.description
+                }
+                donation = transaction.donation
+            }
+        }
+
         await this.userClientService.creditAdminWallet({
             adminId: this.adminId,
             campaignId,
             paymentTransactionId,
             amount: BigInt(amount),
             gateway,
-            description: `Ủng hộ từ ${donorName || "Anonymous"} - Đơn hàng ${orderCode}`,
+            description,
         })
 
-        const donation = await this.donorRepository.findByOrderCode(orderCode)
+        if (!donation && orderCode !== "SUPPLEMENTARY") {
+            donation = await this.donorRepository.findByOrderCode(orderCode)
+        }
 
         if (!donation) {
             this.logger.warn(`Donation not found for order ${orderCode}, skipping side effects`)
