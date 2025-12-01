@@ -628,4 +628,38 @@ export class WalletRepository {
 
         return transactions.map((tx) => this.mapTransactionToSchema(tx))
     }
+
+    async calculateTotalIncome(walletId: string): Promise<bigint> {
+        const result = await this.prisma.wallet_Transaction.aggregate({
+            where: {
+                wallet_id: walletId,
+                transaction_type: {
+                    in: [
+                        Transaction_Type.INCOMING_TRANSFER,
+                        Transaction_Type.ADMIN_ADJUSTMENT,
+                    ],
+                },
+            },
+            _sum: {
+                amount: true,
+            },
+        })
+
+        return result._sum.amount || BigInt(0)
+    }
+
+    async calculateTotalExpense(walletId: string): Promise<bigint> {
+        const result = await this.prisma.wallet_Transaction.aggregate({
+            where: {
+                wallet_id: walletId,
+                transaction_type: Transaction_Type.WITHDRAWAL,
+            },
+            _sum: {
+                amount: true,
+            },
+        })
+
+        const total = result._sum.amount || BigInt(0)
+        return total < 0 ? -total : total
+    }
 }
