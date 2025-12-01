@@ -246,8 +246,6 @@ export class CampaignService {
                 })),
             })
 
-            await this.cacheService.setCampaign(campaign.id, campaign)
-
             await this.cacheService.invalidateAll(
                 campaign.id,
                 campaign.slug,
@@ -390,7 +388,6 @@ export class CampaignService {
 
             await this.updateCampaignCache(
                 id,
-                updatedCampaign,
                 campaign.slug,
             )
 
@@ -959,11 +956,8 @@ export class CampaignService {
 
     private async updateCampaignCache(
         campaignId: string,
-        updatedCampaign: Campaign,
         slug?: string,
     ): Promise<void> {
-        await this.cacheService.setCampaign(campaignId, updatedCampaign)
-
         await this.cacheService.invalidateAll(
             campaignId,
             slug,
