@@ -4,16 +4,17 @@ import {
     UserProfileSchema,
     Badge,
 } from "../../../../domain/entities"
-import { UserRepository } from "../../../../application/repositories"
+import { UserRepository, WalletRepository } from "../../../../application/repositories"
 import { DataLoaderService } from "../../../../application/services"
-import { Role } from "../../../../domain/enums"
+import { Role, Wallet_Type } from "../../../../domain/enums"
 
 @Resolver(() => WalletSchema)
 export class WalletFieldResolver {
     constructor(
         private readonly userRepository: UserRepository,
+        private readonly walletRepository: WalletRepository,
         private readonly dataLoaderService: DataLoaderService,
-    ) {}
+    ) { }
 
     @ResolveField(() => UserProfileSchema, {
         description: "Resolve user information for the wallet owner",
@@ -64,6 +65,48 @@ export class WalletFieldResolver {
             return this.dataLoaderService.getUserBadge(user.id)
         } catch (error) {
             return null
+        }
+    }
+
+    @ResolveField(() => String, {
+        description: "Total income (INCOMING_TRANSFER + ADMIN_ADJUSTMENT)",
+        nullable: true,
+    })
+    async totalIncome(@Parent() wallet: WalletSchema): Promise<string | null> {
+        // Calculate for FUNDRAISER and ADMIN wallets
+        if (
+            wallet.wallet_type !== Wallet_Type.FUNDRAISER &&
+            wallet.wallet_type !== Wallet_Type.ADMIN
+        ) {
+            return null
+        }
+
+        try {
+            const total = await this.walletRepository.calculateTotalIncome(wallet.id)
+            return total.toString()
+        } catch (error) {
+            return "0"
+        }
+    }
+
+    @ResolveField(() => String, {
+        description: "Total expense (WITHDRAWAL)",
+        nullable: true,
+    })
+    async totalExpense(@Parent() wallet: WalletSchema): Promise<string | null> {
+        // Calculate for FUNDRAISER and ADMIN wallets
+        if (
+            wallet.wallet_type !== Wallet_Type.FUNDRAISER &&
+            wallet.wallet_type !== Wallet_Type.ADMIN
+        ) {
+            return null
+        }
+
+        try {
+            const total = await this.walletRepository.calculateTotalExpense(wallet.id)
+            return total.toString()
+        } catch (error) {
+            return "0"
         }
     }
 }

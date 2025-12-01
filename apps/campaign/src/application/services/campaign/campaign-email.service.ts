@@ -165,7 +165,6 @@ export class CampaignEmailService {
                         `Failed to send email to ${donor.email}:`,
                         error.message,
                     )
-                    // Don't throw - continue with other emails
                 }),
             )
 

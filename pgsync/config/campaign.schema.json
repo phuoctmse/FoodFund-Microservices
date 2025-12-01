@@ -1,0 +1,403 @@
+[
+    {
+        "database": "campaign_db",
+        "index": "campaigns",
+        "setting": {
+            "analysis": {
+                "normalizer": {
+                    "lowercase_normalizer": {
+                        "type": "custom",
+                        "char_filter": [],
+                        "filter": [
+                            "lowercase"
+                        ]
+                    }
+                }
+            }
+        },
+        "nodes": {
+            "table": "campaigns",
+            "schema": "public",
+            "columns": [
+                "id",
+                "title",
+                "slug",
+                "description",
+                "cover_image",
+                "target_amount",
+                "received_amount",
+                "donation_count",
+                "status",
+                "fundraising_start_date",
+                "fundraising_end_date",
+                "created_at",
+                "created_by",
+                "category_id"
+            ],
+            "transform": {
+                "rename": {
+                    "created_by": "creatorId",
+                    "category_id": "categoryId",
+                    "cover_image": "coverImage",
+                    "target_amount": "targetAmount",
+                    "received_amount": "receivedAmount",
+                    "donation_count": "donationCount",
+                    "fundraising_start_date": "fundraisingStartDate",
+                    "fundraising_end_date": "fundraisingEndDate",
+                    "created_at": "createdAt"
+                },
+                "mapping": {
+                    "id": {
+                        "type": "keyword"
+                    },
+                    "title": {
+                        "type": "text",
+                        "analyzer": "standard",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256,
+                                "normalizer": "lowercase_normalizer"
+                            }
+                        }
+                    },
+                    "description": {
+                        "type": "text",
+                        "analyzer": "standard"
+                    },
+                    "categoryId": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
+                    "creatorId": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
+                    "status": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256,
+                                "normalizer": "lowercase_normalizer"
+                            }
+                        }
+                    },
+                    "targetAmount": {
+                        "type": "double"
+                    },
+                    "receivedAmount": {
+                        "type": "double"
+                    },
+                    "donationCount": {
+                        "type": "integer"
+                    },
+                    "fundingProgress": {
+                        "type": "float"
+                    },
+                    "fundraisingStartDate": {
+                        "type": "date"
+                    },
+                    "fundraisingEndDate": {
+                        "type": "date"
+                    },
+                    "createdAt": {
+                        "type": "date"
+                    },
+                    "coverImage": {
+                        "type": "keyword"
+                    },
+                    "slug": {
+                        "type": "keyword"
+                    }
+                }
+            },
+            "children": [
+                {
+                    "table": "campaign_categories",
+                    "schema": "public",
+                    "columns": [
+                        "id",
+                        "title"
+                    ],
+                    "label": "category",
+                    "relationship": {
+                        "variant": "object",
+                        "type": "one_to_one",
+                        "foreign_key": {
+                            "child": [
+                                "id"
+                            ],
+                            "parent": [
+                                "categoryId"
+                            ]
+                        }
+                    },
+                    "transform": {
+                        "mapping": {
+                            "id": {
+                                "type": "keyword"
+                            },
+                            "title": {
+                                "type": "text"
+                            }
+                        }
+                    }
+                },
+                {
+                    "table": "campaign_phases",
+                    "schema": "public",
+                    "columns": [
+                        "location"
+                    ],
+                    "label": "phases",
+                    "relationship": {
+                        "variant": "object",
+                        "type": "one_to_many"
+                    },
+                    "transform": {
+                        "mapping": {
+                            "location": {
+                                "type": "text"
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+    },
+    {
+        "database": "campaign_db",
+        "index": "donations",
+        "nodes": {
+            "table": "donations",
+            "schema": "public",
+            "columns": [
+                "id",
+                "campaign_id",
+                "donor_id",
+                "donor_name",
+                "donor_email",
+                "amount",
+                "is_anonymous",
+                "message",
+                "created_at"
+            ],
+            "transform": {
+                "rename": {
+                    "campaign_id": "campaignId",
+                    "donor_id": "donorId",
+                    "donor_name": "donorName",
+                    "donor_email": "donorEmail",
+                    "is_anonymous": "isAnonymous",
+                    "created_at": "createdAt"
+                },
+                "mapping": {
+                    "id": {
+                        "type": "keyword"
+                    },
+                    "campaignId": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
+                    "donorId": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
+                    "donorName": {
+                        "type": "text",
+                        "analyzer": "standard"
+                    },
+                    "donorEmail": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
+                    "amount": {
+                        "type": "double"
+                    },
+                    "receivedAmount": {
+                        "type": "double"
+                    },
+                    "currency": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
+                    "transactionCode": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
+                    "status": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
+                    "paymentMethod": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
+                    "gateway": {
+                        "type": "text",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256
+                            }
+                        }
+                    },
+                    "isAnonymous": {
+                        "type": "boolean"
+                    },
+                    "message": {
+                        "type": "text"
+                    },
+                    "createdAt": {
+                        "type": "date"
+                    }
+                }
+            },
+            "children": [
+                {
+                    "table": "campaigns",
+                    "schema": "public",
+                    "columns": [
+                        "title"
+                    ],
+                    "label": "campaign",
+                    "relationship": {
+                        "variant": "object",
+                        "type": "one_to_one",
+                        "foreign_key": {
+                            "child": [
+                                "id"
+                            ],
+                            "parent": [
+                                "campaignId"
+                            ]
+                        }
+                    },
+                    "transform": {
+                        "rename": {
+                            "title": "campaignTitle"
+                        },
+                        "mapping": {
+                            "campaignTitle": {
+                                "type": "text",
+                                "analyzer": "standard"
+                            }
+                        }
+                    }
+                },
+                {
+                    "table": "payment_transactions",
+                    "schema": "public",
+                    "columns": [
+                        "id",
+                        "amount",
+                        "received_amount",
+                        "payment_method",
+                        "status",
+                        "order_code",
+                        "gateway",
+                        "sepay_metadata",
+                        "created_at"
+                    ],
+                    "label": "paymentTransactions",
+                    "relationship": {
+                        "variant": "object",
+                        "type": "one_to_many"
+                    },
+                    "transform": {
+                        "rename": {
+                            "received_amount": "receivedAmount",
+                            "payment_method": "method",
+                            "order_code": "transactionCode",
+                            "sepay_metadata": "sepayMetadata",
+                            "created_at": "createdAt"
+                        },
+                        "mapping": {
+                            "id": {
+                                "type": "keyword"
+                            },
+                            "amount": {
+                                "type": "double"
+                            },
+                            "receivedAmount": {
+                                "type": "double"
+                            },
+                            "method": {
+                                "type": "keyword"
+                            },
+                            "status": {
+                                "type": "keyword"
+                            },
+                            "transactionCode": {
+                                "type": "keyword"
+                            },
+                            "gateway": {
+                                "type": "keyword"
+                            },
+                            "bankName": {
+                                "type": "keyword"
+                            },
+                            "bankAccount": {
+                                "type": "keyword"
+                            },
+                            "createdAt": {
+                                "type": "date"
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "mapping": {
+            "paymentTransactions": {
+                "type": "nested"
+            }
+        }
+    }
+]

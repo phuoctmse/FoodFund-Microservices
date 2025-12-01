@@ -1461,7 +1461,7 @@ export class CampaignService {
                 userId: campaign.createdBy,
                 campaignId: campaign.id,
                 amount: transferAmount,
-                description: `Auto-transfer to campaign "${campaign.title}" on approval`,
+                description: `Tự động chuyển tiền vào chiến dịch "${campaign.title}" khi được phê duyệt`,
             })
 
             updateData.receivedAmount = currentReceived + transferAmount

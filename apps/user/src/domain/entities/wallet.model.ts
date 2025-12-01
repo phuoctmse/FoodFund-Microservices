@@ -37,6 +37,17 @@ export class WalletSchema extends AbstractSchema {
     })
         user?: UserProfileSchema
 
+    @Field(() => String, {
+        description: "Total income (INCOMING_TRANSFER + ADMIN_ADJUSTMENT)",
+        nullable: true,
+    })
+        totalIncome?: string
+
+    @Field(() => String, {
+        description: "Total expense (WITHDRAWAL)",
+        nullable: true,
+    })
+        totalExpense?: string
 }
 
 // Response types for GraphQL

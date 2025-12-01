@@ -1,0 +1,112 @@
+[
+    {
+        "database": "user_db",
+        "index": "wallet-transactions",
+        "nodes": {
+            "table": "wallet_transactions",
+            "schema": "public",
+            "columns": [
+                "id",
+                "wallet_id",
+                "campaign_id",
+                "payment_transaction_id",
+                "amount",
+                "balance_before",
+                "balance_after",
+                "transaction_type",
+                "description",
+                "gateway",
+                "sepay_metadata",
+                "created_at"
+            ],
+            "transform": {
+                "rename": {
+                    "wallet_id": "walletId",
+                    "campaign_id": "campaignId",
+                    "payment_transaction_id": "paymentTransactionId",
+                    "balance_before": "balanceBefore",
+                    "balance_after": "balanceAfter",
+                    "transaction_type": "transactionType",
+                    "sepay_metadata": "sepayMetadata",
+                    "created_at": "created_at"
+                },
+                "mapping": {
+                    "id": {
+                        "type": "keyword"
+                    },
+                    "walletId": {
+                        "type": "keyword"
+                    },
+                    "campaignId": {
+                        "type": "keyword"
+                    },
+                    "paymentTransactionId": {
+                        "type": "keyword"
+                    },
+                    "amount": {
+                        "type": "keyword"
+                    },
+                    "balanceBefore": {
+                        "type": "keyword"
+                    },
+                    "balanceAfter": {
+                        "type": "keyword"
+                    },
+                    "transactionType": {
+                        "type": "keyword"
+                    },
+                    "description": {
+                        "type": "text",
+                        "analyzer": "standard"
+                    },
+                    "gateway": {
+                        "type": "keyword"
+                    },
+                    "sepayMetadata": {
+                        "type": "text"
+                    },
+                    "created_at": {
+                        "type": "date"
+                    }
+                }
+            },
+            "children": [
+                {
+                    "table": "wallets",
+                    "schema": "public",
+                    "columns": [
+                        "user_id",
+                        "wallet_type"
+                    ],
+                    "label": "wallet",
+                    "relationship": {
+                        "variant": "object",
+                        "type": "one_to_one",
+                        "foreign_key": {
+                            "child": [
+                                "id"
+                            ],
+                            "parent": [
+                                "walletId"
+                            ]
+                        }
+                    },
+                    "transform": {
+                        "rename": {
+                            "user_id": "userId",
+                            "wallet_type": "walletType"
+                        },
+                        "mapping": {
+                            "userId": {
+                                "type": "keyword"
+                            },
+                            "walletType": {
+                                "type": "keyword"
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+    }
+]
