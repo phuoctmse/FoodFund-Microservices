@@ -6,7 +6,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import { SentryService } from "@libs/observability/sentry.service"
 import { BadRequestException, Injectable, Logger } from "@nestjs/common"
-import { randomBytes } from "crypto"
+import { randomBytes } from "node:crypto"
 import { v4 as uuidv4 } from "uuid"
 
 interface BatchUploadResult {
@@ -180,7 +180,6 @@ export class SpacesUploadService {
 
             if (!fileKey.includes(userId)) {
                 invalidKeys.push(fileKey)
-                continue
             }
         }
 
@@ -283,18 +282,6 @@ export class SpacesUploadService {
         }
     }
 
-    async cleanupUnusedImages(olderThanHours: number = 24): Promise<number> {
-        try {
-            return 0
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "cleanupUnusedImages",
-                olderThanHours,
-            })
-            return 0
-        }
-    }
-
     async validateUploadedFile(fileKey: string): Promise<{
         exists: boolean
         size?: number
@@ -331,7 +318,7 @@ export class SpacesUploadService {
 
     private generateRandomPrefix(): string {
         try {
-            return uuidv4().replace(/-/g, "").substring(0, 8)
+            return uuidv4().replaceAll("-", "").substring(0, 8)
         } catch (error) {
             this.sentryService.captureError(error as Error, {
                 operation: "generateRandomPrefix",
