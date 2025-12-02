@@ -424,10 +424,7 @@ export class CampaignService {
             )
 
             const campaign = await this.findCampaignById(id)
-            this.authorizationService.requireAdmin(
-                userContext,
-                "change campaign status",
-            )
+            this.authorizationService.requireOwnerOrAdmin(campaign.createdBy, userContext, "campaign", "change status")
             this.validateStatusTransition(campaign.status, newStatus)
 
             const updateData: any = {
