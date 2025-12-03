@@ -7,7 +7,12 @@ import {
 } from "../dtos/campaign/request"
 import { CampaignStatus } from "../../domain/enums/campaign/campaign.enum"
 import { Campaign } from "../../domain/entities/campaign.model"
-import { generateRandomSuffix, generateSlug, generateUniqueSlug, minBigInt } from "../../shared/utils"
+import {
+    generateRandomSuffix,
+    generateSlug,
+    generateUniqueSlug,
+    minBigInt,
+} from "../../shared/utils"
 import { Organization } from "../../shared/model"
 
 export interface FindManyOptions {
@@ -269,7 +274,9 @@ export class CampaignRepository {
         return campaign ? this.mapToGraphQLModel(campaign) : null
     }
 
-    async findApprovedCampaignsToActivateForJob(): Promise<Pick<Campaign, "id" | "status">[]> {
+    async findApprovedCampaignsToActivateForJob(): Promise<
+        Pick<Campaign, "id" | "status">[]
+        > {
         const today = new Date()
         today.setHours(0, 0, 0, 0)
 
@@ -344,7 +351,9 @@ export class CampaignRepository {
         }))
     }
 
-    async findExpiredCampaignsForJob(): Promise<Pick<Campaign, "id" | "status">[]> {
+    async findExpiredCampaignsForJob(): Promise<
+        Pick<Campaign, "id" | "status">[]
+        > {
         const today = new Date()
         today.setHours(23, 59, 59, 999)
 
@@ -750,6 +759,52 @@ export class CampaignRepository {
         }
 
         return this.mapToGraphQLModel(result)
+    }
+
+    async areAllPhasesFinished(campaignId: string): Promise<{
+        allFinished: boolean
+        pendingPhases: Array<{ id: string; phaseName: string; status: string }>
+    }> {
+        const phases = await this.prisma.campaign_Phase.findMany({
+            where: {
+                campaign_id: campaignId,
+                is_active: true,
+            },
+            select: {
+                id: true,
+                phase_name: true,
+                status: true,
+            },
+        })
+
+        const finishedStatuses = new Set(["COMPLETED", "FAILED"])
+
+        const pendingPhases = phases.filter(
+            (phase) => !finishedStatuses.has(phase.status),
+        )
+
+        return {
+            allFinished: pendingPhases.length === 0,
+            pendingPhases: pendingPhases.map((p) => ({
+                id: p.id,
+                phaseName: p.phase_name,
+                status: p.status,
+            })),
+        }
+    }
+
+    async markAsCompleted(campaignId: string): Promise<Campaign> {
+        const campaign = await this.prisma.campaign.update({
+            where: { id: campaignId, is_active: true },
+            data: {
+                status: CampaignStatus.COMPLETED,
+                completed_at: new Date(),
+                changed_status_at: new Date(),
+            },
+            include: this.CAMPAIGN_JOIN_FIELDS,
+        })
+
+        return this.mapToGraphQLModel(campaign)
     }
 
     async delete(id: string): Promise<boolean> {

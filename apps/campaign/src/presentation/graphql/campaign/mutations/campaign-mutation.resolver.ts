@@ -97,6 +97,26 @@ export class CampaignMutationResolver {
 
     @Mutation(() => Campaign, {
         description:
+            "Mark campaign as completed (fundraiser only, all phases must be COMPLETED or FAILED)",
+    })
+    @UseGuards(CognitoGraphQLGuard)
+    async markCampaignComplete(
+        @Args("campaignId", {
+            type: () => String,
+            description: "Campaign ID to mark as complete",
+        })
+            campaignId: string,
+        @CurrentUser("decodedToken") decodedToken: any,
+    ): Promise<Campaign> {
+        const userContext = createUserContextFromToken(decodedToken)
+        return this.campaignService.markCampaignComplete(
+            campaignId,
+            userContext,
+        )
+    }
+
+    @Mutation(() => Campaign, {
+        description:
             "Extend campaign fundraising period (one-time only, max 30 days)",
     })
     @UseGuards(CognitoGraphQLGuard)
