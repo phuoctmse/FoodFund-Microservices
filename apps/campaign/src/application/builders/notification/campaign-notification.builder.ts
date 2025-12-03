@@ -74,10 +74,13 @@ export class CampaignCompletedBuilder extends NotificationBuilder<NotificationTy
         const campaignTitle = this.truncate(data.campaignTitle, 50)
         const totalRaised = this.formatCurrency(data.totalRaised)
         const totalDonors = this.formatNumber(data.totalDonors)
-        const message = `Campaign "${campaignTitle}" has been completed! Total raised: ${totalRaised} from ${totalDonors} donors.`
+
+        const message =
+            data.message ||
+            `Chiến dịch "${campaignTitle}" đã hoàn thành! Tổng số tiền quyên góp: ${totalRaised} từ ${totalDonors} nhà hảo tâm.`
 
         return {
-            title: "✅ Campaign Completed!",
+            title: "Chiến dịch đã hoàn thành!",
             message,
             metadata: {
                 campaignId: data.campaignId,

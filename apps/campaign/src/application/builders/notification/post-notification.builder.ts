@@ -26,7 +26,7 @@ export class PostLikeBuilder extends NotificationBuilder<NotificationType.POST_L
         }
 
         return {
-            title: "❤️ Post Liked",
+            title: "Post Liked",
             message,
             metadata: {
                 postId: data.postId,
@@ -55,7 +55,7 @@ export class PostCommentBuilder extends NotificationBuilder<NotificationType.POS
         const message = `${data.commenterName} commented on "${postTitle}": "${commentPreview}"`
 
         return {
-            title: "💬 New Comment",
+            title: "New Comment",
             message,
             metadata: {
                 postId: data.postId,
@@ -83,7 +83,7 @@ export class PostReplyBuilder extends NotificationBuilder<NotificationType.POST_
         const message = `${data.replierName} replied to your comment: "${replyPreview}"`
 
         return {
-            title: "💬 New Reply",
+            title: "New Reply",
             message,
             metadata: {
                 postId: data.postId,

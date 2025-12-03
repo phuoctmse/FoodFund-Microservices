@@ -23,6 +23,7 @@ export interface CampaignCompletedData extends BaseNotificationData {
     campaignTitle: string
     totalRaised: string
     totalDonors: number
+    message?: string
 }
 
 export interface CampaignCancelledData extends BaseNotificationData {

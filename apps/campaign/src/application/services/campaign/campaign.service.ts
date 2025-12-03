@@ -54,6 +54,11 @@ import {
     CampaignCompletedEvent,
     CampaignRejectedEvent,
 } from "@app/campaign/src/domain/events"
+import { NotificationQueue } from "../../workers/notification"
+import {
+    NotificationPriority,
+    NotificationType,
+} from "@app/campaign/src/domain/enums/notification"
 
 interface CoverImageUpdateResult {
     updateData: {
@@ -84,6 +89,7 @@ export class CampaignService {
         private readonly donorRepository: DonorRepository,
         private readonly eventEmitter: EventEmitter2,
         private readonly campaignSearchService: CampaignSearchService,
+        private readonly notificationQueue: NotificationQueue,
     ) {}
 
     async generateCampaignImageUploadUrl(
@@ -246,10 +252,7 @@ export class CampaignService {
                 })),
             })
 
-            await this.cacheService.invalidateAll(
-                campaign.id,
-                campaign.slug,
-            )
+            await this.cacheService.invalidateAll(campaign.id, campaign.slug)
 
             return campaign
         } catch (error) {
@@ -386,10 +389,7 @@ export class CampaignService {
                 updateData,
             )
 
-            await this.updateCampaignCache(
-                id,
-                campaign.slug,
-            )
+            await this.updateCampaignCache(id, campaign.slug)
 
             if (coverImageResult.oldFileKeyToDelete) {
                 await this.spacesUploadService.deleteResourceImage(
@@ -424,7 +424,10 @@ export class CampaignService {
             )
 
             const campaign = await this.findCampaignById(id)
-            this.authorizationService.requireOwnerOrAdmin(campaign.createdBy, userContext, "campaign", "change status")
+            this.authorizationService.requireAdmin(
+                userContext,
+                "change campaign status",
+            )
             this.validateStatusTransition(campaign.status, newStatus)
 
             const updateData: any = {
@@ -525,10 +528,7 @@ export class CampaignService {
 
             await this.cacheService.setCampaign(id, updatedCampaign)
 
-            await this.cacheService.invalidateAll(
-                id,
-                campaign.slug,
-            )
+            await this.cacheService.invalidateAll(id, campaign.slug)
 
             return updatedCampaign
         } catch (error) {
@@ -541,6 +541,77 @@ export class CampaignService {
                     role: userContext.role,
                 },
                 requestedStatus: newStatus,
+            })
+            throw error
+        }
+    }
+
+    async markCampaignComplete(
+        campaignId: string,
+        userContext: UserContext,
+    ): Promise<Campaign> {
+        try {
+            this.authorizationService.requireAuthentication(
+                userContext,
+                "mark campaign complete",
+            )
+
+            this.authorizationService.requireRole(
+                userContext,
+                Role.FUNDRAISER,
+                "mark campaign complete",
+            )
+
+            const campaign = await this.findCampaignById(campaignId)
+
+            this.authorizationService.requireOwnership(
+                campaign.createdBy,
+                userContext,
+                "campaign",
+                "mark as complete",
+            )
+
+            if (campaign.completedAt) {
+                throw new BadRequestException(
+                    "Campaign has already been completed",
+                )
+            }
+
+            if (campaign.status !== CampaignStatus.PROCESSING) {
+                throw new BadRequestException(
+                    `Campaign must be in PROCESSING status to be marked as complete. Current status: ${campaign.status}`,
+                )
+            }
+
+            const phasesCheck =
+                await this.campaignRepository.areAllPhasesFinished(campaignId)
+
+            if (!phasesCheck.allFinished) {
+                const pendingPhaseNames = phasesCheck.pendingPhases
+                    .map((p) => `"${p.phaseName}" (${p.status})`)
+                    .join(", ")
+
+                throw new BadRequestException(
+                    `Cannot complete campaign. The following phases are not finished: ${pendingPhaseNames}. All phases must be COMPLETED or FAILED.`,
+                )
+            }
+
+            const completedCampaign =
+                await this.campaignRepository.markAsCompleted(campaignId)
+
+            await this.cacheService.invalidateAll(campaignId, campaign.slug)
+
+            await this.sendCampaignCompletedNotifications(completedCampaign)
+
+            return completedCampaign
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "markCampaignComplete",
+                campaignId,
+                user: {
+                    id: userContext.userId,
+                    role: userContext.role,
+                },
             })
             throw error
         }
@@ -606,10 +677,7 @@ export class CampaignService {
 
             await Promise.all([
                 this.cacheService.deleteCampaign(id),
-                this.cacheService.invalidateAll(
-                    id,
-                    campaign.slug,
-                ),
+                this.cacheService.invalidateAll(id, campaign.slug),
             ])
 
             return updatedCampaign
@@ -664,10 +732,7 @@ export class CampaignService {
 
             await this.cacheService.deleteCampaign(id)
 
-            await this.cacheService.invalidateAll(
-                id,
-                campaign.slug,
-            )
+            await this.cacheService.invalidateAll(id, campaign.slug)
 
             if (campaign.coverImageFileKey) {
                 await this.spacesUploadService.deleteResourceImage(
@@ -826,10 +891,7 @@ export class CampaignService {
         })
 
         await this.cacheService.deleteCampaign(campaignId)
-        await this.cacheService.invalidateAll(
-            campaignId,
-            campaign.slug,
-        )
+        await this.cacheService.invalidateAll(campaignId, campaign.slug)
 
         return campaign
     }
@@ -955,10 +1017,7 @@ export class CampaignService {
         campaignId: string,
         slug?: string,
     ): Promise<void> {
-        await this.cacheService.invalidateAll(
-            campaignId,
-            slug,
-        )
+        await this.cacheService.invalidateAll(campaignId, slug)
     }
 
     private async getOverviewStats(
@@ -1608,6 +1667,35 @@ export class CampaignService {
                 error.message,
             )
         }
+    }
+
+    private async sendCampaignCompletedNotifications(
+        campaign: Campaign,
+    ): Promise<void> {
+        const donorIds = await this.donorRepository.getCampaignFollowers(
+            campaign.id,
+        )
+
+        if (donorIds.length === 0) {
+            return
+        }
+
+        await this.notificationQueue.addGroupedNotificationJob({
+            eventIds: [`campaign-completed-donors-${campaign.id}`],
+            priority: NotificationPriority.HIGH,
+            type: NotificationType.CAMPAIGN_COMPLETED,
+            userIds: donorIds,
+            entityType: "CAMPAIGN",
+            entityId: campaign.id,
+            data: {
+                campaignId: campaign.id,
+                campaignTitle: campaign.title,
+                totalRaised: campaign.receivedAmount.toString(),
+                totalDonors: campaign.donationCount,
+                message: `Chiến dịch "${campaign.title}" đã hoàn thành! Cảm ơn bạn đã đóng góp. Tổng số tiền quyên góp: ${BigInt(campaign.receivedAmount).toLocaleString("vi-VN")} VND từ ${campaign.donationCount} nhà hảo tâm.`,
+            },
+            timestamp: new Date().toISOString(),
+        })
     }
 
     getHealth() {
