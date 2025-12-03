@@ -1,13 +1,11 @@
 import { PostLikeJob } from "@app/campaign/src/domain/interfaces/post"
 import { JOB_TYPES, QUEUE_NAMES } from "@libs/queue"
 import { InjectQueue } from "@nestjs/bull"
-import { Injectable, Logger } from "@nestjs/common"
+import { Injectable } from "@nestjs/common"
 import { Queue } from "bull"
 
 @Injectable()
 export class PostLikeQueue {
-    private readonly logger = new Logger(PostLikeQueue.name)
-
     constructor(
         @InjectQueue(QUEUE_NAMES.CAMPAIGN_JOBS)
         private readonly queue: Queue,

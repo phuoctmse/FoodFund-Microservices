@@ -45,9 +45,4 @@ export class PostMediaUploadResponse {
         description: "Array of upload URLs for each file",
     })
         uploadUrls: MediaUploadUrl[]
-
-    @Field(() => String, {
-        description: "Upload instructions",
-    })
-        instructions: string
 }

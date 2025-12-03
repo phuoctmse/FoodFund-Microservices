@@ -55,8 +55,8 @@ export class PostCommentRepository {
 
     async findCommentsByPostId(
         postId: string,
-        limit: number = 20,
-        offset: number = 0,
+        limit: number,
+        offset: number,
     ) {
         const allComments = await this.prisma.post_Comment.findMany({
             where: {
@@ -87,7 +87,7 @@ export class PostCommentRepository {
         })
 
         return topLevelComments
-            .sort((a, b) => b.created_at.getTime() - a.created_at.getTime())
+            .toSorted((a, b) => b.created_at.getTime() - a.created_at.getTime())
             .slice(offset, offset + limit)
     }
 
@@ -121,110 +121,39 @@ export class PostCommentRepository {
         return this.mapCommentToGraphQLModel(comment)
     }
 
-    async deleteComment(commentId: string, postId: string) {
-        const activeRepliesCount = await this.prisma.post_Comment.count({
+    async deleteComment(commentId: string, postId: string): Promise<number> {
+        const repliesCount = await this.prisma.post_Comment.count({
             where: {
                 parent_comment_id: commentId,
                 is_active: true,
             },
         })
 
-        await this.prisma.$transaction([
-            this.prisma.post_Comment.update({
-                where: { id: commentId },
-                data: {
-                    is_active: false,
-                    updated_at: new Date(),
-                },
-            }),
-            this.prisma.post.update({
-                where: { id: postId },
-                data: {
-                    comment_count: {
-                        decrement: 1 + activeRepliesCount,
-                    },
-                },
-            }),
-        ])
-
-        if (activeRepliesCount > 0) {
-            await this.softDeleteReplies(commentId)
-        }
-    }
-
-    private async softDeleteReplies(parentCommentId: string) {
-        await this.prisma.post_Comment.updateMany({
-            where: {
-                parent_comment_id: parentCommentId,
-                is_active: true,
-            },
-            data: {
-                is_active: false,
-                updated_at: new Date(),
-            },
-        })
-    }
-
-    async restoreComment(commentId: string, postId: string) {
-        const comment = await this.prisma.post_Comment.findUnique({
-            where: { id: commentId },
-            select: { parent_comment_id: true },
-        })
-
-        if (comment?.parent_comment_id) {
-            const parentComment = await this.prisma.post_Comment.findUnique({
-                where: { id: comment.parent_comment_id },
-                select: { is_active: true },
-            })
-
-            if (!parentComment?.is_active) {
-                throw new Error(
-                    "Cannot restore comment: parent comment is deleted",
-                )
-            }
-        }
-
-        const deletedRepliesCount = await this.prisma.post_Comment.count({
-            where: {
-                parent_comment_id: commentId,
-                is_active: false,
-            },
-        })
+        const totalDeleted = 1 + repliesCount
 
         await this.prisma.$transaction([
             this.prisma.post_Comment.update({
                 where: { id: commentId },
-                data: {
+                data: { is_active: false },
+            }),
+            this.prisma.post_Comment.updateMany({
+                where: {
+                    parent_comment_id: commentId,
                     is_active: true,
-                    updated_at: new Date(),
                 },
+                data: { is_active: false },
             }),
             this.prisma.post.update({
                 where: { id: postId },
                 data: {
                     comment_count: {
-                        increment: 1 + deletedRepliesCount,
+                        decrement: totalDeleted,
                     },
                 },
             }),
         ])
 
-        if (deletedRepliesCount > 0) {
-            await this.restoreReplies(commentId)
-        }
-    }
-
-    private async restoreReplies(parentCommentId: string) {
-        await this.prisma.post_Comment.updateMany({
-            where: {
-                parent_comment_id: parentCommentId,
-                is_active: false,
-            },
-            data: {
-                is_active: true,
-                updated_at: new Date(),
-            },
-        })
+        return totalDeleted
     }
 
     async getCommentCount(postId: string): Promise<number> {

@@ -57,21 +57,4 @@ export class PostQueryResolver {
             Math.max(offset, 0),
         )
     }
-
-    @Query(() => Post, {
-        description: "Get a single post by ID",
-        nullable: true,
-    })
-    @UseGuards(CognitoGraphQLGuard)
-    async post(
-        @Args("id", {
-            description: "Post ID",
-        })
-            id: string,
-        @CurrentUser("decodedToken") decodedToken?: any,
-    ): Promise<Post | null> {
-        const userId = decodedToken?.sub || null
-
-        return this.postService.getPostById(id, userId, this.postLikeDataLoader)
-    }
 }

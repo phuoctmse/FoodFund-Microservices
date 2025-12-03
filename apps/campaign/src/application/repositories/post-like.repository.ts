@@ -133,28 +133,6 @@ export class PostLikeRepository {
         })
     }
 
-    async getUserLikedPosts(userId: string, limit: number, offset: number) {
-        const likes = await this.prisma.post_Like.findMany({
-            where: {
-                user_id: userId,
-            },
-            orderBy: {
-                created_at: "desc",
-            },
-            take: Math.min(limit, 100),
-            skip: offset,
-            select: {
-                post_id: true,
-                created_at: true,
-            },
-        })
-
-        return likes.map((like) => ({
-            postId: like.post_id,
-            likedAt: like.created_at,
-        }))
-    }
-
     async getLatestLike(
         postId: string,
     ): Promise<{ userId: string; createdAt: Date } | null> {

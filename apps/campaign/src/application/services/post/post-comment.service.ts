@@ -19,7 +19,7 @@ import { stripHtmlTags } from "@app/campaign/src/shared/utils"
 
 @Injectable()
 export class PostCommentService {
-    private readonly MAX_COMMENT_DEPTH = 3
+    private readonly MAX_COMMENT_DEPTH = 2
 
     constructor(
         private readonly postCommentRepository: PostCommentRepository,
@@ -137,40 +137,36 @@ export class PostCommentService {
             throw new ForbiddenException("You can only delete your own comment")
         }
 
-        await this.postCommentRepository.deleteComment(
+        const deletedCount = await this.postCommentRepository.deleteComment(
             commentId,
             comment.postId,
         )
 
-        const updatedCommentCount =
-            await this.postCommentRepository.getCommentCount(comment.postId)
+        const cachedCount = await this.postCacheService.getCommentsCount(
+            comment.postId,
+        )
 
-        await Promise.all([
-            this.postCacheService.deletePostComments(comment.postId),
-            this.postCacheService.initializeCommentsCount(
+        if (cachedCount === null) {
+            const dbCount = await this.postCommentRepository.getCommentCount(
                 comment.postId,
-                updatedCommentCount,
-            ),
-            this.postCacheService.deletePost(comment.postId),
-        ])
+            )
+            await this.postCacheService.initializeCommentsCount(
+                comment.postId,
+                dbCount,
+            )
+        } else {
+            for (let i = 0; i < deletedCount; i++) {
+                await this.postCacheService.decrementCommentsCount(
+                    comment.postId,
+                )
+            }
+        }
+        await this.postCacheService.deletePostComments(comment.postId)
 
         return {
             success: true,
             message: "Comment deleted successfully",
         }
-    }
-
-    async getCommentById(commentId: string): Promise<PostComment> {
-        const comment =
-            await this.postCommentRepository.findCommentById(commentId)
-
-        if (!comment) {
-            throw new NotFoundException(
-                `Comment with ID ${commentId} not found`,
-            )
-        }
-
-        return comment
     }
 
     private async validateParentComment(
@@ -223,10 +219,7 @@ export class PostCommentService {
     }
 
     private async invalidatePostCaches(postId: string): Promise<void> {
-        await Promise.all([
-            this.postCacheService.deletePostComments(postId),
-            this.postCacheService.deletePost(postId),
-        ])
+        await this.postCacheService.deletePostComments(postId)
     }
 
     private async emitCommentNotificationEvent(

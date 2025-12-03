@@ -7,7 +7,6 @@ import { CampaignStatus } from "../../domain/enums/campaign/campaign.enum"
 export interface CreateReassignmentData {
     campaignId: string
     organizationId: string
-    assignedBy: string
     expiresAt: Date
 }
 
@@ -20,27 +19,6 @@ export interface ReassignmentFilterInput {
 @Injectable()
 export class CampaignReassignmentRepository {
     constructor(private readonly prisma: PrismaClient) {}
-
-    async create(data: CreateReassignmentData): Promise<CampaignReassignment> {
-        const reassignment = await this.prisma.campaign_Reassignment.create({
-            data: {
-                campaign_id: data.campaignId,
-                organization_id: data.organizationId,
-                expires_at: data.expiresAt,
-                status: "PENDING",
-            },
-            include: {
-                campaign: {
-                    select: {
-                        id: true,
-                        title: true,
-                    },
-                },
-            },
-        })
-
-        return this.mapToModel(reassignment)
-    }
 
     async createMany(
         dataList: CreateReassignmentData[],
@@ -86,25 +64,6 @@ export class CampaignReassignmentRepository {
         )
 
         return reassignment ? this.mapToModel(reassignment) : null
-    }
-
-    async findByCampaignId(
-        campaignId: string,
-    ): Promise<CampaignReassignment[]> {
-        const reassignments = await this.prisma.campaign_Reassignment.findMany({
-            where: { campaign_id: campaignId },
-            include: {
-                campaign: {
-                    select: {
-                        id: true,
-                        title: true,
-                    },
-                },
-            },
-            orderBy: { created_at: "desc" },
-        })
-
-        return reassignments.map((r) => this.mapToModel(r))
     }
 
     async findPendingByOrganizationId(
@@ -158,79 +117,6 @@ export class CampaignReassignmentRepository {
         return reassignments.map((r) => this.mapToModel(r))
     }
 
-    async updateStatus(
-        id: string,
-        status: CampaignReassignmentStatus,
-        responseNote?: string,
-    ): Promise<CampaignReassignment> {
-        const reassignment = await this.prisma.campaign_Reassignment.update({
-            where: { id },
-            data: {
-                status,
-                responded_at: new Date(),
-                response_note: responseNote,
-            },
-            include: {
-                campaign: {
-                    select: {
-                        id: true,
-                        title: true,
-                    },
-                },
-            },
-        })
-
-        return this.mapToModel(reassignment)
-    }
-
-    async rejectAllPendingForCampaign(
-        campaignId: string,
-        excludeId?: string,
-    ): Promise<number> {
-        const result = await this.prisma.campaign_Reassignment.updateMany({
-            where: {
-                campaign_id: campaignId,
-                status: "PENDING",
-                ...(excludeId && { id: { not: excludeId } }),
-            },
-            data: {
-                status: "REJECTED",
-                responded_at: new Date(),
-                response_note: "Auto-rejected: Another organization accepted",
-            },
-        })
-
-        return result.count
-    }
-
-    async expireAllPendingForCampaign(campaignId: string): Promise<number> {
-        const result = await this.prisma.campaign_Reassignment.updateMany({
-            where: {
-                campaign_id: campaignId,
-                status: "PENDING",
-            },
-            data: {
-                status: "EXPIRED",
-                responded_at: new Date(),
-                response_note:
-                    "Auto-expired: No organization accepted within 7 days",
-            },
-        })
-
-        return result.count
-    }
-
-    async hasApprovedReassignment(campaignId: string): Promise<boolean> {
-        const count = await this.prisma.campaign_Reassignment.count({
-            where: {
-                campaign_id: campaignId,
-                status: "APPROVED",
-            },
-        })
-
-        return count > 0
-    }
-
     async findCampaignsWithExpiredAssignments(): Promise<string[]> {
         const now = new Date()
 
@@ -257,6 +143,42 @@ export class CampaignReassignmentRepository {
         })
 
         return campaigns.map((c) => c.id)
+    }
+
+    async updateStatus(
+        id: string,
+        status: CampaignReassignmentStatus,
+        responseNote?: string,
+    ): Promise<CampaignReassignment> {
+        const reassignment = await this.prisma.campaign_Reassignment.update({
+            where: { id },
+            data: {
+                status,
+                responded_at: new Date(),
+                response_note: responseNote,
+            },
+            include: {
+                campaign: {
+                    select: {
+                        id: true,
+                        title: true,
+                    },
+                },
+            },
+        })
+
+        return this.mapToModel(reassignment)
+    }
+
+    async hasApprovedReassignment(campaignId: string): Promise<boolean> {
+        const count = await this.prisma.campaign_Reassignment.count({
+            where: {
+                campaign_id: campaignId,
+                status: "APPROVED",
+            },
+        })
+
+        return count > 0
     }
 
     async hasActiveCampaign(organizationId: string): Promise<boolean> {

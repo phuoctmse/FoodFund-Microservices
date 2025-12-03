@@ -34,14 +34,6 @@ export class PostLikeProcessor {
     async handleLike(job: Job<PostLikeJob>) {
         const span = tracer.scope().active()
         const startTime = Date.now()
-        this.logger.log(`🔄 Processing ${job.data.action} job ${job.id}`)
-        this.logger.debug("Job data:", {
-            jobId: job.id,
-            action: job.data.action,
-            postId: job.data.postId,
-            userId: job.data.userId,
-            timestamp: job.data.timestamp,
-        })
 
         span?.setTag("job.id", job.id)
         span?.setTag("job.queue", QUEUE_NAMES.CAMPAIGN_JOBS)
@@ -96,6 +88,16 @@ export class PostLikeProcessor {
     }
 
     private async processLike(postId: string, userId: string): Promise<void> {
+        const cachedCount =
+            await this.postCacheService.getDistributedLikeCounter(postId)
+
+        if (cachedCount === null) {
+            const dbCount = await this.postLikeRepository.getLikeCount(postId)
+            await this.postCacheService.initializeDistributedLikeCounter(
+                postId,
+                dbCount,
+            )
+        }
         const alreadyLiked = await this.postLikeRepository.checkIfUserLikedPost(
             postId,
             userId,
@@ -111,17 +113,11 @@ export class PostLikeProcessor {
         }
 
         const result = await this.postLikeRepository.likePost(postId, userId)
-        this.logger.log(
-            `✅ Like created: likeId=${result.likeId}, newCount=${result.likeCount}`,
-        )
-
         await Promise.all([
             this.postCacheService.initializeDistributedLikeCounter(
                 postId,
                 result.likeCount,
             ),
-            this.postCacheService.deletePost(postId),
-            this.postCacheService.deleteCampaignPosts(post.campaignId),
             this.postCacheService.deleteAllPostLists(),
         ])
 
@@ -140,6 +136,15 @@ export class PostLikeProcessor {
     }
 
     private async processUnlike(postId: string, userId: string): Promise<void> {
+        const cachedCount = await this.postCacheService.getDistributedLikeCounter(postId)
+
+        if (cachedCount === null) {
+            const dbCount = await this.postLikeRepository.getLikeCount(postId)
+            await this.postCacheService.initializeDistributedLikeCounter(
+                postId,
+                dbCount,
+            )
+        }
         const hasLiked = await this.postLikeRepository.checkIfUserLikedPost(
             postId,
             userId,
@@ -161,8 +166,6 @@ export class PostLikeProcessor {
                 postId,
                 result.likeCount,
             ),
-            this.postCacheService.deletePost(postId),
-            this.postCacheService.deleteCampaignPosts(post.campaignId),
             this.postCacheService.deleteAllPostLists(),
         ])
 

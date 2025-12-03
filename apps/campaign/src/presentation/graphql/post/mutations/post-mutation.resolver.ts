@@ -44,18 +44,7 @@ export class PostMutationResolver {
         return {
             success: true,
             message: `Generated ${input.fileCount} upload URLs successfully`,
-            uploadUrls,
-            instructions: `
-1. Upload each file using PUT request to its uploadUrl
-2. Set Content-Type header matching the file type
-3. After all uploads complete, use the fileKeys in createPost/updatePost mutation
-4. Upload URLs expire in 5 minutes
-
-Example:
-curl -X PUT "{{uploadUrl}}" \\
-  -H "Content-Type: image/jpeg" \\
-  --upload-file image.jpg
-      `.trim(),
+            uploadUrls
         }
     }
 

@@ -1,6 +1,6 @@
 import { User } from "../../shared"
 import { Prisma, PrismaClient } from "../../generated/campaign-client"
-import { Injectable, Logger } from "@nestjs/common"
+import { Injectable } from "@nestjs/common"
 import { PostFilterInput } from "../dtos/post/request"
 import { PostSortOrder } from "../../domain/enums/post/post.enum"
 
@@ -27,8 +27,6 @@ export interface UpdatePostRepositoryInput {
 
 @Injectable()
 export class PostRepository {
-    private readonly logger = new Logger(PostRepository.name)
-
     private readonly POST_INCLUDE = {
         likes: {
             take: 100,
@@ -170,26 +168,6 @@ export class PostRepository {
         return this.mapToGraphQLModel(post)
     }
 
-    async deletePost(id: string, userId: string): Promise<string> {
-        const existingPost = await this.prisma.post.findUnique({
-            where: { id },
-        })
-
-        if (!existingPost) {
-            throw new Error("Post not found")
-        }
-
-        if (existingPost.created_by !== userId) {
-            throw new Error("Unauthorized: You can only delete your own posts")
-        }
-
-        await this.prisma.post.delete({
-            where: { id },
-        })
-
-        return id
-    }
-
     async deactivatePost(id: string, userId: string) {
         const existingPost = await this.prisma.post.findUnique({
             where: { id },
@@ -216,58 +194,6 @@ export class PostRepository {
         return this.mapToGraphQLModel(post)
     }
 
-    async reactivatePost(id: string, userId: string) {
-        const existingPost = await this.prisma.post.findUnique({
-            where: { id },
-        })
-
-        if (!existingPost) {
-            throw new Error("Post not found")
-        }
-
-        if (existingPost.created_by !== userId) {
-            throw new Error(
-                "Unauthorized: You can only reactivate your own posts",
-            )
-        }
-
-        const post = await this.prisma.post.update({
-            where: { id },
-            data: {
-                is_active: true,
-            },
-            include: this.POST_INCLUDE,
-        })
-
-        return this.mapToGraphQLModel(post)
-    }
-
-    async countPosts(
-        filter?: PostFilterInput,
-        search?: string,
-    ): Promise<number> {
-        const whereClause: Prisma.PostWhereInput = {
-            is_active: true,
-        }
-
-        if (filter?.campaignId) {
-            whereClause.campaign_id = filter.campaignId
-        }
-
-        if (filter?.creatorId) {
-            whereClause.created_by = filter.creatorId
-        }
-
-        if (search) {
-            whereClause.OR = [
-                { title: { contains: search, mode: "insensitive" } },
-                { content: { contains: search, mode: "insensitive" } },
-            ]
-        }
-
-        return await this.prisma.post.count({ where: whereClause })
-    }
-
     private parseMediaToJsonValue(
         media?: string,
     ): Prisma.InputJsonValue | undefined {
@@ -279,9 +205,6 @@ export class PostRepository {
             const parsed = JSON.parse(media)
 
             if (!Array.isArray(parsed)) {
-                this.logger.warn(
-                    "Media JSON is not an array, wrapping in array",
-                )
                 return [parsed] as Prisma.InputJsonValue
             }
 

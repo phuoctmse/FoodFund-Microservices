@@ -38,6 +38,7 @@ export class CampaignReassignmentService {
         private readonly sentryService: SentryService,
         private readonly eventEmitter: EventEmitter2,
     ) {}
+
     async getEligibleOrganizations(
         campaignId: string,
         userContext: UserContext,

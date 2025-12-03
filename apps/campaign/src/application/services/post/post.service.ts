@@ -57,13 +57,7 @@ export class PostService {
             userId,
         )
 
-        await Promise.all([
-            this.postCacheService.setPost(post.id, post),
-            this.postCacheService.deleteCampaignPosts(data.campaignId),
-            this.postCacheService.deleteUserPosts(userId),
-            this.postCacheService.deleteAllPostLists(),
-        ])
-
+        await this.postCacheService.deleteAllPostLists()
         await this.emitNewPostNotification(post.id, data, userId)
 
         return post
@@ -94,9 +88,13 @@ export class PostService {
                         userId,
                     })
 
+                    const cachedLikeCount = await this.postCacheService.getDistributedLikeCounter(post.id)
+                    const likeCount = cachedLikeCount ?? post.likeCount
+
                     return {
                         ...post,
                         isLikedByMe,
+                        likeCount
                     }
                 }),
             )
@@ -120,42 +118,18 @@ export class PostService {
                     userId,
                 })
 
+                const cachedLikeCount = await this.postCacheService.getDistributedLikeCounter(post.id)
+                const likeCount = cachedLikeCount ?? post.likeCount
+
                 return {
                     ...post,
                     isLikedByMe,
+                    likeCount,
                 }
             }),
         )
 
         return postsWithLikeStatus
-    }
-
-    async getPostById(
-        id: string,
-        userId: string | null,
-        dataLoader: PostLikeDataLoader,
-    ) {
-        let post = await this.postCacheService.getPost(id)
-
-        if (!post) {
-            post = await this.postRepository.findPostById(id)
-
-            if (!post) {
-                throw new NotFoundException(`Post with ID ${id} not found`)
-            }
-
-            await this.postCacheService.setPost(id, post)
-        }
-
-        const isLikedByMe = await dataLoader.load({
-            postId: post.id,
-            userId,
-        })
-
-        return {
-            ...post,
-            isLikedByMe,
-        }
     }
 
     async updatePost(id: string, data: UpdatePostInput, userId: string) {
@@ -208,11 +182,7 @@ export class PostService {
             userId,
         )
 
-        await this.postCacheService.invalidatePost(
-            id,
-            existingPost.campaignId,
-            userId,
-        )
+        await this.postCacheService.invalidatePost(id)
 
         return updatedPost
     }
@@ -241,18 +211,9 @@ export class PostService {
         }
 
         await this.postRepository.deactivatePost(id, userId)
-
-        await this.postCacheService.invalidatePost(id, post.campaignId, userId)
+        await this.postCacheService.invalidatePost(id)
 
         return { success: true, message: "Delete successfully" }
-    }
-
-    async deactivatePost(id: string, userId: string) {
-        const post = await this.postRepository.deactivatePost(id, userId)
-
-        await this.postCacheService.invalidatePost(id, post.campaignId, userId)
-
-        return post
     }
 
     private async emitNewPostNotification(

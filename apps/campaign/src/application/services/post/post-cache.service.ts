@@ -15,20 +15,14 @@ export interface PostListCacheKey {
 @Injectable()
 export class PostCacheService extends BaseCacheService<Post> {
     protected readonly TTL = {
-        SINGLE_POST: 60 * 30, // 30 minutes
         POST_LIST: 60 * 15, // 15 minutes
-        CAMPAIGN_POSTS: 60 * 30, // 30 minutes
-        USER_POSTS: 60 * 30, // 30 minutes
         LIKE_COUNTER: 60 * 60, // 1 hour
         POST_COMMENTS: 60 * 30, // 30 minutes
         COMMENT_COUNTER: 60 * 60, // 1 hour
     }
 
     protected readonly KEYS = {
-        SINGLE: "post",
         LIST: "posts:list",
-        CAMPAIGN: "posts:campaign",
-        USER: "posts:user",
         LIKE_COUNTER: "post:like-counter",
         COMMENTS: "post:comments",
         COMMENT_COUNTER: "post:comment-counter",
@@ -36,20 +30,6 @@ export class PostCacheService extends BaseCacheService<Post> {
 
     constructor(redis: RedisService) {
         super(redis)
-    }
-
-    // ==================== Single Post ====================
-
-    async getPost(id: string): Promise<Post | null> {
-        return this.getSingle(this.KEYS.SINGLE, id)
-    }
-
-    async setPost(id: string, post: Post): Promise<void> {
-        return this.setSingle(this.KEYS.SINGLE, id, post, this.TTL.SINGLE_POST)
-    }
-
-    async deletePost(id: string): Promise<void> {
-        return this.deleteSingle(this.KEYS.SINGLE, id)
     }
 
     // ==================== Post Lists ====================
@@ -66,46 +46,6 @@ export class PostCacheService extends BaseCacheService<Post> {
         return this.deleteAllLists(this.KEYS.LIST)
     }
 
-    // ==================== Campaign Posts ====================
-
-    async getCampaignPosts(campaignId: string): Promise<Post[] | null> {
-        return this.getRelatedList(this.KEYS.CAMPAIGN, campaignId)
-    }
-
-    async setCampaignPosts(
-        campaignId: string,
-        posts: Post[],
-    ): Promise<void> {
-        return this.setRelatedList(
-            this.KEYS.CAMPAIGN,
-            campaignId,
-            posts,
-            this.TTL.CAMPAIGN_POSTS,
-        )
-    }
-
-    async deleteCampaignPosts(campaignId: string): Promise<void> {
-        return this.deleteRelatedList(this.KEYS.CAMPAIGN, campaignId)
-    }
-
-    // ==================== User Posts ====================
-
-    async getUserPosts(userId: string): Promise<Post[] | null> {
-        return this.getRelatedList(this.KEYS.USER, userId)
-    }
-
-    async setUserPosts(userId: string, posts: Post[]): Promise<void> {
-        return this.setRelatedList(
-            this.KEYS.USER,
-            userId,
-            posts,
-            this.TTL.USER_POSTS,
-        )
-    }
-
-    async deleteUserPosts(userId: string): Promise<void> {
-        return this.deleteRelatedList(this.KEYS.USER, userId)
-    }
 
     // ==================== Post Comments ====================
 
@@ -219,36 +159,13 @@ export class PostCacheService extends BaseCacheService<Post> {
 
     async invalidatePost(
         postId: string,
-        campaignId?: string,
-        userId?: string,
     ): Promise<void> {
         const operations: Promise<void>[] = [
-            this.deletePost(postId),
             this.deletePostComments(postId),
             this.deleteAllPostLists(),
         ]
 
-        if (campaignId) {
-            operations.push(this.deleteCampaignPosts(campaignId))
-        }
-
-        if (userId) {
-            operations.push(this.deleteUserPosts(userId))
-        }
-
         return this.invalidateMultiple(...operations)
-    }
-
-    async invalidateAll(): Promise<void> {
-        return this.invalidateByPatterns(
-            `${this.KEYS.SINGLE}:*`,
-            `${this.KEYS.LIST}:*`,
-            `${this.KEYS.CAMPAIGN}:*`,
-            `${this.KEYS.USER}:*`,
-            `${this.KEYS.LIKE_COUNTER}:*`,
-            `${this.KEYS.COMMENTS}:*`,
-            `${this.KEYS.COMMENT_COUNTER}:*`,
-        )
     }
 
     // ==================== Health Check ====================

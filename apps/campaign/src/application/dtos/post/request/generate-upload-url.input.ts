@@ -6,7 +6,6 @@ import {
     IsNotEmpty,
     IsOptional,
     IsString,
-    IsUUID,
     Max,
     Min,
 } from "class-validator"
@@ -18,7 +17,6 @@ export class GeneratePostMediaUploadUrlsInput {
         description: "Optional post ID if updating existing post",
     })
     @IsOptional()
-    @IsUUID(4, { message: "Post ID must be a valid UUID v4" })
         postId?: string
 
     @Field(() => Int, {

@@ -8,7 +8,10 @@ import { PostLikeRepository } from "../../repositories/post-like.repository"
 import { PostRepository } from "../../repositories/post.repository"
 import { PostCacheService } from "./post-cache.service"
 import { PostLikeQueue } from "../../workers/post-like"
-import { LikeAction, PostLikeJob } from "@app/campaign/src/domain/interfaces/post"
+import {
+    LikeAction,
+    PostLikeJob,
+} from "@app/campaign/src/domain/interfaces/post"
 
 export interface LikeQueueResponse {
     success: boolean
@@ -30,14 +33,9 @@ export class PostLikeService {
     ) {}
 
     async likePost(postId: string, userId: string): Promise<LikeQueueResponse> {
-        let post = await this.postCacheService.getPost(postId)
+        const post = await this.postRepository.findPostById(postId)
         if (!post) {
-            post = await this.postRepository.findPostById(postId)
-            if (!post) {
-                throw new NotFoundException(
-                    `Post with ID ${postId} does not exist`,
-                )
-            }
+            throw new NotFoundException(`Post with ID ${postId} does not exist`)
         }
 
         const alreadyLiked = await this.postLikeRepository.checkIfUserLikedPost(
@@ -47,6 +45,7 @@ export class PostLikeService {
         if (alreadyLiked) {
             throw new BadRequestException("You already liked this post")
         }
+        await this.ensureCacheInitialized(postId)
 
         const jobData: PostLikeJob = {
             action: LikeAction.LIKE,
@@ -61,10 +60,16 @@ export class PostLikeService {
             this.logger.warn(
                 `Failed to add like job to queue for post ${postId}, falling back to sync operation`,
                 {
-                    error: queueError instanceof Error ? queueError.message : String(queueError),
+                    error:
+                        queueError instanceof Error
+                            ? queueError.message
+                            : String(queueError),
                     postId,
                     userId,
-                    stack: queueError instanceof Error ? queueError.stack : undefined,
+                    stack:
+                        queueError instanceof Error
+                            ? queueError.stack
+                            : undefined,
                 },
             )
             return await this.likeSyncFallback(postId, userId)
@@ -72,8 +77,6 @@ export class PostLikeService {
 
         const tempLikeCount =
             await this.postCacheService.incrementDistributedLikeCounter(postId)
-
-        await this.postCacheService.deletePost(postId)
 
         return {
             success: true,
@@ -84,15 +87,13 @@ export class PostLikeService {
         }
     }
 
-    async unlikePost(postId: string, userId: string): Promise<LikeQueueResponse> {
-        let post = await this.postCacheService.getPost(postId)
+    async unlikePost(
+        postId: string,
+        userId: string,
+    ): Promise<LikeQueueResponse> {
+        const post = await this.postRepository.findPostById(postId)
         if (!post) {
-            post = await this.postRepository.findPostById(postId)
-            if (!post) {
-                throw new NotFoundException(
-                    `Post with ID ${postId} does not exist`,
-                )
-            }
+            throw new NotFoundException(`Post with ID ${postId} does not exist`)
         }
 
         const hasLiked = await this.postLikeRepository.checkIfUserLikedPost(
@@ -100,10 +101,10 @@ export class PostLikeService {
             userId,
         )
         if (!hasLiked) {
-            throw new BadRequestException(
-                "You have not liked this post yet",
-            )
+            throw new BadRequestException("You have not liked this post yet")
         }
+
+        await this.ensureCacheInitialized(postId)
 
         const jobData: PostLikeJob = {
             action: LikeAction.UNLIKE,
@@ -118,10 +119,16 @@ export class PostLikeService {
             this.logger.warn(
                 `Failed to add unlike job to queue for post ${postId}, falling back to sync operation`,
                 {
-                    error: queueError instanceof Error ? queueError.message : String(queueError),
+                    error:
+                        queueError instanceof Error
+                            ? queueError.message
+                            : String(queueError),
                     postId,
                     userId,
-                    stack: queueError instanceof Error ? queueError.stack : undefined,
+                    stack:
+                        queueError instanceof Error
+                            ? queueError.stack
+                            : undefined,
                 },
             )
             return await this.unlikeSyncFallback(postId, userId)
@@ -129,8 +136,6 @@ export class PostLikeService {
 
         const tempLikeCount =
             await this.postCacheService.decrementDistributedLikeCounter(postId)
-
-        await this.postCacheService.deletePost(postId)
 
         return {
             success: true,
@@ -141,20 +146,19 @@ export class PostLikeService {
         }
     }
 
-    private async likeSyncFallback(postId: string, userId: string): Promise<LikeQueueResponse> {
+    private async likeSyncFallback(
+        postId: string,
+        userId: string,
+    ): Promise<LikeQueueResponse> {
         try {
-            const result = await this.postLikeRepository.likePost(postId, userId)
+            const result = await this.postLikeRepository.likePost(
+                postId,
+                userId,
+            )
 
-            await Promise.all([
-                this.postCacheService.initializeDistributedLikeCounter(
-                    postId,
-                    result.likeCount,
-                ),
-                this.postCacheService.deletePost(postId),
-            ])
-
-            this.logger.log(
-                `Successfully executed sync like fallback for post ${postId}`,
+            await this.postCacheService.initializeDistributedLikeCounter(
+                postId,
+                result.likeCount,
             )
 
             return {
@@ -165,35 +169,34 @@ export class PostLikeService {
                 isOptimistic: false,
             }
         } catch (syncError) {
-            this.logger.error(
-                `Sync like fallback failed for post ${postId}`,
-                {
-                    error: syncError instanceof Error ? syncError.message : String(syncError),
-                    postId,
-                    userId,
-                    stack: syncError instanceof Error ? syncError.stack : undefined,
-                },
-            )
+            this.logger.error(`Sync like fallback failed for post ${postId}`, {
+                error:
+                    syncError instanceof Error
+                        ? syncError.message
+                        : String(syncError),
+                postId,
+                userId,
+                stack: syncError instanceof Error ? syncError.stack : undefined,
+            })
             throw new BadRequestException(
                 "Failed to like post. Please try again later.",
             )
         }
     }
 
-    private async unlikeSyncFallback(postId: string, userId: string): Promise<LikeQueueResponse> {
+    private async unlikeSyncFallback(
+        postId: string,
+        userId: string,
+    ): Promise<LikeQueueResponse> {
         try {
-            const result = await this.postLikeRepository.unlikePost(postId, userId)
+            const result = await this.postLikeRepository.unlikePost(
+                postId,
+                userId,
+            )
 
-            await Promise.all([
-                this.postCacheService.initializeDistributedLikeCounter(
-                    postId,
-                    result.likeCount,
-                ),
-                this.postCacheService.deletePost(postId),
-            ])
-
-            this.logger.log(
-                `Successfully executed sync unlike fallback for post ${postId}`,
+            await this.postCacheService.initializeDistributedLikeCounter(
+                postId,
+                result.likeCount,
             )
 
             return {
@@ -207,10 +210,16 @@ export class PostLikeService {
             this.logger.error(
                 `Sync unlike fallback failed for post ${postId}`,
                 {
-                    error: syncError instanceof Error ? syncError.message : String(syncError),
+                    error:
+                        syncError instanceof Error
+                            ? syncError.message
+                            : String(syncError),
                     postId,
                     userId,
-                    stack: syncError instanceof Error ? syncError.stack : undefined,
+                    stack:
+                        syncError instanceof Error
+                            ? syncError.stack
+                            : undefined,
                 },
             )
             throw new BadRequestException(
@@ -226,12 +235,25 @@ export class PostLikeService {
         )
     }
 
-    async getPostLikes(postId: string, limit: number = 20, offset: number = 0) {
+    async getPostLikes(postId: string, limit: number, offset: number) {
         const post = await this.postRepository.findPostById(postId)
         if (!post) {
             throw new NotFoundException(`Post with ID ${postId} does not exist`)
         }
 
         return await this.postLikeRepository.getPostLikes(postId, limit, offset)
+    }
+
+    private async ensureCacheInitialized(postId: string): Promise<void> {
+        const cachedCount =
+            await this.postCacheService.getDistributedLikeCounter(postId)
+
+        if (cachedCount === null) {
+            const dbCount = await this.postLikeRepository.getLikeCount(postId)
+            await this.postCacheService.initializeDistributedLikeCounter(
+                postId,
+                dbCount,
+            )
+        }
     }
 }

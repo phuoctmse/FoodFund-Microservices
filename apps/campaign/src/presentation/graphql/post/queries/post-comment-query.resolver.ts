@@ -35,17 +35,4 @@ export class PostCommentQueryResolver {
             offset,
         )
     }
-
-    @Query(() => PostComment, {
-        nullable: true,
-        description: "Get a single comment by ID",
-    })
-    async comment(
-        @Args("commentId", {
-            description: "Comment ID",
-        })
-            commentId: string,
-    ): Promise<PostComment | null> {
-        return await this.postCommentService.getCommentById(commentId)
-    }
 }
