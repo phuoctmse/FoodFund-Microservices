@@ -50,7 +50,7 @@ async function bootstrap() {
                 brokers: [env.kafkaUrl],
             },
             consumer: {
-                groupId: "user-service-consumer",
+                groupId: "user-service-consumer-v2",
             },
         },
     })

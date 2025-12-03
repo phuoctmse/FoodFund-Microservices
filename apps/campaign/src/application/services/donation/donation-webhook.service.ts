@@ -8,6 +8,7 @@ import { DonationEmailService } from "./donation-email.service"
 import { BadgeAwardService } from "./badge-award.service"
 import { CampaignFollowerService } from "../campaign/campaign-follower.service"
 import { DonationSearchService } from "./donation-search.service"
+import { CampaignCacheService } from "../campaign/campaign-cache.service"
 
 interface PayOSWebhookData {
     orderCode: number
@@ -35,7 +36,8 @@ export class DonationWebhookService {
     private payOS: PayOS | null = null
 
     constructor(
-        private readonly donorRepository: DonorRepository
+        private readonly donorRepository: DonorRepository,
+        private readonly campaignCacheService: CampaignCacheService
     ) { }
 
     private getPayOS(): PayOS {
@@ -99,6 +101,9 @@ export class DonationWebhookService {
 
         if (code === "00") {
             await this.processSuccessfulPayment(paymentTransaction, webhookData)
+            if (paymentTransaction.donation?.campaign_id) {
+                await this.invalidateCampaignCache(paymentTransaction.donation.campaign_id)
+            }
         } else {
             await this.processFailedPayment(paymentTransaction, code, desc)
         }
@@ -201,6 +206,18 @@ export class DonationWebhookService {
                 error.stack,
             )
             throw error
+        }
+    }
+
+    private async invalidateCampaignCache(campaignId: string): Promise<void> {
+        try {
+            const campaign = await this.donorRepository.findCampaignById(campaignId)
+            if (campaign) {
+                await this.campaignCacheService.invalidateAll(campaignId, campaign.slug || undefined)
+                this.logger.log(`[Cache] Invalidated cache for campaign ${campaignId} (slug: ${campaign.slug})`)
+            }
+        } catch (error) {
+            this.logger.error(`[Cache] Failed to invalidate cache for campaign ${campaignId}`, error)
         }
     }
 }

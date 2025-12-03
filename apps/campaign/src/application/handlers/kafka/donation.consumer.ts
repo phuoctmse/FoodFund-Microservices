@@ -15,7 +15,8 @@ export class DonationConsumer {
     @EventPattern("foodfund_campaign.public.donations")
     async handleDonationChange(@Payload() message: any) {
         try {
-            const payload = message
+            this.logger.debug(`Received Kafka message keys: ${Object.keys(message || {})}`)
+            const payload = message.payload || message
             if (!payload || !payload.op) return
 
             const { op, after, before } = payload
@@ -47,7 +48,8 @@ export class DonationConsumer {
     @EventPattern("foodfund_campaign.public.payment_transactions")
     async handleTransactionChange(@Payload() message: any) {
         try {
-            const payload = message
+            this.logger.debug(`Received Kafka message keys: ${Object.keys(message || {})}`)
+            const payload = message.payload || message
             if (!payload || !payload.op) return
 
             const { op, after, before } = payload

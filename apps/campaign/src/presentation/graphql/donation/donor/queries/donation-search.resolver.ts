@@ -41,7 +41,7 @@ export class DonationSearchResolver {
     ): Promise<CampaignDonationStatementResponse> {
         input.status = PaymentStatus.SUCCESS
 
-        const result = await this.donationSearchService.search(input, "receivedAmount", "receivedAmount")
+        const result = await this.donationSearchService.search(input, "receivedAmount")
 
         const page = input.page || 1
         const limit = input.limit || 10

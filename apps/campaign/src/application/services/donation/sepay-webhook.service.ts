@@ -7,6 +7,7 @@ import { DonorRepository } from "../../repositories/donor.repository"
 import { CampaignStatus } from "@app/campaign/src/domain/enums/campaign/campaign.enum"
 import { DonationEmailService } from "./donation-email.service"
 import { BadgeAwardService } from "./badge-award.service"
+import { CampaignCacheService } from "../campaign/campaign-cache.service"
 
 interface SepayWebhookPayload {
     id: number
@@ -34,6 +35,7 @@ export class SepayWebhookService {
         private readonly eventEmitter: EventEmitter2,
         private readonly donationEmailService: DonationEmailService,
         private readonly badgeAwardService: BadgeAwardService,
+        private readonly campaignCacheService: CampaignCacheService,
     ) { }
 
     async handleSepayWebhook(payload: SepayWebhookPayload): Promise<void> {
@@ -209,6 +211,10 @@ export class SepayWebhookService {
             this.logger.log(
                 `[Sepay→Admin] ✅ Payment updated & Outbox event created - orderCode=${orderCode}`,
             )
+
+            if (donation.campaign_id) {
+                await this.invalidateCampaignCache(donation.campaign_id)
+            }
         } catch (error) {
             this.logger.error(
                 `[Sepay→Admin] ❌ Failed to process partial payment - orderCode=${orderCode}`,
@@ -280,6 +286,10 @@ export class SepayWebhookService {
             this.logger.log(
                 "[Sepay→Admin] ✅ Supplementary payment created & Outbox event created",
             )
+
+            if (donation.campaign_id) {
+                await this.invalidateCampaignCache(donation.campaign_id)
+            }
 
         } catch (error) {
             this.logger.error(
@@ -465,4 +475,15 @@ export class SepayWebhookService {
         return adminId
     }
 
+    private async invalidateCampaignCache(campaignId: string): Promise<void> {
+        try {
+            const campaign = await this.donorRepository.findCampaignById(campaignId)
+            if (campaign) {
+                await this.campaignCacheService.invalidateAll(campaignId, campaign.slug || undefined)
+                this.logger.log(`[Cache] Invalidated cache for campaign ${campaignId} (slug: ${campaign.slug})`)
+            }
+        } catch (error) {
+            this.logger.error(`[Cache] Failed to invalidate cache for campaign ${campaignId}`, error)
+        }
+    }
 }

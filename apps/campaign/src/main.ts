@@ -47,7 +47,7 @@ async function bootstrap() {
                 brokers: [env.kafkaUrl],
             },
             consumer: {
-                groupId: "campaign-service-consumer",
+                groupId: "campaign-service-consumer-v2",
             },
         },
     })

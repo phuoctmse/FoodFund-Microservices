@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit } from "@nestjs/common"
 
 import { OpenSearchService } from "@libs/aws-opensearch"
 import { DonorRepository } from "../../repositories/donor.repository"
-import { SearchDonationInput } from "../../dtos/campaign/request/search-donation.input"
+import { DonationSortBy, SearchDonationInput } from "../../dtos/campaign/request/search-donation.input"
 
 @Injectable()
 export class DonationSearchService implements OnModuleInit {
@@ -166,7 +166,7 @@ export class DonationSearchService implements OnModuleInit {
         }
     }
 
-    async search(input: SearchDonationInput, sortByField: string = "createdAt", aggField: string = "amount") {
+    async search(input: SearchDonationInput, aggField: string = "amount") {
         const {
             campaignId,
             donorEmail,
@@ -215,7 +215,7 @@ export class DonationSearchService implements OnModuleInit {
             },
             from,
             size: limit,
-            sort: [{ [sortByField]: "desc" }],
+            sort: this.getSort(input.sortBy),
             aggs,
         }
 
@@ -231,5 +231,18 @@ export class DonationSearchService implements OnModuleInit {
         }
     }
 
-
+    private getSort(sortBy?: DonationSortBy): any[] {
+        switch (sortBy) {
+            case DonationSortBy.NEWEST:
+                return [{ createdAt: "desc" }]
+            case DonationSortBy.OLDEST:
+                return [{ createdAt: "asc" }]
+            case DonationSortBy.HIGHEST_AMOUNT:
+                return [{ amount: "desc" }]
+            case DonationSortBy.LOWEST_AMOUNT:
+                return [{ amount: "asc" }]
+            default:
+                return [{ createdAt: "desc" }]
+        }
+    }
 }

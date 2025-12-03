@@ -4,6 +4,7 @@ import { OpenSearchService } from "@libs/aws-opensearch"
 import { Campaign } from "../../../domain/entities/campaign.model"
 import { CampaignSortBy, SearchCampaignInput } from "../../dtos/campaign/request/search-campaign.input"
 import { CampaignRepository } from "../../repositories/campaign.repository"
+import { SyncCampaignsResponse } from "../../dtos/campaign/response/sync-campaigns.response"
 
 @Injectable()
 export class CampaignSearchService implements OnModuleInit {
@@ -76,16 +77,7 @@ export class CampaignSearchService implements OnModuleInit {
                         },
                     },
                 },
-                status: {
-                    type: "text",
-                    fields: {
-                        keyword: {
-                            type: "keyword",
-                            ignore_above: 256,
-                            normalizer: "lowercase_normalizer",
-                        },
-                    },
-                },
+                status: { type: "keyword" },
                 targetAmount: { type: "double" },
                 receivedAmount: { type: "double" },
                 donationCount: { type: "integer" },
@@ -210,7 +202,7 @@ export class CampaignSearchService implements OnModuleInit {
         }
 
         if (status && status.length > 0) {
-            filter.push({ terms: { "status.keyword": status } })
+            filter.push({ terms: { "status": status } })
         }
 
         if (minTargetAmount != null || maxTargetAmount != null) {
@@ -223,39 +215,39 @@ export class CampaignSearchService implements OnModuleInit {
         const sort: any[] = []
         if (sortBy) {
             switch (sortBy) {
-            case CampaignSortBy.NEWEST:
-            case CampaignSortBy.NEWEST_FIRST:
-                sort.push({ createdAt: "desc" })
-                break
-            case CampaignSortBy.OLDEST:
-            case CampaignSortBy.OLDEST_FIRST:
-                sort.push({ createdAt: "asc" })
-                break
-            case CampaignSortBy.MOST_FUNDED:
-                sort.push({ fundingProgress: "desc" })
-                break
-            case CampaignSortBy.LEAST_FUNDED:
-                sort.push({ fundingProgress: "asc" })
-                break
-            case CampaignSortBy.ENDING_SOON:
-                sort.push({ fundraisingEndDate: "asc" })
-                break
-            case CampaignSortBy.TARGET_AMOUNT_ASC:
-                sort.push({ targetAmount: "asc" })
-                break
-            case CampaignSortBy.TARGET_AMOUNT_DESC:
-                sort.push({ targetAmount: "desc" })
-                break
-            case CampaignSortBy.MOST_DONATED:
-                sort.push({ donationCount: "desc" })
-                break
-            case CampaignSortBy.LEAST_DONATED:
-                sort.push({ donationCount: "asc" })
-                break
-            case CampaignSortBy.ACTIVE_FIRST:
-                sort.push({ status: "asc" })
-                sort.push({ createdAt: "desc" })
-                break
+                case CampaignSortBy.NEWEST:
+                case CampaignSortBy.NEWEST_FIRST:
+                    sort.push({ createdAt: "desc" })
+                    break
+                case CampaignSortBy.OLDEST:
+                case CampaignSortBy.OLDEST_FIRST:
+                    sort.push({ createdAt: "asc" })
+                    break
+                case CampaignSortBy.MOST_FUNDED:
+                    sort.push({ fundingProgress: "desc" })
+                    break
+                case CampaignSortBy.LEAST_FUNDED:
+                    sort.push({ fundingProgress: "asc" })
+                    break
+                case CampaignSortBy.ENDING_SOON:
+                    sort.push({ fundraisingEndDate: "asc" })
+                    break
+                case CampaignSortBy.TARGET_AMOUNT_ASC:
+                    sort.push({ targetAmount: "asc" })
+                    break
+                case CampaignSortBy.TARGET_AMOUNT_DESC:
+                    sort.push({ targetAmount: "desc" })
+                    break
+                case CampaignSortBy.MOST_DONATED:
+                    sort.push({ donationCount: "desc" })
+                    break
+                case CampaignSortBy.LEAST_DONATED:
+                    sort.push({ donationCount: "asc" })
+                    break
+                case CampaignSortBy.ACTIVE_FIRST:
+                    sort.push({ status: "asc" })
+                    sort.push({ createdAt: "desc" })
+                    break
             }
         } else {
             sort.push({ createdAt: "desc" })
@@ -307,4 +299,23 @@ export class CampaignSearchService implements OnModuleInit {
     }
 
 
+    async syncAll(): Promise<SyncCampaignsResponse> {
+        this.logger.log("Starting full campaign sync...")
+        const campaigns = await this.campaignRepository.findAll()
+        let successCount = 0
+        let failCount = 0
+
+        for (const campaign of campaigns) {
+            try {
+                await this.indexCampaign(campaign)
+                successCount++
+            } catch (error) {
+                this.logger.error(`Failed to sync campaign ${campaign.id}`, error)
+                failCount++
+            }
+        }
+
+        this.logger.log(`Sync completed. Success: ${successCount}, Failed: ${failCount}`)
+        return { successCount, failCount }
+    }
 }
