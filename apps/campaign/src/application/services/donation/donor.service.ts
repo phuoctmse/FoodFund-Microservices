@@ -507,17 +507,17 @@ export class DonorService {
             let compareValue = 0
 
             switch (sortBy) {
-                case "AMOUNT":
-                    compareValue = Number(a.amount) - Number(b.amount)
-                    break
-                case "TRANSACTION_DATE":
-                case "CREATED_AT":
-                    compareValue =
+            case "AMOUNT":
+                compareValue = Number(a.amount) - Number(b.amount)
+                break
+            case "TRANSACTION_DATE":
+            case "CREATED_AT":
+                compareValue =
                         new Date(a.transactionDatetime).getTime() -
                         new Date(b.transactionDatetime).getTime()
-                    break
-                default:
-                    compareValue = 0
+                break
+            default:
+                compareValue = 0
             }
 
             return sortOrder === "ASC" ? compareValue : -compareValue
