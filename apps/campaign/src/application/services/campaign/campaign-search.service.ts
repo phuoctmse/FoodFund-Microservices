@@ -223,39 +223,39 @@ export class CampaignSearchService implements OnModuleInit {
         const sort: any[] = []
         if (sortBy) {
             switch (sortBy) {
-                case CampaignSortBy.NEWEST:
-                case CampaignSortBy.NEWEST_FIRST:
-                    sort.push({ createdAt: "desc" })
-                    break
-                case CampaignSortBy.OLDEST:
-                case CampaignSortBy.OLDEST_FIRST:
-                    sort.push({ createdAt: "asc" })
-                    break
-                case CampaignSortBy.MOST_FUNDED:
-                    sort.push({ fundingProgress: "desc" })
-                    break
-                case CampaignSortBy.LEAST_FUNDED:
-                    sort.push({ fundingProgress: "asc" })
-                    break
-                case CampaignSortBy.ENDING_SOON:
-                    sort.push({ fundraisingEndDate: "asc" })
-                    break
-                case CampaignSortBy.TARGET_AMOUNT_ASC:
-                    sort.push({ targetAmount: "asc" })
-                    break
-                case CampaignSortBy.TARGET_AMOUNT_DESC:
-                    sort.push({ targetAmount: "desc" })
-                    break
-                case CampaignSortBy.MOST_DONATED:
-                    sort.push({ donationCount: "desc" })
-                    break
-                case CampaignSortBy.LEAST_DONATED:
-                    sort.push({ donationCount: "asc" })
-                    break
-                case CampaignSortBy.ACTIVE_FIRST:
-                    sort.push({ status: "asc" })
-                    sort.push({ createdAt: "desc" })
-                    break
+            case CampaignSortBy.NEWEST:
+            case CampaignSortBy.NEWEST_FIRST:
+                sort.push({ createdAt: "desc" })
+                break
+            case CampaignSortBy.OLDEST:
+            case CampaignSortBy.OLDEST_FIRST:
+                sort.push({ createdAt: "asc" })
+                break
+            case CampaignSortBy.MOST_FUNDED:
+                sort.push({ fundingProgress: "desc" })
+                break
+            case CampaignSortBy.LEAST_FUNDED:
+                sort.push({ fundingProgress: "asc" })
+                break
+            case CampaignSortBy.ENDING_SOON:
+                sort.push({ fundraisingEndDate: "asc" })
+                break
+            case CampaignSortBy.TARGET_AMOUNT_ASC:
+                sort.push({ targetAmount: "asc" })
+                break
+            case CampaignSortBy.TARGET_AMOUNT_DESC:
+                sort.push({ targetAmount: "desc" })
+                break
+            case CampaignSortBy.MOST_DONATED:
+                sort.push({ donationCount: "desc" })
+                break
+            case CampaignSortBy.LEAST_DONATED:
+                sort.push({ donationCount: "asc" })
+                break
+            case CampaignSortBy.ACTIVE_FIRST:
+                sort.push({ status: "asc" })
+                sort.push({ createdAt: "desc" })
+                break
             }
         } else {
             sort.push({ createdAt: "desc" })

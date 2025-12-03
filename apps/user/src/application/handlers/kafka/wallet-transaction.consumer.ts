@@ -29,20 +29,20 @@ export class WalletTransactionConsumer {
             this.logger.debug(`Received CDC event: ${op} for transaction ${after?.id || before?.id}`)
 
             switch (op) {
-                case "c": // Create
-                case "r": // Read (Snapshot)
-                case "u": // Update
-                    if (after) {
-                        await this.searchService.indexTransaction(after)
-                    }
-                    break
-                case "d": // Delete
-                    // We don't have a delete method in search service yet, but usually we just remove from index
-                    // For now, we'll log it. If needed, we can add removeTransaction to the service.
-                    this.logger.warn(`Delete operation received for transaction ${before?.id} - Not implemented yet`)
-                    break
-                default:
-                    break
+            case "c": // Create
+            case "r": // Read (Snapshot)
+            case "u": // Update
+                if (after) {
+                    await this.searchService.indexTransaction(after)
+                }
+                break
+            case "d": // Delete
+                // We don't have a delete method in search service yet, but usually we just remove from index
+                // For now, we'll log it. If needed, we can add removeTransaction to the service.
+                this.logger.warn(`Delete operation received for transaction ${before?.id} - Not implemented yet`)
+                break
+            default:
+                break
             }
         } catch (error) {
             this.logger.error("Error processing wallet transaction CDC event", error)

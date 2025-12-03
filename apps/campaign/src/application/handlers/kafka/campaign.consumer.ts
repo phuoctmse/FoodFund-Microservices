@@ -24,20 +24,20 @@ export class CampaignConsumer {
             this.logger.debug(`Received CDC event: ${op} for campaign ${after?.id || before?.id}`)
 
             switch (op) {
-                case "c": // Create
-                case "r": // Read (Snapshot)
-                case "u": // Update
-                    if (after) {
-                        await this.searchService.indexCampaign(after)
-                    }
-                    break
-                case "d": // Delete
-                    if (before && before.id) {
-                        await this.searchService.removeCampaign(before.id)
-                    }
-                    break
-                default:
-                    break
+            case "c": // Create
+            case "r": // Read (Snapshot)
+            case "u": // Update
+                if (after) {
+                    await this.searchService.indexCampaign(after)
+                }
+                break
+            case "d": // Delete
+                if (before && before.id) {
+                    await this.searchService.removeCampaign(before.id)
+                }
+                break
+            default:
+                break
             }
         } catch (error) {
             this.logger.error("Error processing campaign CDC event", error)

@@ -15,19 +15,19 @@ import { SyncCampaignsResponse } from "../../../../application/dtos/campaign/res
 @ObjectType()
 export class SearchCampaignResponse {
     @Field(() => [Campaign])
-    items: Campaign[]
+        items: Campaign[]
 
     @Field(() => Int)
-    total: number
+        total: number
 
     @Field(() => Int)
-    page: number
+        page: number
 
     @Field(() => Int)
-    limit: number
+        limit: number
 
     @Field(() => Int)
-    totalPages: number
+        totalPages: number
 }
 
 @Resolver(() => Campaign)

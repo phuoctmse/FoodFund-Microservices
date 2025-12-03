@@ -62,12 +62,12 @@ export class OrganizationService {
 
     private convertJoinRoleToRole(joinRole: JoinOrganizationRole): Role {
         switch (joinRole) {
-            case JoinOrganizationRole.KITCHEN_STAFF:
-                return Role.KITCHEN_STAFF
-            case JoinOrganizationRole.DELIVERY_STAFF:
-                return Role.DELIVERY_STAFF
-            default:
-                throw new BadRequestException(`Invalid join role: ${joinRole}`)
+        case JoinOrganizationRole.KITCHEN_STAFF:
+            return Role.KITCHEN_STAFF
+        case JoinOrganizationRole.DELIVERY_STAFF:
+            return Role.DELIVERY_STAFF
+        default:
+            throw new BadRequestException(`Invalid join role: ${joinRole}`)
         }
     }
 
