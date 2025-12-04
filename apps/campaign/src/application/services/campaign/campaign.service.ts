@@ -5,6 +5,7 @@ import {
     Inject,
     Injectable,
     Logger,
+    NotFoundException,
 } from "@nestjs/common"
 import { SentryService } from "@libs/observability/sentry.service"
 import { SpacesUploadService } from "libs/s3-storage/spaces-upload.service"
@@ -90,7 +91,7 @@ export class CampaignService {
         private readonly eventEmitter: EventEmitter2,
         private readonly campaignSearchService: CampaignSearchService,
         private readonly notificationQueue: NotificationQueue,
-    ) {}
+    ) { }
 
     async generateCampaignImageUploadUrl(
         input: GenerateUploadUrlInput,
@@ -424,6 +425,7 @@ export class CampaignService {
             )
 
             const campaign = await this.findCampaignById(id)
+            console.debug(campaign)
             this.authorizationService.requireAdmin(
                 userContext,
                 "change campaign status",
@@ -1105,14 +1107,14 @@ export class CampaignService {
         const averageDonationAmount =
             aggregates.totalDonations > 0
                 ? Number(aggregates.totalReceivedAmount) /
-                  aggregates.totalDonations
+                aggregates.totalDonations
                 : 0
 
         const fundingRate =
             Number(aggregates.totalTargetAmount) > 0
                 ? (Number(aggregates.totalReceivedAmount) /
-                      Number(aggregates.totalTargetAmount)) *
-                  100
+                    Number(aggregates.totalTargetAmount)) *
+                100
                 : 0
 
         return {
@@ -1286,7 +1288,7 @@ export class CampaignService {
         const fundingRate =
             Number(totalTargetAmount) > 0
                 ? (Number(totalReceivedAmount) / Number(totalTargetAmount)) *
-                  100
+                100
                 : 0
 
         return {
@@ -1479,14 +1481,25 @@ export class CampaignService {
         updateData: any,
     ): Promise<void> {
         try {
+            const fundraiser = await this.userClientService.getUserByCognitoId(
+                campaign.createdBy,
+            )
+
+            if (!fundraiser) {
+                this.logger.warn(
+                    `[AutoTransfer] Fundraiser not found for Cognito ID ${campaign.createdBy}, skipping`,
+                )
+                return
+            }
+
             const walletBalance =
                 await this.userClientService.getFundraiserWalletBalance(
-                    campaign.createdBy,
+                    fundraiser.id,
                 )
 
             if (walletBalance <= BigInt(0)) {
                 this.logger.log(
-                    `[AutoTransfer] No wallet balance for fundraiser ${campaign.createdBy}, skipping`,
+                    `[AutoTransfer] No wallet balance for fundraiser ${fundraiser.id}, skipping`,
                 )
                 return
             }
@@ -1514,7 +1527,7 @@ export class CampaignService {
             )
 
             await this.userClientService.debitFundraiserWallet({
-                userId: campaign.createdBy,
+                userId: fundraiser.id,
                 campaignId: campaign.id,
                 amount: transferAmount,
                 description: `Tự động chuyển tiền vào chiến dịch "${campaign.title}" khi được phê duyệt`,
@@ -1696,6 +1709,21 @@ export class CampaignService {
             },
             timestamp: new Date().toISOString(),
         })
+    }
+
+    async addReceivedAmount(campaignId: string, amount: bigint): Promise<void> {
+        const campaign = await this.campaignRepository.findById(campaignId)
+        if (!campaign) {
+            throw new NotFoundException(`Campaign ${campaignId} not found`)
+        }
+
+        const newReceivedAmount = BigInt(campaign.receivedAmount) + amount
+
+        await this.campaignRepository.update(campaignId, {
+            receivedAmount: newReceivedAmount,
+        })
+
+        await this.updateCampaignCache(campaignId, campaign.slug)
     }
 
     getHealth() {

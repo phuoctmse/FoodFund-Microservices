@@ -21,7 +21,7 @@ export class InflowTransactionService {
         private readonly validationService: InflowTransactionValidationService,
         private readonly grpcClient: GrpcClientService,
         private readonly sentryService: SentryService,
-    ) {}
+    ) { }
 
     /**
      * Helper: Execute operation with error handling and Sentry logging
@@ -106,6 +106,12 @@ export class InflowTransactionService {
                     status: InflowTransactionStatus.PENDING,
                 })
 
+                await this.updateLinkedRequestToDisbursed(
+                    input.ingredientRequestId || null,
+                    input.operationRequestId || null,
+                )
+
+
                 this.sentryService.addBreadcrumb("Inflow transaction created", "disbursement", {
                     id: created.id,
                     type: validation.transactionType,
@@ -149,7 +155,7 @@ export class InflowTransactionService {
                 if (transaction.status !== InflowTransactionStatus.PENDING) {
                     throw new BadRequestException(
                         `Cannot confirm disbursement with status ${transaction.status}. ` +
-                            "Only PENDING disbursements can be confirmed.",
+                        "Only PENDING disbursements can be confirmed.",
                     )
                 }
 
@@ -161,7 +167,7 @@ export class InflowTransactionService {
 
                 const updateData: any = {
                     status: newStatus,
-                    isReported: true, 
+                    isReported: true,
                     reportedAt: new Date(),
                 }
 

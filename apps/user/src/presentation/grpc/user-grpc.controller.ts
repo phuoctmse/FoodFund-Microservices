@@ -11,6 +11,7 @@ import { Role } from "@libs/databases"
 import { generateUniqueUsername } from "libs/common"
 import { Transaction_Type, Wallet_Type } from "../../domain/enums/wallet.enum"
 import { WalletTransactionService } from "../../application/services"
+import { GrpcClientService } from "@libs/grpc"
 
 import {
     CreateUserRequest,
@@ -76,7 +77,8 @@ export class UserGrpcController {
         private readonly walletTransactionService: WalletTransactionService,
         private readonly userBadgeService: UserBadgeService,
         private readonly userBadgeRepository: UserBadgeRepository,
-    ) {}
+        private readonly grpcClientService: GrpcClientService,
+    ) { }
 
     /**
      * Helper: Map user entity to gRPC response format
@@ -1035,6 +1037,25 @@ export class UserGrpcController {
                 userId,
                 Wallet_Type.FUNDRAISER,
             )
+
+            // Update campaign received amount
+            try {
+                await this.grpcClientService.callCampaignService(
+                    "UpdateCampaignReceivedAmount",
+                    {
+                        campaignId,
+                        amount: amount.toString(),
+                    },
+                )
+                this.logger.log(
+                    `[DebitFundraiserWallet] ✅ Updated campaign ${campaignId} received amount by ${amount}`,
+                )
+            } catch (error) {
+                this.logger.error(
+                    `[DebitFundraiserWallet] ❌ Failed to update campaign ${campaignId}: ${error.message}`,
+                )
+                // Don't fail the transaction if campaign update fails, but log it
+            }
 
             this.logger.log(
                 `[DebitFundraiserWallet] ✅ Debited ${amount}, New balance: ${newBalance}`,

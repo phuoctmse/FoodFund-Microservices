@@ -106,7 +106,17 @@ interface InvalidateCampaignCacheResponse {
     error: string | null
 }
 
-interface HealthRequest {}
+interface UpdateCampaignReceivedAmountRequest {
+    campaignId: string
+    amount: string
+}
+
+interface UpdateCampaignReceivedAmountResponse {
+    success: boolean
+    error: string | null
+}
+
+interface HealthRequest { }
 
 interface HealthResponse {
     healthy: boolean
@@ -119,7 +129,7 @@ export class CampaignGrpcService {
         private readonly campaignService: CampaignService,
         private readonly campaignPhaseRepository: CampaignPhaseRepository,
         private readonly campaignCacheService: CampaignCacheService,
-    ) {}
+    ) { }
 
     @GrpcMethod("CampaignService", "Health")
     async health(data: HealthRequest): Promise<HealthResponse> {
@@ -395,6 +405,37 @@ export class CampaignGrpcService {
         return {
             success: true,
             error: null,
+        }
+    }
+
+    @GrpcMethod("CampaignService", "UpdateCampaignReceivedAmount")
+    async updateCampaignReceivedAmount(
+        data: UpdateCampaignReceivedAmountRequest,
+    ): Promise<UpdateCampaignReceivedAmountResponse> {
+        const { campaignId, amount } = data
+
+        if (!campaignId || !amount) {
+            return {
+                success: false,
+                error: "Campaign ID and amount are required",
+            }
+        }
+
+        try {
+            await this.campaignService.addReceivedAmount(
+                campaignId,
+                BigInt(amount),
+            )
+
+            return {
+                success: true,
+                error: null,
+            }
+        } catch (error) {
+            return {
+                success: false,
+                error: error.message || "Failed to update campaign received amount",
+            }
         }
     }
 }

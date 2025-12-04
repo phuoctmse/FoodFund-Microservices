@@ -576,11 +576,11 @@ export class WalletRepository {
                     wallet_id: wallet.id,
                     campaign_id: data.campaignId,
                     payment_transaction_id: null,
-                    amount: -data.amount, // Negative for debit
+                    amount: data.amount,
                     balance_before: balanceBefore,
                     balance_after: balanceAfter,
                     transaction_type: data.transactionType,
-                    description: data.description || "Wallet debit",
+                    description: data.description || "Rút tiền ví",
                     gateway: null,
                     sepay_metadata: {},
                 },
