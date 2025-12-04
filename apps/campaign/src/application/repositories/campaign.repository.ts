@@ -277,7 +277,7 @@ export class CampaignRepository {
 
     async findApprovedCampaignsToActivateForJob(): Promise<
         Pick<Campaign, "id" | "status">[]
-    > {
+        > {
         const today = new Date()
         today.setHours(0, 0, 0, 0)
 
@@ -314,7 +314,7 @@ export class CampaignRepository {
             | "createdBy"
             | "title"
         >[]
-    > {
+        > {
         const today = new Date()
         today.setHours(23, 59, 59, 999)
 
@@ -354,7 +354,7 @@ export class CampaignRepository {
 
     async findExpiredCampaignsForJob(): Promise<
         Pick<Campaign, "id" | "status">[]
-    > {
+        > {
         const today = new Date()
         today.setHours(23, 59, 59, 999)
 
@@ -843,22 +843,22 @@ export class CampaignRepository {
 
     private buildOrderByClause(sortBy: CampaignSortOrder): any {
         switch (sortBy) {
-            case CampaignSortOrder.ACTIVE_FIRST:
-                return [{ status: "asc" }, { created_at: "desc" }]
-            case CampaignSortOrder.NEWEST_FIRST:
-                return { created_at: "desc" }
-            case CampaignSortOrder.OLDEST_FIRST:
-                return { created_at: "asc" }
-            case CampaignSortOrder.TARGET_AMOUNT_ASC:
-                return { target_amount: "asc" }
-            case CampaignSortOrder.TARGET_AMOUNT_DESC:
-                return { target_amount: "desc" }
-            case CampaignSortOrder.MOST_DONATED:
-                return { donation_count: "desc" }
-            case CampaignSortOrder.LEAST_DONATED:
-                return { donation_count: "asc" }
-            default:
-                return { created_at: "desc" }
+        case CampaignSortOrder.ACTIVE_FIRST:
+            return [{ status: "asc" }, { created_at: "desc" }]
+        case CampaignSortOrder.NEWEST_FIRST:
+            return { created_at: "desc" }
+        case CampaignSortOrder.OLDEST_FIRST:
+            return { created_at: "asc" }
+        case CampaignSortOrder.TARGET_AMOUNT_ASC:
+            return { target_amount: "asc" }
+        case CampaignSortOrder.TARGET_AMOUNT_DESC:
+            return { target_amount: "desc" }
+        case CampaignSortOrder.MOST_DONATED:
+            return { donation_count: "desc" }
+        case CampaignSortOrder.LEAST_DONATED:
+            return { donation_count: "asc" }
+        default:
+            return { created_at: "desc" }
         }
     }
 
