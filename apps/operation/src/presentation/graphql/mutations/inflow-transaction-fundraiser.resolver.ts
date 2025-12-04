@@ -59,9 +59,9 @@ export class InflowTransactionFundraiserResolver {
     ): Promise<InflowTransactionListResponse> {
         return this.inflowTransactionService.getMyDisbursements(
             filter,
+            user,
             page,
             limit,
-            user,
         )
     }
 

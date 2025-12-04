@@ -120,9 +120,9 @@ curl -X PUT "{{uploadUrl}}" \\
     ): Promise<InflowTransactionListResponse> {
         return this.inflowTransactionService.getDisbursements(
             filter,
+            user,
             page,
             limit,
-            user,
         )
     }
 
