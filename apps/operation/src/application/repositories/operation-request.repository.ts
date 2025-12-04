@@ -30,6 +30,7 @@ export class OperationRequestRepository {
                 title: data.title,
                 total_cost: data.totalCost,
                 expense_type: data.expenseType,
+                organization_id: data.organizationId,
                 status: OperationRequestStatus.PENDING,
             },
         })

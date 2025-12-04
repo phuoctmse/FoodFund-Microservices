@@ -294,17 +294,17 @@ export class DeliveryTaskService extends BaseOperationService {
                 )
             }
 
+            const updateData: UpdateDeliveryTaskStatusData = {
+                status: input.status,
+            }
+
             if (input.status === DeliveryTaskStatus.OUT_FOR_DELIVERY) {
                 await this.mealBatchRepository.updateStatusToDelivered(
                     task.meal_batch_id,
                 )
             }
 
-            const updateData: UpdateDeliveryTaskStatusData = {
-                status: input.status,
-            }
-
-            const updated = await this.deliveryTaskRepository.updateStatus(
+            await this.deliveryTaskRepository.updateStatus(
                 input.taskId,
                 updateData,
             )
@@ -316,10 +316,8 @@ export class DeliveryTaskService extends BaseOperationService {
                 note: input.note,
             })
 
-            const mappedTask = this.mapToGraphQLModel(updated)
-
             await Promise.all([
-                this.cacheService.setTask(mappedTask.id, mappedTask),
+                this.cacheService.deleteTask(input.taskId),
                 this.cacheService.deleteMealBatchTasks(task.meal_batch_id),
                 this.cacheService.deleteStaffTasks(task.delivery_staff_id),
                 this.cacheService.deleteCampaignPhaseTasks(
@@ -327,13 +325,25 @@ export class DeliveryTaskService extends BaseOperationService {
                 ),
                 this.cacheService.deletePhaseStats(mealBatch.campaignPhaseId),
                 this.cacheService.deleteAllTaskLists(),
-
                 this.mealBatchCacheService.invalidateBatch(
                     task.meal_batch_id,
                     mealBatch.campaignPhaseId,
                     mealBatch.kitchenStaffId,
                 ),
             ])
+
+            const freshTask = await this.deliveryTaskRepository.findById(
+                input.taskId,
+            )
+
+            if (!freshTask) {
+                throw new NotFoundException(
+                    `Failed to fetch updated delivery task ${input.taskId}`,
+                )
+            }
+
+            const mappedTask = this.mapToGraphQLModel(freshTask)
+            await this.cacheService.setTask(mappedTask.id, mappedTask)
 
             return mappedTask
         } catch (error) {

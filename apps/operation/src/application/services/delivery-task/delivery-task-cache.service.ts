@@ -91,7 +91,9 @@ export class DeliveryTaskCacheService extends BaseCacheService<DeliveryTask> {
 
     // ==================== Staff Tasks ====================
 
-    async getStaffTasks(deliveryStaffId: string): Promise<DeliveryTask[] | null> {
+    async getStaffTasks(
+        deliveryStaffId: string,
+    ): Promise<DeliveryTask[] | null> {
         return this.getRelatedList(this.KEYS.STAFF, deliveryStaffId)
     }
 
@@ -199,8 +201,10 @@ export class DeliveryTaskCacheService extends BaseCacheService<DeliveryTask> {
         }
 
         if (campaignPhaseId) {
-            operations.push(this.deleteCampaignPhaseTasks(campaignPhaseId))
-            operations.push(this.deletePhaseStats(campaignPhaseId))
+            operations.push(
+                this.deleteCampaignPhaseTasks(campaignPhaseId),
+                this.deletePhaseStats(campaignPhaseId),
+            )
         }
 
         return this.invalidateMultiple(...operations)
