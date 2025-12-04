@@ -1,4 +1,9 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common"
+import {
+    BadRequestException,
+    ForbiddenException,
+    Injectable,
+    NotFoundException,
+} from "@nestjs/common"
 import { Role } from "@app/operation/src/shared"
 import { GrpcClientService } from "@libs/grpc"
 import { SentryService } from "@libs/observability"
@@ -9,10 +14,20 @@ import {
     DisbursementConfirmationStatus,
     InflowTransactionListResponse,
 } from "../../dtos"
-import { InflowTransaction, InflowTransactionStatus, InflowTransactionType, IngredientRequestStatus } from "../../../domain"
+import {
+    InflowTransaction,
+    InflowTransactionStatus,
+    InflowTransactionType,
+    IngredientRequestStatus,
+} from "../../../domain"
 import { InflowTransactionRepository } from "../../repositories"
 import { InflowTransactionValidationService } from "./inflow-transaction-validation.service"
-import { InflowTransactionFilterInput, MyInflowTransactionFilterInput } from "../../dtos/inflow-transaction/inflow-transaction-filter.input"
+import {
+    InflowTransactionFilterInput,
+    MyInflowTransactionFilterInput,
+} from "../../dtos/inflow-transaction/inflow-transaction-filter.input"
+import { IngredientRequestCacheService } from "../ingredient-request"
+import { OperationRequestCacheService } from "../operation-request"
 
 @Injectable()
 export class InflowTransactionService {
@@ -21,7 +36,9 @@ export class InflowTransactionService {
         private readonly validationService: InflowTransactionValidationService,
         private readonly grpcClient: GrpcClientService,
         private readonly sentryService: SentryService,
-    ) { }
+        private readonly ingredientRequestCacheService: IngredientRequestCacheService,
+        private readonly operationRequestCacheService: OperationRequestCacheService,
+    ) {}
 
     /**
      * Helper: Execute operation with error handling and Sentry logging
@@ -45,7 +62,9 @@ export class InflowTransactionService {
     /**
      * Helper: Get user by Cognito ID
      */
-    private async getUserByCognitoId(cognitoId: string): Promise<{ id: string; cognitoId: string }> {
+    private async getUserByCognitoId(
+        cognitoId: string,
+    ): Promise<{ id: string; cognitoId: string }> {
         const response = await this.grpcClient.callUserService<
             { cognitoId: string },
             { success: boolean; user?: any; error?: string }
@@ -57,7 +76,7 @@ export class InflowTransactionService {
 
         return {
             id: response.user.id,
-            cognitoId: response.user.cognitoId
+            cognitoId: response.user.cognitoId,
         }
     }
 
@@ -81,17 +100,19 @@ export class InflowTransactionService {
                     )
                 }
 
-                const validation = await this.validationService.validateCreateInput(input)
+                const validation =
+                    await this.validationService.validateCreateInput(input)
 
-                const isDuplicate = await this.inflowTransactionRepository.hasDuplicateDisbursement(
-                    input.ingredientRequestId,
-                    input.operationRequestId,
-                )
+                const isDuplicate =
+                    await this.inflowTransactionRepository.hasDuplicateDisbursement(
+                        input.ingredientRequestId,
+                        input.operationRequestId,
+                    )
 
                 if (isDuplicate) {
                     throw new BadRequestException(
                         "This request already has a pending or completed disbursement. " +
-                        "Each request can only have one active disbursement at a time.",
+                            "Each request can only have one active disbursement at a time.",
                     )
                 }
 
@@ -111,16 +132,25 @@ export class InflowTransactionService {
                     input.operationRequestId || null,
                 )
 
+                await this.invalidateRequestCaches(
+                    input.ingredientRequestId || null,
+                    input.operationRequestId || null,
+                    validation.campaignPhaseId,
+                )
 
-                this.sentryService.addBreadcrumb("Inflow transaction created", "disbursement", {
-                    id: created.id,
-                    type: validation.transactionType,
-                    amount: input.amount,
-                    campaignPhaseId: validation.campaignPhaseId,
-                    fundraiserId: validation.fundraiserId,
-                    ingredientRequestId: input.ingredientRequestId,
-                    operationRequestId: input.operationRequestId,
-                })
+                this.sentryService.addBreadcrumb(
+                    "Inflow transaction created",
+                    "disbursement",
+                    {
+                        id: created.id,
+                        type: validation.transactionType,
+                        amount: input.amount,
+                        campaignPhaseId: validation.campaignPhaseId,
+                        fundraiserId: validation.fundraiserId,
+                        ingredientRequestId: input.ingredientRequestId,
+                        operationRequestId: input.operationRequestId,
+                    },
+                )
 
                 return this.mapToGraphQLModel(created)
             },
@@ -136,10 +166,13 @@ export class InflowTransactionService {
             "confirmDisbursement",
             async () => {
                 // Find the inflow transaction
-                const transaction = await this.inflowTransactionRepository.findById(input.id)
+                const transaction =
+                    await this.inflowTransactionRepository.findById(input.id)
 
                 if (!transaction) {
-                    throw new NotFoundException(`Inflow transaction with ID ${input.id} not found`)
+                    throw new NotFoundException(
+                        `Inflow transaction with ID ${input.id} not found`,
+                    )
                 }
 
                 // Verify the receiver is the current user
@@ -155,7 +188,7 @@ export class InflowTransactionService {
                 if (transaction.status !== InflowTransactionStatus.PENDING) {
                     throw new BadRequestException(
                         `Cannot confirm disbursement with status ${transaction.status}. ` +
-                        "Only PENDING disbursements can be confirmed.",
+                            "Only PENDING disbursements can be confirmed.",
                     )
                 }
 
@@ -177,18 +210,28 @@ export class InflowTransactionService {
                         transaction.ingredient_request_id,
                         transaction.operation_request_id,
                     )
+                    await this.invalidateRequestCaches(
+                        transaction.ingredient_request_id,
+                        transaction.operation_request_id,
+                        transaction.campaign_phase_id,
+                    )
                 }
 
-                const updated = await this.inflowTransactionRepository.updateStatus(
-                    input.id,
-                    updateData,
-                )
+                const updated =
+                    await this.inflowTransactionRepository.updateStatus(
+                        input.id,
+                        updateData,
+                    )
 
-                this.sentryService.addBreadcrumb("Disbursement confirmed", "disbursement", {
-                    id: input.id,
-                    status: input.status,
-                    fundraiserId: receiver.id,
-                })
+                this.sentryService.addBreadcrumb(
+                    "Disbursement confirmed",
+                    "disbursement",
+                    {
+                        id: input.id,
+                        status: input.status,
+                        fundraiserId: receiver.id,
+                    },
+                )
 
                 return this.mapToGraphQLModel(updated)
             },
@@ -201,17 +244,14 @@ export class InflowTransactionService {
      */
     async getDisbursements(
         filter: InflowTransactionFilterInput,
+        user: CurrentUserType,
         page: number = 1,
         limit: number = 10,
-        user: CurrentUserType,
     ): Promise<InflowTransactionListResponse> {
         const skip = (page - 1) * limit
 
-        const { items, total } = await this.inflowTransactionRepository.findMany(
-            filter,
-            limit,
-            skip,
-        )
+        const { items, total } =
+            await this.inflowTransactionRepository.findMany(filter, limit, skip)
 
         return {
             items: items.map((item) => this.mapToGraphQLModel(item)),
@@ -227,19 +267,20 @@ export class InflowTransactionService {
      */
     async getMyDisbursements(
         filter: MyInflowTransactionFilterInput,
+        user: CurrentUserType,
         page: number = 1,
         limit: number = 10,
-        user: CurrentUserType,
     ): Promise<InflowTransactionListResponse> {
         const foundUser = await this.getUserByCognitoId(user.id)
         const skip = (page - 1) * limit
 
-        const { items, total } = await this.inflowTransactionRepository.findByReceiverId(
-            foundUser.cognitoId,
-            filter,
-            limit,
-            skip,
-        )
+        const { items, total } =
+            await this.inflowTransactionRepository.findByReceiverId(
+                foundUser.cognitoId,
+                filter,
+                limit,
+                skip,
+            )
 
         return {
             items: items.map((item) => this.mapToGraphQLModel(item)),
@@ -260,7 +301,9 @@ export class InflowTransactionService {
         const transaction = await this.inflowTransactionRepository.findById(id)
 
         if (!transaction) {
-            throw new NotFoundException(`Inflow transaction with ID ${id} not found`)
+            throw new NotFoundException(
+                `Inflow transaction with ID ${id} not found`,
+            )
         }
 
         // If fundraiser, verify ownership
@@ -268,7 +311,9 @@ export class InflowTransactionService {
             const foundUser = await this.getUserByCognitoId(user.id)
 
             if (transaction.receiver_id !== foundUser.cognitoId) {
-                throw new ForbiddenException("You are not authorized to view this disbursement")
+                throw new ForbiddenException(
+                    "You are not authorized to view this disbursement",
+                )
             }
         }
 
@@ -305,6 +350,44 @@ export class InflowTransactionService {
         }
     }
 
+    private async invalidateRequestCaches(
+        ingredientRequestId: string | null,
+        operationRequestId: string | null,
+        campaignPhaseId: string,
+    ): Promise<void> {
+        try {
+            const invalidationPromises: Promise<void>[] = []
+
+            if (ingredientRequestId) {
+                invalidationPromises.push(
+                    this.ingredientRequestCacheService.invalidateRequest(
+                        ingredientRequestId,
+                        campaignPhaseId,
+                    ),
+                )
+            }
+
+            if (operationRequestId) {
+                invalidationPromises.push(
+                    this.operationRequestCacheService.invalidateRequest(
+                        operationRequestId,
+                        campaignPhaseId,
+                    ),
+                )
+            }
+
+            if (invalidationPromises.length > 0) {
+                await Promise.all(invalidationPromises)
+            }
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "invalidateRequestCaches",
+                ingredientRequestId,
+                operationRequestId,
+                campaignPhaseId,
+            })
+        }
+    }
     /**
      * Map Prisma model to GraphQL model (without conversion)
      * Used when receiverId is already internal id
@@ -316,7 +399,8 @@ export class InflowTransactionService {
             receiverId: transaction.receiver_id,
             ingredientRequestId: transaction.ingredient_request_id,
             operationRequestId: transaction.operation_request_id,
-            transactionType: transaction.transaction_type as InflowTransactionType,
+            transactionType:
+                transaction.transaction_type as InflowTransactionType,
             amount: transaction.amount.toString(),
             status: transaction.status as InflowTransactionStatus,
             proof: transaction.proof,
@@ -330,7 +414,9 @@ export class InflowTransactionService {
     /**
      * Map Prisma model to GraphQL model with cognito_id → internal id conversion
      */
-    private async mapToGraphQLModelWithConversion(transaction: any): Promise<InflowTransaction> {
+    private async mapToGraphQLModelWithConversion(
+        transaction: any,
+    ): Promise<InflowTransaction> {
         console.log("🔍 [mapToGraphQLModelWithConversion] Input:", {
             id: transaction.id,
             campaign_phase_id: transaction.campaign_phase_id,
@@ -342,14 +428,22 @@ export class InflowTransactionService {
         // Convert cognito_id to internal user id
         if (transaction.receiver_id) {
             try {
-                const userResponse = await this.getUserByCognitoId(transaction.receiver_id)
+                const userResponse = await this.getUserByCognitoId(
+                    transaction.receiver_id,
+                )
                 internalUserId = userResponse.id
-                console.log("✅ [mapToGraphQLModelWithConversion] Converted cognito_id to internal id:", {
-                    cognitoId: transaction.receiver_id,
-                    internalId: internalUserId,
-                })
+                console.log(
+                    "✅ [mapToGraphQLModelWithConversion] Converted cognito_id to internal id:",
+                    {
+                        cognitoId: transaction.receiver_id,
+                        internalId: internalUserId,
+                    },
+                )
             } catch (error) {
-                console.error("❌ [mapToGraphQLModelWithConversion] Failed to convert:", error)
+                console.error(
+                    "❌ [mapToGraphQLModelWithConversion] Failed to convert:",
+                    error,
+                )
                 // Keep cognito_id if conversion fails
             }
         }
@@ -360,7 +454,8 @@ export class InflowTransactionService {
             receiverId: internalUserId,
             ingredientRequestId: transaction.ingredient_request_id,
             operationRequestId: transaction.operation_request_id,
-            transactionType: transaction.transaction_type as InflowTransactionType,
+            transactionType:
+                transaction.transaction_type as InflowTransactionType,
             amount: transaction.amount.toString(),
             status: transaction.status as InflowTransactionStatus,
             proof: transaction.proof,

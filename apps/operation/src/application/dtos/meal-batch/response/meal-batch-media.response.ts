@@ -28,7 +28,4 @@ export class MealBatchMediaUploadResponse {
 
     @Field(() => [MediaUploadUrl])
         uploadUrls: MediaUploadUrl[]
-
-    @Field(() => String)
-        instructions: string
 }

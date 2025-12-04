@@ -190,8 +190,10 @@ export class MealBatchCacheService extends BaseCacheService<MealBatch> {
         ]
 
         if (campaignPhaseId) {
-            operations.push(this.deletePhaseBatches(campaignPhaseId))
-            operations.push(this.deletePhaseStats(campaignPhaseId))
+            operations.push(
+                this.deletePhaseBatches(campaignPhaseId),
+                this.deletePhaseStats(campaignPhaseId),
+            )
         }
 
         if (kitchenStaffId) {
