@@ -1,7 +1,13 @@
 import { CampaignPhaseRepository } from "@app/campaign/src/application/repositories/campaign-phase.repository"
 import { CampaignCacheService } from "@app/campaign/src/application/services/campaign/campaign-cache.service"
 import { CampaignService } from "@app/campaign/src/application/services/campaign/campaign.service"
+import { NotificationService } from "@app/campaign/src/application/services/notification"
 import { CampaignPhaseStatus } from "@app/campaign/src/domain/enums/campaign-phase/campaign-phase.enum"
+import {
+    NotificationPriority,
+    NotificationType,
+} from "@app/campaign/src/domain/enums/notification"
+import { SurplusTransferredData } from "@app/campaign/src/domain/interfaces/notification"
 import { Controller } from "@nestjs/common"
 import { GrpcMethod } from "@nestjs/microservices"
 
@@ -87,6 +93,24 @@ interface GetCampaignPhaseResponse {
     error: string | null
 }
 
+interface GetCampaignPhaseInfoRequest {
+    phaseId: string
+}
+
+interface GetCampaignPhaseInfoResponse {
+    success: boolean
+    phase?: {
+        id: string
+        campaignId: string
+        campaignTitle: string
+        phaseName: string
+        ingredientFundsAmount: string
+        cookingFundsAmount: string
+        deliveryFundsAmount: string
+    }
+    error: string | null
+}
+
 interface UpdatePhaseStatusRequest {
     phaseId: string
     status: string
@@ -116,7 +140,20 @@ interface UpdateCampaignReceivedAmountResponse {
     error: string | null
 }
 
-interface HealthRequest { }
+interface SendNotificationRequest {
+    userId: string
+    notificationType: string
+    data?: any
+    dataJson?: string
+}
+
+interface SendNotificationResponse {
+    success: boolean
+    notificationId?: string
+    error?: string
+}
+
+interface HealthRequest {}
 
 interface HealthResponse {
     healthy: boolean
@@ -127,9 +164,10 @@ interface HealthResponse {
 export class CampaignGrpcService {
     constructor(
         private readonly campaignService: CampaignService,
+        private readonly notificationService: NotificationService,
         private readonly campaignPhaseRepository: CampaignPhaseRepository,
         private readonly campaignCacheService: CampaignCacheService,
-    ) { }
+    ) {}
 
     @GrpcMethod("CampaignService", "Health")
     async health(data: HealthRequest): Promise<HealthResponse> {
@@ -355,6 +393,68 @@ export class CampaignGrpcService {
         }
     }
 
+    @GrpcMethod("CampaignService", "GetCampaignPhaseInfo")
+    async getCampaignPhaseInfo(
+        data: GetCampaignPhaseInfoRequest,
+    ): Promise<GetCampaignPhaseInfoResponse> {
+        const { phaseId } = data
+
+        if (!phaseId) {
+            return {
+                success: false,
+                phase: undefined,
+                error: "Phase ID is required",
+            }
+        }
+
+        try {
+            // Get phase with campaign info
+            const phase =
+                await this.campaignPhaseRepository.findByIdWithCampaign(phaseId)
+
+            if (!phase) {
+                return {
+                    success: false,
+                    phase: undefined,
+                    error: `Campaign phase ${phaseId} not found`,
+                }
+            }
+
+            // Get campaign to get title
+            const campaign = await this.campaignService.findCampaignById(
+                phase.campaignId,
+            )
+
+            if (!campaign) {
+                return {
+                    success: false,
+                    phase: undefined,
+                    error: `Campaign not found for phase ${phaseId}`,
+                }
+            }
+
+            return {
+                success: true,
+                phase: {
+                    id: phase.id,
+                    campaignId: phase.campaignId,
+                    campaignTitle: campaign.title,
+                    phaseName: phase.phaseName,
+                    ingredientFundsAmount: phase.ingredientFundsAmount || "0",
+                    cookingFundsAmount: phase.cookingFundsAmount || "0",
+                    deliveryFundsAmount: phase.deliveryFundsAmount || "0",
+                },
+                error: null,
+            }
+        } catch (error) {
+            return {
+                success: false,
+                phase: undefined,
+                error: error?.message || "Failed to get campaign phase info",
+            }
+        }
+    }
+
     @GrpcMethod("CampaignService", "UpdatePhaseStatus")
     async updatePhaseStatus(
         data: UpdatePhaseStatusRequest,
@@ -434,8 +534,139 @@ export class CampaignGrpcService {
         } catch (error) {
             return {
                 success: false,
-                error: error.message || "Failed to update campaign received amount",
+                error:
+                    error.message ||
+                    "Failed to update campaign received amount",
             }
         }
+    }
+
+    @GrpcMethod("CampaignService", "SendNotification")
+    async sendNotification(
+        data: SendNotificationRequest,
+    ): Promise<SendNotificationResponse> {
+        const {
+            userId,
+            notificationType,
+            data: notificationData,
+            dataJson,
+        } = data
+
+        if (!userId) {
+            return {
+                success: false,
+                error: "userId is required",
+            }
+        }
+
+        if (!notificationType) {
+            return {
+                success: false,
+                error: "notificationType is required",
+            }
+        }
+
+        try {
+            if (
+                !Object.values(NotificationType).includes(
+                    notificationType as NotificationType,
+                )
+            ) {
+                return {
+                    success: false,
+                    error: `Invalid notification type: ${notificationType}`,
+                }
+            }
+
+            let parsedData: Record<string, any>
+            if (dataJson) {
+                parsedData = JSON.parse(dataJson)
+            } else if (notificationData && typeof notificationData === "object") {
+                parsedData = notificationData
+            } else {
+                parsedData = {}
+            }
+
+            if (notificationType === NotificationType.SURPLUS_TRANSFERRED) {
+                const surplusData: SurplusTransferredData = {
+                    requestId: parsedData.requestId || "",
+                    requestType: parsedData.requestType || "INGREDIENT",
+                    campaignTitle: parsedData.campaignTitle || "",
+                    phaseName: parsedData.phaseName || "",
+                    originalBudget: parsedData.originalBudget || "0",
+                    actualCost: parsedData.actualCost || "0",
+                    surplusAmount: parsedData.surplusAmount || "0",
+                    walletTransactionId: parsedData.walletTransactionId,
+                }
+
+                const notification =
+                    await this.notificationService.createNotification({
+                        userId,
+                        type: NotificationType.SURPLUS_TRANSFERRED,
+                        data: surplusData,
+                        priority: NotificationPriority.HIGH,
+                        entityId: surplusData.requestId,
+                    })
+
+                return {
+                    success: true,
+                    notificationId: notification?.id,
+                }
+            }
+
+            const notification =
+                await this.notificationService.createNotification({
+                    userId,
+                    type: notificationType as any,
+                    data: parsedData as any,
+                    priority: this.getNotificationPriority(
+                        notificationType as NotificationType,
+                    ),
+                    entityId: parsedData.requestId || parsedData.campaignId,
+                })
+
+            return {
+                success: true,
+                notificationId: notification?.id,
+            }
+        } catch (error) {
+            const errorMessage = error?.message || "Failed to send notification"
+            return {
+                success: false,
+                error: errorMessage,
+            }
+        }
+    }
+
+    private getNotificationPriority(
+        type: NotificationType,
+    ): NotificationPriority {
+        const highPriorityTypes = [
+            NotificationType.CAMPAIGN_APPROVED,
+            NotificationType.CAMPAIGN_REJECTED,
+            NotificationType.CAMPAIGN_COMPLETED,
+            NotificationType.CAMPAIGN_CANCELLED,
+            NotificationType.INGREDIENT_REQUEST_APPROVED,
+            NotificationType.DELIVERY_TASK_ASSIGNED,
+            NotificationType.SURPLUS_TRANSFERRED,
+            NotificationType.SYSTEM_ANNOUNCEMENT,
+        ]
+
+        if (highPriorityTypes.includes(type)) {
+            return NotificationPriority.HIGH
+        }
+
+        const mediumPriorityTypes = [
+            NotificationType.CAMPAIGN_DONATION_RECEIVED,
+            NotificationType.CAMPAIGN_NEW_POST,
+            NotificationType.POST_COMMENT,
+            NotificationType.POST_REPLY,
+        ]
+
+        if (mediumPriorityTypes.includes(type)) {
+            return NotificationPriority.MEDIUM
+        }
+
+        return NotificationPriority.LOW
     }
 }

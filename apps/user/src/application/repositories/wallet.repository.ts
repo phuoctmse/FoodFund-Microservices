@@ -7,7 +7,7 @@ import { WalletSchema, WalletTransactionSchema } from "../../domain/entities"
 export class WalletRepository {
     private readonly logger = new Logger(WalletRepository.name)
 
-    constructor(private readonly prisma: PrismaClient) { }
+    constructor(private readonly prisma: PrismaClient) {}
 
     private mapTransactionToSchema(tx: any): WalletTransactionSchema {
         const schema = new WalletTransactionSchema()
@@ -383,9 +383,7 @@ export class WalletRepository {
                 where: {
                     wallet_id: wallet.id,
                     transaction_type: {
-                        in: [
-                            Transaction_Type.INCOMING_TRANSFER
-                        ],
+                        in: [Transaction_Type.INCOMING_TRANSFER],
                     },
                     created_at: {
                         gte: startOfMonth,
@@ -614,7 +612,9 @@ export class WalletRepository {
         return transactions.map((tx) => this.mapTransactionToSchema(tx))
     }
 
-    async findRecentlyUpdatedTransactions(since: Date): Promise<WalletTransactionSchema[]> {
+    async findRecentlyUpdatedTransactions(
+        since: Date,
+    ): Promise<WalletTransactionSchema[]> {
         const transactions = await this.prisma.wallet_Transaction.findMany({
             where: {
                 created_at: {
@@ -661,5 +661,14 @@ export class WalletRepository {
 
         const total = result._sum.amount || BigInt(0)
         return total < 0 ? -total : total
+    }
+
+    async findWalletByUserIdAndType(userId: string, walletType: Wallet_Type) {
+        return this.prisma.wallet.findFirst({
+            where: {
+                user_id: userId,
+                wallet_type: walletType,
+            },
+        })
     }
 }

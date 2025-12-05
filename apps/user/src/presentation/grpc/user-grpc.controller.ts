@@ -56,6 +56,8 @@ import {
     GetOrganizationByIdResponse,
     GetVerifiedOrganizationsRequest,
     GetVerifiedOrganizationsResponse,
+    CreditFundraiserWalletWithSurplusRequest,
+    CreditFundraiserWalletWithSurplusResponse,
 } from "../../application/dtos/user-grpc.dto"
 
 const ROLE_MAP = {
@@ -1153,6 +1155,103 @@ export class UserGrpcController {
             return {
                 success: false,
                 error: error.message,
+            }
+        }
+    }
+
+    @GrpcMethod("UserService", "CreditFundraiserWalletWithSurplus")
+    async creditFundraiserWalletWithSurplus(
+        data: CreditFundraiserWalletWithSurplusRequest,
+    ): Promise<CreditFundraiserWalletWithSurplusResponse> {
+        const {
+            fundraiserId,
+            campaignId,
+            requestId,
+            requestType,
+            surplusAmount,
+            originalBudget,
+            actualCost,
+            campaignTitle,
+            phaseName,
+        } = data
+
+        if (!fundraiserId) {
+            return {
+                success: false,
+                error: "fundraiserId is required",
+            }
+        }
+
+        if (!surplusAmount || BigInt(surplusAmount) <= BigInt(0)) {
+            return {
+                success: false,
+                error: "surplusAmount must be a positive value",
+            }
+        }
+
+        try {
+            const user = await this.userRepository.findUserByCognitoIdSimple(fundraiserId)
+            if (!user) {
+                return {
+                    success: false,
+                    error: `Fundraiser with ID ${fundraiserId} not found`,
+                }
+            }
+
+            const existingWallet = await this.walletRepository.findWalletByUserIdAndType(
+                user.id,
+                Wallet_Type.FUNDRAISER,
+            )
+
+            if (!existingWallet) {
+                return {
+                    success: false,
+                    error: `Fundraiser ${fundraiserId} does not have a wallet. Please create wallet first.`,
+                }
+            }
+
+            const requestTypeLabel = {
+                INGREDIENT: "nguyên liệu",
+                COOKING: "nấu ăn",
+                DELIVERY: "giao hàng",
+            }[requestType] || requestType
+
+            const description =
+                `Tiền dư từ yêu cầu ${requestTypeLabel}: ${campaignTitle} - ${phaseName}. ` +
+                `Ngân sách: ${BigInt(originalBudget).toLocaleString("vi-VN")} VND, ` +
+                `Chi phí thực tế: ${BigInt(actualCost).toLocaleString("vi-VN")} VND. ` +
+                `Request ID: ${requestId}`
+
+            const transaction = await this.walletRepository.creditWallet({
+                userId: user.id,
+                walletType: Wallet_Type.FUNDRAISER,
+                amount: BigInt(surplusAmount),
+                transactionType: Transaction_Type.INCOMING_TRANSFER,
+                campaignId: campaignId || null,
+                paymentTransactionId: null,
+                gateway: "SURPLUS_TRANSFER",
+                description,
+            })
+
+            const newBalance = await this.walletRepository.getWalletBalance(
+                user.id,
+                Wallet_Type.FUNDRAISER,
+            )
+
+            return {
+                success: true,
+                walletTransactionId: transaction.id,
+                newBalance: newBalance.toString(),
+            }
+        } catch (error) {
+            const errorMessage = error?.message || error?.toString() || "Unknown error"
+            this.logger.error(
+                "[CreditFundraiserWalletWithSurplus] ❌ Failed:",
+                error?.stack || errorMessage,
+            )
+            return {
+                success: false,
+                error: errorMessage,
             }
         }
     }

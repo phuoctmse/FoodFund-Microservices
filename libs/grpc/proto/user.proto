@@ -30,6 +30,7 @@ service UserService {
   
   // Credit fundraiser wallet (for surplus settlement, refunds, etc.)
   rpc CreditFundraiserWallet(CreditFundraiserWalletRequest) returns (CreditFundraiserWalletResponse);
+  rpc CreditFundraiserWalletWithSurplus(CreditFundraiserWalletWithSurplusRequest) returns (CreditFundraiserWalletWithSurplusResponse);
   rpc GetUserBasicInfo(GetUserBasicInfoRequest) returns (GetUserBasicInfoResponse);
   rpc GetUserOrganization(GetUserOrganizationRequest) returns (GetUserOrganizationResponse);
   rpc GetUsersByIds(GetUsersByIdsRequest) returns (GetUsersByIdsResponse);
@@ -392,4 +393,24 @@ message OrganizationBasicInfo {
   string id = 1;
   string name = 2;
   string representative_id = 3;
+}
+
+message CreditFundraiserWalletWithSurplusRequest {
+  string fundraiser_id = 1;
+  string campaign_id = 2;
+  string campaign_phase_id = 3;
+  string request_id = 4;
+  string request_type = 5;
+  string surplus_amount = 6;
+  string original_budget = 7;
+  string actual_cost = 8;
+  string campaign_title = 9;
+  string phase_name = 10;
+}
+
+message CreditFundraiserWalletWithSurplusResponse {
+  bool success = 1;
+  string wallet_transaction_id = 2;
+  string new_balance = 3;
+  string error = 4;
 }

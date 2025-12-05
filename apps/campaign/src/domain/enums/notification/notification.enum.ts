@@ -19,6 +19,7 @@ export enum NotificationType {
 
     INGREDIENT_REQUEST_APPROVED = "INGREDIENT_REQUEST_APPROVED",
     DELIVERY_TASK_ASSIGNED = "DELIVERY_TASK_ASSIGNED",
+    SURPLUS_TRANSFERRED = "SURPLUS_TRANSFERRED",
 
     SYSTEM_ANNOUNCEMENT = "SYSTEM_ANNOUNCEMENT",
 }
@@ -79,6 +80,9 @@ registerEnumType(NotificationType, {
         },
         DELIVERY_TASK_ASSIGNED: {
             description: "Delivery task assigned to staff",
+        },
+        SURPLUS_TRANSFERRED: {
+            description: "Surplus funds transferred to fundraiser wallet",
         },
         SYSTEM_ANNOUNCEMENT: {
             description: "System-wide announcement",
@@ -155,7 +159,8 @@ export const NOTIFICATION_PRIORITY_MAP: Record<
     [NotificationType.CAMPAIGN_REASSIGNMENT_PENDING]: NotificationPriority.HIGH,
     [NotificationType.CAMPAIGN_REASSIGNMENT_EXPIRED]: NotificationPriority.HIGH,
     [NotificationType.CAMPAIGN_OWNERSHIP_RECEIVED]: NotificationPriority.HIGH,
-    [NotificationType.CAMPAIGN_OWNERSHIP_TRANSFERRED]: NotificationPriority.HIGH,
+    [NotificationType.CAMPAIGN_OWNERSHIP_TRANSFERRED]:NotificationPriority.HIGH,
+    [NotificationType.SURPLUS_TRANSFERRED]: NotificationPriority.HIGH,
 
     // Medium priority
     [NotificationType.CAMPAIGN_DONATION_RECEIVED]: NotificationPriority.MEDIUM,

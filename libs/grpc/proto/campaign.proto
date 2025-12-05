@@ -8,9 +8,11 @@ service CampaignService {
   rpc GetCampaignIdByPhaseId(GetCampaignIdByPhaseIdRequest) returns (GetCampaignIdByPhaseIdResponse);
   rpc GetCampaignPhases(GetCampaignPhasesRequest) returns (GetCampaignPhasesResponse);
   rpc GetCampaignPhase(GetCampaignPhaseRequest) returns (GetCampaignPhaseResponse);
+  rpc GetCampaignPhaseInfo(GetCampaignPhaseInfoRequest) returns (GetCampaignPhaseInfoResponse);
   rpc GetFundraiserByPhaseId(GetFundraiserByPhaseIdRequest) returns (GetFundraiserByPhaseIdResponse);
   rpc UpdatePhaseStatus(UpdatePhaseStatusRequest) returns (UpdatePhaseStatusResponse);
   rpc InvalidateCampaignCache(InvalidateCampaignCacheRequest) returns (InvalidateCampaignCacheResponse);
+  rpc SendNotification(SendNotificationRequest) returns (SendNotificationResponse);
 }
 
 // Messages
@@ -103,6 +105,26 @@ message CampaignPhaseWithFunds {
   string delivery_funds_amount = 6;
 }
 
+message GetCampaignPhaseInfoRequest {
+  string phase_id = 1;
+}
+
+message GetCampaignPhaseInfoResponse {
+  bool success = 1;
+  CampaignPhaseFullInfo phase = 2;
+  string error = 3;
+}
+
+message CampaignPhaseFullInfo {
+  string id = 1;
+  string campaign_id = 2;
+  string campaign_title = 3;
+  string phase_name = 4;
+  string ingredient_funds_amount = 5;
+  string cooking_funds_amount = 6;
+  string delivery_funds_amount = 7;
+}
+
 message GetFundraiserByPhaseIdRequest {
   string phase_id = 1;
 }
@@ -130,4 +152,16 @@ message InvalidateCampaignCacheRequest {
 message InvalidateCampaignCacheResponse {
   bool success = 1;
   string error = 2;
+}
+
+message SendNotificationRequest {
+  string user_id = 1;
+  string notification_type = 2;
+  string data_json = 3;
+}
+
+message SendNotificationResponse {
+  bool success = 1;
+  string notification_id = 2;
+  string error = 3;
 }

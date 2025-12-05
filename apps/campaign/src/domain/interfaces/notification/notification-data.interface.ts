@@ -91,6 +91,17 @@ export interface SystemAnnouncementData extends BaseNotificationData {
     priority: "INFO" | "WARNING" | "CRITICAL"
 }
 
+export interface SurplusTransferredData extends BaseNotificationData {
+    requestId: string
+    requestType: "INGREDIENT" | "COOKING" | "DELIVERY"
+    campaignTitle: string
+    phaseName: string
+    originalBudget: string
+    actualCost: string
+    surplusAmount: string
+    walletTransactionId?: string
+}
+
 export type NotificationDataMap = {
     [NotificationType.CAMPAIGN_APPROVED]: CampaignApprovedData
     [NotificationType.CAMPAIGN_REJECTED]: CampaignRejectedData
@@ -104,4 +115,5 @@ export type NotificationDataMap = {
     [NotificationType.INGREDIENT_REQUEST_APPROVED]: IngredientRequestApprovedData
     [NotificationType.DELIVERY_TASK_ASSIGNED]: DeliveryTaskAssignedData
     [NotificationType.SYSTEM_ANNOUNCEMENT]: SystemAnnouncementData
+    [NotificationType.SURPLUS_TRANSFERRED]: SurplusTransferredData
 }

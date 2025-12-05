@@ -29,9 +29,7 @@ export class NotificationService {
 
     async createNotification<
         T extends NotificationType & keyof NotificationDataMap,
-    >(
-        input: CreateNotificationInput<T>,
-    ): Promise<Notification> {
+    >(input: CreateNotificationInput<T>): Promise<Notification> {
         if (input.eventId) {
             const isProcessed = await this.cacheService.isEventProcessed(
                 input.eventId,
@@ -105,9 +103,7 @@ export class NotificationService {
 
     async createBulkNotifications<
         T extends NotificationType & keyof NotificationDataMap,
-    >(
-        inputs: CreateNotificationInput<T>[],
-    ): Promise<Notification[]> {
+    >(inputs: CreateNotificationInput<T>[]): Promise<Notification[]> {
         const notifications: Notification[] = []
 
         for (const input of inputs) {
@@ -311,15 +307,14 @@ export class NotificationService {
         await this.cacheService.decrementUnreadCount(userId)
         await this.cacheService.invalidateNotificationList(userId)
 
-        const freshCount = await this.notificationRepository.getUnreadCount(userId)
+        const freshCount =
+            await this.notificationRepository.getUnreadCount(userId)
         await this.cacheService.setUnreadCount(userId, freshCount)
     }
 
     private async updateExistingLikeNotification<
         T extends NotificationType & keyof NotificationDataMap,
-    >(
-        input: CreateNotificationInput<T>,
-    ): Promise<Notification> {
+    >(input: CreateNotificationInput<T>): Promise<Notification> {
         const existingNotifications =
             await this.notificationRepository.findNotifications({
                 userId: input.userId,
@@ -409,6 +404,7 @@ export class NotificationService {
             [NotificationType.CAMPAIGN_OWNERSHIP_RECEIVED]: "CAMPAIGN",
             [NotificationType.CAMPAIGN_REASSIGNMENT_EXPIRED]: "CAMPAIGN",
             [NotificationType.SYSTEM_ANNOUNCEMENT]: "SYSTEM",
+            [NotificationType.SURPLUS_TRANSFERRED]: "WALLET",
         }
 
         return typeMap[type] || "UNKNOWN"

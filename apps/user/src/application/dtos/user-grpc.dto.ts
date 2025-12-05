@@ -304,3 +304,23 @@ export interface GetOrganizationByIdResponse {
     }
     error?: string
 }
+
+export interface CreditFundraiserWalletWithSurplusRequest {
+    fundraiserId: string
+    campaignId: string
+    campaignPhaseId: string
+    requestId: string
+    requestType: string
+    surplusAmount: string
+    originalBudget: string
+    actualCost: string
+    campaignTitle: string
+    phaseName: string
+}
+
+export interface CreditFundraiserWalletWithSurplusResponse {
+    success: boolean
+    walletTransactionId?: string
+    newBalance?: string
+    error?: string
+}

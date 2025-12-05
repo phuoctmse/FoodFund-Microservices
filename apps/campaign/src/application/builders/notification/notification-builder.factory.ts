@@ -16,6 +16,7 @@ import {
 import {
     DeliveryTaskAssignedBuilder,
     IngredientRequestApprovedBuilder,
+    SurplusTransferredBuilder,
     SystemAnnouncementBuilder,
 } from "./operation-notification.builder"
 import {
@@ -44,6 +45,7 @@ export class NotificationBuilderFactory {
         private readonly ingredientRequestApprovedBuilder: IngredientRequestApprovedBuilder,
         private readonly deliveryTaskAssignedBuilder: DeliveryTaskAssignedBuilder,
         private readonly systemAnnouncementBuilder: SystemAnnouncementBuilder,
+        private readonly surplusTransferredBuilder: SurplusTransferredBuilder,
     ) {
         this.builders = new Map<NotificationType, NotificationBuilder<any>>()
 
@@ -90,6 +92,10 @@ export class NotificationBuilderFactory {
         this.builders.set(
             NotificationType.SYSTEM_ANNOUNCEMENT,
             this.systemAnnouncementBuilder,
+        )
+        this.builders.set(
+            NotificationType.SURPLUS_TRANSFERRED,
+            this.surplusTransferredBuilder,
         )
     }
 

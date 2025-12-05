@@ -20,7 +20,7 @@ export class IngredientRequestApprovedBuilder extends NotificationBuilder<Notifi
         const message = `Your ingredient request for "${campaignTitle}" has been approved by ${data.approvedBy}.`
 
         return {
-            title: "✅ Ingredient Request Approved",
+            title: "Ingredient Request Approved",
             message,
             metadata: {
                 requestId: data.requestId,
@@ -48,7 +48,7 @@ export class DeliveryTaskAssignedBuilder extends NotificationBuilder<Notificatio
         const message = `You have been assigned a delivery task for "${campaignTitle}" on ${data.deliveryDate} at ${data.location}.`
 
         return {
-            title: "🚚 New Delivery Task",
+            title: "New Delivery Task",
             message,
             metadata: {
                 taskId: data.taskId,
@@ -88,6 +88,51 @@ export class SystemAnnouncementBuilder extends NotificationBuilder<NotificationT
             metadata: {
                 announcementId: data.announcementId,
                 priority: data.priority,
+            },
+        }
+    }
+}
+
+@Injectable()
+export class SurplusTransferredBuilder extends NotificationBuilder<NotificationType.SURPLUS_TRANSFERRED> {
+    readonly type = NotificationType.SURPLUS_TRANSFERRED
+
+    build(
+        context: NotificationBuilderContext<NotificationType.SURPLUS_TRANSFERRED>,
+    ): NotificationBuilderResult {
+        this.validate(context.data)
+        const data = context.data
+
+        const campaignTitle = this.truncate(data.campaignTitle, 40)
+        const phaseName = this.truncate(data.phaseName, 30)
+        const surplusFormatted = this.formatCurrency(data.surplusAmount)
+        const originalBudgetFormatted = this.formatCurrency(data.originalBudget)
+        const actualCostFormatted = this.formatCurrency(data.actualCost)
+
+        const requestTypeLabel = {
+            INGREDIENT: "nguyên liệu",
+            COOKING: "nấu ăn",
+            DELIVERY: "giao hàng",
+        }[data.requestType]
+
+        const message =
+            `Tiền dư từ yêu cầu ${requestTypeLabel} đã được chuyển vào ví của bạn. ` +
+            `Chiến dịch: "${campaignTitle}" - Giai đoạn: "${phaseName}". ` +
+            `Ngân sách: ${originalBudgetFormatted}, Chi phí thực tế: ${actualCostFormatted}, ` +
+            `Tiền dư: ${surplusFormatted}.`
+
+        return {
+            title: "Tiền dư đã được chuyển vào ví",
+            message,
+            metadata: {
+                requestId: data.requestId,
+                requestType: data.requestType,
+                campaignTitle: data.campaignTitle,
+                phaseName: data.phaseName,
+                originalBudget: data.originalBudget,
+                actualCost: data.actualCost,
+                surplusAmount: data.surplusAmount,
+                walletTransactionId: data.walletTransactionId,
             },
         }
     }

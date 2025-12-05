@@ -98,6 +98,7 @@ import {
     PostCommentBuilder,
     PostLikeBuilder,
     PostReplyBuilder,
+    SurplusTransferredBuilder,
     SystemAnnouncementBuilder,
 } from "./application/builders/notification"
 import { NotificationQueryResolver } from "./presentation/graphql/notification/queries"
@@ -105,7 +106,10 @@ import { NotificationMutationResolver } from "./presentation/graphql/notificatio
 import { PostLikeQueue } from "./application/workers/post-like/post-like.queue"
 import { NotificationQueue } from "./application/workers/notification/notification.queue"
 import { BrevoEmailService } from "@libs/email"
-import { NotificationProcessor, OutboxProcessor } from "./application/processors"
+import {
+    NotificationProcessor,
+    OutboxProcessor,
+} from "./application/processors"
 import {
     CampaignNotificationHandler,
     PostNotificationHandler,
@@ -278,9 +282,10 @@ import { DonationConsumer } from "./application/handlers/kafka/donation.consumer
         IngredientRequestApprovedBuilder,
         DeliveryTaskAssignedBuilder,
         SystemAnnouncementBuilder,
+        SurplusTransferredBuilder,
 
         DonationSearchService,
         DonationSearchResolver,
     ],
 })
-export class AppModule { }
+export class AppModule {}

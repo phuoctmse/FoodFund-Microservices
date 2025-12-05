@@ -20,7 +20,11 @@ import {
     InflowTransactionType,
     IngredientRequestStatus,
 } from "../../../domain"
-import { InflowTransactionRepository } from "../../repositories"
+import {
+    InflowTransactionRepository,
+    IngredientRequestRepository,
+    OperationRequestRepository,
+} from "../../repositories"
 import { InflowTransactionValidationService } from "./inflow-transaction-validation.service"
 import {
     InflowTransactionFilterInput,
@@ -28,6 +32,15 @@ import {
 } from "../../dtos/inflow-transaction/inflow-transaction-filter.input"
 import { IngredientRequestCacheService } from "../ingredient-request"
 import { OperationRequestCacheService } from "../operation-request"
+
+type RequestExpenseType = "INGREDIENT" | "COOKING" | "DELIVERY"
+
+interface SurplusTransferResult {
+    transferred: boolean
+    surplusAmount: bigint
+    walletTransactionId?: string
+    error?: string
+}
 
 @Injectable()
 export class InflowTransactionService {
@@ -38,6 +51,8 @@ export class InflowTransactionService {
         private readonly sentryService: SentryService,
         private readonly ingredientRequestCacheService: IngredientRequestCacheService,
         private readonly operationRequestCacheService: OperationRequestCacheService,
+        private readonly ingredientRequestRepository: IngredientRequestRepository,
+        private readonly operationRequestRepository: OperationRequestRepository,
     ) {}
 
     /**
@@ -138,18 +153,11 @@ export class InflowTransactionService {
                     validation.campaignPhaseId,
                 )
 
-                this.sentryService.addBreadcrumb(
-                    "Inflow transaction created",
-                    "disbursement",
-                    {
-                        id: created.id,
-                        type: validation.transactionType,
-                        amount: input.amount,
-                        campaignPhaseId: validation.campaignPhaseId,
-                        fundraiserId: validation.fundraiserId,
-                        ingredientRequestId: input.ingredientRequestId,
-                        operationRequestId: input.operationRequestId,
-                    },
+                await this.calculateAndTransferSurplus(
+                    input.ingredientRequestId || null,
+                    input.operationRequestId || null,
+                    validation.campaignPhaseId,
+                    validation.fundraiserId,
                 )
 
                 return this.mapToGraphQLModel(created)
@@ -388,6 +396,251 @@ export class InflowTransactionService {
             })
         }
     }
+
+    private async calculateAndTransferSurplus(
+        ingredientRequestId: string | null,
+        operationRequestId: string | null,
+        campaignPhaseId: string,
+        fundraiserId: string,
+    ): Promise<SurplusTransferResult> {
+        try {
+            const phaseInfo = await this.getCampaignPhaseInfo(campaignPhaseId)
+
+            if (!phaseInfo) {
+                return { transferred: false, surplusAmount: BigInt(0) }
+            }
+
+            let budget: bigint
+            let actualCost: bigint
+            let requestType: RequestExpenseType
+            let requestId: string
+
+            if (ingredientRequestId) {
+                const request =
+                    await this.ingredientRequestRepository.findById(
+                        ingredientRequestId,
+                    )
+                if (!request) {
+                    return { transferred: false, surplusAmount: BigInt(0) }
+                }
+
+                budget = BigInt(phaseInfo.ingredientFundsAmount || 0)
+                actualCost = BigInt(request.totalCost)
+                requestType = "INGREDIENT"
+                requestId = ingredientRequestId
+            } else if (operationRequestId) {
+                const request =
+                    await this.operationRequestRepository.findById(
+                        operationRequestId,
+                    )
+                if (!request) {
+                    return { transferred: false, surplusAmount: BigInt(0) }
+                }
+
+                if (request.expense_type === "COOKING") {
+                    budget = BigInt(phaseInfo.cookingFundsAmount || 0)
+                    requestType = "COOKING"
+                } else if (request.expense_type === "DELIVERY") {
+                    budget = BigInt(phaseInfo.deliveryFundsAmount || 0)
+                    requestType = "DELIVERY"
+                } else {
+                    return { transferred: false, surplusAmount: BigInt(0) }
+                }
+
+                actualCost = request.total_cost
+                requestId = operationRequestId
+            } else {
+                return { transferred: false, surplusAmount: BigInt(0) }
+            }
+
+            const surplus = budget - actualCost
+
+            if (surplus <= BigInt(0)) {
+                return { transferred: false, surplusAmount: BigInt(0) }
+            }
+
+            const transferResult = await this.creditFundraiserWalletWithSurplus(
+                {
+                    fundraiserId,
+                    campaignId: phaseInfo.campaignId,
+                    campaignPhaseId,
+                    requestId,
+                    requestType,
+                    surplusAmount: surplus.toString(),
+                    originalBudget: budget.toString(),
+                    actualCost: actualCost.toString(),
+                    campaignTitle: phaseInfo.campaignTitle,
+                    phaseName: phaseInfo.phaseName,
+                },
+            )
+
+            if (!transferResult.success) {
+                return {
+                    transferred: false,
+                    surplusAmount: surplus,
+                    error: transferResult.error,
+                }
+            }
+
+            await this.sendSurplusNotification({
+                fundraiserId,
+                requestId,
+                requestType,
+                campaignTitle: phaseInfo.campaignTitle,
+                phaseName: phaseInfo.phaseName,
+                originalBudget: budget.toString(),
+                actualCost: actualCost.toString(),
+                surplusAmount: surplus.toString(),
+                walletTransactionId: transferResult.walletTransactionId,
+            })
+
+            return {
+                transferred: true,
+                surplusAmount: surplus,
+                walletTransactionId: transferResult.walletTransactionId,
+            }
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "calculateAndTransferSurplus",
+                ingredientRequestId,
+                operationRequestId,
+                campaignPhaseId,
+                fundraiserId,
+            })
+            return {
+                transferred: false,
+                surplusAmount: BigInt(0),
+                error: error?.message,
+            }
+        }
+    }
+
+    private async getCampaignPhaseInfo(campaignPhaseId: string): Promise<{
+        campaignId: string
+        campaignTitle: string
+        phaseName: string
+        ingredientFundsAmount: string
+        cookingFundsAmount: string
+        deliveryFundsAmount: string
+    } | null> {
+        const response = await this.grpcClient.callCampaignService<
+            { phaseId: string },
+            {
+                success: boolean
+                phase?: {
+                    id: string
+                    campaignId: string
+                    campaignTitle: string
+                    phaseName: string
+                    ingredientFundsAmount: string
+                    cookingFundsAmount: string
+                    deliveryFundsAmount: string
+                }
+                error?: string
+            }
+        >("GetCampaignPhaseInfo", { phaseId: campaignPhaseId })
+
+        if (!response.success || !response.phase) {
+            return null
+        }
+
+        return response.phase
+    }
+
+    private async creditFundraiserWalletWithSurplus(data: {
+        fundraiserId: string
+        campaignId: string
+        campaignPhaseId: string
+        requestId: string
+        requestType: RequestExpenseType
+        surplusAmount: string
+        originalBudget: string
+        actualCost: string
+        campaignTitle: string
+        phaseName: string
+    }): Promise<{
+        success: boolean
+        walletTransactionId?: string
+        newBalance?: string
+        error?: string
+    }> {
+        try {
+            const response = await this.grpcClient.callUserService<
+                {
+                    fundraiserId: string
+                    campaignId: string
+                    campaignPhaseId: string
+                    requestId: string
+                    requestType: string
+                    surplusAmount: string
+                    originalBudget: string
+                    actualCost: string
+                    campaignTitle: string
+                    phaseName: string
+                },
+                {
+                    success: boolean
+                    walletTransactionId?: string
+                    newBalance?: string
+                    error?: string
+                }
+            >("CreditFundraiserWalletWithSurplus", {
+                fundraiserId: data.fundraiserId,
+                campaignId: data.campaignId,
+                campaignPhaseId: data.campaignPhaseId,
+                requestId: data.requestId,
+                requestType: data.requestType,
+                surplusAmount: data.surplusAmount,
+                originalBudget: data.originalBudget,
+                actualCost: data.actualCost,
+                campaignTitle: data.campaignTitle,
+                phaseName: data.phaseName,
+            })
+
+            return response
+        } catch (error) {
+            return {
+                success: false,
+                error: (error as Error)?.message || "gRPC call failed",
+            }
+        }
+    }
+
+    private async sendSurplusNotification(data: {
+        fundraiserId: string
+        requestId: string
+        requestType: RequestExpenseType
+        campaignTitle: string
+        phaseName: string
+        originalBudget: string
+        actualCost: string
+        surplusAmount: string
+        walletTransactionId?: string
+    }): Promise<void> {
+        const notificationData = {
+            requestId: data.requestId,
+            requestType: data.requestType,
+            campaignTitle: data.campaignTitle,
+            phaseName: data.phaseName,
+            originalBudget: data.originalBudget,
+            actualCost: data.actualCost,
+            surplusAmount: data.surplusAmount,
+            walletTransactionId: data.walletTransactionId,
+        }
+        await this.grpcClient.callCampaignService<
+            {
+                userId: string
+                notificationType: string
+                dataJson: string
+            },
+            { success: boolean; error?: string }
+        >("SendNotification", {
+            userId: data.fundraiserId,
+            notificationType: "SURPLUS_TRANSFERRED",
+            dataJson: JSON.stringify(notificationData),
+        })
+    }
+
     /**
      * Map Prisma model to GraphQL model (without conversion)
      * Used when receiverId is already internal id
