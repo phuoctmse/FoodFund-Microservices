@@ -1,4 +1,5 @@
 import { Field, ObjectType, Int } from "@nestjs/graphql"
+import { BadgeMilestone } from "./badge-milestone.model"
 
 @ObjectType()
 export class Badge {
@@ -25,6 +26,9 @@ export class Badge {
 
     @Field()
         updated_at: Date
+
+    @Field(() => BadgeMilestone, { nullable: true })
+        milestone?: BadgeMilestone
 }
 
 @ObjectType()

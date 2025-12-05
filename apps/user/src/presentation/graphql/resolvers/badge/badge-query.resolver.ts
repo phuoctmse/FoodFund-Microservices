@@ -6,12 +6,11 @@ import { BadgeService, UserBadgeService } from "../../../../application/services
 import { Badge, UserBadge } from "../../../../domain/entities/badge.model"
 
 @Resolver(() => Badge)
-@UseGuards(CognitoGraphQLGuard)
 export class BadgeQueryResolver {
     constructor(
         private readonly badgeService: BadgeService,
         private readonly userBadgeService: UserBadgeService,
-    ) {}
+    ) { }
 
     @Query(() => [Badge], { description: "Get all active badges" })
     async getAllBadges() {
@@ -27,6 +26,7 @@ export class BadgeQueryResolver {
         nullable: true,
         description: "Get current user's badge",
     })
+    @UseGuards(CognitoGraphQLGuard)
     async myBadge(@CurrentUser() user: CurrentUserType) {
         return this.userBadgeService.getUserBadge(user.cognitoId)
     }

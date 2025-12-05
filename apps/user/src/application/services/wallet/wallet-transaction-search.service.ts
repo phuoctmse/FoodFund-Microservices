@@ -96,11 +96,8 @@ export class WalletTransactionSearchService implements OnModuleInit {
         const {
             walletId,
             query,
-            transactionType,
             minAmount,
             maxAmount,
-            startDate,
-            endDate,
             sortBy,
             page = 1,
             limit = 10,
@@ -121,23 +118,12 @@ export class WalletTransactionSearchService implements OnModuleInit {
             })
         }
 
-        if (transactionType) {
-            must.push({ term: { transactionType } })
-        }
-
         if (minAmount || maxAmount) {
             const range: any = {}
             if (minAmount) range.gte = minAmount
             if (maxAmount) range.lte = maxAmount
             // Note: Range on keyword might be inaccurate for numbers, but consistent with other services
             must.push({ range: { amount: range } })
-        }
-
-        if (startDate || endDate) {
-            const range: any = {}
-            if (startDate) range.gte = startDate
-            if (endDate) range.lte = endDate
-            must.push({ range: { created_at: range } })
         }
 
         const sort: any[] = []
@@ -180,8 +166,8 @@ export class WalletTransactionSearchService implements OnModuleInit {
                 description: hit.description,
                 gateway: hit.gateway,
                 sepay_metadata: hit.sepayMetadata ? JSON.parse(hit.sepayMetadata) : null,
-                created_at: hit.created_at,
-                updated_at: hit.updated_at,
+                created_at: typeof hit.created_at === "string" ? new Date(hit.created_at).getTime() : hit.created_at,
+                updated_at: typeof hit.updated_at === "string" ? new Date(hit.updated_at).getTime() : hit.updated_at,
             })),
             total: result.total,
             page,
