@@ -1,7 +1,6 @@
 import { Injectable } from "@nestjs/common"
 import { MealBatch, MealBatchIngredientUsage } from "../../domain/entities"
 import { MealBatchStatus } from "../../domain/enums"
-import { MealBatchFilterInput } from "../dtos"
 import { PrismaClient } from "../../generated/operation-client"
 
 interface CreateMealBatchData {

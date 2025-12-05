@@ -9,7 +9,7 @@ import {
     WalletStatsSchema,
     PlatformWalletStatsSchema,
 } from "../../../domain/entities"
-import { Transaction_Type, Wallet_Type } from "@app/user/src/domain/enums/wallet.enum"
+import { Wallet_Type } from "@app/user/src/domain/enums/wallet.enum"
 import { UserRepository } from "../../repositories"
 
 @Injectable()
