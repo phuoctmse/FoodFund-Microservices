@@ -11,7 +11,4 @@ export class ExpenseProofUploadResponse {
 
     @Field(() => [MediaUploadUrl])
         uploadUrls: MediaUploadUrl[]
-
-    @Field(() => String)
-        instructions: string
 }
