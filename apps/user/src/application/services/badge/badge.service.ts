@@ -4,14 +4,20 @@ import {
     BadRequestException,
     Logger,
 } from "@nestjs/common"
+import { RedisService } from "@libs/redis"
 import { BadgeRepository } from "../../repositories"
 import { CreateBadgeInput, UpdateBadgeInput } from "../../dtos/badge.input"
 
 @Injectable()
 export class BadgeService {
     private readonly logger = new Logger(BadgeService.name)
+    private readonly CACHE_KEY = "badges:all"
+    private readonly CACHE_TTL = 86400
 
-    constructor(private readonly badgeRepository: BadgeRepository) { }
+    constructor(
+        private readonly badgeRepository: BadgeRepository,
+        private readonly redis: RedisService,
+    ) { }
 
     async createBadge(data: CreateBadgeInput) {
         if (data.sort_order !== undefined) {
@@ -27,11 +33,77 @@ export class BadgeService {
         }
 
         this.logger.log(`Creating badge: ${data.name}`)
-        return this.badgeRepository.createBadge(data)
+        const badge = await this.badgeRepository.createBadge(data)
+
+        await this.invalidateCache()
+
+        return badge
     }
 
     async getAllBadges(includeInactive = false) {
-        return this.badgeRepository.findAllBadges(includeInactive)
+        if (!includeInactive) {
+            const cached = await this.getFromCache()
+            if (cached) {
+                this.logger.debug("Returning badges from cache")
+                return cached
+            }
+        }
+
+        const badges = await this.badgeRepository.findAllBadges(includeInactive)
+
+        // Cache only active badges
+        if (!includeInactive) {
+            await this.setCache(badges)
+        }
+
+        return badges
+    }
+
+    private async getFromCache() {
+        if (!this.redis.isAvailable()) {
+            return null
+        }
+
+        try {
+            const cached = await this.redis.get(this.CACHE_KEY)
+            if (cached) {
+                return JSON.parse(cached)
+            }
+        } catch (error) {
+            this.logger.error("Failed to get badges from cache", error)
+        }
+
+        return null
+    }
+
+    private async setCache(badges: any[]) {
+        if (!this.redis.isAvailable()) {
+            return
+        }
+
+        try {
+            await this.redis.set(
+                this.CACHE_KEY,
+                JSON.stringify(badges),
+                { ex: this.CACHE_TTL }
+            )
+            this.logger.debug("Badges cached successfully")
+        } catch (error) {
+            this.logger.error("Failed to cache badges", error)
+        }
+    }
+
+    private async invalidateCache() {
+        if (!this.redis.isAvailable()) {
+            return
+        }
+
+        try {
+            await this.redis.del(this.CACHE_KEY)
+            this.logger.debug("Badge cache invalidated")
+        } catch (error) {
+            this.logger.error("Failed to invalidate badge cache", error)
+        }
     }
 
     async getBadgeById(id: string) {
@@ -62,7 +134,11 @@ export class BadgeService {
         }
 
         this.logger.log(`Updating badge: ${id}`)
-        return this.badgeRepository.updateBadge(id, data)
+        const updatedBadge = await this.badgeRepository.updateBadge(id, data)
+
+        await this.invalidateCache()
+
+        return updatedBadge
     }
 
     async deleteBadge(id: string) {
@@ -79,7 +155,11 @@ export class BadgeService {
         }
 
         this.logger.log(`Deleting badge: ${id}`)
-        return this.badgeRepository.deleteBadge(id)
+        const result = await this.badgeRepository.deleteBadge(id)
+
+        await this.invalidateCache()
+
+        return result
     }
 
 }
