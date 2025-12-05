@@ -317,14 +317,16 @@ export class IngredientRequestRepository {
         return this.mapToGraphQLModel(request)
     }
 
-    async hasPendingOrApprovedRequest(
-        campaignPhaseId: string,
-    ): Promise<boolean> {
+    async hasActiveRequest(campaignPhaseId: string): Promise<boolean> {
         const count = await this.prisma.ingredient_Request.count({
             where: {
                 campaign_phase_id: campaignPhaseId,
                 status: {
-                    in: ["PENDING", "APPROVED"],
+                    in: [
+                        IngredientRequestStatus.PENDING,
+                        IngredientRequestStatus.APPROVED,
+                        IngredientRequestStatus.DISBURSED,
+                    ],
                 },
             },
         })

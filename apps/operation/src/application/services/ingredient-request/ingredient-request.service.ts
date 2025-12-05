@@ -69,12 +69,12 @@ export class IngredientRequestService extends BaseOperationService {
             )
 
             const hasPending =
-                await this.repository.hasPendingOrApprovedRequest(
+                await this.repository.hasActiveRequest(
                     input.campaignPhaseId,
                 )
             if (hasPending) {
                 throw new BadRequestException(
-                    "Cannot create new request. There is already a PENDING or APPROVED request for this campaign phase. Please wait for admin approval.",
+                    "Không thể tạo mới yêu cầu giải ngân vì đã có yêu cầu tồn tại trong giai đoạn chiến dịch này.",
                 )
             }
 

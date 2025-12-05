@@ -88,6 +88,7 @@ export class OperationRequestRepository {
                     in: [
                         OperationRequestStatus.PENDING,
                         OperationRequestStatus.APPROVED,
+                        OperationRequestStatus.DISBURSED
                     ],
                 },
             },
