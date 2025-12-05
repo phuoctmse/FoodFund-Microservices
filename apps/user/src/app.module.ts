@@ -8,6 +8,7 @@ import { AwsCognitoModule } from "@libs/aws-cognito"
 import { GraphQLSubgraphModule } from "@libs/graphql/subgraph"
 import { GrpcModule } from "@libs/grpc"
 import { OpenSearchModule } from "@libs/aws-opensearch"
+import { RedisModule } from "@libs/redis"
 import { SpacesUploadService } from "@libs/s3-storage"
 import { PrismaClient } from "./generated/user-client"
 import { OrganizationSchema } from "./domain/entities"
@@ -23,7 +24,7 @@ import {
 } from "./application/services"
 import { WalletTransactionService } from "./application/services/wallet/wallet-transaction.service"
 import { WalletTransactionSearchService } from "./application/services/wallet/wallet-transaction-search.service"
-import { BadgeService, UserBadgeService } from "./application/services/badge"
+import { BadgeService, UserBadgeService, BadgeMilestoneService } from "./application/services/badge"
 import { BadgeEmailService } from "./application/services/badge/badge-email.service"
 import { BrevoEmailService } from "@libs/email"
 import {
@@ -49,6 +50,7 @@ import {
     WalletFieldResolver,
     BadgeQueryResolver,
     BadgeMutationResolver,
+    BadgeFieldResolver,
     OrganizationMutationResolver,
     OrganizationReferenceResolver,
 } from "./presentation/graphql/resolvers"
@@ -73,6 +75,7 @@ import { WalletTransactionConsumer } from "./application/handlers/kafka/wallet-t
         }),
         GrpcModule,
         OpenSearchModule,
+        RedisModule.registerAsync(),
         GraphQLSubgraphModule.forRoot({
             debug: true,
             playground: true,
@@ -126,6 +129,7 @@ import { WalletTransactionConsumer } from "./application/handlers/kafka/wallet-t
         WalletTransactionSearchService,
         BadgeService,
         UserBadgeService,
+        BadgeMilestoneService,
         BadgeEmailService,
         BrevoEmailService,
         SpacesUploadService,
@@ -144,6 +148,7 @@ import { WalletTransactionConsumer } from "./application/handlers/kafka/wallet-t
         WalletFieldResolver,
         BadgeQueryResolver,
         BadgeMutationResolver,
+        BadgeFieldResolver,
         OrganizationMutationResolver,
         OrganizationReferenceResolver,
     ],

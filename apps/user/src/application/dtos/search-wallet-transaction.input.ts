@@ -1,6 +1,5 @@
 import { Field, Float, InputType, Int, registerEnumType } from "@nestjs/graphql"
 import { IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min } from "class-validator"
-import { Transaction_Type } from "../../domain/enums/wallet.enum"
 
 export enum WalletTransactionSortBy {
     NEWEST = "NEWEST",
@@ -25,11 +24,6 @@ export class SearchWalletTransactionInput {
     @IsString()
         query?: string
 
-    @Field(() => Transaction_Type, { nullable: true })
-    @IsOptional()
-    @IsEnum(Transaction_Type)
-        transactionType?: Transaction_Type
-
     @Field(() => Float, { nullable: true })
     @IsOptional()
     @IsNumber()
@@ -39,14 +33,6 @@ export class SearchWalletTransactionInput {
     @IsOptional()
     @IsNumber()
         maxAmount?: number
-
-    @Field(() => Date, { nullable: true })
-    @IsOptional()
-        startDate?: Date
-
-    @Field(() => Date, { nullable: true })
-    @IsOptional()
-        endDate?: Date
 
     @Field(() => WalletTransactionSortBy, { nullable: true })
     @IsOptional()
