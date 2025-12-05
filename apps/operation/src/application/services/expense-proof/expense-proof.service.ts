@@ -58,7 +58,6 @@ export class ExpenseProofService extends BaseOperationService {
             expiresAt: Date
             fileType: string
         }>
-        instructions: string
     }> {
         this.authorizationService.requireRole(
             userContext,
@@ -74,12 +73,6 @@ export class ExpenseProofService extends BaseOperationService {
             if (!request) {
                 throw new NotFoundException(
                     `Ingredient request not found: ${input.requestId}`,
-                )
-            }
-
-            if (request.status !== "APPROVED") {
-                throw new BadRequestException(
-                    `Can only upload proof for APPROVED requests. Current status: ${request.status}`,
                 )
             }
 
@@ -121,8 +114,6 @@ export class ExpenseProofService extends BaseOperationService {
                     expiresAt: result.expiresAt,
                     fileType: result.fileType || "image",
                 })),
-                instructions:
-                    "Upload your files (bill/receipts/ingredient photos) to the provided URLs within 5 minutes. Then call createExpenseProof with the fileKeys.",
             }
         } catch (error) {
             this.sentryService.captureError(error as Error, {
