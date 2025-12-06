@@ -12,7 +12,7 @@ datasource db {
 model Campaign {
   id                     String                  @id @default(uuid())
   title                  String
-  slug                   String?                  @unique
+  slug                   String?                 @unique
   description            String
   cover_image            String
   target_amount          BigInt                  @default(0)
@@ -70,6 +70,8 @@ model Campaign_Phase {
   cooking_budget_percentage    Decimal               @db.Decimal(5, 2)
   delivery_budget_percentage   Decimal               @db.Decimal(5, 2)
   campaign                     Campaign              @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  plannedMeals                 Planned_Meal[]
+  plannedIngredients           Planned_Ingredient[]
 
   @@index([campaign_id])
   @@index([status])
@@ -79,6 +81,36 @@ model Campaign_Phase {
   @@index([cooking_date])
   @@index([delivery_date])
   @@map("campaign_phases")
+}
+
+model Planned_Meal {
+  id                String   @id @default(uuid())
+  campaign_phase_id String
+  name              String   @db.VarChar(200)
+  quantity          Int      @default(0)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  campaign_phase Campaign_Phase @relation(fields: [campaign_phase_id], references: [id], onDelete: Cascade)
+
+  @@index([campaign_phase_id])
+  @@map("planned_meals")
+}
+
+model Planned_Ingredient {
+  id                String   @id @default(uuid())
+  campaign_phase_id String
+  name              String   @db.VarChar(100)
+  quantity          Int      @default(0)
+  unit              String   @db.VarChar(50)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  campaign_phase Campaign_Phase @relation(fields: [campaign_phase_id], references: [id], onDelete: Cascade)
+
+  @@index([campaign_phase_id])
+  @@index([name])
+  @@map("planned_ingredients")
 }
 
 model Campaign_Reassignment {
