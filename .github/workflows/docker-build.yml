@@ -1,0 +1,266 @@
+name: Optimized Build and Deploy
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # ================= DETECT CHANGES =================
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      auth: ${{ steps.changes.outputs.auth }}
+      user: ${{ steps.changes.outputs.user }}
+      campaign: ${{ steps.changes.outputs.campaign }}
+      operation: ${{ steps.changes.outputs.operation }}
+      gateway: ${{ steps.changes.outputs.gateway }}
+      shared: ${{ steps.changes.outputs.shared }}
+      any-service: ${{ steps.changes.outputs.auth == 'true' || steps.changes.outputs.user == 'true' || steps.changes.outputs.campaign == 'true' || steps.changes.outputs.gateway == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            auth:
+              - 'apps/auth/**'
+              - 'libs/**'
+              - 'package*.json'
+            user:
+              - 'apps/user/**'
+              - 'libs/**'
+              - 'package*.json'
+            campaign:
+              - 'apps/campaign/**'
+              - 'libs/**'
+              - 'package*.json'
+            operation:
+              - 'apps/operation/**'
+              - 'libs/**'
+              - 'package*.json'
+            gateway:
+              - 'apps/graphql-gateway/**'
+              - 'libs/**'
+              - 'package*.json'
+            shared:
+              - 'libs/**'
+              - 'package*.json'
+              - '.github/workflows/**'
+
+  # ================= TEST CHANGED SERVICES =================
+  test:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    if: needs.detect-changes.outputs.any-service == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [auth, user, campaign, operation, gateway]
+        include:
+          - service: auth
+            build-script: "build:auth"
+            prisma-generate: false
+          - service: user
+            build-script: "build:user"
+            prisma-generate: true
+            prisma-path: "apps/user"
+          - service: campaign
+            build-script: "build:campaign"
+            prisma-generate: true
+            prisma-path: "apps/campaign"
+          - service: operation
+            build-script: "build:operation"
+            prisma-generate: true
+            prisma-path: "apps/operation"
+          - service: gateway
+            build-script: "build:gateway"
+            prisma-generate: false
+    
+    steps:
+      - uses: actions/checkout@v4
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
+      
+      - uses: actions/setup-node@v4
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
+        run: npm ci
+
+      - name: Generate Prisma Client for ${{ matrix.service }}
+        if: needs.detect-changes.outputs[matrix.service] == 'true' && matrix.prisma-generate == true
+        run: |
+          cd ${{ matrix.prisma-path }}
+          npx prisma generate
+        env:
+          USERS_DATABASE_URL: ${{ secrets.USERS_DATABASE_URL }}
+          CAMPAIGN_DATABASE_URL: ${{ secrets.CAMPAIGN_DATABASE_URL }}
+          OPERATIONS_DATABASE_URL: ${{ secrets.OPERATIONS_DATABASE_URL }}
+
+      - name: Lint ${{ matrix.service }}
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
+        run: npm run lint:check
+
+      # - name: Test ${{ matrix.service }}
+      #   if: needs.detect-changes.outputs[matrix.service] == 'true'
+      #   run: npm run test
+
+      - name: Build ${{ matrix.service }}
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
+        run: npm run ${{ matrix.build-script }}
+
+  # ================= DOCKER BUILD & PUSH =================
+  docker:
+    needs: [detect-changes, test]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && needs.detect-changes.outputs.any-service == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [auth, user, campaign, operation, gateway]
+        include:
+          - service: auth
+            dockerfile: apps/auth/Dockerfile
+            image: foodfund-auth
+          - service: user
+            dockerfile: apps/user/Dockerfile
+            image: foodfund-user
+          - service: campaign
+            dockerfile: apps/campaign/Dockerfile
+            image: foodfund-campaign
+          - service: operation
+            dockerfile: apps/operation/Dockerfile
+            image: foodfund-operation
+          - service: gateway
+            dockerfile: apps/graphql-gateway/Dockerfile
+            image: foodfund-graphql-gateway
+
+    steps:
+      - uses: actions/checkout@v4
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
+
+      - uses: docker/setup-buildx-action@v3
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
+        with:
+          driver: docker-container
+          install: true
+
+      - uses: docker/login-action@v3
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set image tags
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
+        run: |
+          if [ "${GITHUB_REF##*/}" = "main" ]; then
+            echo "TAG=latest" >> $GITHUB_ENV
+            echo "UNIQUE_TAG=latest" >> $GITHUB_ENV
+          else
+            echo "TAG=develop" >> $GITHUB_ENV
+            echo "UNIQUE_TAG=develop-${GITHUB_SHA::8}" >> $GITHUB_ENV
+          fi
+
+      - name: Build & Push ${{ matrix.service }} Service
+        if: needs.detect-changes.outputs[matrix.service] == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image }}:${{ env.TAG }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image }}:${{ env.UNIQUE_TAG }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          platforms: linux/amd64
+
+  # ================= BUILD SUMMARY =================
+  build-summary:
+    needs: [detect-changes, docker]
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'push'
+    steps:
+      - name: Build Summary
+        run: |
+          echo "## 🚀 Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Changed | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Auth | ${{ needs.detect-changes.outputs.auth }} | ${{ needs.detect-changes.outputs.auth == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| User | ${{ needs.detect-changes.outputs.user }} | ${{ needs.detect-changes.outputs.user == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Campaign | ${{ needs.detect-changes.outputs.campaign }} | ${{ needs.detect-changes.outputs.campaign == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Operation | ${{ needs.detect-changes.outputs.operation }} | ${{ needs.detect-changes.outputs.operation == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Gateway | ${{ needs.detect-changes.outputs.gateway }} | ${{ needs.detect-changes.outputs.gateway == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
+
+  # ================= DEPLOY =================
+  deploy:
+    needs: [detect-changes, docker]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30  # Set job timeout to 30 minutes
+    if: github.event_name == 'push' && needs.detect-changes.outputs.any-service == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install doctl
+        env:
+          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$DIGITALOCEAN_ACCESS_TOKEN" ]; then
+            echo "DIGITALOCEAN_ACCESS_TOKEN not set; skipping doctl install"
+            exit 0
+          fi
+          curl -sL https://github.com/digitalocean/doctl/releases/download/v1.110.0/doctl-1.110.0-linux-amd64.tar.gz | tar -xzv
+          sudo mv doctl /usr/local/bin/doctl
+
+      - name: Authenticate doctl and fetch kubeconfig
+        env:
+          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          DO_K8S_CLUSTER_NAME: ${{ secrets.DO_K8S_CLUSTER_NAME }}
+        run: |
+          if [ -z "$DIGITALOCEAN_ACCESS_TOKEN" ] || [ -z "$DO_K8S_CLUSTER_NAME" ]; then
+            echo "DIGITALOCEAN_ACCESS_TOKEN or DO_K8S_CLUSTER_NAME not set; skipping k8s deploy"
+            exit 0
+          fi
+          doctl auth init -t $DIGITALOCEAN_ACCESS_TOKEN
+          doctl kubernetes cluster kubeconfig save $DO_K8S_CLUSTER_NAME
+
+      - name: Ensure namespace exists
+        run: |
+          kubectl create namespace foodfund-k8s --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy services with deployment script
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DEPLOY_AUTH: ${{ needs.detect-changes.outputs.auth }}
+          DEPLOY_USER: ${{ needs.detect-changes.outputs.user }}
+          DEPLOY_CAMPAIGN: ${{ needs.detect-changes.outputs.campaign }}
+          DEPLOY_OPERATION: ${{ needs.detect-changes.outputs.operation }}
+          DEPLOY_GATEWAY: ${{ needs.detect-changes.outputs.gateway }}
+        run: |
+          # Set image tags based on branch
+          if [ "${GITHUB_REF##*/}" = "main" ]; then
+            export TAG="latest"
+            export UNIQUE_TAG="latest"
+          else
+            export TAG="develop"
+            export UNIQUE_TAG="develop-${GITHUB_SHA::8}"
+          fi
+          
+          # Make script executable and run it
+          chmod +x scripts/deploy.sh
+          ./scripts/deploy.sh
+
+      - name: Final status
+        run: |
+          kubectl get pods -n foodfund-k8s
+          kubectl get deployments -n foodfund-k8s
+          kubectl get services -n foodfund-k8s

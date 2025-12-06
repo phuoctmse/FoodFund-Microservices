@@ -1,0 +1,14 @@
+{
+  "name": "user",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "build": "nest build user"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.17.1"
+  },
+  "devDependencies": {
+    "prisma": "^6.17.1"
+  }
+}

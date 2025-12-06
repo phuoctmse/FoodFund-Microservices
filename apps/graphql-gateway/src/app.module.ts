@@ -1,0 +1,137 @@
+import { Module } from "@nestjs/common"
+import { getHttpUrl } from "libs/common"
+import { Container, envConfig } from "libs/env"
+import { GraphQLGatewayModule } from "libs/graphql/gateway"
+import { HealthController } from "./health.controller"
+import { WebhookProxyController } from "./webhook-proxy.controller"
+import { EnvModule } from "@libs/env/env.module"
+import { DatadogModule } from "@libs/observability"
+
+@Module({
+    imports: [
+        DatadogModule.forRoot({
+            serviceName: "graphql-gateway",
+            env: envConfig().nodeEnv,
+            version: process.env.SERVICE_VERSION || "1.0.0",
+        }),
+        GraphQLGatewayModule.forRoot({
+            subgraphs: (() => {
+                const authHost =
+                    process.env.AUTH_HOST ||
+                    envConfig().containers[Container.Auth]?.host ||
+                    "auth-service"
+                const authPort =
+                    parseInt(process.env.AUTH_PORT || "8002") ||
+                    envConfig().containers[Container.Auth]?.port
+                const userHost =
+                    process.env.USERS_SUBGRAPH_HOST ||
+                    envConfig().containers[Container.UsersSubgraph]?.host ||
+                    "user-service"
+                const userPort =
+                    parseInt(process.env.USERS_SUBGRAPH_PORT || "8003") ||
+                    envConfig().containers[Container.UsersSubgraph]?.port
+                const campaignHost =
+                    process.env.CAMPAIGNS_SUBGRAPH_HOST ||
+                    envConfig().containers[Container.CampaignsSubgraph]?.host ||
+                    "campaign-service"
+                const campaignPort =
+                    parseInt(process.env.CAMPAIGNS_SUBGRAPH_PORT || "8004") ||
+                    envConfig().containers[Container.CampaignsSubgraph]?.port
+                const operationHost =
+                    process.env.OPERATION_SUBGRAPH_HOST ||
+                    envConfig().containers[Container.OperationSubgraph]?.host ||
+                    "operation-service"
+                const operationPort =
+                    parseInt(process.env.OPERATION_SUBGRAPH_PORT || "8005") ||
+                    envConfig().containers[Container.OperationSubgraph]?.port
+
+                const authUrl = getHttpUrl({
+                    host: authHost,
+                    port: authPort,
+                    path: "/graphql",
+                })
+                const userUrl = getHttpUrl({
+                    host: userHost,
+                    port: userPort,
+                    path: "/graphql",
+                })
+                const campaignUrl = getHttpUrl({
+                    host: campaignHost,
+                    port: campaignPort,
+                    path: "/graphql",
+                })
+                const operationUrl = getHttpUrl({
+                    host: operationHost,
+                    port: operationPort,
+                    path: "/graphql",
+                })
+
+                return [
+                    {
+                        name: "auth",
+                        url: authUrl,
+                    },
+                    {
+                        name: "user",
+                        url: userUrl,
+                    },
+                    {
+                        name: "campaign",
+                        url: campaignUrl,
+                    },
+                    {
+                        name: "operation",
+                        url: operationUrl,
+                    },
+                ]
+            })(),
+            gatewayRetryOptions: {
+                maxRetries: 5,
+                initialDelayMs: 2000,
+                maxDelayMs: 10000,
+                factor: 2,
+            },
+            monitoring: {
+                onEvent: (event) => {
+                    const timestamp = new Date().toISOString()
+                    switch (event.type) {
+                    case "retry":
+                        console.log(
+                            `🔄 [${timestamp}] Retrying ${event.subgraph}: ${JSON.stringify(event.details)}`,
+                        )
+                        break
+                    case "circuitOpen":
+                        console.warn(
+                            `⚡ [${timestamp}] Circuit opened for ${event.subgraph}: ${JSON.stringify(event.details)}`,
+                        )
+                        break
+                    case "circuitClose":
+                        console.log(
+                            `✅ [${timestamp}] Circuit closed for ${event.subgraph}`,
+                        )
+                        break
+                    case "fallback":
+                        console.warn(
+                            `🔀 [${timestamp}] Using fallback for ${event.subgraph}: ${JSON.stringify(event.details)}`,
+                        )
+                        break
+                    case "error":
+                        console.error(
+                            `❌ [${timestamp}] Error in ${event.subgraph}: ${JSON.stringify(event.details)}`,
+                        )
+                        break
+                    case "subgraphError":
+                        console.warn(
+                            `⚠️  [${timestamp}] Subgraph error in ${event.subgraph}: ${JSON.stringify(event.details)}`,
+                        )
+                        break
+                    }
+                },
+            },
+        }),
+        EnvModule.forRoot(),
+    ],
+    controllers: [HealthController, WebhookProxyController],
+    providers: [],
+})
+export class ApiGatewayModule {}

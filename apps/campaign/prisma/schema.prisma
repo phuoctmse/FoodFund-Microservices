@@ -1,0 +1,357 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../src/generated/campaign-client"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("CAMPAIGN_DATABASE_URL")
+}
+
+model Campaign {
+  id                     String                  @id @default(uuid())
+  title                  String
+  slug                   String?                  @unique
+  description            String
+  cover_image            String
+  target_amount          BigInt                  @default(0)
+  received_amount        BigInt                  @default(0)
+  status                 Campaign_Status         @default(PENDING)
+  previous_status        Campaign_Status?
+  is_active              Boolean                 @default(true)
+  created_by             String
+  organization_id        String?
+  created_at             DateTime                @default(now())
+  updated_at             DateTime                @updatedAt
+  cover_image_file_key   String?
+  category_id            String?
+  completed_at           DateTime?
+  fundraising_end_date   DateTime
+  fundraising_start_date DateTime
+  changed_status_at      DateTime?
+  extension_count        Int                     @default(0)
+  extension_days         Int                     @default(0)
+  donation_count         Int                     @default(0)
+  reason                 String?
+  cancelled_at           DateTime?
+  campaign_phases        Campaign_Phase[]
+  category               Campaign_Category?      @relation(fields: [category_id], references: [id])
+  donations              Donation[]
+  posts                  Post[]
+  reassignments          Campaign_Reassignment[]
+
+  @@index([status])
+  @@index([created_by])
+  @@index([created_at])
+  @@index([fundraising_start_date, fundraising_end_date])
+  @@index([changed_status_at])
+  @@index([status, changed_status_at])
+  @@index([category_id])
+  @@index([status, fundraising_end_date])
+  @@index([donation_count])
+  @@index([slug])
+  @@map("campaigns")
+}
+
+model Campaign_Phase {
+  id                           String                @id @default(uuid())
+  campaign_id                  String
+  phase_name                   String                @db.VarChar(100)
+  location                     String
+  ingredient_purchase_date     DateTime
+  cooking_date                 DateTime
+  delivery_date                DateTime
+  status                       Campaign_Phase_Status @default(PLANNING)
+  created_at                   DateTime              @default(now())
+  updated_at                   DateTime              @updatedAt
+  is_active                    Boolean               @default(true)
+  ingredient_budget_percentage Decimal               @db.Decimal(5, 2)
+  cooking_budget_percentage    Decimal               @db.Decimal(5, 2)
+  delivery_budget_percentage   Decimal               @db.Decimal(5, 2)
+  campaign                     Campaign              @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+
+  @@index([campaign_id])
+  @@index([status])
+  @@index([created_at])
+  @@index([campaign_id, status])
+  @@index([ingredient_purchase_date])
+  @@index([cooking_date])
+  @@index([delivery_date])
+  @@map("campaign_phases")
+}
+
+model Campaign_Reassignment {
+  id              String              @id @default(uuid())
+  campaign_id     String
+  organization_id String
+  status          Reassignment_Status @default(PENDING)
+  assigned_at     DateTime            @default(now())
+  expires_at      DateTime
+  responded_at    DateTime?
+  response_note   String?
+  created_at      DateTime            @default(now())
+  updated_at      DateTime            @updatedAt
+
+  campaign Campaign @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+
+  @@unique([campaign_id, organization_id])
+  @@index([campaign_id])
+  @@index([organization_id])
+  @@index([status])
+  @@index([expires_at])
+  @@index([organization_id, status])
+  @@index([campaign_id, status])
+  @@map("campaign_reassignments")
+}
+
+model Campaign_Category {
+  id          String     @id @default(uuid())
+  title       String     @db.VarChar(100)
+  description String
+  is_active   Boolean    @default(true)
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
+  campaigns   Campaign[]
+
+  @@index([is_active])
+  @@index([title])
+  @@map("campaign_categories")
+}
+
+model Donation {
+  id                   String                @id @default(uuid())
+  donor_id             String
+  campaign_id          String
+  amount               BigInt                @default(0)
+  is_anonymous         Boolean               @default(false)
+  created_at           DateTime              @default(now())
+  donor_name           String?
+  campaign             Campaign              @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  payment_transactions Payment_Transaction[]
+
+  @@index([campaign_id])
+  @@index([donor_id])
+  @@index([created_at])
+  @@index([campaign_id, created_at])
+  @@map("donations")
+}
+
+model Payment_Transaction {
+  id                   String                @id @default(uuid())
+  donation_id          String
+  currency             String                @default("VND") @db.VarChar(10)
+  status               Transaction_Status    @default(PENDING)
+  created_at           DateTime              @default(now())
+  updated_at           DateTime              @updatedAt
+  refunded_at          DateTime?
+  error_code           String?               @db.VarChar(50)
+  error_description    String?
+  order_code           BigInt?               @unique
+  amount               BigInt                @default(0)
+  description          String?
+  gateway              String?               @db.VarChar(50)
+  processed_by_webhook Boolean               @default(false)
+  received_amount      BigInt                @default(0)
+  payment_status       Payment_Amount_Status @default(PENDING)
+  payos_metadata       Json?
+  sepay_metadata       Json?
+  donation             Donation              @relation(fields: [donation_id], references: [id], onDelete: Cascade)
+
+  @@index([donation_id])
+  @@index([status])
+  @@index([created_at])
+  @@index([order_code])
+  @@index([gateway])
+  @@index([processed_by_webhook])
+  @@index([payment_status])
+  @@index([status, gateway])
+  @@map("payment_transactions")
+}
+
+model Post {
+  id            String         @id @default(uuid())
+  campaign_id   String
+  created_by    String
+  title         String         @db.VarChar(255)
+  content       String
+  media         Json?
+  like_count    Int            @default(0)
+  comment_count Int            @default(0)
+  is_active     Boolean        @default(true)
+  created_at    DateTime       @default(now())
+  updated_at    DateTime       @updatedAt
+  comments      Post_Comment[]
+  likes         Post_Like[]
+  campaign      Campaign       @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+
+  @@index([campaign_id])
+  @@index([created_by])
+  @@index([is_active])
+  @@index([created_at])
+  @@index([campaign_id, is_active, created_at])
+  @@index([like_count])
+  @@map("posts")
+}
+
+model Post_Like {
+  id         String   @id @default(uuid())
+  post_id    String
+  user_id    String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  post       Post     @relation(fields: [post_id], references: [id], onDelete: Cascade)
+
+  @@unique([post_id, user_id])
+  @@index([post_id])
+  @@index([user_id])
+  @@index([created_at])
+  @@index([post_id, created_at])
+  @@map("post_likes")
+}
+
+model Post_Comment {
+  id                String         @id @default(uuid())
+  post_id           String
+  user_id           String
+  content           String
+  parent_comment_id String?
+  comment_path      String?
+  depth             Int            @default(0)
+  created_at        DateTime       @default(now())
+  updated_at        DateTime       @updatedAt
+  is_active         Boolean        @default(true)
+  parent_comment    Post_Comment?  @relation("CommentReplies", fields: [parent_comment_id], references: [id], onDelete: Cascade)
+  replies           Post_Comment[] @relation("CommentReplies")
+  post              Post           @relation(fields: [post_id], references: [id], onDelete: Cascade)
+
+  @@index([post_id])
+  @@index([user_id])
+  @@index([parent_comment_id])
+  @@index([created_at])
+  @@index([post_id, parent_comment_id, created_at])
+  @@index([comment_path])
+  @@index([depth])
+  @@index([is_active])
+  @@index([post_id, is_active, created_at])
+  @@map("post_comments")
+}
+
+model Notification {
+  id          String            @default(uuid())
+  user_id     String
+  actor_id    String?
+  type        Notification_Type
+  entity_type Entity_Type
+  entity_id   String?
+  data        Json?             @default("{}")
+  is_read     Boolean           @default(false)
+  created_at  DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@id([id, created_at])
+  @@unique([user_id, entity_type, entity_id, type, created_at], name: "unique_notification_event", map: "unique_notification_event")
+  @@index([user_id, created_at, id], map: "idx_user_timeline")
+  @@index([entity_type, entity_id, created_at], map: "idx_entity_lookup")
+  @@index([user_id, is_read, created_at], map: "idx_user_unread_recent")
+  @@index([type, created_at], map: "idx_type_recent")
+  @@index([user_id, created_at(sort: Desc), id(sort: Desc)], map: "idx_notifications_cursor")
+  @@index([entity_type, entity_id, created_at], map: "idx_notifications_entity")
+  @@map("notifications")
+}
+
+model OutboxEvent {
+  id           String       @id @default(uuid())
+  aggregate_id String
+  event_type   String
+  payload      Json
+  status       OutboxStatus @default(PENDING)
+  retry_count  Int          @default(0)
+  created_at   DateTime     @default(now())
+  processed_at DateTime?
+  error_log    String?
+
+  @@index([status, created_at])
+  @@map("outbox_events")
+}
+
+enum Notification_Type {
+  CAMPAIGN_APPROVED
+  CAMPAIGN_REJECTED
+  CAMPAIGN_COMPLETED
+  CAMPAIGN_CANCELLED
+  CAMPAIGN_DONATION_RECEIVED
+  CAMPAIGN_NEW_POST
+  POST_LIKE
+  POST_COMMENT
+  POST_REPLY
+  INGREDIENT_REQUEST_APPROVED
+  DELIVERY_TASK_ASSIGNED
+  SURPLUS_TRANSFERRED
+  SYSTEM_ANNOUNCEMENT
+}
+
+enum Entity_Type {
+  CAMPAIGN
+  POST
+  COMMENT
+  DONATION
+  INGREDIENT_REQUEST
+  DELIVERY_TASK
+  WALLET
+  SYSTEM
+}
+
+enum Campaign_Status {
+  PENDING
+  APPROVED
+  REJECTED
+  ACTIVE
+  PROCESSING
+  COMPLETED
+  CANCELLED
+  ENDED
+}
+
+enum Campaign_Phase_Status {
+  PLANNING
+  AWAITING_INGREDIENT_DISBURSEMENT
+  INGREDIENT_PURCHASE
+  AWAITING_AUDIT
+  AWAITING_COOKING_DISBURSEMENT
+  COOKING
+  AWAITING_DELIVERY_DISBURSEMENT
+  DELIVERY
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum Reassignment_Status {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+enum Transaction_Status {
+  SUCCESS
+  FAILED
+  REFUNDED
+  PENDING
+}
+
+enum Payment_Amount_Status {
+  PENDING
+  PARTIAL
+  COMPLETED
+  OVERPAID
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}

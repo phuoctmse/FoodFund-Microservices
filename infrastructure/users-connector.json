@@ -1,0 +1,18 @@
+{
+    "name": "users-connector",
+    "config": {
+        "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+        "database.hostname": "localhost",
+        "database.port": "5432",
+        "database.user": "postgres",
+        "database.password": "postgres",
+        "database.dbname": "users_db",
+        "plugin.name": "pgoutput",
+        "topic.prefix": "foodfund_users",
+        "table.include.list": "public.wallet_transactions",
+        "publication.name": "foodfund_users_pub",
+        "publication.autocreate.mode": "disabled",
+        "database.sslmode": "require",
+        "slot.name": "debezium_user_slot"
+    }
+}

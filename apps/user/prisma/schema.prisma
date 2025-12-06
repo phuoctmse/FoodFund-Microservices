@@ -1,0 +1,173 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../src/generated/user-client"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("USERS_DATABASE_URL")
+}
+
+model User {
+  id                  String                @id @default(uuid())
+  cognito_id          String?               @unique @db.VarChar(255)
+  full_name           String                @db.Text()
+  avatar_url          String?               @db.VarChar(255)
+  email               String                @unique @db.VarChar(100)
+  phone_number        String?               @db.VarChar(20)
+  role                Role                  @default(DONOR)
+  is_active           Boolean               @default(true)
+  address             String?               @db.Text()
+  user_name           String                @unique @db.VarChar(50)
+  bio                 String?               @db.Text()
+  total_donated       BigInt?               @default(0)
+  donation_count      Int?                  @default(0)
+  last_donation_at    DateTime?
+  created_at          DateTime              @default(now())
+  updated_at          DateTime              @updatedAt
+  User_Badge          User_Badge?
+  Organizations       Organization[]
+  Organization_Member Organization_Member[]
+  Wallet              Wallet?
+
+  @@map("users")
+}
+
+model Organization {
+  id                             String                @id @default(uuid())
+  name                           String                @db.Text()
+  activity_field                 String                @db.Text()
+  address                        String                @db.Text()
+  website                        String                @db.Text()
+  description                    String                @db.Text()
+  representative_id              String
+  user                           User                  @relation(fields: [representative_id], references: [id], onDelete: Cascade)
+  representative_name            String                @db.Text()
+  representative_identity_number String                @db.Text()
+  bank_account_name              String?               @db.VarChar(255)
+  bank_account_number            String?               @db.VarChar(255)
+  bank_name                      String?               @db.VarChar(50)
+  bank_short_name                String?               @db.VarChar(50)
+  email                          String                @db.VarChar(100)
+  phone_number                   String                @db.VarChar(20)
+  status                         Verification_Status   @default(PENDING)
+  reason                         String?               @db.Text()
+  created_at                     DateTime              @default(now())
+  updated_at                     DateTime              @updatedAt
+  Organization_Member            Organization_Member[]
+
+  @@map("organizations")
+}
+
+model Organization_Member {
+  id              String              @id @default(uuid())
+  organization_id String
+  organization    Organization        @relation(fields: [organization_id], references: [id], onDelete: Cascade)
+  member_id       String
+  member          User                @relation(fields: [member_id], references: [id], onDelete: Cascade)
+  status          Verification_Status @default(PENDING)
+  member_role     Role
+  joined_at       DateTime            @default(now())
+  left_at         DateTime?
+
+  @@map("organization_members")
+}
+
+model Badge {
+  id          String       @id @default(uuid())
+  name        String       @db.Text()
+  description String       @db.Text()
+  icon_url    String       @db.Text()
+  sort_order  Int          @default(0)
+  is_active   Boolean      @default(true)
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+  User_Badge  User_Badge[]
+
+  @@map("badges")
+}
+
+model User_Badge {
+  id         String   @id @default(uuid())
+  user_id    String   @unique
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  badge_id   String   
+  badge      Badge    @relation(fields: [badge_id], references: [id], onDelete: Cascade)
+  awarded_at DateTime @default(now())
+
+  @@map("user_badges")
+}
+
+model Wallet {
+  id                 String               @id @default(uuid())
+  user_id            String               @unique
+  user               User                 @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  wallet_type        Wallet_Type          @default(FUNDRAISER)
+  balance            BigInt               @default(0)
+  created_at         DateTime             @default(now())
+  updated_at         DateTime             @updatedAt
+  Wallet_Transaction Wallet_Transaction[]
+
+  @@index([wallet_type])
+  @@index([user_id, wallet_type])
+  @@map("wallets")
+}
+
+model Wallet_Transaction {
+  id                     String           @id @default(uuid())
+  wallet_id              String
+  wallet                 Wallet           @relation(fields: [wallet_id], references: [id], onDelete: Cascade)
+  campaign_id            String?
+  payment_transaction_id String?
+  amount                 BigInt
+  balance_before         BigInt?
+  balance_after          BigInt?
+  transaction_type       Transaction_Type
+  description            String?          @db.Text()
+  gateway                String?          @db.VarChar(50) // "SEPAY" only for unknown transfers
+  sepay_metadata         Json? // Sepay webhook payload for non-donation transfers (audit trail)
+  created_at             DateTime         @default(now())
+
+  @@index([wallet_id])
+  @@index([campaign_id])
+  @@index([payment_transaction_id])
+  @@index([transaction_type])
+  @@index([created_at])
+  @@index([wallet_id, transaction_type])
+  @@index([campaign_id, created_at])
+  @@index([gateway])
+  @@map("wallet_transactions")
+}
+
+enum Role {
+  DONOR
+  FUNDRAISER
+  KITCHEN_STAFF
+  DELIVERY_STAFF
+  ADMIN
+}
+
+enum Verification_Status {
+  PENDING
+  VERIFIED
+  REJECTED
+  CANCELLED
+  INACTIVE
+}
+
+enum Availability_Status {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+enum Wallet_Type {
+  FUNDRAISER
+  ADMIN
+}
+
+enum Transaction_Type {
+  INCOMING_TRANSFER
+  WITHDRAWAL
+  ADMIN_ADJUSTMENT
+}

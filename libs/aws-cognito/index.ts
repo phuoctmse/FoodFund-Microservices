@@ -1,0 +1,7 @@
+export * from "./aws-cognito.module-definition"
+export * from "./aws-cognito.module"
+export * from "./aws-cognito.service"
+export * from "./aws-cognito.types"
+export * from "./guards/graphql.guard"
+export * from "./guards/rest.guard"
+export * from "./strategies/cognito-auth.strategy"

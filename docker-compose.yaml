@@ -1,0 +1,106 @@
+services:
+  gateway-service:
+    build:
+      context: .
+      dockerfile: apps/graphql-gateway/Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.docker
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      campaign-service:
+        condition: service_healthy
+      operation-service:
+        condition: service_healthy
+    networks:
+      - foodfund-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: apps/auth/Dockerfile
+    ports:
+      - "8002:8002"
+    env_file:
+      - .env.docker
+    networks:
+      - foodfund-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--server-response", "http://localhost:8002/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  user-service:
+    build:
+      context: .
+      dockerfile: apps/user/Dockerfile
+    ports:
+      - "8003:8003"
+    env_file:
+      - .env.docker
+    networks:
+      - foodfund-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--server-response", "http://localhost:8003/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  campaign-service:
+    build:
+      context: .
+      dockerfile: apps/campaign/Dockerfile
+    ports:
+      - "8004:8004"
+    env_file:
+      - .env.docker
+    networks:
+      - foodfund-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--server-response", "http://localhost:8004/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  operation-service:
+    build:
+      context: .
+      dockerfile: apps/operation/Dockerfile
+    ports:
+      - "8005:8005"
+    env_file:
+      - .env.docker
+    networks:
+      - foodfund-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--server-response", "http://localhost:8005/health"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+networks:
+  foodfund-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: foodfund-net
+      com.docker.network.driver.mtu: 1500

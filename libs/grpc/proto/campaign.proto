@@ -1,0 +1,167 @@
+syntax = "proto3";
+
+package foodfund.campaign;
+
+service CampaignService {
+  rpc Health(HealthRequest) returns (HealthResponse);
+  rpc GetCampaign(GetCampaignRequest) returns (GetCampaignResponse);
+  rpc GetCampaignIdByPhaseId(GetCampaignIdByPhaseIdRequest) returns (GetCampaignIdByPhaseIdResponse);
+  rpc GetCampaignPhases(GetCampaignPhasesRequest) returns (GetCampaignPhasesResponse);
+  rpc GetCampaignPhase(GetCampaignPhaseRequest) returns (GetCampaignPhaseResponse);
+  rpc GetCampaignPhaseInfo(GetCampaignPhaseInfoRequest) returns (GetCampaignPhaseInfoResponse);
+  rpc GetFundraiserByPhaseId(GetFundraiserByPhaseIdRequest) returns (GetFundraiserByPhaseIdResponse);
+  rpc UpdatePhaseStatus(UpdatePhaseStatusRequest) returns (UpdatePhaseStatusResponse);
+  rpc InvalidateCampaignCache(InvalidateCampaignCacheRequest) returns (InvalidateCampaignCacheResponse);
+  rpc SendNotification(SendNotificationRequest) returns (SendNotificationResponse);
+}
+
+// Messages
+message Campaign {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  string cover_image = 4;
+  string location = 5;
+  string target_amount = 6;
+  int32 donation_count = 7;
+  string received_amount = 8;
+  string status = 9;
+  string fundraising_start_date = 10;
+  string fundraising_end_date = 11;
+  bool is_active = 12;
+  string created_by = 13;
+  string created_at = 14;
+  string updated_at = 15;
+}
+
+// Health Check
+message HealthRequest {}
+
+message HealthResponse {
+  bool healthy = 1;
+  string message = 2;
+}
+
+// Get Campaign
+message GetCampaignRequest {
+  string id = 1;
+}
+
+message GetCampaignResponse {
+  bool success = 1;
+  Campaign campaign = 2;
+  string error = 3;
+}
+
+message GetCampaignIdByPhaseIdRequest {
+  string phase_id = 1;
+}
+
+message GetCampaignIdByPhaseIdResponse {
+  bool success = 1;
+  string campaign_id = 2;
+  string error = 3;
+}
+
+message GetCampaignPhasesRequest {
+  string campaign_id = 1;
+}
+
+message CampaignPhase {
+  string id = 1;
+  string campaign_id = 2;
+  string phase_name = 3;
+  string location = 4;
+  string ingredient_purchase_date = 5;
+  string cooking_date = 6;
+  string delivery_date = 7;
+  string ingredient_budget_percentage = 8;
+  string cooking_budget_percentage = 9;
+  string delivery_budget_percentage = 10;
+}
+
+message GetCampaignPhasesResponse {
+  bool success = 1;
+  repeated CampaignPhase phases = 2;
+  string error = 3;
+}
+
+message GetCampaignPhaseRequest {
+  string phase_id = 1;
+}
+
+message GetCampaignPhaseResponse {
+  bool success = 1;
+  CampaignPhaseWithFunds phase = 2;
+  string error = 3;
+}
+
+message CampaignPhaseWithFunds {
+  string id = 1;
+  string campaign_id = 2;
+  string phase_name = 3;
+  string ingredient_funds_amount = 4;
+  string cooking_funds_amount = 5;
+  string delivery_funds_amount = 6;
+}
+
+message GetCampaignPhaseInfoRequest {
+  string phase_id = 1;
+}
+
+message GetCampaignPhaseInfoResponse {
+  bool success = 1;
+  CampaignPhaseFullInfo phase = 2;
+  string error = 3;
+}
+
+message CampaignPhaseFullInfo {
+  string id = 1;
+  string campaign_id = 2;
+  string campaign_title = 3;
+  string phase_name = 4;
+  string ingredient_funds_amount = 5;
+  string cooking_funds_amount = 6;
+  string delivery_funds_amount = 7;
+}
+
+message GetFundraiserByPhaseIdRequest {
+  string phase_id = 1;
+}
+
+message GetFundraiserByPhaseIdResponse {
+  bool success = 1;
+  string fundraiser_id = 2;
+  string error = 3;
+}
+
+message UpdatePhaseStatusRequest {
+  string phase_id = 1;
+  string status = 2;
+}
+
+message UpdatePhaseStatusResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message InvalidateCampaignCacheRequest {
+  string campaign_id = 1;
+}
+
+message InvalidateCampaignCacheResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message SendNotificationRequest {
+  string user_id = 1;
+  string notification_type = 2;
+  string data_json = 3;
+}
+
+message SendNotificationResponse {
+  bool success = 1;
+  string notification_id = 2;
+  string error = 3;
+}

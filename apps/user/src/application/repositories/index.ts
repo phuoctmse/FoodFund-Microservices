@@ -1,0 +1,5 @@
+export * from "./badge/badge.repository"
+export * from "./badge/user-badge.repository"
+export * from "./organization/organization.repository"
+export * from "./user.repository"
+export * from "./wallet.repository"

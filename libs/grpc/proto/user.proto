@@ -1,0 +1,416 @@
+syntax = "proto3";
+
+package foodfund.user;
+
+// User Service for internal communication
+service UserService {
+  // Create user from auth service
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  
+  // Create staff user from admin service
+  rpc CreateStaffUser(CreateStaffUserRequest) returns (CreateStaffUserResponse);
+  
+  // Get user by Cognito ID
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  
+  // Get user by database ID
+  rpc GetUserById(GetUserByIdRequest) returns (GetUserResponse);
+  
+  // Update user profile
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  
+  // Check if user exists
+  rpc UserExists(UserExistsRequest) returns (UserExistsResponse);
+  
+  // Get user by email
+  rpc GetUserByEmail(GetUserByEmailRequest) returns (GetUserResponse);
+  
+  // Credit admin wallet (for donation payments)
+  rpc CreditAdminWallet(CreditAdminWalletRequest) returns (CreditAdminWalletResponse);
+  
+  // Credit fundraiser wallet (for surplus settlement, refunds, etc.)
+  rpc CreditFundraiserWallet(CreditFundraiserWalletRequest) returns (CreditFundraiserWalletResponse);
+  rpc CreditFundraiserWalletWithSurplus(CreditFundraiserWalletWithSurplusRequest) returns (CreditFundraiserWalletWithSurplusResponse);
+  rpc GetUserBasicInfo(GetUserBasicInfoRequest) returns (GetUserBasicInfoResponse);
+  rpc GetUserOrganization(GetUserOrganizationRequest) returns (GetUserOrganizationResponse);
+  rpc GetUsersByIds(GetUsersByIdsRequest) returns (GetUsersByIdsResponse);
+  rpc GetUserDisplayName(GetUserDisplayNameRequest) returns (GetUserDisplayNameResponse);
+  rpc GetVerifiedOrganizations(GetVerifiedOrganizationsRequest) returns (GetVerifiedOrganizationsResponse);
+  rpc GetOrganizationById(GetOrganizationByIdRequest) returns (GetOrganizationByIdResponse);
+
+  // Process bank transfer out (for withdrawal/payout)
+  rpc ProcessBankTransferOut(ProcessBankTransferOutRequest) returns (ProcessBankTransferOutResponse);
+  
+  // Badge operations
+  rpc AwardBadgeToDonor(AwardBadgeRequest) returns (AwardBadgeResponse);
+  rpc GetUserBadge(GetUserBadgeRequest) returns (GetUserBadgeResponse);
+  
+  // Update donor cached stats (for badge optimization)
+  rpc UpdateDonorStats(UpdateDonorStatsRequest) returns (UpdateDonorStatsResponse);
+  
+  // Get user with cached stats (for badge optimization)
+  rpc GetUserWithStats(GetUserWithStatsRequest) returns (GetUserWithStatsResponse);
+  
+  // Wallet operations for campaign auto-transfer
+  rpc GetFundraiserWalletBalance(GetWalletBalanceRequest) returns (GetWalletBalanceResponse);
+  rpc DebitFundraiserWallet(DebitWalletRequest) returns (DebitWalletResponse);
+}
+
+// Messages
+message User {
+  string id = 1;
+  string cognito_id = 2;
+  string email = 3;
+  string username = 4;
+  string full_name = 5;
+  string phone_number = 6;
+  string avatar_url = 7;
+  string bio = 8;
+  Role role = 9;
+  bool is_active = 10;
+  string created_at = 11;
+  string updated_at = 12;
+}
+
+enum Role {
+  DONOR = 0;
+  FUNDRAISER = 1;
+  KITCHEN_STAFF = 2;
+  DELIVERY_STAFF = 3;
+  ADMIN = 4;
+}
+
+// Create User
+message CreateUserRequest {
+  string cognito_id = 1;
+  string email = 2;
+  string username = 3;
+  string full_name = 4;
+  string phone_number = 5;
+  Role role = 6;
+  map<string, string> cognito_attributes = 7;
+}
+
+message CreateUserResponse {
+  bool success = 1;
+  User user = 2;
+  string error = 3;
+}
+
+// Credit Admin Wallet (for donation payments)
+message CreditAdminWalletRequest {
+  string admin_id = 1; 
+  string campaign_id = 2; 
+  string payment_transaction_id = 3; 
+  string amount = 4; 
+  string gateway = 5; 
+  string description = 6; 
+  string sepay_metadata = 7;
+}
+
+message CreditAdminWalletResponse {
+  bool success = 1;
+  string wallet_transaction_id = 2; 
+  string error = 3;
+}
+
+// Credit Fundraiser Wallet (for surplus settlement, refunds, etc.)
+message CreditFundraiserWalletRequest {
+  string fundraiser_id = 1; 
+  string campaign_id = 2; 
+  string payment_transaction_id = 3; 
+  string amount = 4;
+  string gateway = 5; 
+  string description = 6;
+}
+
+message CreditFundraiserWalletResponse {
+  bool success = 1;
+  string wallet_transaction_id = 2; 
+  string error = 3;
+}
+
+// Get User by Cognito ID
+message GetUserRequest {
+  string cognito_id = 1; 
+}
+
+// Get User by Database ID
+message GetUserByIdRequest {
+  string id = 1; 
+}
+
+// Get User with Cached Stats (for badge optimization)
+message GetUserWithStatsRequest {
+  string id = 1;
+}
+
+message GetUserWithStatsResponse {
+  bool success = 1;
+  string id = 2;
+  string total_donated = 3; 
+  int32 donation_count = 4;
+  string last_donation_at = 5; 
+  string error = 6;
+}
+
+// Wallet Balance
+message GetWalletBalanceRequest {
+  string user_id = 1;
+}
+
+message GetWalletBalanceResponse {
+  bool success = 1;
+  string balance = 2; 
+  string error = 3;
+}
+
+// Debit Wallet (for campaign auto-transfer)
+message DebitWalletRequest {
+  string user_id = 1;
+  string campaign_id = 2;
+  string amount = 3; 
+  string description = 4;
+}
+
+message DebitWalletResponse {
+  bool success = 1;
+  string wallet_transaction_id = 2;
+  string new_balance = 3; 
+  string error = 4;
+}
+
+message GetUserResponse {
+  bool success = 1;
+  User user = 2;
+  string error = 3;
+}
+
+// Update User
+message UpdateUserRequest {
+  string id = 1;
+  string full_name = 2;
+  string phone_number = 3;
+  string avatar_url = 4;
+  string bio = 5;
+}
+
+message UpdateUserResponse {
+  bool success = 1;
+  User user = 2;
+  string error = 3;
+}
+
+// User Exists
+message UserExistsRequest {
+  string cognito_id = 1;
+}
+
+message UserExistsResponse {
+  bool exists = 1;
+  string user_id = 2;
+}
+
+// Get User by Email
+message GetUserByEmailRequest {
+  string email = 1;
+}
+
+// Create Staff User
+message CreateStaffUserRequest {
+  string cognito_id = 1;
+  string email = 2;
+  string username = 3;
+  string full_name = 4;
+  string phone_number = 5;
+  string avatar_url = 6;
+  Role role = 7;
+  string bio = 8;
+  string organization_address = 9; 
+}
+
+message CreateStaffUserResponse {
+  bool success = 1;
+  User user = 2;
+  string error = 3;
+}
+
+message GetUserBasicInfoRequest {
+  string user_id = 1;
+}
+
+message GetUserBasicInfoResponse {
+  bool success = 1;
+  UserBasicInfo user = 2;
+  string error = 3;
+}
+
+message UserBasicInfo {
+  string id = 1;
+  string role = 2;
+  string organization_id = 3;
+  string organization_name = 4;
+}
+
+message GetUserOrganizationRequest {
+  string user_id = 1;
+}
+
+message GetUserOrganizationResponse {
+  bool success = 1;
+  OrganizationInfo organization = 2;
+  string error = 3;
+}
+
+message OrganizationInfo {
+  string id = 1;
+  string name = 2;
+}
+
+message ProcessBankTransferOutRequest {
+  int32 sepay_id = 1;
+  string amount = 2;
+  string gateway = 3;
+  string reference_code = 4;
+  string content = 5;
+  string transaction_date = 6;
+  string description = 7;
+}
+
+message ProcessBankTransferOutResponse {
+  bool success = 1;
+  string wallet_transaction_id = 2;
+  string error = 3;
+}
+
+// Badge Messages
+message Badge {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string icon_url = 4;
+  int32 sort_order = 5;
+  bool is_active = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+message AwardBadgeRequest {
+  string user_id = 1;
+  string badge_id = 2;
+}
+
+message AwardBadgeResponse {
+  bool success = 1;
+  string user_badge_id = 2;
+  Badge badge = 3;
+  string error = 4;
+}
+
+message GetUserBadgeRequest {
+  string user_id = 1;
+}
+
+message GetUserBadgeResponse {
+  bool success = 1;
+  Badge badge = 2;
+  string awarded_at = 3;
+  string error = 4;
+}
+
+// Update Donor Stats (for badge optimization)
+message UpdateDonorStatsRequest {
+  string donor_id = 1;
+  string amount_to_add = 2; 
+  int32 increment_count = 3;
+  string last_donation_at = 4; 
+}
+
+message UpdateDonorStatsResponse {
+  bool success = 1;
+  string total_donated = 2; 
+  int32 donation_count = 3;
+  string error = 4;
+}
+
+message GetUsersByIdsRequest {
+  repeated string user_ids = 1;
+}
+
+message GetUsersByIdsResponse {
+  bool success = 1;
+  repeated UserInfo users = 2;
+  string error = 3;
+}
+
+message UserInfo {
+  string id = 1;
+  string full_name = 2;
+  string username = 3;
+  string avatar_url = 4;
+}
+
+message GetUserDisplayNameRequest {
+  string user_id = 1;
+}
+
+message GetUserDisplayNameResponse {
+  bool success = 1;
+  string display_name = 2;
+  string error = 3;
+}
+
+message GetVerifiedOrganizationsRequest {}
+
+message GetVerifiedOrganizationsResponse {
+  bool success = 1;
+  repeated VerifiedOrganizationInfo organizations = 2;
+  string error = 3;
+}
+
+message VerifiedOrganizationInfo {
+  string id = 1;
+  string name = 2;
+  string representative_id = 3;
+  string representative_name = 4;
+  string activity_field = 5;
+  string address = 6;
+  string phone_number = 7;
+  string email = 8;
+}
+
+message GetOrganizationByIdRequest {
+  string organization_id = 1;
+}
+
+message GetOrganizationByIdResponse {
+  bool success = 1;
+  OrganizationBasicInfo organization = 2;
+  string error = 3;
+}
+
+message OrganizationBasicInfo {
+  string id = 1;
+  string name = 2;
+  string representative_id = 3;
+}
+
+message CreditFundraiserWalletWithSurplusRequest {
+  string fundraiser_id = 1;
+  string campaign_id = 2;
+  string campaign_phase_id = 3;
+  string request_id = 4;
+  string request_type = 5;
+  string surplus_amount = 6;
+  string original_budget = 7;
+  string actual_cost = 8;
+  string campaign_title = 9;
+  string phase_name = 10;
+}
+
+message CreditFundraiserWalletWithSurplusResponse {
+  bool success = 1;
+  string wallet_transaction_id = 2;
+  string new_balance = 3;
+  string error = 4;
+}

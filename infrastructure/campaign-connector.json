@@ -1,0 +1,18 @@
+{
+    "name": "campaign-connector",
+    "config": {
+        "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+        "database.hostname": "localhost",
+        "database.port": "5432",
+        "database.user": "postgres",
+        "database.password": "postgres",
+        "database.dbname": "campaign_db",
+        "plugin.name": "pgoutput",
+        "topic.prefix": "foodfund_campaign",
+        "table.include.list": "public.campaigns,public.donations,public.payment_transactions",
+        "publication.name": "foodfund_campaign_pub",
+        "publication.autocreate.mode": "disabled",
+        "database.sslmode": "require",
+        "slot.name": "debezium_campaign_slot"
+    }
+}

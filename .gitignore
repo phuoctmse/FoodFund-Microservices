@@ -41,6 +41,7 @@ lerna-debug.log*
 .env.test.local
 .env.production.local
 .env.local
+.env.docker
 
 # temp directory
 .temp
@@ -54,3 +55,67 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+/generated/prisma
+
+docker-volumes
+
+# Helm artifacts  
+Chart.lock
+*.tgz
+
+# Allow our k8s charts specifically
+!k8s/charts/
+!k8s/charts/**
+
+# Production credentials - DO NOT COMMIT
+k8s/config/app-config.production.yaml
+k8s/config/*.production.yaml
+k8s/config/*-production.yaml
+
+# Environment specific configs
+.env.*
+*.env
+config/production.json
+config/staging.json
+
+# Environment specific configs
+.env.*
+*.env
+config/production.json
+config/staging.json
+
+# Kubernetes kubeconfig and cert files
+*.kubeconfig
+kubeconfig*
+*.crt
+*.key
+*.pem
+
+*.hpi
+*.jpi
+
+
+/generated/prisma
+
+# Prisma generated clients for each microservice
+apps/*/src/generated/
+**/generated/user-client/
+**/generated/campaign-client/
+**/generated/auth-client/
+**/generated/*-client/
+
+.kiro/specs
+
+libs/grpc/generated/
+libs/grpc/**/*.js
+libs/grpc/**/*.d.ts
+
+.cursor
+apps/campaign/node_modules
+
+# K8s Monitoring - Ignore sensitive files only
+k8s/monitoring/aws-credentials.yaml
+k8s/monitoring/secrets/
+k8s/monitoring/*.local.yaml
+k8s/monitoring/production-values.yaml

@@ -1,0 +1,148 @@
+{
+  "title": "FoodFund Kubernetes Infrastructure",
+  "description": "Kubernetes cluster monitoring with pod, node, and resource metrics",
+  "template_variables": [
+    {
+      "name": "cluster",
+      "prefix": "kube_cluster_name",
+      "default": "foodfund-k8s"
+    },
+    {
+      "name": "namespace",
+      "prefix": "kube_namespace",
+      "default": "foodfund-k8s"
+    }
+  ],
+  "layout_type": "ordered",
+  "widgets": [
+    {
+      "id": 1,
+      "definition": {
+        "type": "note",
+        "content": "# ☸️ Kubernetes Infrastructure Dashboard\n\n**Cluster:** FoodFund K8s\n\n**Monitoring:** Pods, Nodes, Resources, Network\n\n**Auto-scaling:** HPA, VPA, Cluster Autoscaler",
+        "background_color": "blue"
+      },
+      "layout": {"x": 0, "y": 0, "width": 12, "height": 2}
+    },
+    {
+      "id": 2,
+      "definition": {
+        "type": "query_value",
+        "title": "🟢 Running Pods",
+        "requests": [
+          {
+            "q": "sum:kubernetes.pods.running{kube_cluster_name:$cluster,kube_namespace:$namespace}",
+            "aggregator": "last"
+          }
+        ]
+      },
+      "layout": {"x": 0, "y": 2, "width": 3, "height": 2}
+    },
+    {
+      "id": 3,
+      "definition": {
+        "type": "query_value",
+        "title": "🔴 Failed Pods",
+        "requests": [
+          {
+            "q": "sum:kubernetes.pods.failed{kube_cluster_name:$cluster,kube_namespace:$namespace}",
+            "aggregator": "last",
+            "conditional_formats": [
+              {"comparator": ">", "value": 0, "palette": "red_on_white"}
+            ]
+          }
+        ]
+      },
+      "layout": {"x": 3, "y": 2, "width": 3, "height": 2}
+    },
+    {
+      "id": 4,
+      "definition": {
+        "type": "query_value",
+        "title": "🔄 Restarts (24h)",
+        "requests": [
+          {
+            "q": "sum:kubernetes.containers.restarts{kube_cluster_name:$cluster,kube_namespace:$namespace}",
+            "aggregator": "sum"
+          }
+        ]
+      },
+      "layout": {"x": 6, "y": 2, "width": 3, "height": 2}
+    },
+    {
+      "id": 5,
+      "definition": {
+        "type": "query_value",
+        "title": "🖥️ Active Nodes",
+        "requests": [
+          {
+            "q": "sum:kubernetes.nodes.ready{kube_cluster_name:$cluster}",
+            "aggregator": "last"
+          }
+        ]
+      },
+      "layout": {"x": 9, "y": 2, "width": 3, "height": 2}
+    },
+    {
+      "id": 6,
+      "definition": {
+        "type": "timeseries",
+        "title": "💾 Pod Memory Usage",
+        "requests": [
+          {
+            "q": "avg:kubernetes.memory.usage{kube_cluster_name:$cluster,kube_namespace:$namespace} by {pod_name}",
+            "display_type": "area"
+          }
+        ]
+      },
+      "layout": {"x": 0, "y": 4, "width": 6, "height": 3}
+    },
+    {
+      "id": 7,
+      "definition": {
+        "type": "timeseries",
+        "title": "🖥️ Pod CPU Usage",
+        "requests": [
+          {
+            "q": "avg:kubernetes.cpu.usage.total{kube_cluster_name:$cluster,kube_namespace:$namespace} by {pod_name}",
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {"x": 6, "y": 4, "width": 6, "height": 3}
+    },
+    {
+      "id": 8,
+      "definition": {
+        "type": "timeseries",
+        "title": "🌐 Network I/O",
+        "requests": [
+          {
+            "q": "avg:kubernetes.network.rx_bytes{kube_cluster_name:$cluster,kube_namespace:$namespace} by {pod_name}",
+            "display_type": "area",
+            "style": {"palette": "green"}
+          },
+          {
+            "q": "avg:kubernetes.network.tx_bytes{kube_cluster_name:$cluster,kube_namespace:$namespace} by {pod_name}",
+            "display_type": "area", 
+            "style": {"palette": "orange"}
+          }
+        ]
+      },
+      "layout": {"x": 0, "y": 7, "width": 12, "height": 3}
+    },
+    {
+      "id": 9,
+      "definition": {
+        "type": "heatmap",
+        "title": "🔥 Pod Resource Utilization Heatmap",
+        "requests": [
+          {
+            "q": "avg:kubernetes.cpu.usage.total{kube_cluster_name:$cluster,kube_namespace:$namespace} by {pod_name}"
+          }
+        ]
+      },
+      "layout": {"x": 0, "y": 10, "width": 12, "height": 4}
+    }
+  ]
+}

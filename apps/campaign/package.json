@@ -1,0 +1,14 @@
+{
+  "name": "campaign",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "build": "nest build campaign"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.0"
+  },
+  "devDependencies": {
+    "prisma": "^6.19.0"
+  }
+}

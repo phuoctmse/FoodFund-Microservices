@@ -1,0 +1,423 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug GraphQL Gateway",
+            "program": "${workspaceFolder}/apps/graphql-gateway/src/main.ts",
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--nolazy",
+                "-r",
+                "tsconfig-paths/register",
+                "-r",
+                "ts-node/register"
+            ],
+            "env": {
+                "NODE_ENV": "development",
+                "PORT": "8000",
+                "DEBUG": "*",
+                "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json",
+                "TS_NODE_TRANSPILE_ONLY": "true"
+            },
+            "envFile": "${workspaceFolder}/.env",
+            "autoAttachChildProcesses": true,
+            "skipFiles": ["<node_internals>/**"],
+            "restart": true,
+            "console": "integratedTerminal",
+            "presentation": {
+                "hidden": false,
+                "group": "individual",
+                "order": 1
+            }
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug Auth Service",
+            "program": "${workspaceFolder}/apps/auth/src/main.ts",
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--nolazy",
+                "-r",
+                "tsconfig-paths/register",
+                "-r",
+                "ts-node/register"
+            ],
+            "env": {
+                "NODE_ENV": "development",
+                "PORT": "8002",
+                "AUTH_GRPC_PORT": "50001",
+                "DEBUG": "*",
+                "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json",
+                "TS_NODE_TRANSPILE_ONLY": "true"
+            },
+            "envFile": "${workspaceFolder}/.env",
+            "autoAttachChildProcesses": true,
+            "skipFiles": ["<node_internals>/**"],
+            "restart": true,
+            "console": "integratedTerminal",
+            "presentation": {
+                "hidden": false,
+                "group": "individual",
+                "order": 2
+            }
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug User Service",
+            "program": "${workspaceFolder}/apps/user/src/main.ts",
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--nolazy",
+                "-r",
+                "tsconfig-paths/register",
+                "-r",
+                "ts-node/register"
+            ],
+            "env": {
+                "NODE_ENV": "development",
+                "PORT": "8003",
+                "USERS_GRPC_PORT": "50002",
+                "DEBUG": "*",
+                "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json",
+                "TS_NODE_TRANSPILE_ONLY": "true"
+            },
+            "envFile": "${workspaceFolder}/apps/user/.env",
+            "autoAttachChildProcesses": true,
+            "skipFiles": ["<node_internals>/**"],
+            "restart": true,
+            "console": "integratedTerminal",
+            "presentation": {
+                "hidden": false,
+                "group": "individual",
+                "order": 3
+            }
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug Campaign Service",
+            "program": "${workspaceFolder}/apps/campaign/src/main.ts",
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--nolazy",
+                "-r",
+                "tsconfig-paths/register",
+                "-r",
+                "ts-node/register"
+            ],
+            "env": {
+                "NODE_ENV": "development",
+                "PORT": "8004",
+                "CAMPAIGNS_GRPC_PORT": "50003",
+                "DEBUG": "*",
+                "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json",
+                "TS_NODE_TRANSPILE_ONLY": "true"
+            },
+            "envFile": "${workspaceFolder}/.env",
+            "autoAttachChildProcesses": true,
+            "skipFiles": ["<node_internals>/**"],
+            "restart": true,
+            "console": "integratedTerminal",
+            "presentation": {
+                "hidden": false,
+                "group": "individual",
+                "order": 4
+            }
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug Operation Service",
+            "program": "${workspaceFolder}/apps/operation/src/main.ts",
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--nolazy",
+                "-r",
+                "tsconfig-paths/register",
+                "-r",
+                "ts-node/register"
+            ],
+            "env": {
+                "NODE_ENV": "development",
+                "PORT": "8005",
+                "OPERATIONS_GRPC_PORT": "50004",
+                "DEBUG": "*",
+                "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json",
+                "TS_NODE_TRANSPILE_ONLY": "true"
+            },
+            "envFile": "${workspaceFolder}/.env",
+            "autoAttachChildProcesses": true,
+            "skipFiles": ["<node_internals>/**"],
+            "restart": true,
+            "console": "integratedTerminal",
+            "presentation": {
+                "hidden": false,
+                "group": "individual",
+                "order": 5
+            }
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug Auth Service (Standalone)",
+            "program": "${workspaceFolder}/apps/auth/src/main.ts",
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--nolazy",
+                "-r",
+                "tsconfig-paths/register",
+                "-r",
+                "ts-node/register"
+            ],
+            "env": {
+                "NODE_ENV": "development",
+                "PORT": "8002",
+                "AUTH_GRPC_PORT": "50001",
+                "DEBUG": "*auth*",
+                "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json",
+                "TS_NODE_TRANSPILE_ONLY": "true"
+            },
+            "envFile": "${workspaceFolder}/.env",
+            "autoAttachChildProcesses": true,
+            "skipFiles": ["<node_internals>/**"],
+            "restart": true,
+            "console": "integratedTerminal",
+            "sourceMaps": true,
+            "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+            "presentation": {
+                "hidden": false,
+                "group": "services",
+                "order": 1
+            }
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug User Service (Standalone)",
+            "program": "${workspaceFolder}/apps/user/src/main.ts",
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--nolazy",
+                "-r",
+                "tsconfig-paths/register",
+                "-r",
+                "ts-node/register"
+            ],
+            "env": {
+                "NODE_ENV": "development",
+                "PORT": "8003",
+                "USERS_GRPC_PORT": "50002",
+                "DEBUG": "*user*",
+                "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json",
+                "TS_NODE_TRANSPILE_ONLY": "true"
+            },
+            "envFile": "${workspaceFolder}/.env",
+            "autoAttachChildProcesses": true,
+            "skipFiles": ["<node_internals>/**"],
+            "restart": true,
+            "console": "integratedTerminal",
+            "sourceMaps": true,
+            "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+            "presentation": {
+                "hidden": false,
+                "group": "services",
+                "order": 2
+            }
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug Campaign Service (Standalone)",
+            "program": "${workspaceFolder}/apps/campaign/src/main.ts",
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--nolazy",
+                "-r",
+                "tsconfig-paths/register",
+                "-r",
+                "ts-node/register"
+            ],
+            "env": {
+                "NODE_ENV": "development",
+                "PORT": "8004",
+                "CAMPAIGNS_GRPC_PORT": "50003",
+                "DEBUG": "*campaign*",
+                "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json",
+                "TS_NODE_TRANSPILE_ONLY": "true"
+            },
+            "envFile": "${workspaceFolder}/.env",
+            "autoAttachChildProcesses": true,
+            "skipFiles": ["<node_internals>/**"],
+            "restart": true,
+            "console": "integratedTerminal",
+            "sourceMaps": true,
+            "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+            "presentation": {
+                "hidden": false,
+                "group": "services",
+                "order": 3
+            }
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug GraphQL Gateway (Standalone)",
+            "program": "${workspaceFolder}/apps/graphql-gateway/src/main.ts",
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--nolazy",
+                "-r",
+                "tsconfig-paths/register",
+                "-r",
+                "ts-node/register"
+            ],
+            "env": {
+                "NODE_ENV": "development",
+                "PORT": "8000",
+                "DEBUG": "*gateway*",
+                "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json",
+                "TS_NODE_TRANSPILE_ONLY": "true"
+            },
+            "envFile": "${workspaceFolder}/.env",
+            "autoAttachChildProcesses": true,
+            "skipFiles": ["<node_internals>/**"],
+            "restart": true,
+            "console": "integratedTerminal",
+            "sourceMaps": true,
+            "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+            "presentation": {
+                "hidden": false,
+                "group": "services",
+                "order": 4
+            }
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug Operation Service (Standalone)",
+            "program": "${workspaceFolder}/apps/operation/src/main.ts",
+            "cwd": "${workspaceFolder}",
+            "runtimeArgs": [
+                "--nolazy",
+                "-r",
+                "tsconfig-paths/register",
+                "-r",
+                "ts-node/register"
+            ],
+            "env": {
+                "NODE_ENV": "development",
+                "PORT": "8005",
+                "OPERATIONS_GRPC_PORT": "50004",
+                "DEBUG": "*operation*",
+                "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json",
+                "TS_NODE_TRANSPILE_ONLY": "true"
+            },
+            "envFile": "${workspaceFolder}/.env",
+            "autoAttachChildProcesses": true,
+            "skipFiles": ["<node_internals>/**"],
+            "restart": true,
+            "console": "integratedTerminal",
+            "sourceMaps": true,
+            "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+            "presentation": {
+                "hidden": false,
+                "group": "services",
+                "order": 5
+            }
+        }
+    ],
+    "compounds": [
+        {
+            "name": "🚀 Debug All Services (Full Stack)",
+            "configurations": [
+                "Debug GraphQL Gateway",
+                "Debug Auth Service",
+                "Debug User Service",
+                "Debug Campaign Service",
+                "Debug Operation Service"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "compound",
+                "order": 1
+            }
+        },
+        {
+            "name": "🔐 Debug Auth + User Flow",
+            "configurations": [
+                "Debug Auth Service (Standalone)",
+                "Debug User Service (Standalone)"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "compound",
+                "order": 2
+            }
+        },
+        {
+            "name": "🌐 Debug Gateway + Backend",
+            "configurations": [
+                "Debug GraphQL Gateway (Standalone)",
+                "Debug Auth Service (Standalone)",
+                "Debug User Service (Standalone)",
+                "Debug Campaign Service (Standalone)",
+                "Debug Operation Service (Standalone)"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "compound",
+                "order": 3
+            }
+        },
+        {
+            "name": "⚙️ Debug Backend Services Only",
+            "configurations": [
+                "Debug Auth Service (Standalone)",
+                "Debug User Service (Standalone)",
+                "Debug Campaign Service (Standalone)",
+                "Debug Operation Service (Standalone)"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "compound",
+                "order": 4
+            }
+        },
+        {
+            "name": "💳 Debug Campaign + Auth Flow",
+            "configurations": [
+                "Debug Auth Service (Standalone)",
+                "Debug Campaign Service (Standalone)"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "compound",
+                "order": 5
+            }
+        },
+        {
+            "name": "🎯 Debug Gateway Only",
+            "configurations": [
+                "Debug GraphQL Gateway (Standalone)"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "compound",
+                "order": 6
+            }
+        }
+    ]
+}

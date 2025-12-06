@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package foodfund.auth;
+
+// Auth Service for internal communication
+service AuthService {
+  // Validate token
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+  
+  // Get user info from token
+  rpc GetUserFromToken(GetUserFromTokenRequest) returns (GetUserFromTokenResponse);
+  
+  // Refresh token
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+  
+  // Check user permissions
+  rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
+}
+
+// Messages
+message AuthUser {
+  string id = 1;
+  string cognito_id = 2;
+  string email = 3;
+  string username = 4;
+  string name = 5;
+  string provider = 6;
+  repeated string roles = 7;
+  map<string, string> attributes = 8;
+}
+
+// Validate Token
+message ValidateTokenRequest {
+  string access_token = 1;
+}
+
+message ValidateTokenResponse {
+  bool valid = 1;
+  AuthUser user = 2;
+  string error = 3;
+  int64 expires_at = 4;
+}
+
+// Get User from Token
+message GetUserFromTokenRequest {
+  string access_token = 1;
+}
+
+message GetUserFromTokenResponse {
+  bool success = 1;
+  AuthUser user = 2;
+  string error = 3;
+}
+
+// Refresh Token
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message RefreshTokenResponse {
+  bool success = 1;
+  string access_token = 2;
+  string refresh_token = 3;
+  int32 expires_in = 4;
+  string error = 5;
+}
+
+// Check Permission
+message CheckPermissionRequest {
+  string user_id = 1;
+  string resource = 2;
+  string action = 3;
+}
+
+message CheckPermissionResponse {
+  bool allowed = 1;
+  string reason = 2;
+}

@@ -1,0 +1,91 @@
+{
+  "title": "GraphQL Gateway - Detailed Monitoring",
+  "description": "Detailed monitoring for GraphQL Gateway service with GraphQL-specific metrics",
+  "template_variables": [
+    {
+      "name": "env",
+      "prefix": "env", 
+      "default": "production"
+    }
+  ],
+  "layout_type": "ordered",
+  "widgets": [
+    {
+      "id": 1,
+      "definition": {
+        "type": "note",
+        "content": "# 🌐 GraphQL Gateway Dashboard\n\n**Service:** GraphQL Federation Gateway\n\n**Features:** Query Performance, Resolver Metrics, Federation Health\n\n**Endpoints:** /graphql, /health, /webhooks",
+        "background_color": "green",
+        "font_size": "14"
+      },
+      "layout": {"x": 0, "y": 0, "width": 12, "height": 2}
+    },
+    {
+      "id": 2,
+      "definition": {
+        "type": "timeseries",
+        "title": "🔍 GraphQL Query Rate",
+        "requests": [
+          {
+            "q": "sum:trace.graphql.query.hits{service:graphql-gateway,env:$env}.as_rate()",
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": {"x": 0, "y": 2, "width": 6, "height": 3}
+    },
+    {
+      "id": 3,
+      "definition": {
+        "type": "timeseries",
+        "title": "⏱️ GraphQL Query Duration P95",
+        "requests": [
+          {
+            "q": "p95:trace.graphql.query.duration{service:graphql-gateway,env:$env}"
+          }
+        ]
+      },
+      "layout": {"x": 6, "y": 2, "width": 6, "height": 3}
+    },
+    {
+      "id": 4,
+      "definition": {
+        "type": "toplist",
+        "title": "🔥 Slowest GraphQL Operations",
+        "requests": [
+          {
+            "q": "top(avg:trace.graphql.query.duration{service:graphql-gateway,env:$env} by {operation_name}, 10, 'mean', 'desc')"
+          }
+        ]
+      },
+      "layout": {"x": 0, "y": 5, "width": 6, "height": 4}
+    },
+    {
+      "id": 5,
+      "definition": {
+        "type": "timeseries",
+        "title": "🚨 GraphQL Errors by Type",
+        "requests": [
+          {
+            "q": "sum:trace.graphql.query.errors{service:graphql-gateway,env:$env} by {error_type}.as_rate()",
+            "display_type": "area"
+          }
+        ]
+      },
+      "layout": {"x": 6, "y": 5, "width": 6, "height": 4}
+    },
+    {
+      "id": 6,
+      "definition": {
+        "type": "timeseries",
+        "title": "🔗 Subgraph Health Check Status",
+        "requests": [
+          {
+            "q": "avg:foodfund.subgraph.health{service:graphql-gateway,env:$env} by {subgraph}"
+          }
+        ]
+      },
+      "layout": {"x": 0, "y": 9, "width": 12, "height": 3}
+    }
+  ]
+}
