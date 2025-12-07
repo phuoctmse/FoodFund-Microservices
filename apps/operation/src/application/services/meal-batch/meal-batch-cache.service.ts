@@ -121,6 +121,10 @@ export class MealBatchCacheService extends BaseCacheService<MealBatch> {
         return this.deleteRelatedList(this.KEYS.CAMPAIGN, campaignId)
     }
 
+    async deleteAllCampaignBatches(): Promise<void> {
+        return this.deleteAllLists(this.KEYS.CAMPAIGN)
+    }
+
     // ==================== Kitchen Staff Batches ====================
 
     async getUserBatches(kitchenStaffId: string): Promise<MealBatch[] | null> {

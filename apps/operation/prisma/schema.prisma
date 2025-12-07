@@ -104,6 +104,7 @@ model Meal_Batch {
   id                String            @id @default(uuid())
   campaign_phase_id String
   kitchen_staff_id  String
+  planned_meal_id   String?
   food_name         String            @db.VarChar(100)
   quantity          Int               @default(0)
   media             Json?
@@ -117,6 +118,7 @@ model Meal_Batch {
 
   @@index([campaign_phase_id])
   @@index([kitchen_staff_id])
+  @@index([planned_meal_id])
   @@index([status])
   @@index([cooked_date])
   @@index([campaign_phase_id, status])

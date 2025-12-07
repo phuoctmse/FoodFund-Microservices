@@ -6,6 +6,7 @@ import { PrismaClient } from "../../generated/operation-client"
 interface CreateMealBatchData {
     campaignPhaseId: string
     kitchenStaffId: string
+    plannedMealId?: string
     foodName: string
     quantity: number
     media: string[]
@@ -23,6 +24,7 @@ export class MealBatchRepository {
                 data: {
                     campaign_phase_id: data.campaignPhaseId,
                     kitchen_staff_id: data.kitchenStaffId,
+                    planned_meal_id: data.plannedMealId,
                     food_name: data.foodName,
                     quantity: data.quantity,
                     media: data.media,
@@ -176,6 +178,7 @@ export class MealBatchRepository {
             id: batch.id,
             campaignPhaseId: batch.campaign_phase_id,
             kitchenStaffId: batch.kitchen_staff_id,
+            plannedMealId: batch.planned_meal_id,
             foodName: batch.food_name,
             quantity: batch.quantity,
             media: Array.isArray(batch.media) ? batch.media : [],
@@ -207,6 +210,7 @@ export class MealBatchRepository {
                 estimatedUnitPrice: usage.ingredient_item.estimated_unit_price,
                 estimatedTotalPrice: usage.ingredient_item.estimated_total_price,
                 supplier: usage.ingredient_item.supplier,
+                plannedIngredientId: usage.ingredient_item.planned_ingredient_id,
             },
         }
     }

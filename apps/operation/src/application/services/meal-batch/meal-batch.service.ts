@@ -192,6 +192,7 @@ export class MealBatchService {
             const mealBatch = await this.mealBatchRepository.create({
                 campaignPhaseId: input.campaignPhaseId,
                 kitchenStaffId: userContext.userId,
+                plannedMealId: input.plannedMealId,
                 foodName: input.foodName,
                 quantity: input.quantity,
                 media: mediaUrls,
@@ -205,6 +206,7 @@ export class MealBatchService {
                 this.cacheService.deleteUserBatches(userContext.userId),
                 this.cacheService.deleteAllBatchLists(),
                 this.cacheService.deletePhaseStats(input.campaignPhaseId),
+                this.cacheService.deleteAllCampaignBatches(),
             ])
 
             return mealBatch
@@ -263,8 +265,7 @@ export class MealBatchService {
                 )
             }
 
-            const cookedDate =
-                input.status === MealBatchStatus.READY ? new Date() : undefined
+            const cookedDate = input.status === MealBatchStatus.READY ? new Date() : undefined
 
             const updatedBatch = await this.mealBatchRepository.updateStatus(
                 id,
@@ -278,6 +279,7 @@ export class MealBatchService {
                 this.cacheService.deleteUserBatches(mealBatch.kitchenStaffId),
                 this.cacheService.deleteAllBatchLists(),
                 this.cacheService.deletePhaseStats(mealBatch.campaignPhaseId),
+                this.cacheService.deleteAllCampaignBatches(),
             ])
 
             await this.cacheService.setBatch(id, updatedBatch)
