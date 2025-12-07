@@ -203,6 +203,7 @@ export class MealBatchRepository {
                 requestId: usage.ingredient_item.request_id,
                 ingredientName: usage.ingredient_item.ingredient_name,
                 quantity: usage.ingredient_item.quantity,
+                unit: usage.unit,
                 estimatedUnitPrice: usage.ingredient_item.estimated_unit_price,
                 estimatedTotalPrice: usage.ingredient_item.estimated_total_price,
                 supplier: usage.ingredient_item.supplier,

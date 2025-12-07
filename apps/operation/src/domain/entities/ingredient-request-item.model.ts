@@ -16,10 +16,11 @@ export class IngredientRequestItem {
     })
         ingredientName: string
 
-    @Field(() => String, {
-        description: "Quantity with unit (e.g., '5kg', '10 units')",
-    })
-        quantity: string
+    @Field(() => Int, { description: "Quantity of the ingredient" })
+        quantity: number
+
+    @Field(() => String, { description: "Unit of measurement (e.g., 'kg', 'ml', 'gói')" })
+        unit: string
 
     @Field(() => Int, {
         description: "Estimated unit price in VND",
@@ -36,6 +37,12 @@ export class IngredientRequestItem {
         description: "Supplier name (e.g., 'Bách Hóa Xanh - District 1')",
     })
         supplier?: string
+
+    @Field(() => String, {
+        nullable: true,
+        description: "ID of the planned ingredient if selected from the list",
+    })
+        plannedIngredientId?: string
 
     constructor() {}
 }

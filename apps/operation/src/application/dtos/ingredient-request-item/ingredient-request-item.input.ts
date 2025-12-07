@@ -20,14 +20,18 @@ export class CreateIngredientRequestItemInput {
     })
         ingredientName: string
 
+    @Field(() => Int, { description: "Quantity of the ingredient" })
+    @IsInt({ message: "Quantity must be an integer" })
+    @Min(1, { message: "Quantity must be at least 1" })
+        quantity: number
+
     @Field(() => String, {
-        description:
-            "Quantity with unit (e.g., '5kg', '10 units', max 50 chars)",
+        description: "Unit of measurement (e.g., 'kg', 'ml', 'gói')",
     })
     @IsString()
-    @IsNotEmpty()
-    @MaxLength(50, { message: "Quantity must not exceed 50 characters" })
-        quantity: string
+    @IsNotEmpty({ message: "Unit is required" })
+    @MaxLength(50, { message: "Unit must not exceed 50 characters" })
+        unit: string
 
     @Field(() => Int, {
         description: "Estimated unit price in VND (must be > 0)",
@@ -51,4 +55,11 @@ export class CreateIngredientRequestItemInput {
     @IsString()
     @MaxLength(200, { message: "Supplier name must not exceed 200 characters" })
         supplier?: string
+
+    @Field(() => String, {
+        nullable: true,
+        description: "ID of the planned ingredient if selecting from the list",
+    })
+    @IsOptional()
+        plannedIngredientId?: string
 }
