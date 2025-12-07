@@ -316,11 +316,6 @@ export class ExpenseProofService extends BaseOperationService {
                 )
 
                 if (campaignPhases.length === 0) {
-                    this.sentryService.addBreadcrumb(
-                        "No campaign phases found for campaign",
-                        "warning",
-                        { campaignId: filter.campaignId },
-                    )
                     return []
                 }
 
