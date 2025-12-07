@@ -7,6 +7,10 @@ import {
     CampaignDonationReceivedBuilder,
     CampaignNewPostBuilder,
     CampaignRejectedBuilder,
+    CampaignReassignmentPendingBuilder,
+    CampaignOwnershipTransferredBuilder,
+    CampaignOwnershipReceivedBuilder,
+    CampaignReassignmentExpiredBuilder,
 } from "./campaign-notification.builder"
 import {
     PostCommentBuilder,
@@ -46,6 +50,11 @@ export class NotificationBuilderFactory {
         private readonly deliveryTaskAssignedBuilder: DeliveryTaskAssignedBuilder,
         private readonly systemAnnouncementBuilder: SystemAnnouncementBuilder,
         private readonly surplusTransferredBuilder: SurplusTransferredBuilder,
+
+        private readonly campaignReassignmentPendingBuilder: CampaignReassignmentPendingBuilder,
+        private readonly campaignOwnershipTransferredBuilder: CampaignOwnershipTransferredBuilder,
+        private readonly campaignOwnershipReceivedBuilder: CampaignOwnershipReceivedBuilder,
+        private readonly campaignReassignmentExpiredBuilder: CampaignReassignmentExpiredBuilder,
     ) {
         this.builders = new Map<NotificationType, NotificationBuilder<any>>()
 
@@ -96,6 +105,23 @@ export class NotificationBuilderFactory {
         this.builders.set(
             NotificationType.SURPLUS_TRANSFERRED,
             this.surplusTransferredBuilder,
+        )
+
+        this.builders.set(
+            NotificationType.CAMPAIGN_REASSIGNMENT_PENDING,
+            this.campaignReassignmentPendingBuilder,
+        )
+        this.builders.set(
+            NotificationType.CAMPAIGN_OWNERSHIP_TRANSFERRED,
+            this.campaignOwnershipTransferredBuilder,
+        )
+        this.builders.set(
+            NotificationType.CAMPAIGN_OWNERSHIP_RECEIVED,
+            this.campaignOwnershipReceivedBuilder,
+        )
+        this.builders.set(
+            NotificationType.CAMPAIGN_REASSIGNMENT_EXPIRED,
+            this.campaignReassignmentExpiredBuilder,
         )
     }
 

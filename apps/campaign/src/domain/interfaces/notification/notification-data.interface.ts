@@ -102,6 +102,36 @@ export interface SurplusTransferredData extends BaseNotificationData {
     walletTransactionId?: string
 }
 
+export interface CampaignReassignmentPendingData extends BaseNotificationData {
+    campaignId: string
+    campaignTitle: string
+    reassignmentId: string
+    assignedBy: string
+    expiresAt?: string
+}
+
+export interface CampaignOwnershipTransferredData extends BaseNotificationData {
+    campaignId: string
+    campaignTitle: string
+    reassignmentId: string
+    newOwnerId: string
+    newOwnerName?: string
+}
+
+export interface CampaignOwnershipReceivedData extends BaseNotificationData {
+    campaignId: string
+    campaignTitle: string
+    reassignmentId: string
+    previousOwnerId: string
+    previousOwnerName?: string
+}
+
+export interface CampaignReassignmentExpiredData extends BaseNotificationData {
+    campaignId: string
+    campaignTitle: string
+    reassignmentId: string
+}
+
 export type NotificationDataMap = {
     [NotificationType.CAMPAIGN_APPROVED]: CampaignApprovedData
     [NotificationType.CAMPAIGN_REJECTED]: CampaignRejectedData
@@ -116,4 +146,8 @@ export type NotificationDataMap = {
     [NotificationType.DELIVERY_TASK_ASSIGNED]: DeliveryTaskAssignedData
     [NotificationType.SYSTEM_ANNOUNCEMENT]: SystemAnnouncementData
     [NotificationType.SURPLUS_TRANSFERRED]: SurplusTransferredData
+    [NotificationType.CAMPAIGN_REASSIGNMENT_PENDING]: CampaignReassignmentPendingData
+    [NotificationType.CAMPAIGN_OWNERSHIP_TRANSFERRED]: CampaignOwnershipTransferredData
+    [NotificationType.CAMPAIGN_OWNERSHIP_RECEIVED]: CampaignOwnershipReceivedData
+    [NotificationType.CAMPAIGN_REASSIGNMENT_EXPIRED]: CampaignReassignmentExpiredData
 }
