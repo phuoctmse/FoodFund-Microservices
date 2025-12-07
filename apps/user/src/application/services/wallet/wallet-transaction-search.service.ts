@@ -105,25 +105,55 @@ export class WalletTransactionSearchService implements OnModuleInit {
 
         const must: any[] = []
 
-        // Enforce walletId
         must.push({ term: { walletId } })
 
         if (query) {
             must.push({
-                multi_match: {
-                    query,
-                    fields: ["description", "gateway", "paymentTransactionId", "campaignId"],
-                    fuzziness: "AUTO",
+                bool: {
+                    should: [
+                        {
+                            match: {
+                                description: {
+                                    query,
+                                    fuzziness: "AUTO",
+                                },
+                            },
+                        },
+                        {
+                            query_string: {
+                                query: `*${query}*`,
+                                fields: ["description"],
+                                analyze_wildcard: true,
+                            },
+                        },
+                    ],
+                    minimum_should_match: 1,
                 },
             })
         }
 
-        if (minAmount || maxAmount) {
-            const range: any = {}
-            if (minAmount) range.gte = minAmount
-            if (maxAmount) range.lte = maxAmount
-            // Note: Range on keyword might be inaccurate for numbers, but consistent with other services
-            must.push({ range: { amount: range } })
+        if (minAmount != null || maxAmount != null) {
+            const scriptParts: string[] = []
+            const params: any = {}
+
+            if (minAmount != null) {
+                scriptParts.push("Double.parseDouble(doc['amount'].value) >= params.minAmount")
+                params.minAmount = minAmount
+            }
+            if (maxAmount != null) {
+                scriptParts.push("Double.parseDouble(doc['amount'].value) <= params.maxAmount")
+                params.maxAmount = maxAmount
+            }
+
+            must.push({
+                script: {
+                    script: {
+                        source: scriptParts.join(" && "),
+                        lang: "painless",
+                        params,
+                    },
+                },
+            })
         }
 
         const sort: any[] = []
@@ -132,9 +162,27 @@ export class WalletTransactionSearchService implements OnModuleInit {
         } else if (sortBy === "OLDEST") {
             sort.push({ created_at: "asc" })
         } else if (sortBy === "HIGHEST_AMOUNT") {
-            sort.push({ amount: "desc" })
+            sort.push({
+                _script: {
+                    type: "number",
+                    script: {
+                        lang: "painless",
+                        source: "Double.parseDouble(doc['amount'].value)",
+                    },
+                    order: "desc",
+                },
+            })
         } else if (sortBy === "LOWEST_AMOUNT") {
-            sort.push({ amount: "asc" })
+            sort.push({
+                _script: {
+                    type: "number",
+                    script: {
+                        lang: "painless",
+                        source: "Double.parseDouble(doc['amount'].value)",
+                    },
+                    order: "asc",
+                },
+            })
         } else {
             sort.push({ created_at: "desc" })
         }
