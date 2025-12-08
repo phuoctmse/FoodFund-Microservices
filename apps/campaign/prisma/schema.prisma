@@ -101,7 +101,7 @@ model Planned_Ingredient {
   id                String   @id @default(uuid())
   campaign_phase_id String
   name              String   @db.VarChar(100)
-  quantity          Int      @default(0)
+  quantity          Decimal  @db.Decimal(10, 2)
   unit              String   @db.VarChar(50)
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt

@@ -251,7 +251,11 @@ export class CampaignService {
                         phase.deliveryBudgetPercentage,
                     ),
                     plannedMeals: phase.plannedMeals,
-                    plannedIngredients: phase.plannedIngredients,
+                    plannedIngredients: phase.plannedIngredients?.map((ing) => ({
+                        name: ing.name,
+                        quantity: Number.parseFloat(ing.quantity),
+                        unit: ing.unit,
+                    })),
                 })),
             })
 
