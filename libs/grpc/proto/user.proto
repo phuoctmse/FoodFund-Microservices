@@ -54,6 +54,9 @@ service UserService {
   // Wallet operations for campaign auto-transfer
   rpc GetFundraiserWalletBalance(GetWalletBalanceRequest) returns (GetWalletBalanceResponse);
   rpc DebitFundraiserWallet(DebitWalletRequest) returns (DebitWalletResponse);
+  
+  // System Config
+  rpc GetSystemConfig(GetSystemConfigRequest) returns (GetSystemConfigResponse);
 }
 
 // Messages
@@ -412,5 +415,17 @@ message CreditFundraiserWalletWithSurplusResponse {
   bool success = 1;
   string wallet_transaction_id = 2;
   string new_balance = 3;
+  string error = 4;
+}
+
+// System Config Messages
+message GetSystemConfigRequest {
+  string key = 1;
+}
+
+message GetSystemConfigResponse {
+  bool success = 1;
+  string value = 2;
+  string data_type = 3;
   string error = 4;
 }
