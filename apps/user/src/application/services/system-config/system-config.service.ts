@@ -2,44 +2,20 @@ import { Injectable, Logger } from "@nestjs/common"
 import { SystemConfigRepository } from "../../repositories/system-config.repository"
 import { SystemConfig } from "../../../domain/entities/system-config.model"
 
-interface CacheEntry {
-    value: string
-    expiresAt: number
-}
-
 @Injectable()
 export class SystemConfigService {
     private readonly logger = new Logger(SystemConfigService.name)
-    private readonly cache = new Map<string, CacheEntry>()
-    private readonly CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
     constructor(
         private readonly systemConfigRepository: SystemConfigRepository,
     ) { }
 
     /**
-     * Get config value by key with caching
+     * Get config value by key
      */
     async getConfigValue(key: string): Promise<string | null> {
-        // Check cache first
-        const cached = this.cache.get(key)
-        if (cached && cached.expiresAt > Date.now()) {
-            return cached.value
-        }
-
-        // Fetch from DB
         const config = await this.systemConfigRepository.findByKey(key)
-        if (!config) {
-            return null
-        }
-
-        // Update cache
-        this.cache.set(key, {
-            value: config.value,
-            expiresAt: Date.now() + this.CACHE_TTL_MS,
-        })
-
-        return config.value
+        return config?.value ?? null
     }
 
     /**
@@ -116,9 +92,6 @@ export class SystemConfigService {
     }): Promise<SystemConfig> {
         const config = await this.systemConfigRepository.upsert(data)
 
-        // Invalidate cache
-        this.cache.delete(data.key)
-
         this.logger.log(`Config ${data.key} updated to: ${data.value}`)
 
         return {
@@ -136,19 +109,10 @@ export class SystemConfigService {
     async deleteConfig(key: string): Promise<boolean> {
         try {
             await this.systemConfigRepository.delete(key)
-            this.cache.delete(key)
             this.logger.log(`Config ${key} deleted`)
             return true
         } catch {
             return false
         }
-    }
-
-    /**
-     * Clear cache (for testing or manual refresh)
-     */
-    clearCache(): void {
-        this.cache.clear()
-        this.logger.log("Config cache cleared")
     }
 }
