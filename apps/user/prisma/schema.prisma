@@ -92,7 +92,7 @@ model User_Badge {
   id         String   @id @default(uuid())
   user_id    String   @unique
   user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  badge_id   String   
+  badge_id   String
   badge      Badge    @relation(fields: [badge_id], references: [id], onDelete: Cascade)
   awarded_at DateTime @default(now())
 
@@ -138,6 +138,16 @@ model Wallet_Transaction {
   @@index([campaign_id, created_at])
   @@index([gateway])
   @@map("wallet_transactions")
+}
+
+model System_Config {
+  key         String   @id @db.VarChar(100)
+  value       String   @db.VarChar(500)
+  description String?  @db.Text
+  data_type   String   @default("STRING") @db.VarChar(20) // STRING, NUMBER, BOOLEAN
+  updated_at  DateTime @updatedAt
+
+  @@map("system_configs")
 }
 
 enum Role {

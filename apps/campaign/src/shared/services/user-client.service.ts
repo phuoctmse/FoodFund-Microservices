@@ -712,4 +712,47 @@ export class UserClientService {
             }
         }
     }
+
+    /**
+     * Get system config value as number from User Service
+     * Falls back to default value if fetch fails or config not found
+     */
+    async getSystemConfigNumber(
+        key: string,
+        defaultValue: number,
+    ): Promise<number> {
+        try {
+            const response = await this.grpcClient.callUserService<
+                { key: string },
+                {
+                    success: boolean
+                    value?: string
+                    dataType?: string
+                    error?: string
+                }
+            >("GetSystemConfig", { key }, { timeout: 3000, retries: 2 })
+
+            if (!response.success || !response.value) {
+                this.logger.warn(
+                    `[gRPC] Config ${key} not found, using default: ${defaultValue}`,
+                )
+                return defaultValue
+            }
+
+            const parsed = Number(response.value)
+            if (isNaN(parsed)) {
+                this.logger.warn(
+                    `[gRPC] Config ${key} is not a valid number: ${response.value}, using default: ${defaultValue}`,
+                )
+                return defaultValue
+            }
+
+            return parsed
+        } catch (error) {
+            this.logger.warn(
+                `[gRPC] Failed to get config ${key}, using default: ${defaultValue}`,
+            )
+            return defaultValue
+        }
+    }
 }
