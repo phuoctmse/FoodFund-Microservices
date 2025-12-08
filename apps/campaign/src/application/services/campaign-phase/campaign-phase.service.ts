@@ -10,11 +10,19 @@ import { SentryService } from "@libs/observability"
 import { CampaignPhaseRepository } from "../../repositories/campaign-phase.repository"
 import { CampaignService } from "../campaign/campaign.service"
 import { CampaignCacheService } from "../campaign/campaign-cache.service"
-import { SyncPhaseInput } from "../../dtos/campaign-phase/request"
-import { PhaseBudgetValidator, UserContext } from "@app/campaign/src/shared"
+import {
+    SyncPhaseInput,
+    UpdatePhaseStatusInput,
+} from "../../dtos/campaign-phase/request"
+import {
+    PhaseBudgetValidator,
+    Role,
+    UserContext,
+} from "@app/campaign/src/shared"
 import { CampaignPhase } from "@app/campaign/src/domain/entities/campaign-phase.model"
 import { CampaignStatus } from "@app/campaign/src/domain/enums/campaign/campaign.enum"
 import { SyncPhasesResponse } from "../../dtos/campaign-phase/response"
+import { CampaignPhaseStatus } from "@app/campaign/src/domain/enums/campaign-phase/campaign-phase.enum"
 
 interface PhaseDate {
     phaseName: string
@@ -122,9 +130,7 @@ export class CampaignPhaseService {
             })
 
             await this.campaignCacheService.deleteCampaign(campaignId)
-            await this.campaignCacheService.invalidateAll(
-                campaignId
-            )
+            await this.campaignCacheService.invalidateAll(campaignId)
 
             if (campaign.status === CampaignStatus.APPROVED) {
                 await this.campaignService.revertToPending(campaignId)
@@ -174,6 +180,120 @@ export class CampaignPhaseService {
             throw new NotFoundException(`Phase with ID ${id} not found`)
         }
         return phase
+    }
+
+    async updatePhaseStatus(
+        input: UpdatePhaseStatusInput,
+        userContext: UserContext,
+    ): Promise<CampaignPhase> {
+        try {
+            if (userContext.role !== Role.FUNDRAISER) {
+                throw new ForbiddenException(
+                    "Only fundraisers can update phase status",
+                )
+            }
+
+            const phase = await this.phaseRepository.findByIdWithCampaign(
+                input.phaseId,
+            )
+
+            if (!phase) {
+                throw new NotFoundException(
+                    `Campaign phase ${input.phaseId} not found`,
+                )
+            }
+
+            const campaign = await this.campaignService.findCampaignById(
+                phase.campaignId,
+            )
+
+            if (campaign.createdBy !== userContext.userId) {
+                throw new ForbiddenException(
+                    "You can only update phases of campaigns you created",
+                )
+            }
+
+            const editableStatuses = [CampaignStatus.PROCESSING]
+
+            if (!editableStatuses.includes(campaign.status)) {
+                throw new BadRequestException(
+                    `Cannot update phase status when campaign is in ${campaign.status} status. Only PROCESSING campaigns allow phase updates.`,
+                )
+            }
+
+            this.validatePhaseStatusTransition(phase.status, input.status)
+
+            await this.phaseRepository.updateStatus(input.phaseId, input.status)
+
+            await this.campaignCacheService.deleteCampaign(campaign.id)
+            await this.campaignCacheService.invalidateAll(campaign.id)
+
+            const allPhasesFinished = await this.campaignService.areAllPhasesFinished(campaign.id)
+
+            if (allPhasesFinished.allFinished) {
+                await this.campaignService.autoCompleteCampaign(campaign.id)
+            }
+
+            const updatedPhase = await this.phaseRepository.findByIdWithCampaign(input.phaseId)
+
+            return updatedPhase!
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "updatePhaseStatus",
+                userId: userContext.userId,
+                input,
+            })
+            throw error
+        }
+    }
+
+    private validatePhaseStatusTransition(
+        currentStatus: CampaignPhaseStatus,
+        newStatus: CampaignPhaseStatus,
+    ): void {
+        const validTransitions: Record<
+            CampaignPhaseStatus,
+            CampaignPhaseStatus[]
+        > = {
+            [CampaignPhaseStatus.PLANNING]: [
+                CampaignPhaseStatus.AWAITING_INGREDIENT_DISBURSEMENT,
+            ],
+            [CampaignPhaseStatus.AWAITING_INGREDIENT_DISBURSEMENT]: [
+                CampaignPhaseStatus.INGREDIENT_PURCHASE,
+                CampaignPhaseStatus.CANCELLED,
+            ],
+            [CampaignPhaseStatus.INGREDIENT_PURCHASE]: [
+                CampaignPhaseStatus.AWAITING_COOKING_DISBURSEMENT,
+                CampaignPhaseStatus.FAILED,
+            ],
+            [CampaignPhaseStatus.AWAITING_COOKING_DISBURSEMENT]: [
+                CampaignPhaseStatus.COOKING,
+                CampaignPhaseStatus.CANCELLED,
+            ],
+            [CampaignPhaseStatus.COOKING]: [
+                CampaignPhaseStatus.AWAITING_DELIVERY_DISBURSEMENT,
+                CampaignPhaseStatus.FAILED,
+            ],
+            [CampaignPhaseStatus.AWAITING_DELIVERY_DISBURSEMENT]: [
+                CampaignPhaseStatus.DELIVERY,
+                CampaignPhaseStatus.CANCELLED,
+            ],
+            [CampaignPhaseStatus.DELIVERY]: [
+                CampaignPhaseStatus.COMPLETED,
+                CampaignPhaseStatus.FAILED,
+            ],
+            [CampaignPhaseStatus.COMPLETED]: [],
+            [CampaignPhaseStatus.CANCELLED]: [],
+            [CampaignPhaseStatus.FAILED]: [],
+        }
+
+        const allowedTransitions = validTransitions[currentStatus] || []
+
+        if (!allowedTransitions.includes(newStatus)) {
+            throw new BadRequestException(
+                `Cannot transition phase from ${currentStatus} to ${newStatus}. Allowed transitions: ${allowedTransitions.join(", ")}`,
+            )
+        }
     }
 
     public validatePhaseDates(
