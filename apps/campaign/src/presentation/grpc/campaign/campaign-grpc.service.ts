@@ -455,49 +455,6 @@ export class CampaignGrpcService {
         }
     }
 
-    @GrpcMethod("CampaignService", "GetPlannedIngredients")
-    async getPlannedIngredients(
-        data: { phaseId: string },
-    ): Promise<{
-        success: boolean
-        ingredients: Array<{
-            id: string
-            name: string
-            quantity: number
-            unit: string
-        }>
-        error: string | null
-    }> {
-        const { phaseId } = data
-
-        if (!phaseId) {
-            return {
-                success: false,
-                ingredients: [],
-                error: "Phase ID is required",
-            }
-        }
-
-        try {
-            const ingredients =
-                await this.campaignPhaseRepository.getPlannedIngredientsByPhaseId(
-                    phaseId,
-                )
-
-            return {
-                success: true,
-                ingredients,
-                error: null,
-            }
-        } catch (error) {
-            return {
-                success: false,
-                ingredients: [],
-                error: error?.message || "Failed to get planned ingredients",
-            }
-        }
-    }
-
     @GrpcMethod("CampaignService", "UpdatePhaseStatus")
     async updatePhaseStatus(
         data: UpdatePhaseStatusRequest,
