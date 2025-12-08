@@ -1,9 +1,16 @@
 import { Args, Mutation, Resolver } from "@nestjs/graphql"
-import { UseGuards } from "@nestjs/common"
+import { UseGuards, ValidationPipe } from "@nestjs/common"
 import { CampaignPhase } from "@app/campaign/src/domain/entities/campaign-phase.model"
-import { CognitoGraphQLGuard, createUserContextFromToken, CurrentUser } from "@app/campaign/src/shared"
+import {
+    CognitoGraphQLGuard,
+    createUserContextFromToken,
+    CurrentUser,
+} from "@app/campaign/src/shared"
 import { CampaignPhaseService } from "@app/campaign/src/application/services/campaign-phase/campaign-phase.service"
-import { SyncPhaseInput } from "@app/campaign/src/application/dtos/campaign-phase/request"
+import {
+    SyncPhaseInput,
+    UpdatePhaseStatusInput,
+} from "@app/campaign/src/application/dtos/campaign-phase/request"
 import { SyncPhasesResponse } from "@app/campaign/src/application/dtos/campaign-phase/response"
 
 @Resolver(() => CampaignPhase)
@@ -38,5 +45,22 @@ export class CampaignPhaseMutationResolver {
             phases,
             userContext,
         )
+    }
+
+    @Mutation(() => CampaignPhase, {
+        description:
+            "Update campaign phase status (COMPLETED, CANCELLED, FAILED). Fundraiser only. Auto-marks campaign COMPLETED when all phases done.",
+    })
+    async updatePhaseStatus(
+        @Args(
+            "input",
+            { type: () => UpdatePhaseStatusInput },
+            new ValidationPipe(),
+        )
+            input: UpdatePhaseStatusInput,
+        @CurrentUser("decodedToken") decodedToken: any,
+    ): Promise<CampaignPhase> {
+        const userContext = createUserContextFromToken(decodedToken)
+        return this.campaignPhaseService.updatePhaseStatus(input, userContext)
     }
 }
