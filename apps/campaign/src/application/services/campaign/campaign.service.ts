@@ -91,7 +91,7 @@ export class CampaignService {
         private readonly eventEmitter: EventEmitter2,
         private readonly campaignSearchService: CampaignSearchService,
         private readonly notificationQueue: NotificationQueue,
-    ) { }
+    ) {}
 
     async generateCampaignImageUploadUrl(
         input: GenerateUploadUrlInput,
@@ -251,7 +251,13 @@ export class CampaignService {
                         phase.deliveryBudgetPercentage,
                     ),
                     plannedMeals: phase.plannedMeals,
-                    plannedIngredients: phase.plannedIngredients,
+                    plannedIngredients: phase.plannedIngredients?.map(
+                        (ing) => ({
+                            name: ing.name,
+                            quantity: Number.parseFloat(ing.quantity),
+                            unit: ing.unit,
+                        }),
+                    ),
                 })),
             })
 
@@ -427,7 +433,6 @@ export class CampaignService {
             )
 
             const campaign = await this.findCampaignById(id)
-            console.debug(campaign)
             this.authorizationService.requireAdmin(
                 userContext,
                 "change campaign status",
@@ -531,7 +536,6 @@ export class CampaignService {
             )
 
             await this.cacheService.setCampaign(id, updatedCampaign)
-
             await this.cacheService.invalidateAll(id, campaign.slug)
 
             return updatedCampaign
@@ -545,77 +549,6 @@ export class CampaignService {
                     role: userContext.role,
                 },
                 requestedStatus: newStatus,
-            })
-            throw error
-        }
-    }
-
-    async markCampaignComplete(
-        campaignId: string,
-        userContext: UserContext,
-    ): Promise<Campaign> {
-        try {
-            this.authorizationService.requireAuthentication(
-                userContext,
-                "mark campaign complete",
-            )
-
-            this.authorizationService.requireRole(
-                userContext,
-                Role.FUNDRAISER,
-                "mark campaign complete",
-            )
-
-            const campaign = await this.findCampaignById(campaignId)
-
-            this.authorizationService.requireOwnership(
-                campaign.createdBy,
-                userContext,
-                "campaign",
-                "mark as complete",
-            )
-
-            if (campaign.completedAt) {
-                throw new BadRequestException(
-                    "Campaign has already been completed",
-                )
-            }
-
-            if (campaign.status !== CampaignStatus.PROCESSING) {
-                throw new BadRequestException(
-                    `Campaign must be in PROCESSING status to be marked as complete. Current status: ${campaign.status}`,
-                )
-            }
-
-            const phasesCheck =
-                await this.campaignRepository.areAllPhasesFinished(campaignId)
-
-            if (!phasesCheck.allFinished) {
-                const pendingPhaseNames = phasesCheck.pendingPhases
-                    .map((p) => `"${p.phaseName}" (${p.status})`)
-                    .join(", ")
-
-                throw new BadRequestException(
-                    `Cannot complete campaign. The following phases are not finished: ${pendingPhaseNames}. All phases must be COMPLETED or FAILED.`,
-                )
-            }
-
-            const completedCampaign =
-                await this.campaignRepository.markAsCompleted(campaignId)
-
-            await this.cacheService.invalidateAll(campaignId, campaign.slug)
-
-            await this.sendCampaignCompletedNotifications(completedCampaign)
-
-            return completedCampaign
-        } catch (error) {
-            this.sentryService.captureError(error as Error, {
-                operation: "markCampaignComplete",
-                campaignId,
-                user: {
-                    id: userContext.userId,
-                    role: userContext.role,
-                },
             })
             throw error
         }
@@ -694,6 +627,34 @@ export class CampaignService {
                     id: userContext.userId,
                     username: userContext.username,
                 },
+            })
+            throw error
+        }
+    }
+
+    async areAllPhasesFinished(campaignId: string): Promise<{
+        allFinished: boolean
+        pendingPhases: Array<{ id: string; phaseName: string; status: string }>
+    }> {
+        return this.campaignRepository.areAllPhasesFinished(campaignId)
+    }
+
+    async autoCompleteCampaign(campaignId: string): Promise<Campaign> {
+        try {
+            const campaign = await this.findCampaignById(campaignId)
+
+            if (campaign.status !== CampaignStatus.PROCESSING) {
+                return campaign
+            }
+
+            const completedCampaign = await this.campaignRepository.markAsCompleted(campaignId)
+            await this.cacheService.invalidateAll(campaignId, campaign.slug)
+            await this.sendCampaignCompletedNotifications(completedCampaign)
+            return completedCampaign
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "autoCompleteCampaign",
+                campaignId,
             })
             throw error
         }
@@ -1109,14 +1070,14 @@ export class CampaignService {
         const averageDonationAmount =
             aggregates.totalDonations > 0
                 ? Number(aggregates.totalReceivedAmount) /
-                aggregates.totalDonations
+                  aggregates.totalDonations
                 : 0
 
         const fundingRate =
             Number(aggregates.totalTargetAmount) > 0
                 ? (Number(aggregates.totalReceivedAmount) /
-                    Number(aggregates.totalTargetAmount)) *
-                100
+                      Number(aggregates.totalTargetAmount)) *
+                  100
                 : 0
 
         return {
@@ -1290,7 +1251,7 @@ export class CampaignService {
         const fundingRate =
             Number(totalTargetAmount) > 0
                 ? (Number(totalReceivedAmount) / Number(totalTargetAmount)) *
-                100
+                  100
                 : 0
 
         return {

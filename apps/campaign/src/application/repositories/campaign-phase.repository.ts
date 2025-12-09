@@ -123,46 +123,6 @@ export class CampaignPhaseRepository {
         )
     }
 
-    async getPlannedIngredientsByPhaseId(phaseId: string): Promise<
-        Array<{
-            id: string
-            name: string
-            quantity: number
-            unit: string
-        }>
-    > {
-        const ingredients = await this.prisma.planned_Ingredient.findMany({
-            where: { campaign_phase_id: phaseId },
-            orderBy: { name: "asc" },
-        })
-
-        return ingredients.map((i) => ({
-            id: i.id,
-            name: i.name,
-            quantity: i.quantity,
-            unit: i.unit,
-        }))
-    }
-
-    async getPlannedMealsByPhaseId(phaseId: string): Promise<
-        Array<{
-            id: string
-            name: string
-            quantity: number
-        }>
-    > {
-        const meals = await this.prisma.planned_Meal.findMany({
-            where: { campaign_phase_id: phaseId },
-            orderBy: { name: "asc" },
-        })
-
-        return meals.map((m) => ({
-            id: m.id,
-            name: m.name,
-            quantity: m.quantity,
-        }))
-    }
-
     async updateStatus(id: string, status: CampaignPhaseStatus): Promise<void> {
         await this.prisma.campaign_Phase.update({
             where: { id, is_active: true },
@@ -346,7 +306,7 @@ export class CampaignPhaseRepository {
                     id: ingredient.id,
                     campaignPhaseId: ingredient.campaign_phase_id,
                     name: ingredient.name,
-                    quantity: ingredient.quantity,
+                    quantity: ingredient.quantity.toString(),
                     unit: ingredient.unit,
                     createdAt: ingredient.created_at,
                     updatedAt: ingredient.updated_at,

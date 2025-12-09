@@ -16,8 +16,10 @@ export class IngredientRequestItem {
     })
         ingredientName: string
 
-    @Field(() => Int, { description: "Quantity of the ingredient" })
-        quantity: number
+    @Field(() => String, {
+        description: "Quantity as decimal (e.g., '2.5', '10.75')",
+    })
+        quantity: string
 
     @Field(() => String, { description: "Unit of measurement (e.g., 'kg', 'ml', 'gói')" })
         unit: string

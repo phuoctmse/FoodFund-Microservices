@@ -957,7 +957,7 @@ export class CampaignRepository {
                     id: ingredient.id,
                     campaignPhaseId: ingredient.campaign_phase_id,
                     name: ingredient.name,
-                    quantity: ingredient.quantity,
+                    quantity: ingredient.quantity.toString(),
                     unit: ingredient.unit,
                     createdAt: ingredient.created_at,
                     updatedAt: ingredient.updated_at,

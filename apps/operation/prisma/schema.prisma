@@ -38,7 +38,7 @@ model Ingredient_Request_Item {
   id                    String  @id @default(uuid())
   request_id            String
   ingredient_name       String  @db.VarChar(100)
-  quantity              Int     @default(0)
+  quantity              Decimal @db.Decimal(10, 2)
   unit                  String  @db.VarChar(50)
   estimated_unit_price  Int     @default(0)
   estimated_total_price Int     @default(0)
