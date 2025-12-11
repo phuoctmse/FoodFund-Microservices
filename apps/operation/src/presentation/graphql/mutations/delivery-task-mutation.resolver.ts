@@ -1,4 +1,4 @@
-import { AssignTaskToStaffInput, SelfAssignTaskInput, UpdateDeliveryTaskStatusInput } from "@app/operation/src/application/dtos/delivery-task"
+import { AssignTaskToStaffInput, UpdateDeliveryTaskStatusInput } from "@app/operation/src/application/dtos/delivery-task"
 import { DeliveryTaskService } from "@app/operation/src/application/services"
 import { DeliveryTask } from "@app/operation/src/domain"
 import { CognitoGraphQLGuard, createUserContextFromToken, CurrentUser } from "@app/operation/src/shared"
@@ -31,26 +31,6 @@ export class DeliveryTaskMutationResolver {
     ): Promise<DeliveryTask[]> {
         const userContext = createUserContextFromToken(decodedToken)
         return this.deliveryTaskService.assignTaskToStaff(input, userContext)
-    }
-
-    @Mutation(() => DeliveryTask, {
-        name: "selfAssignDeliveryTask",
-        description:
-            "Delivery staff self-assigns task from READY meal batch (status = ACCEPTED). " +
-            "Task is immediately accepted without pending approval.",
-    })
-    @UseGuards(CognitoGraphQLGuard)
-    async selfAssignDeliveryTask(
-        @Args(
-            "input",
-            { type: () => SelfAssignTaskInput },
-            new ValidationPipe(),
-        )
-            input: SelfAssignTaskInput,
-        @CurrentUser("decodedToken") decodedToken: any,
-    ): Promise<DeliveryTask> {
-        const userContext = createUserContextFromToken(decodedToken)
-        return this.deliveryTaskService.selfAssignTask(input, userContext)
     }
 
     @Mutation(() => DeliveryTask, {

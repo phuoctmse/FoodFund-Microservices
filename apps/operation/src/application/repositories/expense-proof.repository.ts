@@ -22,7 +22,7 @@ export class ExpenseProofRepository {
         return await this.prisma.expense_Proof.findUnique({
             where: { id },
             include: {
-                request: true
+                request: true,
             },
         })
     }
@@ -31,7 +31,25 @@ export class ExpenseProofRepository {
         return await this.prisma.expense_Proof.findMany({
             where: { request_id: requestId },
             include: {
-                request: true
+                request: true,
+            },
+            orderBy: { created_at: "desc" },
+        })
+    }
+
+    async findByOrganizationRequests(requestIds: string[]) {
+        if (requestIds.length === 0) {
+            return []
+        }
+
+        return await this.prisma.expense_Proof.findMany({
+            where: {
+                request_id: {
+                    in: requestIds,
+                },
+            },
+            include: {
+                request: true,
             },
             orderBy: { created_at: "desc" },
         })
@@ -41,7 +59,7 @@ export class ExpenseProofRepository {
         return await this.prisma.expense_Proof.findFirst({
             where: { request_id: requestId },
             include: {
-                request: true
+                request: true,
             },
             orderBy: { created_at: "desc" },
         })
@@ -157,23 +175,5 @@ export class ExpenseProofRepository {
             approvedCount: approved,
             rejectedCount: rejected,
         }
-    }
-
-    async findByOrganizationRequests(requestIds: string[]) {
-        if (requestIds.length === 0) {
-            return []
-        }
-
-        return await this.prisma.expense_Proof.findMany({
-            where: {
-                request_id: {
-                    in: requestIds,
-                },
-            },
-            include: {
-                request: true,
-            },
-            orderBy: { created_at: "desc" },
-        })
     }
 }

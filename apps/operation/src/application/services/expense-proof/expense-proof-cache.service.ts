@@ -13,18 +13,14 @@ export class ExpenseProofCacheService extends BaseCacheService<ExpenseProof> {
     protected readonly TTL = {
         SINGLE_PROOF: 60 * 30, // 30 minutes
         PROOF_LIST: 60 * 15, // 15 minutes
-        REQUEST_PROOFS: 60 * 30, // 30 minutes
         ORGANIZATION_PROOFS: 60 * 30, // 30 minutes
-        USER_PROOFS: 60 * 30, // 30 minutes
         STATS: 60 * 10, // 10 minutes
     }
 
     protected readonly KEYS = {
         SINGLE: "expense-proof",
         LIST: "expense-proofs:list",
-        REQUEST: "expense-proofs:request",
         ORGANIZATION: "expense-proofs:organization",
-        USER: "expense-proofs:user",
         STATS: "expense-proofs:stats",
     }
 
@@ -70,30 +66,6 @@ export class ExpenseProofCacheService extends BaseCacheService<ExpenseProof> {
         return this.deleteAllLists(this.KEYS.LIST)
     }
 
-    // ==================== Request Proofs ====================
-
-    async getRequestProofs(
-        ingredientRequestId: string,
-    ): Promise<ExpenseProof[] | null> {
-        return this.getRelatedList(this.KEYS.REQUEST, ingredientRequestId)
-    }
-
-    async setRequestProofs(
-        ingredientRequestId: string,
-        proofs: ExpenseProof[],
-    ): Promise<void> {
-        return this.setRelatedList(
-            this.KEYS.REQUEST,
-            ingredientRequestId,
-            proofs,
-            this.TTL.REQUEST_PROOFS,
-        )
-    }
-
-    async deleteRequestProofs(ingredientRequestId: string): Promise<void> {
-        return this.deleteRelatedList(this.KEYS.REQUEST, ingredientRequestId)
-    }
-
     // ==================== Organization Proofs ====================
 
     async getOrganizationProofs(
@@ -118,28 +90,6 @@ export class ExpenseProofCacheService extends BaseCacheService<ExpenseProof> {
         return this.deleteRelatedList(this.KEYS.ORGANIZATION, organizationId)
     }
 
-    // ==================== User Proofs ====================
-
-    async getUserProofs(userId: string): Promise<ExpenseProof[] | null> {
-        return this.getRelatedList(this.KEYS.USER, userId)
-    }
-
-    async setUserProofs(
-        userId: string,
-        proofs: ExpenseProof[],
-    ): Promise<void> {
-        return this.setRelatedList(
-            this.KEYS.USER,
-            userId,
-            proofs,
-            this.TTL.USER_PROOFS,
-        )
-    }
-
-    async deleteUserProofs(userId: string): Promise<void> {
-        return this.deleteRelatedList(this.KEYS.USER, userId)
-    }
-
     // ==================== Statistics ====================
 
     async getProofStats(): Promise<{
@@ -162,46 +112,6 @@ export class ExpenseProofCacheService extends BaseCacheService<ExpenseProof> {
 
     async deleteProofStats(): Promise<void> {
         return this.deleteStats(this.KEYS.STATS)
-    }
-
-    // ==================== Invalidation ====================
-
-    async invalidateProof(
-        proofId: string,
-        ingredientRequestId?: string,
-        organizationId?: string,
-        userId?: string,
-    ): Promise<void> {
-        const operations: Promise<void>[] = [
-            this.deleteProof(proofId),
-            this.deleteAllProofLists(),
-            this.deleteProofStats(),
-        ]
-
-        if (ingredientRequestId) {
-            operations.push(this.deleteRequestProofs(ingredientRequestId))
-        }
-
-        if (organizationId) {
-            operations.push(this.deleteOrganizationProofs(organizationId))
-        }
-
-        if (userId) {
-            operations.push(this.deleteUserProofs(userId))
-        }
-
-        return this.invalidateMultiple(...operations)
-    }
-
-    async invalidateAll(): Promise<void> {
-        return this.invalidateByPatterns(
-            `${this.KEYS.SINGLE}:*`,
-            `${this.KEYS.LIST}:*`,
-            `${this.KEYS.REQUEST}:*`,
-            `${this.KEYS.ORGANIZATION}:*`,
-            `${this.KEYS.USER}:*`,
-            `${this.KEYS.STATS}:*`,
-        )
     }
 
     // ==================== Health Check ====================
