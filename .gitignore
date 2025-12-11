@@ -74,17 +74,11 @@ k8s/config/*.production.yaml
 k8s/config/*-production.yaml
 
 # Environment specific configs
-.env.*
+.env
+.env.docker
 *.env
 config/production.json
 config/staging.json
-
-# Environment specific configs
-.env.*
-*.env
-config/production.json
-config/staging.json
-
 # Kubernetes kubeconfig and cert files
 *.kubeconfig
 kubeconfig*
