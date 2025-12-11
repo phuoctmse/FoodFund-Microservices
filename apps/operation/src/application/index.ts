@@ -1,6 +1,5 @@
 export * from "./dtos/delivery-task/request/assign-task-to-staff.input"
 export * from "./dtos/delivery-task/request/delivery-task-filter.input"
-export * from "./dtos/delivery-task/request/self-assign-task.input"
 export * from "./dtos/delivery-task/request/update-task-status.input"
 export * from "./dtos/delivery-task/response/delivery-task-stats.response"
 export * from "./dtos/expense-proof/request/create-expense-proof.input"

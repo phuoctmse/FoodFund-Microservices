@@ -23,39 +23,4 @@ export class DeliveryStatusLogRepository {
             },
         })
     }
-
-    async findByDeliveryTaskId(deliveryTaskId: string) {
-        return await this.prisma.delivery_Status_Log.findMany({
-            where: { delivery_task_id: deliveryTaskId },
-            orderBy: { created_at: "desc" },
-        })
-    }
-
-    async findLatestByDeliveryTaskId(deliveryTaskId: string) {
-        return await this.prisma.delivery_Status_Log.findFirst({
-            where: { delivery_task_id: deliveryTaskId },
-            orderBy: { created_at: "desc" },
-        })
-    }
-
-    async countByStatus(status: DeliveryTaskStatus) {
-        return await this.prisma.delivery_Status_Log.count({
-            where: { status },
-        })
-    }
-
-    async getStatusTimeline(deliveryTaskId: string) {
-        const logs = await this.prisma.delivery_Status_Log.findMany({
-            where: { delivery_task_id: deliveryTaskId },
-            orderBy: { created_at: "asc" },
-            select: {
-                status: true,
-                created_at: true,
-                changed_by: true,
-                note: true,
-            },
-        })
-
-        return logs
-    }
 }

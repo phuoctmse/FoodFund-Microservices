@@ -1,5 +1,4 @@
 export * from "./request/assign-task-to-staff.input"
 export * from "./request/delivery-task-filter.input"
-export * from "./request/self-assign-task.input"
 export * from "./request/update-task-status.input"
 export * from "./response/delivery-task-stats.response"

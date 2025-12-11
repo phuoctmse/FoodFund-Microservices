@@ -13,18 +13,14 @@ export class DeliveryTaskCacheService extends BaseCacheService<DeliveryTask> {
     protected readonly TTL = {
         SINGLE_TASK: 60 * 30, // 30 minutes
         TASK_LIST: 60 * 15, // 15 minutes
-        MEAL_BATCH_TASKS: 60 * 30, // 30 minutes
         STAFF_TASKS: 60 * 30, // 30 minutes
-        CAMPAIGN_PHASE_TASKS: 60 * 30, // 30 minutes
         STATS: 60 * 10, // 10 minutes
     }
 
     protected readonly KEYS = {
         SINGLE: "delivery-task",
         LIST: "delivery-tasks:list",
-        MEAL_BATCH: "delivery-tasks:meal-batch",
         STAFF: "delivery-tasks:staff",
-        CAMPAIGN_PHASE: "delivery-tasks:campaign-phase",
         STATS: "delivery-tasks:stats",
     }
 
@@ -65,30 +61,6 @@ export class DeliveryTaskCacheService extends BaseCacheService<DeliveryTask> {
         return this.deleteAllLists(this.KEYS.LIST)
     }
 
-    // ==================== Meal Batch Tasks ====================
-
-    async getMealBatchTasks(
-        mealBatchId: string,
-    ): Promise<DeliveryTask[] | null> {
-        return this.getRelatedList(this.KEYS.MEAL_BATCH, mealBatchId)
-    }
-
-    async setMealBatchTasks(
-        mealBatchId: string,
-        tasks: DeliveryTask[],
-    ): Promise<void> {
-        return this.setRelatedList(
-            this.KEYS.MEAL_BATCH,
-            mealBatchId,
-            tasks,
-            this.TTL.MEAL_BATCH_TASKS,
-        )
-    }
-
-    async deleteMealBatchTasks(mealBatchId: string): Promise<void> {
-        return this.deleteRelatedList(this.KEYS.MEAL_BATCH, mealBatchId)
-    }
-
     // ==================== Staff Tasks ====================
 
     async getStaffTasks(
@@ -111,30 +83,6 @@ export class DeliveryTaskCacheService extends BaseCacheService<DeliveryTask> {
 
     async deleteStaffTasks(deliveryStaffId: string): Promise<void> {
         return this.deleteRelatedList(this.KEYS.STAFF, deliveryStaffId)
-    }
-
-    // ==================== Campaign Phase Tasks ====================
-
-    async getCampaignPhaseTasks(
-        campaignPhaseId: string,
-    ): Promise<DeliveryTask[] | null> {
-        return this.getRelatedList(this.KEYS.CAMPAIGN_PHASE, campaignPhaseId)
-    }
-
-    async setCampaignPhaseTasks(
-        campaignPhaseId: string,
-        tasks: DeliveryTask[],
-    ): Promise<void> {
-        return this.setRelatedList(
-            this.KEYS.CAMPAIGN_PHASE,
-            campaignPhaseId,
-            tasks,
-            this.TTL.CAMPAIGN_PHASE_TASKS,
-        )
-    }
-
-    async deleteCampaignPhaseTasks(campaignPhaseId: string): Promise<void> {
-        return this.deleteRelatedList(this.KEYS.CAMPAIGN_PHASE, campaignPhaseId)
     }
 
     // ==================== Statistics ====================
@@ -177,48 +125,6 @@ export class DeliveryTaskCacheService extends BaseCacheService<DeliveryTask> {
 
     async deletePhaseStats(campaignPhaseId: string): Promise<void> {
         return this.deleteStats(this.KEYS.STATS, `phase:${campaignPhaseId}`)
-    }
-
-    // ==================== Invalidation ====================
-
-    async invalidateTask(
-        taskId: string,
-        mealBatchId?: string,
-        deliveryStaffId?: string,
-        campaignPhaseId?: string,
-    ): Promise<void> {
-        const operations: Promise<void>[] = [
-            this.deleteTask(taskId),
-            this.deleteAllTaskLists(),
-        ]
-
-        if (mealBatchId) {
-            operations.push(this.deleteMealBatchTasks(mealBatchId))
-        }
-
-        if (deliveryStaffId) {
-            operations.push(this.deleteStaffTasks(deliveryStaffId))
-        }
-
-        if (campaignPhaseId) {
-            operations.push(
-                this.deleteCampaignPhaseTasks(campaignPhaseId),
-                this.deletePhaseStats(campaignPhaseId),
-            )
-        }
-
-        return this.invalidateMultiple(...operations)
-    }
-
-    async invalidateAll(): Promise<void> {
-        return this.invalidateByPatterns(
-            `${this.KEYS.SINGLE}:*`,
-            `${this.KEYS.LIST}:*`,
-            `${this.KEYS.MEAL_BATCH}:*`,
-            `${this.KEYS.STAFF}:*`,
-            `${this.KEYS.CAMPAIGN_PHASE}:*`,
-            `${this.KEYS.STATS}:*`,
-        )
     }
 
     // ==================== Health Check ====================
