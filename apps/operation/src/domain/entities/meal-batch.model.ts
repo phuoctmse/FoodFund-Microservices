@@ -17,6 +17,12 @@ export class MealBatch extends BaseSchema {
         kitchenStaffId: string
 
     @Field(() => String, {
+        nullable: true,
+        description: "ID of the planned meal if selected from the list",
+    })
+        plannedMealId?: string
+
+    @Field(() => String, {
         description: "Name of the food prepared (e.g., 'Cơm gà', 'Phở bò')",
     })
         foodName: string

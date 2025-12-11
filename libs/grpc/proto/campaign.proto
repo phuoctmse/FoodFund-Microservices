@@ -10,6 +10,7 @@ service CampaignService {
   rpc GetCampaignPhase(GetCampaignPhaseRequest) returns (GetCampaignPhaseResponse);
   rpc GetCampaignPhaseInfo(GetCampaignPhaseInfoRequest) returns (GetCampaignPhaseInfoResponse);
   rpc GetFundraiserByPhaseId(GetFundraiserByPhaseIdRequest) returns (GetFundraiserByPhaseIdResponse);
+  rpc GetPlannedIngredients(GetPlannedIngredientsRequest) returns (GetPlannedIngredientsResponse);
   rpc UpdatePhaseStatus(UpdatePhaseStatusRequest) returns (UpdatePhaseStatusResponse);
   rpc InvalidateCampaignCache(InvalidateCampaignCacheRequest) returns (InvalidateCampaignCacheResponse);
   rpc SendNotification(SendNotificationRequest) returns (SendNotificationResponse);
@@ -133,6 +134,23 @@ message GetFundraiserByPhaseIdResponse {
   bool success = 1;
   string fundraiser_id = 2;
   string error = 3;
+}
+
+message GetPlannedIngredientsRequest {
+  string phase_id = 1;
+}
+
+message GetPlannedIngredientsResponse {
+  bool success = 1;
+  repeated PlannedIngredientInfo ingredients = 2;
+  string error = 3;
+}
+
+message PlannedIngredientInfo {
+  string id = 1;
+  string name = 2;
+  int32 quantity = 3;
+  string unit = 4;
 }
 
 message UpdatePhaseStatusRequest {

@@ -45,6 +45,10 @@ export interface SyncPhasesData {
 
 @Injectable()
 export class CampaignPhaseRepository {
+    private readonly PHASE_INCLUDE_FIELDS = {
+        planned_meals: true,
+        planned_ingredients: true,
+    }
     constructor(private readonly prisma: PrismaClient) {}
 
     async getCampaignIdByPhaseId(phaseId: string): Promise<string | null> {
@@ -289,12 +293,27 @@ export class CampaignPhaseRepository {
             deliveryFundsAmount:
                 deliveryFunds > 0n ? deliveryFunds.toString() : undefined,
             status: dbPhase.status as CampaignPhaseStatus,
+            plannedMeals: dbPhase.planned_meals?.map((meal: any) => ({
+                id: meal.id,
+                campaignPhaseId: meal.campaign_phase_id,
+                name: meal.name,
+                quantity: meal.quantity,
+                createdAt: meal.created_at,
+                updatedAt: meal.updated_at,
+            })),
+            plannedIngredients: dbPhase.planned_ingredients?.map(
+                (ingredient: any) => ({
+                    id: ingredient.id,
+                    campaignPhaseId: ingredient.campaign_phase_id,
+                    name: ingredient.name,
+                    quantity: ingredient.quantity.toString(),
+                    unit: ingredient.unit,
+                    createdAt: ingredient.created_at,
+                    updatedAt: ingredient.updated_at,
+                }),
+            ),
             created_at: dbPhase.created_at,
             updated_at: dbPhase.updated_at,
         }
-    }
-
-    private mapToGraphQLModel(dbPhase: any) {
-        return this.mapToGraphQLModelWithFunds(dbPhase, BigInt(0))
     }
 }

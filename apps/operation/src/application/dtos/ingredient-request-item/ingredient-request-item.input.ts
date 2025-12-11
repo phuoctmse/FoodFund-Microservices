@@ -2,6 +2,7 @@ import { Field, InputType, Int } from "@nestjs/graphql"
 import {
     IsInt,
     IsNotEmpty,
+    IsNumberString,
     IsOptional,
     IsString,
     MaxLength,
@@ -21,13 +22,22 @@ export class CreateIngredientRequestItemInput {
         ingredientName: string
 
     @Field(() => String, {
-        description:
-            "Quantity with unit (e.g., '5kg', '10 units', max 50 chars)",
+        description: "Quantity as decimal (e.g., '2.5', '10.75')",
+    })
+    @IsNumberString(
+        { no_symbols: true },
+        { message: "Quantity must be a valid decimal number" },
+    )
+    @IsNotEmpty({ message: "Quantity is required" })
+        quantity: string
+
+    @Field(() => String, {
+        description: "Unit of measurement (e.g., 'kg', 'ml', 'gói')",
     })
     @IsString()
-    @IsNotEmpty()
-    @MaxLength(50, { message: "Quantity must not exceed 50 characters" })
-        quantity: string
+    @IsNotEmpty({ message: "Unit is required" })
+    @MaxLength(50, { message: "Unit must not exceed 50 characters" })
+        unit: string
 
     @Field(() => Int, {
         description: "Estimated unit price in VND (must be > 0)",
@@ -51,4 +61,11 @@ export class CreateIngredientRequestItemInput {
     @IsString()
     @MaxLength(200, { message: "Supplier name must not exceed 200 characters" })
         supplier?: string
+
+    @Field(() => String, {
+        nullable: true,
+        description: "ID of the planned ingredient if selecting from the list",
+    })
+    @IsOptional()
+        plannedIngredientId?: string
 }

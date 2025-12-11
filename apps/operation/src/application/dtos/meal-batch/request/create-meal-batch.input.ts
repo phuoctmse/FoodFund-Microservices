@@ -4,6 +4,7 @@ import {
     IsArray,
     IsInt,
     IsNotEmpty,
+    IsOptional,
     IsString,
     MaxLength,
     Min,
@@ -18,6 +19,14 @@ export class CreateMealBatchInput {
     @IsNotEmpty({ message: "Campaign phase ID is required" })
     @IsString()
         campaignPhaseId: string
+
+    @Field(() => String, {
+        nullable: true,
+        description:
+            "ID of the planned meal if selecting from the list (optional for custom meals)",
+    })
+    @IsOptional()
+        plannedMealId?: string
 
     @Field(() => String, {
         description: "Name of the food prepared (e.g., 'Cơm gà', 'Phở bò')",

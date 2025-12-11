@@ -2,6 +2,8 @@ import { Directive, Field, ObjectType } from "@nestjs/graphql"
 import { BaseSchema } from "../../shared"
 import { CampaignPhaseStatus } from "../enums/campaign-phase/campaign-phase.enum"
 import { Campaign } from "./campaign.model"
+import { PlannedMeal } from "./planned-meal.model"
+import { PlannedIngredient } from "./planned-ingredient.model"
 
 @ObjectType("CampaignPhase")
 @Directive("@key(fields: \"id\")")
@@ -61,6 +63,18 @@ export class CampaignPhase extends BaseSchema {
 
     @Field(() => Campaign, { nullable: true })
         campaign?: Campaign
+
+    @Field(() => [PlannedMeal], {
+        nullable: true,
+        description: "List of planned meals for this phase",
+    })
+        plannedMeals?: PlannedMeal[]
+
+    @Field(() => [PlannedIngredient], {
+        nullable: true,
+        description: "List of planned ingredients for this phase",
+    })
+        plannedIngredients?: PlannedIngredient[]
 
     constructor() {
         super()

@@ -26,6 +26,7 @@ import { WalletTransactionService } from "./application/services/wallet/wallet-t
 import { WalletTransactionSearchService } from "./application/services/wallet/wallet-transaction-search.service"
 import { BadgeService, UserBadgeService, BadgeMilestoneService } from "./application/services/badge"
 import { BadgeEmailService } from "./application/services/badge/badge-email.service"
+import { SystemConfigService } from "./application/services/system-config/system-config.service"
 import { BrevoEmailService } from "@libs/email"
 import {
     UserRepository,
@@ -33,6 +34,7 @@ import {
     WalletRepository,
     BadgeRepository,
     UserBadgeRepository,
+    SystemConfigRepository,
 } from "./application/repositories"
 import { PrismaUserService } from "./infrastructure/database"
 import { UserGrpcController } from "./presentation/grpc"
@@ -53,6 +55,7 @@ import {
     BadgeFieldResolver,
     OrganizationMutationResolver,
     OrganizationReferenceResolver,
+    SystemConfigResolver,
 } from "./presentation/graphql/resolvers"
 import { HealthController } from "./presentation/http/controllers"
 
@@ -115,6 +118,7 @@ import { WalletTransactionConsumer } from "./application/handlers/kafka/wallet-t
         WalletRepository,
         BadgeRepository,
         UserBadgeRepository,
+        SystemConfigRepository,
 
         // Application - Use Cases
         UserAdminService,
@@ -133,6 +137,7 @@ import { WalletTransactionConsumer } from "./application/handlers/kafka/wallet-t
         BadgeEmailService,
         BrevoEmailService,
         SpacesUploadService,
+        SystemConfigService,
 
         // Presentation - Resolvers
         UserQueryResolver,
@@ -151,6 +156,7 @@ import { WalletTransactionConsumer } from "./application/handlers/kafka/wallet-t
         BadgeFieldResolver,
         OrganizationMutationResolver,
         OrganizationReferenceResolver,
+        SystemConfigResolver,
     ],
     exports: [UserRepository],
 })

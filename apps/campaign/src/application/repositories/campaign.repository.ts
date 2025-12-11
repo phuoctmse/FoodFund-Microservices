@@ -45,6 +45,15 @@ export interface CreateCampaignData {
         ingredientBudgetPercentage: number
         cookingBudgetPercentage: number
         deliveryBudgetPercentage: number
+        plannedMeals?: Array<{
+            name: string
+            quantity: number
+        }>
+        plannedIngredients?: Array<{
+            name: string
+            quantity: number
+            unit: string
+        }>
     }>
 }
 
@@ -102,6 +111,10 @@ export class CampaignRepository {
         campaign_phases: {
             where: { is_active: true },
             orderBy: { created_at: "asc" as const },
+            include: {
+                plannedMeals: true,
+                plannedIngredients: true,
+            },
         },
     } as const
 
@@ -128,28 +141,47 @@ export class CampaignRepository {
                     status: campaignData.status || CampaignStatus.PENDING,
                     is_active: true,
                 },
-                include: this.CAMPAIGN_JOIN_FIELDS,
             })
 
             if (phases && phases.length > 0) {
-                await tx.campaign_Phase.createMany({
-                    data: phases.map((phase) => ({
-                        campaign_id: campaign.id,
-                        phase_name: phase.phaseName,
-                        location: phase.location,
-                        ingredient_purchase_date: phase.ingredientPurchaseDate,
-                        cooking_date: phase.cookingDate,
-                        delivery_date: phase.deliveryDate,
-                        ingredient_budget_percentage:
-                            phase.ingredientBudgetPercentage,
-                        cooking_budget_percentage:
-                            phase.cookingBudgetPercentage,
-                        delivery_budget_percentage:
-                            phase.deliveryBudgetPercentage,
-                        status: "PLANNING" as const,
-                        is_active: true,
-                    })),
-                })
+                for (const phase of phases) {
+                    const createdPhase = await tx.campaign_Phase.create({
+                        data: {
+                            campaign_id: campaign.id,
+                            phase_name: phase.phaseName,
+                            location: phase.location,
+                            ingredient_purchase_date: phase.ingredientPurchaseDate,
+                            cooking_date: phase.cookingDate,
+                            delivery_date: phase.deliveryDate,
+                            ingredient_budget_percentage: phase.ingredientBudgetPercentage,
+                            cooking_budget_percentage: phase.cookingBudgetPercentage,
+                            delivery_budget_percentage: phase.deliveryBudgetPercentage,
+                            status: "PLANNING" as const,
+                            is_active: true,
+                        },
+                    })
+
+                    if (phase.plannedMeals && phase.plannedMeals.length > 0) {
+                        await tx.planned_Meal.createMany({
+                            data: phase.plannedMeals.map((meal) => ({
+                                campaign_phase_id: createdPhase.id,
+                                name: meal.name,
+                                quantity: meal.quantity,
+                            })),
+                        })
+                    }
+
+                    if (phase.plannedIngredients && phase.plannedIngredients.length > 0) {
+                        await tx.planned_Ingredient.createMany({
+                            data: phase.plannedIngredients.map((ingredient) => ({
+                                campaign_phase_id: createdPhase.id,
+                                name: ingredient.name,
+                                quantity: ingredient.quantity,
+                                unit: ingredient.unit,
+                            })),
+                        })
+                    }
+                }
             }
 
             return await tx.campaign.findUnique({
@@ -675,37 +707,7 @@ export class CampaignRepository {
     }
 
     async update(id: string, data: UpdateCampaignData): Promise<Campaign> {
-        const updateData: any = {}
-
-        if (data.title !== undefined) updateData.title = data.title
-        if (data.description !== undefined)
-            updateData.description = data.description
-        if (data.coverImage !== undefined)
-            updateData.cover_image = data.coverImage
-        if (data.coverImageFileKey !== undefined)
-            updateData.cover_image_file_key = data.coverImageFileKey
-        if (data.targetAmount !== undefined)
-            updateData.target_amount = data.targetAmount
-        if (data.fundraisingStartDate !== undefined)
-            updateData.fundraising_start_date = data.fundraisingStartDate
-        if (data.fundraisingEndDate !== undefined)
-            updateData.fundraising_end_date = data.fundraisingEndDate
-        if (data.categoryId !== undefined)
-            updateData.category_id = data.categoryId
-        if (data.status !== undefined) updateData.status = data.status
-        if (data.changedStatusAt !== undefined)
-            updateData.changed_status_at = data.changedStatusAt
-        if (data.completedAt !== undefined)
-            updateData.completed_at = data.completedAt
-        if (data.extensionCount !== undefined)
-            updateData.extension_count = data.extensionCount
-        if (data.extensionDays !== undefined)
-            updateData.extension_days = data.extensionDays
-        if (data.donationCount !== undefined)
-            updateData.donation_count = data.donationCount
-        if (data.receivedAmount !== undefined)
-            updateData.received_amount = data.receivedAmount
-        if (data.reason !== undefined) updateData.reason = data.reason
+        const updateData = this.buildUpdateData(data)
 
         const campaign = await this.prisma.campaign.update({
             where: { id, is_active: true },
@@ -942,6 +944,25 @@ export class CampaignRepository {
                         10000n
                         : 0n
 
+                const plannedMeals = phase.plannedMeals?.map((meal: any) => ({
+                    id: meal.id,
+                    campaignPhaseId: meal.campaign_phase_id,
+                    name: meal.name,
+                    quantity: meal.quantity,
+                    createdAt: meal.created_at,
+                    updatedAt: meal.updated_at,
+                })) || []
+
+                const plannedIngredients = phase.plannedIngredients?.map((ingredient: any) => ({
+                    id: ingredient.id,
+                    campaignPhaseId: ingredient.campaign_phase_id,
+                    name: ingredient.name,
+                    quantity: ingredient.quantity.toString(),
+                    unit: ingredient.unit,
+                    createdAt: ingredient.created_at,
+                    updatedAt: ingredient.updated_at,
+                })) || []
+
                 return {
                     id: phase.id,
                     campaignId: phase.campaign_id,
@@ -967,6 +988,8 @@ export class CampaignRepository {
                             ? deliveryFunds.toString()
                             : undefined,
                     status: phase.status,
+                    plannedMeals,
+                    plannedIngredients,
                     created_at: phase.created_at,
                     updated_at: phase.updated_at,
                 }
@@ -1073,5 +1096,40 @@ export class CampaignRepository {
             daysActive,
             totalPhases,
         }
+    }
+
+    private buildUpdateData(data: UpdateCampaignData): Record<string, any> {
+        const fieldMappings: Array<{
+            source: keyof UpdateCampaignData
+            target: string
+        }> = [
+            { source: "title", target: "title" },
+            { source: "description", target: "description" },
+            { source: "coverImage", target: "cover_image" },
+            { source: "coverImageFileKey", target: "cover_image_file_key" },
+            { source: "targetAmount", target: "target_amount" },
+            { source: "fundraisingStartDate", target: "fundraising_start_date" },
+            { source: "fundraisingEndDate", target: "fundraising_end_date" },
+            { source: "categoryId", target: "category_id" },
+            { source: "status", target: "status" },
+            { source: "changedStatusAt", target: "changed_status_at" },
+            { source: "completedAt", target: "completed_at" },
+            { source: "extensionCount", target: "extension_count" },
+            { source: "extensionDays", target: "extension_days" },
+            { source: "donationCount", target: "donation_count" },
+            { source: "receivedAmount", target: "received_amount" },
+            { source: "reason", target: "reason" },
+        ]
+
+        const updateData: Record<string, any> = {}
+
+        for (const mapping of fieldMappings) {
+            const value = data[mapping.source]
+            if (value !== undefined) {
+                updateData[mapping.target] = value
+            }
+        }
+
+        return updateData
     }
 }

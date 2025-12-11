@@ -272,7 +272,7 @@ export interface GetWalletTransactionsByPaymentIdResponse {
     error?: string
 }
 
-export interface GetVerifiedOrganizationsRequest {}
+export interface GetVerifiedOrganizationsRequest { }
 
 export interface VerifiedOrganizationInfo {
     id: string
@@ -322,5 +322,17 @@ export interface CreditFundraiserWalletWithSurplusResponse {
     success: boolean
     walletTransactionId?: string
     newBalance?: string
+    error?: string
+}
+
+// System Config
+export interface GetSystemConfigRequest {
+    key: string
+}
+
+export interface GetSystemConfigResponse {
+    success: boolean
+    value?: string
+    dataType?: string
     error?: string
 }

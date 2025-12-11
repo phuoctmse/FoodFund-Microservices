@@ -291,10 +291,16 @@ export class CampaignSchedulerService {
                     ? (Number(receivedAmount) * 100) / Number(targetAmount)
                     : 0
 
+            const minFundingPercentage =
+                await this.userClientService.getSystemConfigNumber(
+                    "MIN_FUNDING_PERCENTAGE",
+                    50,
+                )
+
             let newStatus: CampaignStatus
             let reason: string
 
-            if (fundingPercentage >= 50) {
+            if (fundingPercentage >= minFundingPercentage) {
                 newStatus = CampaignStatus.PROCESSING
                 reason =
                     fundingPercentage >= 100
@@ -302,14 +308,14 @@ export class CampaignSchedulerService {
                         : "PARTIAL_FUNDING_SUCCESS"
 
                 this.logger.log(
-                    `Campaign ${campaign.id} reached ${fundingPercentage.toFixed(2)}% funding - Moving to PROCESSING`,
+                    `Campaign ${campaign.id} reached ${fundingPercentage.toFixed(2)}% funding (min: ${minFundingPercentage}%) - Moving to PROCESSING`,
                 )
             } else {
                 newStatus = CampaignStatus.ENDED
                 reason = "INSUFFICIENT_FUNDING"
 
                 this.logger.log(
-                    `Campaign ${campaign.id} only reached ${fundingPercentage.toFixed(2)}% funding - Moving to ENDED and pooling funds`,
+                    `Campaign ${campaign.id} only reached ${fundingPercentage.toFixed(2)}% funding (min: ${minFundingPercentage}%) - Moving to ENDED and pooling funds`,
                 )
 
                 if (receivedAmount > 0n) {

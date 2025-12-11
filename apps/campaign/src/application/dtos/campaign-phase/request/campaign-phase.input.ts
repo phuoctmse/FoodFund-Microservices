@@ -1,13 +1,17 @@
 import { InputType, Field } from "@nestjs/graphql"
 import {
+    IsArray,
     IsNotEmpty,
     IsNumberString,
     IsOptional,
     IsString,
     IsUUID,
     MinLength,
+    ValidateNested,
 } from "class-validator"
 import { Type } from "class-transformer"
+import { PlannedMealInput } from "../../planned-meal"
+import { PlannedIngredientInput } from "../../planned-ingredient"
 
 @InputType()
 export class CreatePhaseInput {
@@ -67,6 +71,26 @@ export class CreatePhaseInput {
     @IsNumberString()
     @IsNotEmpty({ message: "Delivery budget percentage is required" })
         deliveryBudgetPercentage: string
+
+    @Field(() => [PlannedMealInput], {
+        nullable: true,
+        description: "List of planned meals for this phase",
+    })
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => PlannedMealInput)
+        plannedMeals?: PlannedMealInput[]
+
+    @Field(() => [PlannedIngredientInput], {
+        nullable: true,
+        description: "List of planned ingredients for this phase",
+    })
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => PlannedIngredientInput)
+        plannedIngredients?: PlannedIngredientInput[]
 }
 
 @InputType()
@@ -130,4 +154,24 @@ export class SyncPhaseInput {
     @IsNumberString()
     @IsNotEmpty({ message: "Delivery budget percentage is required" })
         deliveryBudgetPercentage: string
+
+    @Field(() => [PlannedMealInput], {
+        nullable: true,
+        description: "List of planned meals for this phase",
+    })
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => PlannedMealInput)
+        plannedMeals?: PlannedMealInput[]
+
+    @Field(() => [PlannedIngredientInput], {
+        nullable: true,
+        description: "List of planned ingredients for this phase",
+    })
+    @IsOptional()
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => PlannedIngredientInput)
+        plannedIngredients?: PlannedIngredientInput[]
 }

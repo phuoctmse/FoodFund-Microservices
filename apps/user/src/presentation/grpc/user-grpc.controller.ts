@@ -5,6 +5,7 @@ import {
     WalletRepository,
     OrganizationRepository,
     UserBadgeRepository,
+    SystemConfigRepository,
 } from "../../application/repositories"
 import { UserBadgeService } from "../../application/services/badge"
 import { Role } from "@libs/databases"
@@ -58,7 +59,10 @@ import {
     GetVerifiedOrganizationsResponse,
     CreditFundraiserWalletWithSurplusRequest,
     CreditFundraiserWalletWithSurplusResponse,
+    GetSystemConfigRequest,
+    GetSystemConfigResponse,
 } from "../../application/dtos/user-grpc.dto"
+import { SystemConfigService } from "../../application/services/system-config/system-config.service"
 
 const ROLE_MAP = {
     DONOR: 0,
@@ -80,6 +84,7 @@ export class UserGrpcController {
         private readonly userBadgeService: UserBadgeService,
         private readonly userBadgeRepository: UserBadgeRepository,
         private readonly grpcClientService: GrpcClientService,
+        private readonly systemConfigService: SystemConfigService,
     ) { }
 
     /**
@@ -1252,6 +1257,43 @@ export class UserGrpcController {
             return {
                 success: false,
                 error: errorMessage,
+            }
+        }
+    }
+
+    @GrpcMethod("UserService", "GetSystemConfig")
+    async getSystemConfig(
+        data: GetSystemConfigRequest,
+    ): Promise<GetSystemConfigResponse> {
+        const { key } = data
+
+        if (!key) {
+            return {
+                success: false,
+                error: "Config key is required",
+            }
+        }
+
+        try {
+            const config = await this.systemConfigService.getConfig(key)
+
+            if (!config) {
+                return {
+                    success: false,
+                    error: `Config ${key} not found`,
+                }
+            }
+
+            return {
+                success: true,
+                value: config.value,
+                dataType: config.dataType,
+            }
+        } catch (error) {
+            this.logger.error(`[GetSystemConfig] Failed to get config ${key}:`, error)
+            return {
+                success: false,
+                error: error.message,
             }
         }
     }

@@ -12,14 +12,15 @@ export class BullDatadogService implements OnModuleInit {
     private statsd: InstanceType<typeof StatsD>
     private readonly env = envConfig()
     private lastErrorLog = 0
+    private lastWarningLog: Record<string, number> = {}
 
     constructor(
         @InjectQueue(QUEUE_NAMES.POST_LIKES) private readonly postLikeQueue: Queue,
         @InjectQueue(QUEUE_NAMES.CAMPAIGN_JOBS)
         private readonly campaignJobsQueue: Queue,
-    ) {}
+    ) { }
 
-    onModuleInit() {
+    async onModuleInit() {
         this.statsd = new StatsD({
             host: this.env.datadog.agentHost || "localhost",
             port: this.env.datadog.agentPort || 8125,
@@ -31,6 +32,24 @@ export class BullDatadogService implements OnModuleInit {
         })
 
         this.logger.log("Bull Datadog monitoring initialized")
+
+        // Log failed jobs details on startup
+        await this.logFailedJobsDetails()
+    }
+
+    private async logFailedJobsDetails() {
+        try {
+            const failedJobs = await this.campaignJobsQueue.getFailed(0, 20)
+            if (failedJobs.length > 0) {
+                this.logger.warn(`Found ${failedJobs.length} failed jobs in campaign-jobs queue:`)
+                for (const job of failedJobs) {
+                    this.logger.warn(`  - Job ID: ${job.id}, Name: ${job.name}, Failed Reason: ${job.failedReason}`)
+                    this.logger.warn(`    Data: ${JSON.stringify(job.data).substring(0, 200)}`)
+                }
+            }
+        } catch (error) {
+            this.logger.error("Failed to get failed jobs details", error)
+        }
     }
 
     @Cron(CronExpression.EVERY_10_SECONDS)
@@ -67,6 +86,25 @@ export class BullDatadogService implements OnModuleInit {
         }
     }
 
+    @Cron(CronExpression.EVERY_HOUR)
+    async cleanFailedJobs() {
+        if (this.env.nodeEnv === "development") {
+            return
+        }
+
+        try {
+            const postLikeCleaned = await this.postLikeQueue.clean(3600000, "failed")
+            const campaignJobsCleaned = await this.campaignJobsQueue.clean(3600000, "failed")
+
+            const totalCleaned = postLikeCleaned.length + campaignJobsCleaned.length
+            if (totalCleaned > 0) {
+                this.logger.log(`Auto-cleaned ${totalCleaned} failed jobs (post-likes: ${postLikeCleaned.length}, campaign-jobs: ${campaignJobsCleaned.length})`)
+            }
+        } catch (error) {
+            this.logger.error("Failed to auto-clean failed jobs", error)
+        }
+    }
+
     private async collectQueueMetrics(queueName: string, queue: Queue) {
         try {
             const [waiting, active, completed, failed, delayed] =
@@ -92,12 +130,17 @@ export class BullDatadogService implements OnModuleInit {
             this.statsd.gauge(`queue.${queueName}.health_score`, healthScore)
 
             if (waiting > 100 || failed > 10 || healthScore < 70) {
-                this.logger.warn(`Queue ${queueName} needs attention`, {
-                    waiting,
-                    active,
-                    failed,
-                    healthScore,
-                })
+                // Throttle warning logs to once per minute per queue
+                const now = Date.now()
+                if (!this.lastWarningLog[queueName] || now - this.lastWarningLog[queueName] > 60000) {
+                    this.logger.warn(`Queue ${queueName} needs attention`, {
+                        waiting,
+                        active,
+                        failed,
+                        healthScore,
+                    })
+                    this.lastWarningLog[queueName] = now
+                }
             }
         } catch (error) {
             const errorMessage = error?.message || String(error)

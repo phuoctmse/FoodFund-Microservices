@@ -67,7 +67,7 @@ export class IngredientRequestItemRepository {
             id: item.id,
             requestId: item.request_id,
             ingredientName: item.ingredient_name,
-            quantity: item.quantity,
+            quantity: item.quantity.toString(),
             estimatedUnitPrice: item.estimated_unit_price,
             estimatedTotalPrice: item.estimated_total_price,
             supplier: item.supplier,

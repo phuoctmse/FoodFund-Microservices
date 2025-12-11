@@ -182,3 +182,116 @@ export class CampaignNewPostBuilder extends NotificationBuilder<NotificationType
         }
     }
 }
+
+/**
+ * Campaign Reassignment Pending Notification Builder
+ */
+@Injectable()
+export class CampaignReassignmentPendingBuilder extends NotificationBuilder<NotificationType.CAMPAIGN_REASSIGNMENT_PENDING> {
+    readonly type = NotificationType.CAMPAIGN_REASSIGNMENT_PENDING
+
+    build(
+        context: NotificationBuilderContext<NotificationType.CAMPAIGN_REASSIGNMENT_PENDING>,
+    ): NotificationBuilderResult {
+        this.validate(context.data)
+        const data = context.data
+
+        const campaignTitle = this.truncate(data.campaignTitle, 50)
+        const message = `Bạn được chỉ định tiếp nhận chiến dịch "${campaignTitle}". Vui lòng xác nhận để hoàn tất việc chuyển giao.`
+
+        return {
+            title: "📋 Yêu cầu tiếp nhận chiến dịch",
+            message,
+            metadata: {
+                campaignId: data.campaignId,
+                reassignmentId: data.reassignmentId,
+                assignedBy: data.assignedBy,
+                expiresAt: data.expiresAt,
+            },
+        }
+    }
+}
+
+/**
+ * Campaign Ownership Transferred Notification Builder
+ */
+@Injectable()
+export class CampaignOwnershipTransferredBuilder extends NotificationBuilder<NotificationType.CAMPAIGN_OWNERSHIP_TRANSFERRED> {
+    readonly type = NotificationType.CAMPAIGN_OWNERSHIP_TRANSFERRED
+
+    build(
+        context: NotificationBuilderContext<NotificationType.CAMPAIGN_OWNERSHIP_TRANSFERRED>,
+    ): NotificationBuilderResult {
+        this.validate(context.data)
+        const data = context.data
+
+        const campaignTitle = this.truncate(data.campaignTitle, 50)
+        const newOwnerName = data.newOwnerName || "người dùng mới"
+        const message = `Chiến dịch "${campaignTitle}" đã được chuyển giao thành công cho ${newOwnerName}.`
+
+        return {
+            title: "🔄 Chiến dịch đã chuyển giao",
+            message,
+            metadata: {
+                campaignId: data.campaignId,
+                reassignmentId: data.reassignmentId,
+                newOwnerId: data.newOwnerId,
+            },
+        }
+    }
+}
+
+/**
+ * Campaign Ownership Received Notification Builder
+ */
+@Injectable()
+export class CampaignOwnershipReceivedBuilder extends NotificationBuilder<NotificationType.CAMPAIGN_OWNERSHIP_RECEIVED> {
+    readonly type = NotificationType.CAMPAIGN_OWNERSHIP_RECEIVED
+
+    build(
+        context: NotificationBuilderContext<NotificationType.CAMPAIGN_OWNERSHIP_RECEIVED>,
+    ): NotificationBuilderResult {
+        this.validate(context.data)
+        const data = context.data
+
+        const campaignTitle = this.truncate(data.campaignTitle, 50)
+        const message = `Bạn đã tiếp nhận thành công chiến dịch "${campaignTitle}". Giờ đây bạn là chủ sở hữu mới của chiến dịch này.`
+
+        return {
+            title: "🎉 Tiếp nhận chiến dịch thành công",
+            message,
+            metadata: {
+                campaignId: data.campaignId,
+                reassignmentId: data.reassignmentId,
+                previousOwnerId: data.previousOwnerId,
+            },
+        }
+    }
+}
+
+/**
+ * Campaign Reassignment Expired Notification Builder
+ */
+@Injectable()
+export class CampaignReassignmentExpiredBuilder extends NotificationBuilder<NotificationType.CAMPAIGN_REASSIGNMENT_EXPIRED> {
+    readonly type = NotificationType.CAMPAIGN_REASSIGNMENT_EXPIRED
+
+    build(
+        context: NotificationBuilderContext<NotificationType.CAMPAIGN_REASSIGNMENT_EXPIRED>,
+    ): NotificationBuilderResult {
+        this.validate(context.data)
+        const data = context.data
+
+        const campaignTitle = this.truncate(data.campaignTitle, 50)
+        const message = `Yêu cầu chuyển giao chiến dịch "${campaignTitle}" đã hết hạn và bị hủy tự động.`
+
+        return {
+            title: "⏰ Yêu cầu chuyển giao hết hạn",
+            message,
+            metadata: {
+                campaignId: data.campaignId,
+                reassignmentId: data.reassignmentId,
+            },
+        }
+    }
+}
