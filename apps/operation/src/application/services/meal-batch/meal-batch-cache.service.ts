@@ -16,7 +16,6 @@ export class MealBatchCacheService extends BaseCacheService<MealBatch> {
         PHASE_BATCHES: 60 * 30,
         CAMPAIGN_BATCHES: 60 * 30,
         USER_BATCHES: 60 * 30,
-        STATS: 60 * 10,
     }
 
     protected readonly KEYS = {
@@ -25,7 +24,6 @@ export class MealBatchCacheService extends BaseCacheService<MealBatch> {
         PHASE: "meal-batches:phase",
         CAMPAIGN: "meal-batches:campaign",
         USER: "meal-batches:user",
-        STATS: "meal-batches:stats",
     }
 
     constructor(redis: RedisService) {
@@ -147,40 +145,6 @@ export class MealBatchCacheService extends BaseCacheService<MealBatch> {
         return this.deleteRelatedList(this.KEYS.USER, kitchenStaffId)
     }
 
-    // ==================== Statistics ====================
-
-    async getPhaseStats(campaignPhaseId: string): Promise<{
-        totalBatches: number
-        preparingCount: number
-        readyCount: number
-        deliveredCount: number
-        totalPortions: number
-    } | null> {
-        return this.getStats(this.KEYS.STATS, `phase:${campaignPhaseId}`)
-    }
-
-    async setPhaseStats(
-        campaignPhaseId: string,
-        stats: {
-            totalBatches: number
-            preparingCount: number
-            readyCount: number
-            deliveredCount: number
-            totalPortions: number
-        },
-    ): Promise<void> {
-        return this.setStats(
-            this.KEYS.STATS,
-            stats,
-            this.TTL.STATS,
-            `phase:${campaignPhaseId}`,
-        )
-    }
-
-    async deletePhaseStats(campaignPhaseId: string): Promise<void> {
-        return this.deleteStats(this.KEYS.STATS, `phase:${campaignPhaseId}`)
-    }
-
     // ==================== Invalidation ====================
 
     async invalidateBatch(
@@ -196,7 +160,6 @@ export class MealBatchCacheService extends BaseCacheService<MealBatch> {
         if (campaignPhaseId) {
             operations.push(
                 this.deletePhaseBatches(campaignPhaseId),
-                this.deletePhaseStats(campaignPhaseId),
             )
         }
 
@@ -205,17 +168,6 @@ export class MealBatchCacheService extends BaseCacheService<MealBatch> {
         }
 
         return this.invalidateMultiple(...operations)
-    }
-
-    async invalidateAll(): Promise<void> {
-        return this.invalidateByPatterns(
-            `${this.KEYS.SINGLE}:*`,
-            `${this.KEYS.LIST}:*`,
-            `${this.KEYS.PHASE}:*`,
-            `${this.KEYS.CAMPAIGN}:*`,
-            `${this.KEYS.USER}:*`,
-            `${this.KEYS.STATS}:*`,
-        )
     }
 
     // ==================== Health Check ====================
