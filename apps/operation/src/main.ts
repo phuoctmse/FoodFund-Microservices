@@ -53,7 +53,7 @@ async function bootstrap() {
     await app.startAllMicroservices()
     await app.listen(port)
 
-    console.log(`🚀 Operation Service is running on port ${port}`)
+    console.log(`🚀 Operation Service is running on port: ${port}`)
     console.log(`🔌 gRPC server is listening on 0.0.0.0:${grpcPort}`)
     console.log(`🔗 gRPC clients should connect to: ${grpcUrl}`)
 }
