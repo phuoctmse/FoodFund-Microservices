@@ -28,7 +28,21 @@ echo "🚀 FoodFund Microservices Deployment"
 echo "=================================================="
 echo "Tag: ${TAG} (unique: ${UNIQUE_TAG})"
 echo "Namespace: ${NAMESPACE}"
+echo "Git SHA: ${DD_GIT_COMMIT_SHA:-not set}"
 echo ""
+
+# ============================================
+# Datadog Source Code Integration
+# ============================================
+if [[ -n "${DD_GIT_COMMIT_SHA}" ]]; then
+    echo "📡 Updating ConfigMap with Git SHA for Datadog Source Code Integration..."
+    kubectl patch configmap app-config -n ${NAMESPACE} \
+        --type merge \
+        -p "{\"data\":{\"DD_GIT_COMMIT_SHA\":\"${DD_GIT_COMMIT_SHA}\",\"DD_GIT_REPOSITORY_URL\":\"${DD_GIT_REPOSITORY_URL}\"}}" \
+        2>/dev/null && echo "✅ ConfigMap updated with Git SHA" \
+        || echo "⚠️ Could not update ConfigMap (may not exist yet)"
+    echo ""
+fi
 
 # ============================================
 # PHASE 1: Deploy Subgraph Services in Parallel

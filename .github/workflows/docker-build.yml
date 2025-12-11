@@ -245,6 +245,8 @@ jobs:
           DEPLOY_CAMPAIGN: ${{ needs.detect-changes.outputs.campaign }}
           DEPLOY_OPERATION: ${{ needs.detect-changes.outputs.operation }}
           DEPLOY_GATEWAY: ${{ needs.detect-changes.outputs.gateway }}
+          DD_GIT_COMMIT_SHA: ${{ github.sha }}
+          DD_GIT_REPOSITORY_URL: https://github.com/${{ github.repository }}
         run: |
           # Set image tags based on branch
           if [ "${GITHUB_REF##*/}" = "main" ]; then

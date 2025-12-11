@@ -5,6 +5,10 @@ datadog:
   clusterName: foodfund-k8s
   site: us5.datadoghq.com
   
+  # Remote Configuration (required for Live Debugger & Dynamic Instrumentation)
+  remoteConfiguration:
+    enabled: true
+  
   # Tags for all metrics
   tags:
     - env:production
@@ -46,6 +50,11 @@ datadog:
   env:
     - name: DD_IGNORE_AUTOCONF
       value: "cilium"
+    # Enable Dynamic Instrumentation & Remote Config
+    - name: DD_DYNAMIC_INSTRUMENTATION_ENABLED
+      value: "true"
+    - name: DD_REMOTE_CONFIGURATION_ENABLED
+      value: "true"
   
   # Resources (increased for additional features)
   resources:
