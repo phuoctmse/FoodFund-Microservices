@@ -1,6 +1,5 @@
 import { Injectable } from "@nestjs/common"
 import { DeliveryTaskStatus } from "../../domain"
-import { DeliveryTaskFilterInput } from "../dtos/delivery-task"
 import { PrismaClient } from "../../generated/operation-client"
 
 export interface CreateDeliveryTaskData {
@@ -52,33 +51,10 @@ export class DeliveryTaskRepository {
         })
     }
 
-    async findMany(filter: DeliveryTaskFilterInput) {
-        const where: any = {}
-
-        if (filter.mealBatchId) {
-            where.meal_batch_id = filter.mealBatchId
-        }
-
-        if (filter.deliveryStaffId) {
-            where.delivery_staff_id = filter.deliveryStaffId
-        }
-
-        if (filter.status) {
-            where.status = filter.status
-        }
-
-        return await this.prisma.delivery_Task.findMany({
-            where,
-            take: filter.limit || 10,
-            skip: filter.offset || 0,
-            orderBy: { created_at: "desc" },
-        })
-    }
-
     async findByDeliveryStaffId(
         deliveryStaffId: string,
-        limit = 10,
-        offset = 0,
+        limit: number,
+        offset: number,
     ) {
         return await this.prisma.delivery_Task.findMany({
             where: { delivery_staff_id: deliveryStaffId },
@@ -88,14 +64,7 @@ export class DeliveryTaskRepository {
         })
     }
 
-    async findByMealBatchId(mealBatchId: string) {
-        return await this.prisma.delivery_Task.findMany({
-            where: { meal_batch_id: mealBatchId },
-            orderBy: { created_at: "desc" },
-        })
-    }
-
-    async findByMealBatchIds(mealBatchIds: string[], limit = 10, offset = 0) {
+    async findByMealBatchIds(mealBatchIds: string[], limit:number, offset:number) {
         return await this.prisma.delivery_Task.findMany({
             where: {
                 meal_batch_id: {
@@ -115,21 +84,6 @@ export class DeliveryTaskRepository {
                 status: data.status,
             },
         })
-    }
-
-    async hasPendingTaskForMealBatch(
-        deliveryStaffId: string,
-        mealBatchId: string,
-    ): Promise<boolean> {
-        const count = await this.prisma.delivery_Task.count({
-            where: {
-                delivery_staff_id: deliveryStaffId,
-                meal_batch_id: mealBatchId,
-                status: DeliveryTaskStatus.PENDING,
-            },
-        })
-
-        return count > 0
     }
 
     async hasActiveTaskInPhase(
@@ -161,35 +115,6 @@ export class DeliveryTaskRepository {
         })
 
         return count > 0
-    }
-
-    async getActiveTaskCountInPhase(
-        deliveryStaffId: string,
-        campaignPhaseId: string,
-    ): Promise<number> {
-        const mealBatches = await this.prisma.meal_Batch.findMany({
-            where: { campaign_phase_id: campaignPhaseId },
-            select: { id: true },
-        })
-
-        const mealBatchIds = mealBatches.map((mb) => mb.id)
-
-        if (mealBatchIds.length === 0) {
-            return 0
-        }
-
-        return await this.prisma.delivery_Task.count({
-            where: {
-                delivery_staff_id: deliveryStaffId,
-                meal_batch_id: { in: mealBatchIds },
-                status: {
-                    in: [
-                        DeliveryTaskStatus.ACCEPTED,
-                        DeliveryTaskStatus.OUT_FOR_DELIVERY,
-                    ],
-                },
-            },
-        })
     }
 
     async getStatsByMealBatchIds(mealBatchIds: string[]) {
@@ -260,11 +185,5 @@ export class DeliveryTaskRepository {
             completionRate: Math.round(completionRate * 100) / 100,
             failureRate: Math.round(failureRate * 100) / 100,
         }
-    }
-
-    async countByStatus(status: DeliveryTaskStatus) {
-        return await this.prisma.delivery_Task.count({
-            where: { status },
-        })
     }
 }

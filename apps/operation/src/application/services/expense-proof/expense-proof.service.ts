@@ -192,7 +192,6 @@ export class ExpenseProofService extends BaseOperationService {
 
             await Promise.all([
                 this.cacheService.setProof(mappedProof.id, mappedProof),
-                this.cacheService.deleteRequestProofs(input.requestId),
                 this.cacheService.deleteOrganizationProofs(userContext.userId),
                 this.cacheService.deleteAllProofLists(),
                 this.cacheService.deleteProofStats(),
@@ -251,7 +250,6 @@ export class ExpenseProofService extends BaseOperationService {
 
             await Promise.all([
                 this.cacheService.setProof(mappedProof.id, mappedProof),
-                this.cacheService.deleteRequestProofs(proof.request_id),
                 this.cacheService.deleteAllProofLists(),
                 this.cacheService.deleteProofStats(),
             ])

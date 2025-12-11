@@ -1,6 +1,6 @@
 import { DeliveryTaskFilterInput } from "@app/operation/src/application/dtos/delivery-task"
 import { DeliveryTaskService } from "@app/operation/src/application/services"
-import { DeliveryStatusLog, DeliveryTask } from "@app/operation/src/domain"
+import { DeliveryTask } from "@app/operation/src/domain"
 import { CognitoGraphQLGuard, createUserContextFromToken, CurrentUser } from "@app/operation/src/shared"
 import { UseGuards, ValidationPipe } from "@nestjs/common"
 import { Args, Int, Query, Resolver } from "@nestjs/graphql"
@@ -54,35 +54,5 @@ export class DeliveryTaskQueryResolver {
     ): Promise<DeliveryTask[]> {
         const userContext = createUserContextFromToken(decodedToken)
         return this.deliveryTaskService.getMyTasks(userContext, limit, offset)
-    }
-
-    @Query(() => [DeliveryTask], {
-        name: "deliveryTasksByMealBatch",
-        description:
-            "Get delivery tasks for a specific meal batch (authentication required)",
-    })
-    @UseGuards(CognitoGraphQLGuard)
-    async getDeliveryTasksByMealBatch(
-        @Args("mealBatchId", { type: () => String })
-            mealBatchId: string,
-        @CurrentUser("decodedToken") decodedToken: any,
-    ): Promise<DeliveryTask[]> {
-        const userContext = createUserContextFromToken(decodedToken)
-        return this.deliveryTaskService.getTasksByMealBatch(
-            mealBatchId,
-            userContext,
-        )
-    }
-
-    @Query(() => [DeliveryStatusLog], {
-        name: "deliveryTaskStatusLogs",
-        description:
-            "Get status change history for a delivery task. Public access for transparency.",
-    })
-    async getDeliveryTaskStatusLogs(
-        @Args("taskId", { type: () => String })
-            taskId: string,
-    ): Promise<DeliveryStatusLog[]> {
-        return this.deliveryTaskService.getStatusLogs(taskId)
     }
 }

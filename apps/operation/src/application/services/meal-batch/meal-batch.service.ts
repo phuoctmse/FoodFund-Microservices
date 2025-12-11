@@ -205,7 +205,6 @@ export class MealBatchService {
                 this.cacheService.deletePhaseBatches(input.campaignPhaseId),
                 this.cacheService.deleteUserBatches(userContext.userId),
                 this.cacheService.deleteAllBatchLists(),
-                this.cacheService.deletePhaseStats(input.campaignPhaseId),
                 this.cacheService.deleteAllCampaignBatches(),
             ])
 
@@ -278,7 +277,6 @@ export class MealBatchService {
                 this.cacheService.deletePhaseBatches(mealBatch.campaignPhaseId),
                 this.cacheService.deleteUserBatches(mealBatch.kitchenStaffId),
                 this.cacheService.deleteAllBatchLists(),
-                this.cacheService.deletePhaseStats(mealBatch.campaignPhaseId),
                 this.cacheService.deleteAllCampaignBatches(),
             ])
 
