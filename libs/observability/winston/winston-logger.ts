@@ -1,7 +1,22 @@
 import * as winston from "winston"
 import { envConfig, isProduction } from "@libs/env"
+import tracer from "dd-trace"
 
 const { combine, timestamp, json, errors } = winston.format
+
+const ddTraceFormat = winston.format((info) => {
+    const span = tracer.scope().active()
+    if (span) {
+        const traceId = span.context().toTraceId()
+        const spanId = span.context().toSpanId()
+        info.dd = {
+            ...(info.dd || {}),
+            trace_id: traceId,
+            span_id: spanId,
+        }
+    }
+    return info
+})
 
 export function createWinstonLogger(serviceName: string): winston.Logger {
     const env = envConfig()
@@ -10,6 +25,7 @@ export function createWinstonLogger(serviceName: string): winston.Logger {
         level: process.env.LOG_LEVEL || "info",
         format: combine(
             errors({ stack: true }),
+            ddTraceFormat(), // Add Datadog trace context
             timestamp({ format: "YYYY-MM-DD HH:mm:ss.SSS" }),
             json(),
         ),
