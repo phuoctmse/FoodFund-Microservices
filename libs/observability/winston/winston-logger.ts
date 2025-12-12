@@ -1,44 +1,42 @@
 import * as winston from "winston"
 import { envConfig, isProduction } from "@libs/env"
-import tracer from "dd-trace"
-import formats from "dd-trace/ext/formats"
 
-const { combine, timestamp, json, errors } = winston.format
+const { combine, timestamp, json, errors, printf, colorize } = winston.format
 
-const ddLogInjectionFormat = winston.format((info) => {
-    const span = tracer.scope().active()
-    if (span) {
-        tracer.inject(span.context(), formats.LOG, info)
-    }
-    return info
+
+const devFormat = printf(({ level, message, context, timestamp }) => {
+    const ctx = context ? `[${context}]` : ""
+    return `${timestamp} ${level} ${ctx} ${message}`
 })
+
 
 export function createWinstonLogger(serviceName: string): winston.Logger {
     const env = envConfig()
+    const isProd = isProduction()
+
+    const logFormat = isProd
+        ? combine(
+            errors({ stack: true }),
+            timestamp({ format: "YYYY-MM-DD HH:mm:ss.SSS" }),
+            json(),
+        )
+        : combine(
+            colorize({ all: true }),
+            timestamp({ format: "HH:mm:ss" }),
+            devFormat,
+        )
 
     return winston.createLogger({
         level: process.env.LOG_LEVEL || "info",
-        format: combine(
-            errors({ stack: true }),
-            ddLogInjectionFormat(),
-            timestamp({ format: "YYYY-MM-DD HH:mm:ss.SSS" }),
-            json(),
-        ),
-        defaultMeta: {
-            service: serviceName,
-            env: env.datadog.env || env.nodeEnv || "development",
-            version: env.datadog.version || "1.0.0",
-            ddsource: "nodejs",
-        },
-        transports: [
-            new winston.transports.Console({
-                format: isProduction()
-                    ? json()
-                    : combine(
-                        winston.format.colorize(),
-                        winston.format.simple(),
-                    ),
-            }),
-        ],
+        format: logFormat,
+        defaultMeta: isProd
+            ? {
+                service: serviceName,
+                env: env.datadog.env || env.nodeEnv || "development",
+                version: env.datadog.version || "1.0.0",
+                ddsource: "nodejs",
+            }
+            : { service: serviceName },
+        transports: [new winston.transports.Console()],
     })
 }
