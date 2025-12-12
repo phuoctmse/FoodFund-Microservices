@@ -19,6 +19,7 @@ import {
     AuthFlowType,
     AdminDeleteUserCommand,
     GlobalSignOutCommand,
+    AdminUserGlobalSignOutCommand,
     AdminSetUserPasswordCommand,
     AdminUpdateUserAttributesCommand,
     AdminDisableUserCommand,
@@ -683,6 +684,38 @@ export class AwsCognitoService {
                 error instanceof Error ? error.message : String(error)
             this.logger.error(`Sign out failed: ${errorMessage}`)
             throw new UnauthorizedException(`Sign out failed: ${errorMessage}`)
+        }
+    }
+
+    async adminGlobalSignOut(username: string): Promise<{ success: boolean }> {
+        if (!username || typeof username !== "string") {
+            this.logger.error(
+                "adminGlobalSignOut: Username is required and must be a string",
+            )
+            throw new UnauthorizedException(
+                "Username is required to sign out user",
+            )
+        }
+
+        try {
+            this.logger.log(`Admin signing out user globally: ${username}`)
+
+            const command = new AdminUserGlobalSignOutCommand({
+                UserPoolId: this.userPoolId,
+                Username: username,
+            })
+
+            await this.cognitoClient.send(command)
+            this.logger.log(`Admin signed out user successfully: ${username}`)
+
+            return { success: true }
+        } catch (error) {
+            const errorMessage =
+                error instanceof Error ? error.message : String(error)
+            this.logger.error(`Admin sign out failed: ${errorMessage}`)
+            throw new UnauthorizedException(
+                `Admin sign out failed: ${errorMessage}`,
+            )
         }
     }
 

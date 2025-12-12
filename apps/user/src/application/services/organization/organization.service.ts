@@ -806,6 +806,7 @@ export class OrganizationService {
             name: string
         }
         previousRole: string
+        requiresReLogin: boolean
     }> {
         const user = await this.userRepository.findUserByCognitoId(cognitoId)
         if (!user) {
@@ -875,6 +876,22 @@ export class OrganizationService {
                 this.logger.log(
                     `[SAGA] Cognito role updated successfully for user: ${user.cognito_id}`,
                 )
+
+                this.logger.debug(
+                    "[SAGA] Step 4: Force logout user to invalidate old tokens",
+                )
+                try {
+                    await this.awsCognitoService.adminGlobalSignOut(
+                        user.cognito_id,
+                    )
+                    this.logger.log(
+                        `[SAGA] User ${user.cognito_id} has been signed out globally`,
+                    )
+                } catch (signOutError) {
+                    this.logger.warn(
+                        `[SAGA] Failed to sign out user globally: ${signOutError instanceof Error ? signOutError.message : signOutError}`,
+                    )
+                }
             }
 
             this.logger.log(
@@ -883,9 +900,10 @@ export class OrganizationService {
 
             return {
                 success: true,
-                message: `You have successfully left "${organizationInfo.name}". Your role has been changed back to DONOR.`,
+                message: `You have successfully left "${organizationInfo.name}". Your role has been changed back to DONOR. Please login again to refresh your session.`,
                 previousOrganization: organizationInfo,
                 previousRole,
+                requiresReLogin: true,
             }
         } catch (error) {
             this.logger.error(

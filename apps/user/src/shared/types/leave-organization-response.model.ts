@@ -28,4 +28,10 @@ export class LeaveOrganizationResponse {
         description: "Your previous role (KITCHEN_STAFF or DELIVERY_STAFF)",
     })
         previousRole: string
+
+    @Field(() => Boolean, {
+        description:
+            "Whether user needs to re-login to get new access token with updated role",
+    })
+        requiresReLogin: boolean
 }
