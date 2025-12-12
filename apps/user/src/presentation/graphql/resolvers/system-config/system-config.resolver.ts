@@ -11,10 +11,10 @@ import { Field, ObjectType } from "@nestjs/graphql"
 @ObjectType()
 export class DeleteSystemConfigResponse {
     @Field()
-    success: boolean
+        success: boolean
 
     @Field()
-    message: string
+        message: string
 }
 
 @Resolver()
