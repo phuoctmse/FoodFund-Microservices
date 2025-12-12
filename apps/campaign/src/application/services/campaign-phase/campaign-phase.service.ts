@@ -257,6 +257,7 @@ export class CampaignPhaseService {
         > = {
             [CampaignPhaseStatus.PLANNING]: [
                 CampaignPhaseStatus.AWAITING_INGREDIENT_DISBURSEMENT,
+                CampaignPhaseStatus.CANCELLED,
             ],
             [CampaignPhaseStatus.AWAITING_INGREDIENT_DISBURSEMENT]: [
                 CampaignPhaseStatus.INGREDIENT_PURCHASE,
@@ -264,7 +265,7 @@ export class CampaignPhaseService {
             ],
             [CampaignPhaseStatus.INGREDIENT_PURCHASE]: [
                 CampaignPhaseStatus.AWAITING_COOKING_DISBURSEMENT,
-                CampaignPhaseStatus.FAILED,
+                CampaignPhaseStatus.CANCELLED,
             ],
             [CampaignPhaseStatus.AWAITING_COOKING_DISBURSEMENT]: [
                 CampaignPhaseStatus.COOKING,
@@ -272,7 +273,7 @@ export class CampaignPhaseService {
             ],
             [CampaignPhaseStatus.COOKING]: [
                 CampaignPhaseStatus.AWAITING_DELIVERY_DISBURSEMENT,
-                CampaignPhaseStatus.FAILED,
+                CampaignPhaseStatus.CANCELLED,
             ],
             [CampaignPhaseStatus.AWAITING_DELIVERY_DISBURSEMENT]: [
                 CampaignPhaseStatus.DELIVERY,
