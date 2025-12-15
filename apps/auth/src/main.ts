@@ -10,7 +10,7 @@ import {
     WinstonLoggerService,
 } from "@libs/observability"
 import { envConfig } from "libs/env"
-import { join } from "path"
+import { join } from "node:path"
 
 initDatadogTracer({
     serviceName: "auth-service",
