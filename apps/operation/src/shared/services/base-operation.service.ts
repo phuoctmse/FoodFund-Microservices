@@ -1,7 +1,7 @@
-import { Injectable } from "@nestjs/common"
-import { BadRequestException } from "@nestjs/common"
+import { Injectable, BadRequestException } from "@nestjs/common"
 import { SentryService } from "@libs/observability"
 import { GrpcClientService } from "@libs/grpc"
+import { CampaignPhaseStatus } from "../enums"
 
 @Injectable()
 export abstract class BaseOperationService {
@@ -111,6 +111,30 @@ export abstract class BaseOperationService {
                 "Unable to verify campaign phase budget. Please try again.",
             )
         }
+    }
+
+    protected async getCampaignPhaseStatus(
+        phaseId: string,
+    ): Promise<CampaignPhaseStatus> {
+        const response = await this.grpcClient.callCampaignService<
+            { phaseId: string },
+            {
+                success: boolean
+                phase?: {
+                    id: string
+                    status: string
+                }
+                error?: string
+            }
+        >("GetCampaignPhaseStatus", { phaseId }, { timeout: 5000, retries: 2 })
+
+        if (!response.success || !response.phase) {
+            throw new BadRequestException(
+                response.error || `Campaign phase ${phaseId} not found`,
+            )
+        }
+
+        return response.phase.status as CampaignPhaseStatus
     }
 
     /**

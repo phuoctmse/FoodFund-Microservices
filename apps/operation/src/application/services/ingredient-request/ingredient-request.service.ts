@@ -22,6 +22,7 @@ import {
     IngredientRequestFilterInput,
     UpdateIngredientRequestStatusInput,
 } from "../../dtos/ingredient-request/request/ingredient-request.input"
+import { CampaignPhaseStatus } from "@app/operation/src/shared/enums"
 
 @Injectable()
 export class IngredientRequestService extends BaseOperationService {
@@ -68,6 +69,22 @@ export class IngredientRequestService extends BaseOperationService {
                 input.totalCost,
             )
 
+            const currentPhaseStatus = await this.getCampaignPhaseStatus(
+                input.campaignPhaseId,
+            )
+
+            const allowedStatuses = [
+                CampaignPhaseStatus.PLANNING,
+                CampaignPhaseStatus.AWAITING_INGREDIENT_DISBURSEMENT,
+            ]
+
+            if (!allowedStatuses.includes(currentPhaseStatus)) {
+                throw new BadRequestException(
+                    `Cannot create ingredient request when phase is in ${currentPhaseStatus} status. ` +
+                        "Phase must be in PLANNING or AWAITING_INGREDIENT_DISBURSEMENT.",
+                )
+            }
+
             const hasPending =
                 await this.repository.hasActiveRequest(
                     input.campaignPhaseId,
@@ -108,10 +125,12 @@ export class IngredientRequestService extends BaseOperationService {
                 organizationId || "",
             )
 
-            await this.updateCampaignPhaseStatus(
-                input.campaignPhaseId,
-                "AWAITING_INGREDIENT_DISBURSEMENT",
-            )
+            if (currentPhaseStatus === CampaignPhaseStatus.PLANNING) {
+                await this.updateCampaignPhaseStatus(
+                    input.campaignPhaseId,
+                    "AWAITING_INGREDIENT_DISBURSEMENT",
+                )
+            }
 
             const campaignId = await this.getCampaignIdFromPhaseId(
                 input.campaignPhaseId,

@@ -9,6 +9,7 @@ service CampaignService {
   rpc GetCampaignPhases(GetCampaignPhasesRequest) returns (GetCampaignPhasesResponse);
   rpc GetCampaignPhase(GetCampaignPhaseRequest) returns (GetCampaignPhaseResponse);
   rpc GetCampaignPhaseInfo(GetCampaignPhaseInfoRequest) returns (GetCampaignPhaseInfoResponse);
+  rpc GetCampaignPhaseStatus(GetCampaignPhaseStatusRequest) returns (GetCampaignPhaseStatusResponse);
   rpc GetFundraiserByPhaseId(GetFundraiserByPhaseIdRequest) returns (GetFundraiserByPhaseIdResponse);
   rpc GetPlannedIngredients(GetPlannedIngredientsRequest) returns (GetPlannedIngredientsResponse);
   rpc UpdatePhaseStatus(UpdatePhaseStatusRequest) returns (UpdatePhaseStatusResponse);
@@ -124,6 +125,21 @@ message CampaignPhaseFullInfo {
   string ingredient_funds_amount = 5;
   string cooking_funds_amount = 6;
   string delivery_funds_amount = 7;
+}
+
+message GetCampaignPhaseStatusRequest {
+  string phase_id = 1;
+}
+
+message GetCampaignPhaseStatusResponse {
+  bool success = 1;
+  CampaignPhaseStatusInfo phase = 2;
+  string error = 3;
+}
+
+message CampaignPhaseStatusInfo {
+  string id = 1;
+  string status = 2;
 }
 
 message GetFundraiserByPhaseIdRequest {

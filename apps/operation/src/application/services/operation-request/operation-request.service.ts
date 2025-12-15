@@ -5,6 +5,7 @@ import {
 } from "@app/operation/src/domain"
 import {
     AuthorizationService,
+    CampaignPhaseStatus,
     Role,
     UserContext,
 } from "@app/operation/src/shared"
@@ -57,6 +58,28 @@ export class OperationRequestService extends BaseOperationService {
             )
 
             await this.verifyCampaignPhaseExists(input.campaignPhaseId)
+
+            const currentPhaseStatus = await this.getCampaignPhaseStatus(
+                input.campaignPhaseId,
+            )
+
+            const requiredStatusMap: Record<
+                OperationExpenseType,
+                CampaignPhaseStatus
+            > = {
+                [OperationExpenseType.COOKING]:
+                    CampaignPhaseStatus.INGREDIENT_PURCHASE,
+                [OperationExpenseType.DELIVERY]: CampaignPhaseStatus.COOKING,
+            }
+
+            const requiredStatus = requiredStatusMap[input.expenseType]
+
+            if (currentPhaseStatus !== requiredStatus) {
+                throw new BadRequestException(
+                    `Cannot create ${input.expenseType} request when phase is in ${currentPhaseStatus} status. ` +
+                        `Phase must be in ${requiredStatus} to create ${input.expenseType} request.`,
+                )
+            }
 
             const hasActive = await this.repository.hasActiveRequest(
                 userContext.userId,
