@@ -1,4 +1,8 @@
-import { OperationExpenseType, OperationRequestStatus } from "@app/operation/src/domain"
+import {
+    OperationExpenseType,
+    OperationRequestStatus,
+} from "@app/operation/src/domain"
+import { OperationRequestSortOrder } from "@app/operation/src/domain/enums/operation-request"
 import { Field, InputType, Int } from "@nestjs/graphql"
 import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from "class-validator"
 
@@ -35,6 +39,15 @@ export class OperationRequestFilterInput {
     @IsOptional()
     @IsEnum(OperationExpenseType)
         expenseType?: OperationExpenseType
+
+    @Field(() => OperationRequestSortOrder, {
+        nullable: true,
+        defaultValue: OperationRequestSortOrder.NEWEST_FIRST,
+        description: "Sort order by creation date",
+    })
+    @IsOptional()
+    @IsEnum(OperationRequestSortOrder)
+        sortBy?: OperationRequestSortOrder = OperationRequestSortOrder.NEWEST_FIRST
 
     @Field(() => Int, {
         nullable: true,

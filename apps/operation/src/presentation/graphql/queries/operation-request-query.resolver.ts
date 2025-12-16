@@ -4,6 +4,7 @@ import {
 } from "@app/operation/src/application/dtos"
 import { OperationRequestService } from "@app/operation/src/application/services"
 import { OperationRequest } from "@app/operation/src/domain"
+import { OperationRequestSortOrder } from "@app/operation/src/domain/enums/operation-request"
 import {
     CognitoGraphQLGuard,
     createUserContextFromToken,
@@ -30,8 +31,20 @@ export class OperationRequestQueryResolver {
             new ValidationPipe(),
         )
             filter: OperationRequestFilterInput,
+        @Args("sortBy", {
+            type: () => OperationRequestSortOrder,
+            nullable: true,
+            defaultValue: OperationRequestSortOrder.NEWEST_FIRST,
+            description:
+                "Sort order by creation date (NEWEST_FIRST or OLDEST_FIRST)",
+        })
+            sortBy?: OperationRequestSortOrder,
     ): Promise<OperationRequest[]> {
-        return this.operationRequestService.getRequests(filter)
+        const mergedFilter: OperationRequestFilterInput = {
+            ...filter,
+            sortBy: sortBy || OperationRequestSortOrder.NEWEST_FIRST,
+        }
+        return this.operationRequestService.getRequests(mergedFilter)
     }
 
     @Query(() => OperationRequest, {
@@ -58,12 +71,20 @@ export class OperationRequestQueryResolver {
             limit: number,
         @Args("offset", { type: () => Int, nullable: true, defaultValue: 0 })
             offset: number,
+        @Args("sortBy", {
+            type: () => OperationRequestSortOrder,
+            nullable: true,
+            defaultValue: OperationRequestSortOrder.NEWEST_FIRST,
+            description: "Sort order by creation date",
+        })
+            sortBy?: OperationRequestSortOrder,
     ): Promise<OperationRequest[]> {
         const userContext = createUserContextFromToken(decodedToken)
         return this.operationRequestService.getMyRequests(
             userContext,
             limit,
             offset,
+            sortBy,
         )
     }
 

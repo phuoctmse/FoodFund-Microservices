@@ -3,6 +3,7 @@ import { Injectable } from "@nestjs/common"
 import { RedisService } from "@libs/redis"
 import { OperationRequest } from "@app/operation/src/domain"
 import { BaseCacheService } from "@app/operation/src/shared/services"
+import { OperationRequestSortOrder } from "@app/operation/src/domain/enums/operation-request"
 
 export interface OperationRequestListCacheKey {
     filter?: OperationRequestFilterInput
@@ -13,8 +14,6 @@ export class OperationRequestCacheService extends BaseCacheService<OperationRequ
     protected readonly TTL = {
         SINGLE_REQUEST: 60 * 30,
         REQUEST_LIST: 60 * 15,
-        PHASE_REQUESTS: 60 * 30,
-        CAMPAIGN_REQUESTS: 60 * 30,
         USER_REQUESTS: 60 * 30,
         STATS: 60 * 10,
     }
@@ -22,8 +21,6 @@ export class OperationRequestCacheService extends BaseCacheService<OperationRequ
     protected readonly KEYS = {
         SINGLE: "operation-request",
         LIST: "operation-requests:list",
-        PHASE: "operation-requests:phase",
-        CAMPAIGN: "operation-requests:campaign",
         USER: "operation-requests:user",
         STATS: "operation-requests:stats",
     }
@@ -56,16 +53,18 @@ export class OperationRequestCacheService extends BaseCacheService<OperationRequ
     async getRequestList(
         params: OperationRequestListCacheKey,
     ): Promise<OperationRequest[] | null> {
-        return this.getList(this.KEYS.LIST, params)
+        const normalizedParams = this.normalizeListCacheParams(params)
+        return this.getList(this.KEYS.LIST, normalizedParams)
     }
 
     async setRequestList(
         params: OperationRequestListCacheKey,
         requests: OperationRequest[],
     ): Promise<void> {
+        const normalizedParams = this.normalizeListCacheParams(params)
         return this.setList(
             this.KEYS.LIST,
-            params,
+            normalizedParams,
             requests,
             this.TTL.REQUEST_LIST,
         )
@@ -73,54 +72,6 @@ export class OperationRequestCacheService extends BaseCacheService<OperationRequ
 
     async deleteAllRequestLists(): Promise<void> {
         return this.deleteAllLists(this.KEYS.LIST)
-    }
-
-    // ==================== Campaign Phase Requests ====================
-
-    async getPhaseRequests(
-        campaignPhaseId: string,
-    ): Promise<OperationRequest[] | null> {
-        return this.getRelatedList(this.KEYS.PHASE, campaignPhaseId)
-    }
-
-    async setPhaseRequests(
-        campaignPhaseId: string,
-        requests: OperationRequest[],
-    ): Promise<void> {
-        return this.setRelatedList(
-            this.KEYS.PHASE,
-            campaignPhaseId,
-            requests,
-            this.TTL.PHASE_REQUESTS,
-        )
-    }
-
-    async deletePhaseRequests(campaignPhaseId: string): Promise<void> {
-        return this.deleteRelatedList(this.KEYS.PHASE, campaignPhaseId)
-    }
-
-    // ==================== Campaign Requests ====================
-
-    async getCampaignRequests(
-        campaignId: string,
-    ): Promise<OperationRequest[] | null> {
-        return this.getRelatedList(this.KEYS.CAMPAIGN, campaignId)
-    }
-
-    async setCampaignRequests(
-        campaignId: string,
-        requests: OperationRequest[],
-    ): Promise<void> {
-        return this.setRelatedList(
-            this.KEYS.CAMPAIGN,
-            campaignId,
-            requests,
-            this.TTL.CAMPAIGN_REQUESTS,
-        )
-    }
-
-    async deleteCampaignRequests(campaignId: string): Promise<void> {
-        return this.deleteRelatedList(this.KEYS.CAMPAIGN, campaignId)
     }
 
     // ==================== User Requests ====================
@@ -179,20 +130,12 @@ export class OperationRequestCacheService extends BaseCacheService<OperationRequ
 
     // ==================== Invalidation ====================
 
-    async invalidateRequest(
-        requestId: string,
-        campaignPhaseId?: string,
-        userId?: string,
-    ): Promise<void> {
+    async invalidateRequest(requestId: string, userId?: string): Promise<void> {
         const operations: Promise<void>[] = [
             this.deleteRequest(requestId),
             this.deleteAllRequestLists(),
             this.deleteRequestStats(),
         ]
-
-        if (campaignPhaseId) {
-            operations.push(this.deletePhaseRequests(campaignPhaseId))
-        }
 
         if (userId) {
             operations.push(this.deleteUserRequests(userId))
@@ -205,19 +148,38 @@ export class OperationRequestCacheService extends BaseCacheService<OperationRequ
         return this.invalidateByPatterns(
             `${this.KEYS.SINGLE}:*`,
             `${this.KEYS.LIST}:*`,
-            `${this.KEYS.PHASE}:*`,
-            `${this.KEYS.CAMPAIGN}:*`,
             `${this.KEYS.USER}:*`,
             `${this.KEYS.STATS}:*`,
         )
     }
 
     // ==================== Health Check ====================
-
     async getHealthStatus(): Promise<{
         available: boolean
         keysCount: number
     }> {
         return super.getHealthStatus("operation-request*")
+    }
+
+    private normalizeListCacheParams(
+        params: OperationRequestListCacheKey,
+    ): Record<string, any> {
+        const normalized = {
+            filter: params.filter
+                ? {
+                    campaignPhaseId: params.filter.campaignPhaseId ?? null,
+                    campaignId: params.filter.campaignId ?? null,
+                    status: params.filter.status ?? null,
+                    expenseType: params.filter.expenseType ?? null,
+                    sortBy:
+                          params.filter.sortBy ??
+                          OperationRequestSortOrder.NEWEST_FIRST,
+                    limit: params.filter.limit ?? 10,
+                    offset: params.filter.offset ?? 0,
+                }
+                : null,
+        }
+
+        return normalized
     }
 }

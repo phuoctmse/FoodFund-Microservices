@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common"
 import { OperationExpenseType, OperationRequestStatus } from "../../domain"
 import { PrismaClient } from "../../generated/operation-client"
 import { OperationRequestFilterInput } from "../dtos"
+import { OperationRequestSortOrder } from "../../domain/enums/operation-request"
 
 export interface CreateOperationRequestData {
     campaignPhaseId: string
@@ -57,20 +58,62 @@ export class OperationRequestRepository {
             where.expense_type = filter.expenseType
         }
 
+        const orderBy = this.buildOrderByClause(
+            filter.sortBy || OperationRequestSortOrder.NEWEST_FIRST,
+        )
+
         return await this.prisma.operation_Request.findMany({
             where,
             take: filter.limit || 10,
             skip: filter.offset || 0,
-            orderBy: { created_at: "desc" },
+            orderBy,
         })
     }
 
-    async findByUserId(userId: string, limit = 10, offset = 0) {
+    async findByUserId(
+        userId: string,
+        limit = 10,
+        offset = 0,
+        sortBy?: OperationRequestSortOrder,
+    ) {
+        const orderBy = this.buildOrderByClause(
+            sortBy || OperationRequestSortOrder.NEWEST_FIRST,
+        )
         return await this.prisma.operation_Request.findMany({
             where: { user_id: userId },
             take: limit,
             skip: offset,
-            orderBy: { created_at: "desc" },
+            orderBy,
+        })
+    }
+
+    async findByPhaseIds(
+        phaseIds: string[],
+        filter: OperationRequestFilterInput,
+    ) {
+        const where: any = {
+            campaign_phase_id: {
+                in: phaseIds,
+            },
+        }
+
+        if (filter.status) {
+            where.status = filter.status
+        }
+
+        if (filter.expenseType) {
+            where.expense_type = filter.expenseType
+        }
+
+        const orderBy = this.buildOrderByClause(
+            filter.sortBy || OperationRequestSortOrder.NEWEST_FIRST,
+        )
+
+        return await this.prisma.operation_Request.findMany({
+            where,
+            take: filter.limit || 10,
+            skip: filter.offset || 0,
+            orderBy,
         })
     }
 
@@ -88,7 +131,7 @@ export class OperationRequestRepository {
                     in: [
                         OperationRequestStatus.PENDING,
                         OperationRequestStatus.APPROVED,
-                        OperationRequestStatus.DISBURSED
+                        OperationRequestStatus.DISBURSED,
                     ],
                 },
             },
@@ -136,16 +179,15 @@ export class OperationRequestRepository {
         }
     }
 
-    async findByPhaseIds(phaseIds: string[], limit = 10, offset = 0) {
-        return await this.prisma.operation_Request.findMany({
-            where: {
-                campaign_phase_id: {
-                    in: phaseIds,
-                },
-            },
-            take: limit,
-            skip: offset,
-            orderBy: { created_at: "desc" },
-        })
+    private buildOrderByClause(sortBy: OperationRequestSortOrder): {
+        created_at: "asc" | "desc"
+    } {
+        switch (sortBy) {
+        case OperationRequestSortOrder.OLDEST_FIRST:
+            return { created_at: "asc" }
+        case OperationRequestSortOrder.NEWEST_FIRST:
+        default:
+            return { created_at: "desc" }
+        }
     }
 }

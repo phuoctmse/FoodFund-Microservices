@@ -29,6 +29,7 @@ import { SentryService } from "@libs/observability"
 import { GrpcClientService } from "@libs/grpc"
 import { OperationRequestCacheService } from "./operation-request-cache.service"
 import { BaseOperationService } from "@app/operation/src/shared/services"
+import { OperationRequestSortOrder } from "@app/operation/src/domain/enums/operation-request"
 
 @Injectable()
 export class OperationRequestService extends BaseOperationService {
@@ -134,26 +135,21 @@ export class OperationRequestService extends BaseOperationService {
             }
 
             const created = await this.repository.create(createData)
-
             const newStatus = this.getPhaseStatusForRequestType(
                 input.expenseType,
             )
-
             await this.updateCampaignPhaseStatus(
                 input.campaignPhaseId,
                 newStatus,
             )
 
             const mappedRequest = this.mapToGraphQLModel(created)
-
             const campaignId = await this.getCampaignIdFromPhaseId(
                 input.campaignPhaseId,
             )
 
             await Promise.all([
                 this.cacheService.setRequest(mappedRequest.id, mappedRequest),
-                this.cacheService.deletePhaseRequests(input.campaignPhaseId),
-                this.cacheService.deleteUserRequests(userContext.userId),
                 this.cacheService.deleteAllRequestLists(),
                 this.cacheService.deleteRequestStats(),
                 campaignId
@@ -214,15 +210,10 @@ export class OperationRequestService extends BaseOperationService {
                 input.requestId,
                 updateData,
             )
-
             const mappedRequest = this.mapToGraphQLModel(updated)
 
             await Promise.all([
                 this.cacheService.setRequest(mappedRequest.id, mappedRequest),
-                this.cacheService.deletePhaseRequests(
-                    request.campaign_phase_id,
-                ),
-                this.cacheService.deleteUserRequests(request.user_id),
                 this.cacheService.deleteAllRequestLists(),
                 this.cacheService.deleteRequestStats(),
             ])
@@ -242,21 +233,10 @@ export class OperationRequestService extends BaseOperationService {
         filter: OperationRequestFilterInput,
     ): Promise<OperationRequest[]> {
         try {
-            let cachedRequests: OperationRequest[] | null = null
+            const cacheKey = { filter }
 
-            if (filter.campaignPhaseId) {
-                cachedRequests = await this.cacheService.getPhaseRequests(
-                    filter.campaignPhaseId,
-                )
-            } else if (filter.campaignId) {
-                cachedRequests = await this.cacheService.getCampaignRequests(
-                    filter.campaignId,
-                )
-            } else {
-                cachedRequests = await this.cacheService.getRequestList({
-                    filter,
-                })
-            }
+            let cachedRequests: OperationRequest[] | null = null
+            cachedRequests = await this.cacheService.getRequestList(cacheKey)
 
             if (cachedRequests) {
                 return cachedRequests
@@ -274,38 +254,16 @@ export class OperationRequestService extends BaseOperationService {
 
                 requests = await this.repository.findByPhaseIds(
                     phaseIds,
-                    filter.limit,
-                    filter.offset,
+                    filter,
                 )
-
-                const mappedRequests = requests.map((r) =>
-                    this.mapToGraphQLModel(r),
-                )
-
-                await this.cacheService.setCampaignRequests(
-                    filter.campaignId,
-                    mappedRequests,
-                )
-
-                return mappedRequests
+            } else {
+                requests = await this.repository.findMany(filter)
             }
 
-            requests = await this.repository.findMany(filter)
             const mappedRequests = requests.map((r) =>
                 this.mapToGraphQLModel(r),
             )
-
-            if (filter.campaignPhaseId) {
-                await this.cacheService.setPhaseRequests(
-                    filter.campaignPhaseId,
-                    mappedRequests,
-                )
-            } else {
-                await this.cacheService.setRequestList(
-                    { filter },
-                    mappedRequests,
-                )
-            }
+            await this.cacheService.setRequestList(cacheKey, mappedRequests)
 
             return mappedRequests
         } catch (error) {
@@ -348,6 +306,7 @@ export class OperationRequestService extends BaseOperationService {
         userContext: UserContext,
         limit = 10,
         offset = 0,
+        sortBy?: OperationRequestSortOrder,
     ): Promise<OperationRequest[]> {
         try {
             this.authService.requireAuthentication(
@@ -369,6 +328,7 @@ export class OperationRequestService extends BaseOperationService {
                 userContext.userId,
                 limit,
                 offset,
+                sortBy,
             )
 
             const mappedRequests = requests.map((r) =>
