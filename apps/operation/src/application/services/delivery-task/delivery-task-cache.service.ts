@@ -82,7 +82,16 @@ export class DeliveryTaskCacheService extends BaseCacheService<DeliveryTask> {
     }
 
     async deleteStaffTasks(deliveryStaffId: string): Promise<void> {
-        return this.deleteRelatedList(this.KEYS.STAFF, deliveryStaffId)
+        if (!this.redis.isAvailable()) {
+            return
+        }
+
+        const pattern = `${this.KEYS.STAFF}:${deliveryStaffId}*`
+        const keys = await this.redis.keys(pattern)
+
+        if (keys.length > 0) {
+            await this.redis.del(keys)
+        }
     }
 
     // ==================== Statistics ====================

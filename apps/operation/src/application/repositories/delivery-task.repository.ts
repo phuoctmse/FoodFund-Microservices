@@ -58,6 +58,26 @@ export class DeliveryTaskRepository {
     ) {
         return await this.prisma.delivery_Task.findMany({
             where: { delivery_staff_id: deliveryStaffId },
+            include: {
+                meal_batch: {
+                    select: {
+                        id: true,
+                        campaign_phase_id: true,
+                        kitchen_staff_id: true,
+                        planned_meal_id: true,
+                        food_name: true,
+                        quantity: true,
+                        media: true,
+                        status: true,
+                        cooked_date: true,
+                        created_at: true,
+                        updated_at: true,
+                    },
+                },
+                status_logs: {
+                    orderBy: { created_at: "desc" },
+                },
+            },
             take: limit,
             skip: offset,
             orderBy: { created_at: "desc" },
