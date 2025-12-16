@@ -683,6 +683,7 @@ export class DeliveryTaskService extends BaseOperationService {
                     id: data.meal_batch.id,
                     campaignPhaseId: data.meal_batch.campaign_phase_id,
                     kitchenStaffId: data.meal_batch.kitchen_staff_id,
+                    plannedMealId: data.meal_batch.planned_meal_id,
                     foodName: data.meal_batch.food_name,
                     quantity: data.meal_batch.quantity,
                     media: Array.isArray(data.meal_batch.media)
