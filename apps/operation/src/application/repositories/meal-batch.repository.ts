@@ -190,6 +190,10 @@ export class MealBatchRepository {
                 __typename: "User",
                 id: batch.kitchen_staff_id,
             },
+            campaignPhase: {
+                __typename: "CampaignPhase",
+                id: batch.campaign_phase_id,
+            },
             ingredientUsages: batch.ingredient_usages.map((usage: any) =>
                 this.mapIngredientUsage(usage),
             ),
@@ -208,9 +212,11 @@ export class MealBatchRepository {
                 quantity: usage.ingredient_item.quantity,
                 unit: usage.unit,
                 estimatedUnitPrice: usage.ingredient_item.estimated_unit_price,
-                estimatedTotalPrice: usage.ingredient_item.estimated_total_price,
+                estimatedTotalPrice:
+                    usage.ingredient_item.estimated_total_price,
                 supplier: usage.ingredient_item.supplier,
-                plannedIngredientId: usage.ingredient_item.planned_ingredient_id,
+                plannedIngredientId:
+                    usage.ingredient_item.planned_ingredient_id,
             },
         }
     }

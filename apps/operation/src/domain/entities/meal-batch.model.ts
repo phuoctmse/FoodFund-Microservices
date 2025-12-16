@@ -1,5 +1,5 @@
 import { Directive, Field, Int, ObjectType } from "@nestjs/graphql"
-import { BaseSchema, User } from "../../shared"
+import { BaseSchema, CampaignPhase, User } from "../../shared"
 import { MealBatchStatus } from "../enums"
 import { MealBatchIngredientUsage } from "./meal-batch-ingredient-usage.model"
 
@@ -54,6 +54,12 @@ export class MealBatch extends BaseSchema {
         description: "Kitchen staff who created this batch",
     })
         kitchenStaff?: User
+
+    @Field(() => CampaignPhase, {
+        nullable: true,
+        description: "Campaign phase this meal batch belongs to",
+    })
+        campaignPhase?: CampaignPhase
 
     @Field(() => [MealBatchIngredientUsage], {
         description: "List of ingredients used in this meal batch",
