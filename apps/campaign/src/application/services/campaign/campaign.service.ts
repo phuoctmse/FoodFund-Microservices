@@ -647,7 +647,8 @@ export class CampaignService {
                 return campaign
             }
 
-            const completedCampaign = await this.campaignRepository.markAsCompleted(campaignId)
+            const completedCampaign =
+                await this.campaignRepository.markAsCompleted(campaignId)
             await this.cacheService.invalidateAll(campaignId, campaign.slug)
             await this.sendCampaignCompletedNotifications(completedCampaign)
             return completedCampaign
@@ -745,13 +746,17 @@ export class CampaignService {
                 performance,
                 timeRange,
             ] = await Promise.all([
-                this.getOverviewStats(filter?.categoryId),
-                this.getStatusBreakdown(filter?.categoryId),
-                this.getFinancialStats(filter?.categoryId),
-                this.getCategoryBreakdown(),
-                this.getPerformanceStats(),
+                this.getOverviewStats(filter?.categoryId, filter?.creatorId),
+                this.getStatusBreakdown(filter?.categoryId, filter?.creatorId),
+                this.getFinancialStats(filter?.categoryId, filter?.creatorId),
+                this.getCategoryBreakdown(filter?.creatorId),
+                this.getPerformanceStats(filter?.creatorId),
                 filter?.dateFrom && filter?.dateTo
-                    ? this.getTimeRangeStats(filter.dateFrom, filter.dateTo)
+                    ? this.getTimeRangeStats(
+                        filter.dateFrom,
+                        filter.dateTo,
+                        filter?.creatorId,
+                    )
                     : Promise.resolve(undefined),
             ])
 
@@ -987,17 +992,23 @@ export class CampaignService {
 
     private async getOverviewStats(
         categoryId?: string,
+        creatorId?: string,
     ): Promise<CampaignOverviewStats> {
         const [totalCampaigns, activeCampaigns, completedCampaigns] =
             await Promise.all([
-                this.campaignRepository.getTotalCampaigns(categoryId),
+                this.campaignRepository.getTotalCampaigns(
+                    categoryId,
+                    creatorId,
+                ),
                 this.campaignRepository.getCountByStatus(
                     CampaignStatus.ACTIVE,
                     categoryId,
+                    creatorId,
                 ),
                 this.campaignRepository.getCountByStatus(
                     CampaignStatus.COMPLETED,
                     categoryId,
+                    creatorId,
                 ),
             ])
 
@@ -1010,6 +1021,7 @@ export class CampaignService {
 
     private async getStatusBreakdown(
         categoryId?: string,
+        creatorId?: string,
     ): Promise<CampaignStatusBreakdown> {
         const [
             pending,
@@ -1023,30 +1035,37 @@ export class CampaignService {
             this.campaignRepository.getCountByStatus(
                 CampaignStatus.PENDING,
                 categoryId,
+                creatorId,
             ),
             this.campaignRepository.getCountByStatus(
                 CampaignStatus.APPROVED,
                 categoryId,
+                creatorId,
             ),
             this.campaignRepository.getCountByStatus(
                 CampaignStatus.ACTIVE,
                 categoryId,
+                creatorId,
             ),
             this.campaignRepository.getCountByStatus(
                 CampaignStatus.PROCESSING,
                 categoryId,
+                creatorId,
             ),
             this.campaignRepository.getCountByStatus(
                 CampaignStatus.COMPLETED,
                 categoryId,
+                creatorId,
             ),
             this.campaignRepository.getCountByStatus(
                 CampaignStatus.REJECTED,
                 categoryId,
+                creatorId,
             ),
             this.campaignRepository.getCountByStatus(
                 CampaignStatus.CANCELLED,
                 categoryId,
+                creatorId,
             ),
         ])
 
@@ -1063,9 +1082,12 @@ export class CampaignService {
 
     private async getFinancialStats(
         categoryId?: string,
+        creatorId?: string,
     ): Promise<CampaignFinancialStats> {
-        const aggregates =
-            await this.campaignRepository.getFinancialAggregates(categoryId)
+        const aggregates = await this.campaignRepository.getFinancialAggregates(
+            categoryId,
+            creatorId,
+        )
 
         const averageDonationAmount =
             aggregates.totalDonations > 0
@@ -1089,8 +1111,11 @@ export class CampaignService {
         }
     }
 
-    private async getCategoryBreakdown(): Promise<CampaignCategoryStats[]> {
-        const categoryStats = await this.campaignRepository.getCategoryStats()
+    private async getCategoryBreakdown(
+        creatorId?: string,
+    ): Promise<CampaignCategoryStats[]> {
+        const categoryStats =
+            await this.campaignRepository.getCategoryStats(creatorId)
 
         return categoryStats.map((stat) => ({
             categoryId: stat.categoryId,
@@ -1100,17 +1125,23 @@ export class CampaignService {
         }))
     }
 
-    private async getPerformanceStats(): Promise<CampaignPerformanceStats> {
+    private async getPerformanceStats(
+        creatorId?: string,
+    ): Promise<CampaignPerformanceStats> {
         const [
             totalCampaigns,
             completedCampaigns,
             averageDuration,
             mostFundedCampaign,
         ] = await Promise.all([
-            this.campaignRepository.getTotalCampaigns(),
-            this.campaignRepository.getCountByStatus(CampaignStatus.COMPLETED),
-            this.campaignRepository.getAverageCampaignDuration(),
-            this.campaignRepository.getMostFundedCampaign(),
+            this.campaignRepository.getTotalCampaigns(undefined, creatorId),
+            this.campaignRepository.getCountByStatus(
+                CampaignStatus.COMPLETED,
+                undefined,
+                creatorId,
+            ),
+            this.campaignRepository.getAverageCampaignDuration(creatorId),
+            this.campaignRepository.getMostFundedCampaign(creatorId),
         ])
 
         const successRate =
@@ -1126,10 +1157,12 @@ export class CampaignService {
     private async getTimeRangeStats(
         dateFrom: Date,
         dateTo: Date,
+        creatorId?: string,
     ): Promise<CampaignTimeRangeStats> {
         const stats = await this.campaignRepository.getTimeRangeStats(
             dateFrom,
             dateTo,
+            creatorId,
         )
 
         return {

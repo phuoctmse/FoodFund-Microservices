@@ -118,7 +118,7 @@ export class CampaignRepository {
         },
     } as const
 
-    constructor(private readonly prisma: PrismaClient) { }
+    constructor(private readonly prisma: PrismaClient) {}
 
     async create(data: CreateCampaignData): Promise<Campaign> {
         const { phases, ...campaignData } = data
@@ -150,12 +150,16 @@ export class CampaignRepository {
                             campaign_id: campaign.id,
                             phase_name: phase.phaseName,
                             location: phase.location,
-                            ingredient_purchase_date: phase.ingredientPurchaseDate,
+                            ingredient_purchase_date:
+                                phase.ingredientPurchaseDate,
                             cooking_date: phase.cookingDate,
                             delivery_date: phase.deliveryDate,
-                            ingredient_budget_percentage: phase.ingredientBudgetPercentage,
-                            cooking_budget_percentage: phase.cookingBudgetPercentage,
-                            delivery_budget_percentage: phase.deliveryBudgetPercentage,
+                            ingredient_budget_percentage:
+                                phase.ingredientBudgetPercentage,
+                            cooking_budget_percentage:
+                                phase.cookingBudgetPercentage,
+                            delivery_budget_percentage:
+                                phase.deliveryBudgetPercentage,
                             status: "PLANNING" as const,
                             is_active: true,
                         },
@@ -171,14 +175,19 @@ export class CampaignRepository {
                         })
                     }
 
-                    if (phase.plannedIngredients && phase.plannedIngredients.length > 0) {
+                    if (
+                        phase.plannedIngredients &&
+                        phase.plannedIngredients.length > 0
+                    ) {
                         await tx.planned_Ingredient.createMany({
-                            data: phase.plannedIngredients.map((ingredient) => ({
-                                campaign_phase_id: createdPhase.id,
-                                name: ingredient.name,
-                                quantity: ingredient.quantity,
-                                unit: ingredient.unit,
-                            })),
+                            data: phase.plannedIngredients.map(
+                                (ingredient) => ({
+                                    campaign_phase_id: createdPhase.id,
+                                    name: ingredient.name,
+                                    quantity: ingredient.quantity,
+                                    unit: ingredient.unit,
+                                }),
+                            ),
                         })
                     }
                 }
@@ -507,11 +516,15 @@ export class CampaignRepository {
         return newSlug
     }
 
-    async getTotalCampaigns(categoryId?: string): Promise<number> {
+    async getTotalCampaigns(
+        categoryId?: string,
+        creatorId?: string,
+    ): Promise<number> {
         return await this.prisma.campaign.count({
             where: {
                 is_active: true,
                 ...(categoryId && { category_id: categoryId }),
+                ...(creatorId && { created_by: creatorId }),
             },
         })
     }
@@ -519,17 +532,22 @@ export class CampaignRepository {
     async getCountByStatus(
         status: CampaignStatus,
         categoryId?: string,
+        creatorId?: string,
     ): Promise<number> {
         return await this.prisma.campaign.count({
             where: {
                 is_active: true,
                 status,
                 ...(categoryId && { category_id: categoryId }),
+                ...(creatorId && { created_by: creatorId }),
             },
         })
     }
 
-    async getFinancialAggregates(categoryId?: string): Promise<{
+    async getFinancialAggregates(
+        categoryId?: string,
+        creatorId?: string,
+    ): Promise<{
         totalTargetAmount: bigint
         totalReceivedAmount: bigint
         totalDonations: number
@@ -538,6 +556,7 @@ export class CampaignRepository {
             where: {
                 is_active: true,
                 ...(categoryId && { category_id: categoryId }),
+                ...(creatorId && { created_by: creatorId }),
             },
             _sum: {
                 target_amount: true,
@@ -553,7 +572,7 @@ export class CampaignRepository {
         }
     }
 
-    async getCategoryStats(): Promise<CategoryStatsData[]> {
+    async getCategoryStats(creatorId?: string): Promise<CategoryStatsData[]> {
         const categories = await this.prisma.campaign_Category.findMany({
             where: { is_active: true },
             select: {
@@ -568,6 +587,7 @@ export class CampaignRepository {
                     where: {
                         is_active: true,
                         category_id: category.id,
+                        ...(creatorId && { created_by: creatorId }),
                     },
                     _sum: {
                         received_amount: true,
@@ -590,13 +610,14 @@ export class CampaignRepository {
         return categoryStats.filter((stat) => stat.campaignCount > 0)
     }
 
-    async getMostFundedCampaign(): Promise<{
+    async getMostFundedCampaign(creatorId?: string): Promise<{
         id: string
         title: string
     } | null> {
         const campaign = await this.prisma.campaign.findFirst({
             where: {
                 is_active: true,
+                ...(creatorId && { created_by: creatorId }),
             },
             orderBy: {
                 received_amount: "desc",
@@ -610,13 +631,21 @@ export class CampaignRepository {
         return campaign || null
     }
 
-    async getAverageCampaignDuration(): Promise<number | null> {
+    async getAverageCampaignDuration(
+        creatorId?: string,
+    ): Promise<number | null> {
         const campaigns = await this.prisma.campaign.findMany({
             where: {
                 is_active: true,
                 status: {
-                    in: [CampaignStatus.COMPLETED, CampaignStatus.ACTIVE],
+                    in: [
+                        CampaignStatus.COMPLETED,
+                        CampaignStatus.ACTIVE,
+                        CampaignStatus.PROCESSING,
+                        CampaignStatus.APPROVED,
+                    ],
                 },
+                ...(creatorId && { created_by: creatorId }),
             },
             select: {
                 fundraising_start_date: true,
@@ -640,6 +669,7 @@ export class CampaignRepository {
     async getTimeRangeStats(
         dateFrom: Date,
         dateTo: Date,
+        creatorId?: string,
     ): Promise<{
         campaignsCreated: number
         campaignsCompleted: number
@@ -653,6 +683,7 @@ export class CampaignRepository {
                     gte: dateFrom,
                     lte: dateTo,
                 },
+                ...(creatorId && { created_by: creatorId }),
             },
         })
 
@@ -664,6 +695,7 @@ export class CampaignRepository {
                     gte: dateFrom,
                     lte: dateTo,
                 },
+                ...(creatorId && { created_by: creatorId }),
             },
         })
 
@@ -674,6 +706,7 @@ export class CampaignRepository {
                     gte: dateFrom,
                     lte: dateTo,
                 },
+                ...(creatorId && { created_by: creatorId }),
             },
             _sum: {
                 received_amount: true,
@@ -928,40 +961,42 @@ export class CampaignRepository {
                 const ingredientFunds =
                     fundableAmount > 0n
                         ? (fundableAmount *
-                            BigInt(Math.floor(ingredientPct * 10000))) /
-                        10000n
+                              BigInt(Math.floor(ingredientPct * 10000))) /
+                          10000n
                         : 0n
                 const cookingFunds =
                     fundableAmount > 0n
                         ? (fundableAmount *
-                            BigInt(Math.floor(cookingPct * 10000))) /
-                        10000n
+                              BigInt(Math.floor(cookingPct * 10000))) /
+                          10000n
                         : 0n
                 const deliveryFunds =
                     fundableAmount > 0n
                         ? (fundableAmount *
-                            BigInt(Math.floor(deliveryPct * 10000))) /
-                        10000n
+                              BigInt(Math.floor(deliveryPct * 10000))) /
+                          10000n
                         : 0n
 
-                const plannedMeals = phase.plannedMeals?.map((meal: any) => ({
-                    id: meal.id,
-                    campaignPhaseId: meal.campaign_phase_id,
-                    name: meal.name,
-                    quantity: meal.quantity,
-                    createdAt: meal.created_at,
-                    updatedAt: meal.updated_at,
-                })) || []
+                const plannedMeals =
+                    phase.plannedMeals?.map((meal: any) => ({
+                        id: meal.id,
+                        campaignPhaseId: meal.campaign_phase_id,
+                        name: meal.name,
+                        quantity: meal.quantity,
+                        createdAt: meal.created_at,
+                        updatedAt: meal.updated_at,
+                    })) || []
 
-                const plannedIngredients = phase.plannedIngredients?.map((ingredient: any) => ({
-                    id: ingredient.id,
-                    campaignPhaseId: ingredient.campaign_phase_id,
-                    name: ingredient.name,
-                    quantity: ingredient.quantity.toString(),
-                    unit: ingredient.unit,
-                    createdAt: ingredient.created_at,
-                    updatedAt: ingredient.updated_at,
-                })) || []
+                const plannedIngredients =
+                    phase.plannedIngredients?.map((ingredient: any) => ({
+                        id: ingredient.id,
+                        campaignPhaseId: ingredient.campaign_phase_id,
+                        name: ingredient.name,
+                        quantity: ingredient.quantity.toString(),
+                        unit: ingredient.unit,
+                        createdAt: ingredient.created_at,
+                        updatedAt: ingredient.updated_at,
+                    })) || []
 
                 return {
                     id: phase.id,
@@ -1084,7 +1119,7 @@ export class CampaignRepository {
             daysActive =
                 Math.floor(
                     (todayMidnight.getTime() - startMidnight.getTime()) /
-                    msPerDay,
+                        msPerDay,
                 ) + 1
         }
 
@@ -1108,7 +1143,10 @@ export class CampaignRepository {
             { source: "coverImage", target: "cover_image" },
             { source: "coverImageFileKey", target: "cover_image_file_key" },
             { source: "targetAmount", target: "target_amount" },
-            { source: "fundraisingStartDate", target: "fundraising_start_date" },
+            {
+                source: "fundraisingStartDate",
+                target: "fundraising_start_date",
+            },
             { source: "fundraisingEndDate", target: "fundraising_end_date" },
             { source: "categoryId", target: "category_id" },
             { source: "status", target: "status" },
