@@ -13,10 +13,10 @@ export class CampaignApprovedBuilder extends NotificationBuilder<NotificationTyp
         const data = context.data
 
         const campaignTitle = this.truncate(data.campaignTitle, 50)
-        const message = `Your campaign "${campaignTitle}" has been approved and is now live.`
+        const message = `Chiến dịch "${campaignTitle}" của bạn đã được chấp nhận.`
 
         return {
-            title: "🎉 Campaign Approved!",
+            title: "🎉 Chiến dịch đã được chấp nhận!",
             message,
             metadata: {
                 campaignId: data.campaignId,
@@ -42,12 +42,12 @@ export class CampaignRejectedBuilder extends NotificationBuilder<NotificationTyp
 
         const campaignTitle = this.truncate(data.campaignTitle, 50)
         const reasonText = data.reason
-            ? `Reason: ${this.truncate(data.reason, 100)}`
-            : "Please review and resubmit."
-        const message = `Your campaign "${campaignTitle}" was rejected. ${reasonText}`
+            ? `Lý do: ${this.truncate(data.reason, 100)}`
+            : "Hãy xem và gửi lại."
+        const message = `Chiến dịch "${campaignTitle}" của bạn đã bị từ chối. ${reasonText}`
 
         return {
-            title: "❌ Campaign Rejected",
+            title: "❌ Chiến dịch đã bị từ chối",
             message,
             metadata: {
                 campaignId: data.campaignId,
@@ -106,12 +106,12 @@ export class CampaignCancelledBuilder extends NotificationBuilder<NotificationTy
 
         const campaignTitle = this.truncate(data.campaignTitle, 50)
         const reasonText = data.reason
-            ? `Reason: ${this.truncate(data.reason, 100)}`
+            ? `Lý do: ${this.truncate(data.reason, 100)}`
             : ""
-        const message = `Campaign "${campaignTitle}" has been cancelled. ${reasonText}`
+        const message = `Chiến dịch "${campaignTitle}" đã bị hủy. ${reasonText}`
 
         return {
-            title: "🚫 Campaign Cancelled",
+            title: "🚫 Chiến dịch bị hủy",
             message,
             metadata: {
                 campaignId: data.campaignId,
@@ -138,12 +138,12 @@ export class CampaignDonationReceivedBuilder extends NotificationBuilder<Notific
         const totalAmount = this.formatCurrency(data.totalAmount)
         const donorText =
             data.donorCount === 1
-                ? "1 donor"
-                : `${this.formatNumber(data.donorCount)} donors`
-        const message = `Your campaign "${campaignTitle}" received ${totalAmount} from ${donorText}.`
+                ? "1 người ủng hộ"
+                : `${this.formatNumber(data.donorCount)} người ủng hộ`
+        const message = `Chiến dịch "${campaignTitle}" của bạn đã nhận ${totalAmount} từ ${donorText}.`
 
         return {
-            title: "💰 New Donations Received!",
+            title: "💰 Đã nhận thêm lượt ủng hộ!",
             message,
             metadata: {
                 campaignId: data.campaignId,
@@ -169,10 +169,10 @@ export class CampaignNewPostBuilder extends NotificationBuilder<NotificationType
 
         const campaignTitle = this.truncate(data.campaignTitle, 40)
         const postTitle = this.truncate(data.postTitle, 50)
-        const message = `"${campaignTitle}" posted: "${postTitle}"`
+        const message = `"${campaignTitle}" đăng: "${postTitle}"`
 
         return {
-            title: "📝 New Post Published",
+            title: "📝 Bài viết mới được tạo",
             message,
             metadata: {
                 campaignId: data.campaignId,

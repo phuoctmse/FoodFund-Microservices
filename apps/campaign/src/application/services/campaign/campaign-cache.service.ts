@@ -149,39 +149,10 @@ export class CampaignCacheService extends BaseCacheService<Campaign> {
         return this.deleteStats(this.KEYS.CATEGORY_STATS, categoryId)
     }
 
-    // ==================== User Stats ====================
-
-    async getUserCampaignStats(
-        userId: string,
-    ): Promise<CampaignStatsResponse | null> {
-        return this.getStats(this.KEYS.USER_STATS, userId)
-    }
-
-    async setUserCampaignStats(
-        userId: string,
-        stats: CampaignStatsResponse,
-    ): Promise<void> {
-        return this.setStats(
-            this.KEYS.USER_STATS,
-            stats,
-            this.TTL.USER_STATS,
-            userId,
-        )
-    }
-
-    async deleteUserCampaignStats(userId: string): Promise<void> {
-        return this.deleteStats(this.KEYS.USER_STATS, userId)
-    }
-
     // ==================== Invalidation ====================
 
-    async invalidateAll(
-        campaignId?: string,
-        slug?: string,
-    ): Promise<void> {
-        const operations: Promise<void>[] = [
-            this.deleteAllCampaignLists(),
-        ]
+    async invalidateAll(campaignId?: string, slug?: string): Promise<void> {
+        const operations: Promise<void>[] = [this.deleteAllCampaignLists()]
 
         if (campaignId) {
             operations.push(this.deleteCampaign(campaignId))

@@ -476,6 +476,13 @@ export class CampaignService {
                 }
 
                 await this.autoTransferWalletToCampaign(campaign, updateData)
+                this.eventEmitter.emit("campaign.approved", {
+                    campaignId: campaign.id,
+                    campaignTitle: campaign.title,
+                    fundraiserId: campaign.createdBy,
+                    approvedBy: userContext.userId,
+                    approvedAt: new Date().toISOString(),
+                } satisfies CampaignApprovedEvent)
             } else if (newStatus === CampaignStatus.APPROVED) {
                 updateData.changedStatusAt = new Date()
 
@@ -816,44 +823,6 @@ export class CampaignService {
         }
     }
 
-    async getUserCampaignStats(
-        userContext: UserContext,
-    ): Promise<CampaignStatsResponse> {
-        if (userContext.role !== Role.FUNDRAISER) {
-            throw new Error(
-                "Only fundraisers can access their campaign statistics",
-            )
-        }
-        const cached = await this.cacheService.getUserCampaignStats(
-            userContext.userId,
-        )
-        if (cached) {
-            return cached
-        }
-
-        const [overview, byStatus, financial] = await Promise.all([
-            this.getUserOverviewStats(userContext.userId),
-            this.getUserStatusBreakdown(userContext.userId),
-            this.getUserFinancialStats(userContext.userId),
-        ])
-
-        const stats: CampaignStatsResponse = {
-            overview,
-            byStatus,
-            financial,
-            byCategory: [],
-            performance: {
-                successRate: 0,
-                averageDurationDays: undefined,
-                mostFundedCampaign: undefined,
-            },
-        }
-
-        await this.cacheService.setUserCampaignStats(userContext.userId, stats)
-
-        return stats
-    }
-
     async revertToPending(campaignId: string): Promise<Campaign> {
         const campaign = await this.campaignRepository.update(campaignId, {
             status: CampaignStatus.PENDING,
@@ -1172,127 +1141,6 @@ export class CampaignService {
             campaignsCompleted: stats.campaignsCompleted,
             totalRaised: stats.totalRaised.toString(),
             donationsMade: stats.donationsMade,
-        }
-    }
-
-    private async getUserOverviewStats(
-        userId: string,
-    ): Promise<CampaignOverviewStats> {
-        const filter = { created_by: userId }
-
-        const [totalCampaigns, activeCampaigns, completedCampaigns] =
-            await Promise.all([
-                this.campaignRepository.count(filter),
-                this.campaignRepository.count({
-                    ...filter,
-                    status: CampaignStatus.ACTIVE,
-                }),
-                this.campaignRepository.count({
-                    ...filter,
-                    status: CampaignStatus.COMPLETED,
-                }),
-            ])
-
-        return {
-            totalCampaigns,
-            activeCampaigns,
-            completedCampaigns,
-        }
-    }
-
-    private async getUserStatusBreakdown(
-        userId: string,
-    ): Promise<CampaignStatusBreakdown> {
-        const filter = { created_by: userId }
-
-        const [
-            pending,
-            approved,
-            active,
-            processing,
-            completed,
-            rejected,
-            cancelled,
-        ] = await Promise.all([
-            this.campaignRepository.count({
-                ...filter,
-                status: CampaignStatus.PENDING,
-            }),
-            this.campaignRepository.count({
-                ...filter,
-                status: CampaignStatus.APPROVED,
-            }),
-            this.campaignRepository.count({
-                ...filter,
-                status: CampaignStatus.ACTIVE,
-            }),
-            this.campaignRepository.count({
-                ...filter,
-                status: CampaignStatus.PROCESSING,
-            }),
-            this.campaignRepository.count({
-                ...filter,
-                status: CampaignStatus.COMPLETED,
-            }),
-            this.campaignRepository.count({
-                ...filter,
-                status: CampaignStatus.REJECTED,
-            }),
-            this.campaignRepository.count({
-                ...filter,
-                status: CampaignStatus.CANCELLED,
-            }),
-        ])
-
-        return {
-            pending,
-            approved,
-            active,
-            processing,
-            completed,
-            rejected,
-            cancelled,
-        }
-    }
-
-    private async getUserFinancialStats(
-        userId: string,
-    ): Promise<CampaignFinancialStats> {
-        const campaigns = await this.campaignRepository.findMany({
-            filter: { creatorId: userId },
-            limit: 1000,
-        })
-
-        const totalTargetAmount = campaigns.reduce(
-            (sum, c) => sum + BigInt(c.targetAmount),
-            BigInt(0),
-        )
-        const totalReceivedAmount = campaigns.reduce(
-            (sum, c) => sum + BigInt(c.receivedAmount),
-            BigInt(0),
-        )
-        const totalDonations = campaigns.reduce(
-            (sum, c) => sum + c.donationCount,
-            0,
-        )
-
-        const averageDonationAmount =
-            totalDonations > 0
-                ? Number(totalReceivedAmount) / totalDonations
-                : 0
-
-        const fundingRate =
-            Number(totalTargetAmount) > 0
-                ? (Number(totalReceivedAmount) / Number(totalTargetAmount)) *
-                  100
-                : 0
-
-        return {
-            totalTargetAmount: totalTargetAmount.toString(),
-            totalReceivedAmount: totalReceivedAmount.toString(),
-            totalDonations,
-            averageDonationAmount: Math.round(averageDonationAmount).toString(),
-            fundingRate: Math.round(fundingRate * 100) / 100,
         }
     }
 

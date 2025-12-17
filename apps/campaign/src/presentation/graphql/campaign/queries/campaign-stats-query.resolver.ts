@@ -1,5 +1,4 @@
-import { CognitoGraphQLGuard, createUserContextFromToken, CurrentUser } from "@app/campaign/src/shared"
-import { UseGuards, UseInterceptors } from "@nestjs/common"
+import { UseInterceptors } from "@nestjs/common"
 import { Args, Query, Resolver } from "@nestjs/graphql"
 import { SentryInterceptor } from "@libs/observability"
 import { CampaignService } from "@app/campaign/src/application/services/campaign/campaign.service"
@@ -28,14 +27,5 @@ export class CampaignStatsQueryResolver {
             categoryId: string,
     ): Promise<CampaignStatsResponse> {
         return await this.campaignService.getCategoryStats(categoryId)
-    }
-
-    @Query(() => CampaignStatsResponse)
-    @UseGuards(CognitoGraphQLGuard)
-    async myCampaignStats(
-        @CurrentUser("decodedToken") decodedToken: any,
-    ): Promise<CampaignStatsResponse> {
-        const userContext = createUserContextFromToken(decodedToken)
-        return await this.campaignService.getUserCampaignStats(userContext)
     }
 }
