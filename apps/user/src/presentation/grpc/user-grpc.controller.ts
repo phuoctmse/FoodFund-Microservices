@@ -1215,7 +1215,6 @@ export class UserGrpcController {
                 })
             }
 
-            // Add organization members (kitchen staff, delivery staff)
             if (organization.Organization_Member) {
                 organization.Organization_Member.forEach((orgMember) => {
                     if (orgMember.member) {
