@@ -7,6 +7,7 @@ export enum NotificationType {
     CAMPAIGN_CANCELLED = "CAMPAIGN_CANCELLED",
     CAMPAIGN_DONATION_RECEIVED = "CAMPAIGN_DONATION_RECEIVED",
     CAMPAIGN_NEW_POST = "CAMPAIGN_NEW_POST",
+    CAMPAIGN_EXTENDED = "CAMPAIGN_EXTENDED",
     CAMPAIGN_REASSIGNMENT_PENDING = "CAMPAIGN_REASSIGNMENT_PENDING",
     CAMPAIGN_OWNERSHIP_TRANSFERRED = "CAMPAIGN_OWNERSHIP_TRANSFERRED",
     CAMPAIGN_OWNERSHIP_RECEIVED = "CAMPAIGN_OWNERSHIP_RECEIVED",
@@ -69,6 +70,7 @@ registerEnumType(NotificationType, {
         CAMPAIGN_NEW_POST: {
             description: "New post published in campaign",
         },
+        CAMPAIGN_EXTENDED: {},
         POST_LIKE: {
             description: "Post received likes (grouped)",
         },
@@ -171,17 +173,22 @@ export const NOTIFICATION_PRIORITY_MAP: Record<
     [NotificationType.CAMPAIGN_REASSIGNMENT_PENDING]: NotificationPriority.HIGH,
     [NotificationType.CAMPAIGN_REASSIGNMENT_EXPIRED]: NotificationPriority.HIGH,
     [NotificationType.CAMPAIGN_OWNERSHIP_RECEIVED]: NotificationPriority.HIGH,
-    [NotificationType.CAMPAIGN_OWNERSHIP_TRANSFERRED]: NotificationPriority.HIGH,
+    [NotificationType.CAMPAIGN_OWNERSHIP_TRANSFERRED]:
+        NotificationPriority.HIGH,
     [NotificationType.SURPLUS_TRANSFERRED]: NotificationPriority.HIGH,
-    [NotificationType.INGREDIENT_DISBURSEMENT_COMPLETED]: NotificationPriority.HIGH,
-    [NotificationType.COOKING_DISBURSEMENT_COMPLETED]: NotificationPriority.HIGH,
-    [NotificationType.DELIVERY_DISBURSEMENT_COMPLETED]: NotificationPriority.HIGH,
+    [NotificationType.INGREDIENT_DISBURSEMENT_COMPLETED]:
+        NotificationPriority.HIGH,
+    [NotificationType.COOKING_DISBURSEMENT_COMPLETED]:
+        NotificationPriority.HIGH,
+    [NotificationType.DELIVERY_DISBURSEMENT_COMPLETED]:
+        NotificationPriority.HIGH,
 
     // Medium priority
     [NotificationType.CAMPAIGN_DONATION_RECEIVED]: NotificationPriority.MEDIUM,
     [NotificationType.CAMPAIGN_NEW_POST]: NotificationPriority.MEDIUM,
     [NotificationType.POST_COMMENT]: NotificationPriority.MEDIUM,
     [NotificationType.POST_REPLY]: NotificationPriority.MEDIUM,
+    [NotificationType.CAMPAIGN_EXTENDED]: NotificationPriority.MEDIUM,
 
     // Low priority
     [NotificationType.POST_LIKE]: NotificationPriority.LOW,

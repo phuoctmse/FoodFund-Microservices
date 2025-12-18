@@ -107,6 +107,7 @@ import {
     IngredientDisbursementCompletedBuilder,
     CookingDisbursementCompletedBuilder,
     DeliveryDisbursementCompletedBuilder,
+    CampaignExtendedBuilder,
 } from "./application/builders/notification"
 import { NotificationQueryResolver } from "./presentation/graphql/notification/queries"
 import { NotificationMutationResolver } from "./presentation/graphql/notification/mutations"
@@ -178,7 +179,7 @@ import { DonationConsumer } from "./application/handlers/kafka/donation.consumer
             delimiter: ".",
             newListener: false,
             removeListener: false,
-            maxListeners: 10,
+            maxListeners: 20,
             verboseMemoryLeak: false,
             ignoreErrors: false,
         }),
@@ -283,6 +284,7 @@ import { DonationConsumer } from "./application/handlers/kafka/donation.consumer
         CampaignCancelledBuilder,
         CampaignDonationReceivedBuilder,
         CampaignNewPostBuilder,
+        CampaignExtendedBuilder,
         PostLikeBuilder,
         PostCommentBuilder,
         PostReplyBuilder,

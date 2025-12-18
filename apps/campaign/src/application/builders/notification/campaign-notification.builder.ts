@@ -295,3 +295,40 @@ export class CampaignReassignmentExpiredBuilder extends NotificationBuilder<Noti
         }
     }
 }
+
+/**
+ * Campaign Extended Notification Builder
+ */
+@Injectable()
+export class CampaignExtendedBuilder extends NotificationBuilder<NotificationType.CAMPAIGN_EXTENDED> {
+    readonly type = NotificationType.CAMPAIGN_EXTENDED
+
+    build(
+        context: NotificationBuilderContext<NotificationType.CAMPAIGN_EXTENDED>,
+    ): NotificationBuilderResult {
+        this.validate(context.data)
+        const data = context.data
+
+        const campaignTitle = this.truncate(data.campaignTitle, 50)
+        const extensionText =
+            data.extensionDays === 1
+                ? "1 ngày"
+                : `${data.extensionDays} ngày`
+
+        const oldEndDate = new Date(data.oldEndDate).toLocaleDateString("vi-VN")
+        const newEndDate = new Date(data.newEndDate).toLocaleDateString("vi-VN")
+
+        const message = `Chiến dịch "${campaignTitle}" đã được gia hạn thêm ${extensionText}. Thời gian kết thúc mới: ${newEndDate} (trước đó: ${oldEndDate}).`
+
+        return {
+            title: "⏰ Chiến dịch đã được gia hạn",
+            message,
+            metadata: {
+                campaignId: data.campaignId,
+                extensionDays: data.extensionDays,
+                oldEndDate: data.oldEndDate,
+                newEndDate: data.newEndDate,
+            },
+        }
+    }
+}
