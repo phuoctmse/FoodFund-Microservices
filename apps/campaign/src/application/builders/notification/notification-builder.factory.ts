@@ -11,6 +11,7 @@ import {
     CampaignOwnershipTransferredBuilder,
     CampaignOwnershipReceivedBuilder,
     CampaignReassignmentExpiredBuilder,
+    CampaignExtendedBuilder,
 } from "./campaign-notification.builder"
 import {
     PostCommentBuilder,
@@ -64,6 +65,7 @@ export class NotificationBuilderFactory {
         private readonly ingredientDisbursementBuilder: IngredientDisbursementCompletedBuilder,
         private readonly cookingDisbursementBuilder: CookingDisbursementCompletedBuilder,
         private readonly deliveryDisbursementBuilder: DeliveryDisbursementCompletedBuilder,
+        private readonly campaignExtendedBuilder: CampaignExtendedBuilder,
     ) {
         this.builders = new Map<NotificationType, NotificationBuilder<any>>()
 
@@ -143,6 +145,10 @@ export class NotificationBuilderFactory {
         this.builders.set(
             NotificationType.DELIVERY_DISBURSEMENT_COMPLETED,
             this.deliveryDisbursementBuilder,
+        )
+        this.builders.set(
+            NotificationType.CAMPAIGN_EXTENDED,
+            this.campaignExtendedBuilder,
         )
     }
 

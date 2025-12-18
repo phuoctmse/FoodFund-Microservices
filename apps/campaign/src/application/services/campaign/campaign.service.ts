@@ -53,6 +53,7 @@ import {
     CampaignApprovedEvent,
     CampaignCancelledEvent,
     CampaignCompletedEvent,
+    CampaignExtendedEvent,
     CampaignRejectedEvent,
 } from "@app/campaign/src/domain/events"
 import { NotificationQueue } from "../../workers/notification"
@@ -608,7 +609,7 @@ export class CampaignService {
                     "Campaign has already ended. Cannot extend.",
                 )
             }
-
+            const oldEndDate = new Date(endDate)
             const newEndDate = new Date(endDate)
             newEndDate.setDate(newEndDate.getDate() + input.extensionDays)
 
@@ -623,6 +624,13 @@ export class CampaignService {
                 this.cacheService.deleteCampaign(id),
                 this.cacheService.invalidateAll(id, campaign.slug),
             ])
+
+            await this.sendCampaignExtensionNotifications(
+                updatedCampaign,
+                input.extensionDays,
+                oldEndDate,
+                newEndDate,
+            )
 
             return updatedCampaign
         } catch (error) {
@@ -1524,6 +1532,62 @@ export class CampaignService {
                 error.message,
             )
         }
+    }
+
+    private async sendCampaignExtensionNotifications(
+        campaign: Campaign,
+        extensionDays: number,
+        oldEndDate: Date,
+        newEndDate: Date,
+    ): Promise<void> {
+        const allDonorIds =
+            await this.donorRepository.getCampaignDonorsExcludingOrganization(
+                campaign.id,
+                campaign.organizationId,
+            )
+
+        if (allDonorIds.length === 0) {
+            return
+        }
+
+        let followerIds = allDonorIds
+
+        if (campaign.organizationId) {
+            const orgMembers =
+                await this.userClientService.getOrganizationMembers(
+                    campaign.organizationId,
+                )
+
+            const memberCognitoIds = orgMembers.map((m) => m.cognitoId)
+
+            followerIds = allDonorIds.filter(
+                (donorId) => !memberCognitoIds.includes(donorId),
+            )
+
+            this.logger.log(
+                `[ExtendCampaign] Excluded ${memberCognitoIds.length} organization members. ` +
+                    `Notifying ${followerIds.length} donors.`,
+            )
+        }
+
+        if (followerIds.length === 0) {
+            return
+        }
+
+        this.eventEmitter.emit("campaign.extended", {
+            campaignId: campaign.id,
+            campaignTitle: campaign.title,
+            fundraiserId: campaign.createdBy,
+            organizationId: campaign.organizationId,
+            extensionDays,
+            newEndDate: newEndDate.toISOString(),
+            oldEndDate: oldEndDate.toISOString(),
+            followerIds,
+        } satisfies CampaignExtendedEvent)
+
+        this.logger.log(
+            `[ExtendCampaign] ✅ Notification event emitted to ${followerIds.length} donors`,
+        )
     }
 
     private async sendCampaignCompletedNotifications(

@@ -713,6 +713,53 @@ export class UserClientService {
         }
     }
 
+    async getOrganizationMembers(
+        organizationId: string,
+    ): Promise<Array<{ cognitoId: string; role: string; fullName: string }>> {
+        try {
+            const response = await this.grpcClient.callUserService<
+                { organizationId: string },
+                {
+                    success: boolean
+                    members?: Array<{
+                        id: string
+                        cognitoId: string
+                        fullName: string
+                        email: string
+                        role: string
+                        memberRole: string
+                        status: string
+                    }>
+                    error?: string
+                }
+            >(
+                "GetOrganizationMembers",
+                { organizationId },
+                { timeout: 5000, retries: 2 },
+            )
+
+            if (!response.success) {
+                throw new Error(
+                    response.error || "Failed to fetch organization members",
+                )
+            }
+
+            return (
+                response.members?.map((m) => ({
+                    cognitoId: m.cognitoId,
+                    role: m.memberRole,
+                    fullName: m.fullName,
+                })) || []
+            )
+        } catch (error) {
+            this.logger.error(
+                `[gRPC] Failed to get organization members for ${organizationId}:`,
+                error.message,
+            )
+            throw error
+        }
+    }
+
     /**
      * Get system config value as number from User Service
      * Falls back to default value if fetch fails or config not found
@@ -740,7 +787,7 @@ export class UserClientService {
             }
 
             const parsed = Number(response.value)
-            if (isNaN(parsed)) {
+            if (Number.isNaN(parsed)) {
                 this.logger.warn(
                     `[gRPC] Config ${key} is not a valid number: ${response.value}, using default: ${defaultValue}`,
                 )

@@ -10,6 +10,7 @@ import {
     CampaignCancelledEvent,
     CampaignCompletedEvent,
     CampaignDonationReceivedEvent,
+    CampaignExtendedEvent,
     CampaignNewPostEvent,
     CampaignRejectedEvent,
 } from "../../domain/events"
@@ -208,6 +209,27 @@ export class CampaignNotificationHandler {
                 campaignId: event.campaignId,
                 campaignTitle: event.campaignTitle,
                 totalRefunds: event.totalRefunds,
+            },
+            timestamp: new Date().toISOString(),
+        })
+    }
+
+    @OnEvent("campaign.extended")
+    async handleCampaignExtended(event: CampaignExtendedEvent) {
+        await this.notificationQueue.addGroupedNotificationJob({
+            eventIds: [`campaign-extended-${event.campaignId}`],
+            priority: NotificationPriority.MEDIUM,
+            type: NotificationType.CAMPAIGN_EXTENDED,
+            userIds: event.followerIds,
+            actorId: event.fundraiserId,
+            entityType: "CAMPAIGN",
+            entityId: event.campaignId,
+            data: {
+                campaignId: event.campaignId,
+                campaignTitle: event.campaignTitle,
+                extensionDays: event.extensionDays,
+                newEndDate: event.newEndDate,
+                oldEndDate: event.oldEndDate,
             },
             timestamp: new Date().toISOString(),
         })

@@ -392,6 +392,7 @@ export class NotificationService {
             [NotificationType.CAMPAIGN_COMPLETED]: "CAMPAIGN",
             [NotificationType.CAMPAIGN_CANCELLED]: "CAMPAIGN",
             [NotificationType.CAMPAIGN_DONATION_RECEIVED]: "CAMPAIGN",
+            [NotificationType.CAMPAIGN_EXTENDED]: "CAMPAIGN",
             [NotificationType.CAMPAIGN_NEW_POST]: "POST",
             [NotificationType.POST_LIKE]: "POST",
             [NotificationType.POST_COMMENT]: "COMMENT",

@@ -3,14 +3,13 @@ import { Donation, Prisma, PrismaClient } from "../../generated/campaign-client"
 import {
     TransactionStatus,
     PaymentAmountStatus,
-    PaymentStatus,
 } from "../../shared/enum/campaign.enum"
 import { CreateDonationRepositoryInput } from "../dtos/donation"
 import { OutboxStatus } from "../../domain/enums/outbox/outbox.enum"
 
 @Injectable()
 export class DonorRepository {
-    constructor(private readonly prisma: PrismaClient) { }
+    constructor(private readonly prisma: PrismaClient) {}
 
     async create(data: CreateDonationRepositoryInput): Promise<Donation> {
         return this.prisma.donation.create({
@@ -407,105 +406,115 @@ export class DonorRepository {
             payload: any
         }
     }) {
-        return this.prisma.$transaction(async (tx) => {
-            await tx.$executeRaw`SELECT 1 FROM "payment_transactions" WHERE "order_code" = ${data.order_code} FOR UPDATE`
+        return this.prisma.$transaction(
+            async (tx) => {
+                await tx.$executeRaw`SELECT 1 FROM "payment_transactions" WHERE "order_code" = ${data.order_code} FOR UPDATE`
 
-            const originalPayment = await tx.payment_Transaction.findUnique({
-                where: { order_code: data.order_code },
-                include: {
-                    donation: {
+                const originalPayment = await tx.payment_Transaction.findUnique(
+                    {
+                        where: { order_code: data.order_code },
                         include: {
-                            campaign: true,
+                            donation: {
+                                include: {
+                                    campaign: true,
+                                },
+                            },
                         },
                     },
-                },
-            })
-
-            if (!originalPayment) {
-                throw new Error(
-                    `Payment with order_code ${data.order_code} not found`,
                 )
-            }
 
-            let payment_status: "PENDING" | "PARTIAL" | "COMPLETED" | "OVERPAID"
-            if (data.amount_paid < originalPayment.amount) {
-                payment_status = "PARTIAL"
-            } else if (data.amount_paid === originalPayment.amount) {
-                payment_status = "COMPLETED"
-            } else {
-                payment_status = "OVERPAID"
-            }
+                if (!originalPayment) {
+                    throw new Error(
+                        `Payment with order_code ${data.order_code} not found`,
+                    )
+                }
 
-            const previousReceived = originalPayment.received_amount || BigInt(0)
-            const newReceived = data.amount_paid
-            const incrementAmount = newReceived - previousReceived
+                let payment_status:
+                    | "PENDING"
+                    | "PARTIAL"
+                    | "COMPLETED"
+                    | "OVERPAID"
+                if (data.amount_paid < originalPayment.amount) {
+                    payment_status = "PARTIAL"
+                } else if (data.amount_paid === originalPayment.amount) {
+                    payment_status = "COMPLETED"
+                } else {
+                    payment_status = "OVERPAID"
+                }
 
-            const payment = await tx.payment_Transaction.update({
-                where: { order_code: data.order_code },
-                data: {
-                    status: TransactionStatus.SUCCESS,
-                    received_amount: data.amount_paid,
-                    payment_status,
-                    gateway: data.gateway,
-                    processed_by_webhook: data.processed_by_webhook,
-                    payos_metadata: data.payos_metadata,
-                    sepay_metadata: data.sepay_metadata,
-                    description: data.description,
-                    updated_at: new Date(),
-                },
-                include: {
-                    donation: {
-                        include: {
-                            campaign: true,
+                const previousReceived =
+                    originalPayment.received_amount || BigInt(0)
+                const newReceived = data.amount_paid
+                const incrementAmount = newReceived - previousReceived
+
+                const payment = await tx.payment_Transaction.update({
+                    where: { order_code: data.order_code },
+                    data: {
+                        status: TransactionStatus.SUCCESS,
+                        received_amount: data.amount_paid,
+                        payment_status,
+                        gateway: data.gateway,
+                        processed_by_webhook: data.processed_by_webhook,
+                        payos_metadata: data.payos_metadata,
+                        sepay_metadata: data.sepay_metadata,
+                        description: data.description,
+                        updated_at: new Date(),
+                    },
+                    include: {
+                        donation: {
+                            include: {
+                                campaign: true,
+                            },
                         },
                     },
-                },
-            })
-
-            // 3. Update Campaign Stats safely
-            const campaignUpdateData: any = {}
-
-            if (incrementAmount > BigInt(0)) {
-                campaignUpdateData.received_amount = {
-                    increment: incrementAmount,
-                }
-            }
-
-            if (originalPayment.status !== TransactionStatus.SUCCESS) {
-                campaignUpdateData.donation_count = {
-                    increment: 1,
-                }
-            }
-
-            let updatedCampaign = payment.donation.campaign
-            if (Object.keys(campaignUpdateData).length > 0) {
-                updatedCampaign = await tx.campaign.update({
-                    where: { id: payment.donation.campaign_id },
-                    data: campaignUpdateData,
-                    select: {
-                        id: true,
-                        title: true,
-                        received_amount: true,
-                        target_amount: true,
-                        status: true,
-                        created_by: true,
-                    },
-                }) as any
-            }
-
-            if (data.outbox_event) {
-                await tx.outboxEvent.create({
-                    data: {
-                        aggregate_id: data.order_code.toString(),
-                        event_type: data.outbox_event.event_type,
-                        payload: data.outbox_event.payload,
-                        status: OutboxStatus.PENDING
-                    }
                 })
-            }
 
-            return { payment, campaign: updatedCampaign }
-        }, { timeout: 20000 })
+                // 3. Update Campaign Stats safely
+                const campaignUpdateData: any = {}
+
+                if (incrementAmount > BigInt(0)) {
+                    campaignUpdateData.received_amount = {
+                        increment: incrementAmount,
+                    }
+                }
+
+                if (originalPayment.status !== TransactionStatus.SUCCESS) {
+                    campaignUpdateData.donation_count = {
+                        increment: 1,
+                    }
+                }
+
+                let updatedCampaign = payment.donation.campaign
+                if (Object.keys(campaignUpdateData).length > 0) {
+                    updatedCampaign = (await tx.campaign.update({
+                        where: { id: payment.donation.campaign_id },
+                        data: campaignUpdateData,
+                        select: {
+                            id: true,
+                            title: true,
+                            received_amount: true,
+                            target_amount: true,
+                            status: true,
+                            created_by: true,
+                        },
+                    })) as any
+                }
+
+                if (data.outbox_event) {
+                    await tx.outboxEvent.create({
+                        data: {
+                            aggregate_id: data.order_code.toString(),
+                            event_type: data.outbox_event.event_type,
+                            payload: data.outbox_event.payload,
+                            status: OutboxStatus.PENDING,
+                        },
+                    })
+                }
+
+                return { payment, campaign: updatedCampaign }
+            },
+            { timeout: 20000 },
+        )
     }
 
     async updatePaymentTransactionFailed(data: {
@@ -581,68 +590,71 @@ export class DonorRepository {
             payload: any
         }
     }) {
-        return this.prisma.$transaction(async (tx) => {
-            const payment = await tx.payment_Transaction.create({
-                data: {
-                    donation_id: data.donation_id,
-                    order_code: null,
-                    amount: data.amount,
-                    received_amount: data.amount,
-                    description: data.description,
-                    status: TransactionStatus.SUCCESS,
-                    payment_status: PaymentAmountStatus.COMPLETED,
-                    gateway: data.gateway,
-                    processed_by_webhook: true,
-                    payos_metadata: data.payos_metadata,
-                    sepay_metadata: data.sepay_metadata,
-                },
-                include: {
-                    donation: {
-                        include: {
-                            campaign: true,
-                        },
-                    },
-                },
-            })
-
-            const updatedCampaign = await tx.campaign.update({
-                where: { id: payment.donation.campaign_id },
-                data: {
-                    received_amount: {
-                        increment: data.amount,
-                    },
-                    donation_count: {
-                        increment: 1,
-                    },
-                },
-                select: {
-                    id: true,
-                    title: true,
-                    received_amount: true,
-                    target_amount: true,
-                    status: true,
-                    created_by: true,
-                },
-            })
-
-            if (data.outbox_event) {
-                await tx.outboxEvent.create({
+        return this.prisma.$transaction(
+            async (tx) => {
+                const payment = await tx.payment_Transaction.create({
                     data: {
-                        aggregate_id: payment.id,
-                        event_type: data.outbox_event.event_type,
-                        payload: {
-                            ...data.outbox_event.payload,
-                            paymentTransactionId: payment.id
+                        donation_id: data.donation_id,
+                        order_code: null,
+                        amount: data.amount,
+                        received_amount: data.amount,
+                        description: data.description,
+                        status: TransactionStatus.SUCCESS,
+                        payment_status: PaymentAmountStatus.COMPLETED,
+                        gateway: data.gateway,
+                        processed_by_webhook: true,
+                        payos_metadata: data.payos_metadata,
+                        sepay_metadata: data.sepay_metadata,
+                    },
+                    include: {
+                        donation: {
+                            include: {
+                                campaign: true,
+                            },
                         },
-                        status: OutboxStatus.PENDING
-                    }
+                    },
                 })
-            }
 
-            return { payment, campaign: updatedCampaign }
-        }, {
-            timeout: 20000
-        })
+                const updatedCampaign = await tx.campaign.update({
+                    where: { id: payment.donation.campaign_id },
+                    data: {
+                        received_amount: {
+                            increment: data.amount,
+                        },
+                        donation_count: {
+                            increment: 1,
+                        },
+                    },
+                    select: {
+                        id: true,
+                        title: true,
+                        received_amount: true,
+                        target_amount: true,
+                        status: true,
+                        created_by: true,
+                    },
+                })
+
+                if (data.outbox_event) {
+                    await tx.outboxEvent.create({
+                        data: {
+                            aggregate_id: payment.id,
+                            event_type: data.outbox_event.event_type,
+                            payload: {
+                                ...data.outbox_event.payload,
+                                paymentTransactionId: payment.id,
+                            },
+                            status: OutboxStatus.PENDING,
+                        },
+                    })
+                }
+
+                return { payment, campaign: updatedCampaign }
+            },
+            {
+                timeout: 20000,
+            },
+        )
     }
 
     async findPaymentBySepayId(sepayId: number) {
@@ -705,7 +717,7 @@ export class DonorRepository {
         return donors
             .filter((d) => d.donor_id !== null)
             .map((d) => ({
-                donor_id: d.donor_id!,
+                donor_id: d.donor_id,
                 donor_name: d.donor_name,
             }))
     }
@@ -728,6 +740,35 @@ export class DonorRepository {
             .map((d) => d.donor_id)
             .filter((id): id is string => id !== null)
     }
+
+    async getCampaignDonorsExcludingOrganization(
+        campaignId: string,
+        organizationId?: string,
+    ): Promise<string[]> {
+        const donors = await this.prisma.donation.findMany({
+            where: {
+                campaign_id: campaignId,
+                payment_transactions: {
+                    some: {
+                        status: "SUCCESS",
+                    },
+                },
+            },
+            select: {
+                donor_id: true,
+            },
+            distinct: ["donor_id"],
+        })
+
+        const donorIds = donors
+            .map((d) => d.donor_id)
+            .filter((id): id is string => {
+                return id !== null && id !== undefined && id.trim() !== ""
+            })
+
+        return donorIds
+    }
+
     async findAllSuccessfulDonations(options?: {
         skip?: number
         take?: number
@@ -754,7 +795,10 @@ export class DonorRepository {
         })
     }
 
-    async findAll(options?: { skip?: number; take?: number }): Promise<Donation[]> {
+    async findAll(options?: {
+        skip?: number
+        take?: number
+    }): Promise<Donation[]> {
         return this.prisma.donation.findMany({
             include: {
                 campaign: true,

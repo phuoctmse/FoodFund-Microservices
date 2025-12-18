@@ -48,3 +48,14 @@ export interface CampaignNewPostEvent {
     postPreview: string
     followerIds: string[]
 }
+
+export interface CampaignExtendedEvent {
+    campaignId: string
+    campaignTitle: string
+    fundraiserId: string
+    organizationId?: string
+    extensionDays: number
+    newEndDate: string
+    oldEndDate: string
+    followerIds: string[]
+}
