@@ -180,7 +180,7 @@ import { DonationConsumer } from "./application/handlers/kafka/donation.consumer
             delimiter: ".",
             newListener: false,
             removeListener: false,
-            maxListeners: 20,
+            maxListeners: 25,
             verboseMemoryLeak: false,
             ignoreErrors: false,
         }),

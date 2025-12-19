@@ -13,7 +13,7 @@ export class PostLikeBuilder extends NotificationBuilder<NotificationType.POST_L
         const data = context.data
 
         const postTitle = this.truncate(data.postTitle, 50)
-        const likerName = data.latestLikerName || "Someone"
+        const likerName = data.latestLikerName || "Ai đó"
 
         let message: string
         if (data.likeCount === 1) {
@@ -26,7 +26,7 @@ export class PostLikeBuilder extends NotificationBuilder<NotificationType.POST_L
         }
 
         return {
-            title: "Post Liked",
+            title: "Lượt Thích",
             message,
             metadata: {
                 postId: data.postId,
@@ -52,10 +52,10 @@ export class PostCommentBuilder extends NotificationBuilder<NotificationType.POS
 
         const postTitle = this.truncate(data.postTitle, 50)
         const commentPreview = this.truncate(data.commentPreview, 100)
-        const message = `${data.commenterName} commented on "${postTitle}": "${commentPreview}"`
+        const message = `${data.commenterName} bình luận về bài viết "${postTitle}": "${commentPreview}"`
 
         return {
-            title: "New Comment",
+            title: "Bình luận mới",
             message,
             metadata: {
                 postId: data.postId,
@@ -80,10 +80,10 @@ export class PostReplyBuilder extends NotificationBuilder<NotificationType.POST_
         const data = context.data
 
         const replyPreview = this.truncate(data.replyPreview, 100)
-        const message = `${data.replierName} replied to your comment: "${replyPreview}"`
+        const message = `${data.replierName} trả lời bình luận của bạn: "${replyPreview}"`
 
         return {
-            title: "New Reply",
+            title: "Bình luận mới",
             message,
             metadata: {
                 postId: data.postId,

@@ -173,10 +173,10 @@ export class CampaignNewPostBuilder extends NotificationBuilder<NotificationType
 
         const campaignTitle = this.truncate(data.campaignTitle, 40)
         const postTitle = this.truncate(data.postTitle, 50)
-        const message = `"${campaignTitle}" đăng: "${postTitle}"`
+        const message = `Chiến dịch "${campaignTitle}" đăng bài viết mới: "${postTitle}"`
 
         return {
-            title: "📝 Bài viết mới được tạo",
+            title: "Bài viết mới được tạo",
             message,
             metadata: {
                 campaignId: data.campaignId,

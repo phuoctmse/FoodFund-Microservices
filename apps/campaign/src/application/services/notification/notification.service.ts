@@ -379,59 +379,6 @@ export class NotificationService {
         await this.cacheService.setUnreadCount(userId, freshCount)
     }
 
-    private async updateExistingLikeNotification<
-        T extends NotificationType & keyof NotificationDataMap,
-    >(input: CreateNotificationInput<T>): Promise<Notification> {
-        const existingNotifications =
-            await this.notificationRepository.findNotifications({
-                userId: input.userId,
-                limit: 50,
-                isRead: false,
-            })
-
-        const existingNotification = existingNotifications.items.find(
-            (n) =>
-                n.type === NotificationType.POST_LIKE &&
-                n.entityId === input.entityId &&
-                !n.isRead,
-        )
-
-        if (!existingNotification) {
-            return await this.createNotification(input)
-        }
-
-        const content = this.notificationBuilder.build({
-            type: input.type,
-            data: input.data,
-            userId: input.userId,
-            actorId: input.actorId,
-            entityId: input.entityId,
-            metadata: input.metadata,
-        })
-
-        const updatedData = {
-            title: content.title,
-            message: content.message,
-            ...input.data,
-            ...content.metadata,
-            ...input.metadata,
-        }
-
-        const updatedNotification =
-            await this.notificationRepository.updateNotificationData(
-                existingNotification.id,
-                updatedData,
-            )
-
-        if (!updatedNotification) {
-            throw new Error("Failed to update notification")
-        }
-
-        await this.cacheService.invalidateNotificationList(input.userId)
-
-        return updatedNotification
-    }
-
     private getEntityTypeFromNotificationType(type: NotificationType): string {
         const typeMap: Record<NotificationType, string> = {
             [NotificationType.CAMPAIGN_APPROVED]: "CAMPAIGN",
@@ -445,8 +392,7 @@ export class NotificationService {
             [NotificationType.POST_LIKE]: "POST",
             [NotificationType.POST_COMMENT]: "COMMENT",
             [NotificationType.POST_REPLY]: "COMMENT",
-            [NotificationType.INGREDIENT_REQUEST_APPROVED]:
-                "INGREDIENT_REQUEST",
+            [NotificationType.INGREDIENT_REQUEST_APPROVED]: "INGREDIENT_REQUEST",
             [NotificationType.DELIVERY_TASK_ASSIGNED]: "DELIVERY_TASK",
             [NotificationType.CAMPAIGN_REASSIGNMENT_PENDING]: "CAMPAIGN",
             [NotificationType.CAMPAIGN_OWNERSHIP_TRANSFERRED]: "CAMPAIGN",

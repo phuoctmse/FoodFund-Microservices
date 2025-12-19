@@ -14,6 +14,7 @@ import { CampaignNewPostEvent } from "@app/campaign/src/domain/events"
 import { CampaignRepository } from "../../repositories/campaign.repository"
 import { CampaignFollowerService } from "../campaign/campaign-follower.service"
 import { stripHtmlTags } from "@app/campaign/src/shared/utils"
+import { UserClientService } from "@app/campaign/src/shared"
 
 @Injectable()
 export class PostService {
@@ -25,6 +26,7 @@ export class PostService {
         private readonly spacesUploadService: SpacesUploadService,
         private readonly postCacheService: PostCacheService,
         private readonly campaignFollowerService: CampaignFollowerService,
+        private readonly userClientService: UserClientService,
         private readonly eventEmitter: EventEmitter2,
     ) {}
 
@@ -88,13 +90,16 @@ export class PostService {
                         userId,
                     })
 
-                    const cachedLikeCount = await this.postCacheService.getDistributedLikeCounter(post.id)
+                    const cachedLikeCount =
+                        await this.postCacheService.getDistributedLikeCounter(
+                            post.id,
+                        )
                     const likeCount = cachedLikeCount ?? post.likeCount
 
                     return {
                         ...post,
                         isLikedByMe,
-                        likeCount
+                        likeCount,
                     }
                 }),
             )
@@ -118,7 +123,10 @@ export class PostService {
                     userId,
                 })
 
-                const cachedLikeCount = await this.postCacheService.getDistributedLikeCounter(post.id)
+                const cachedLikeCount =
+                    await this.postCacheService.getDistributedLikeCounter(
+                        post.id,
+                    )
                 const likeCount = cachedLikeCount ?? post.likeCount
 
                 return {
@@ -229,12 +237,33 @@ export class PostService {
             return
         }
 
-        const campaignFollowerIds =
+        const allFollowerIds =
             await this.campaignFollowerService.getCampaignFollowers(
                 postData.campaignId,
             )
 
-        if (campaignFollowerIds.length === 0) {
+        if (allFollowerIds.length === 0) {
+            return
+        }
+
+        let recipientIds = allFollowerIds.filter((id) => id !== authorId)
+
+        if (campaign.organizationId) {
+            const orgMembers =
+                await this.userClientService.getOrganizationMembers(
+                    campaign.organizationId,
+                )
+
+            const memberCognitoIds = new Set<string>(
+                orgMembers.map((m) => m.cognitoId),
+            )
+
+            recipientIds = recipientIds.filter(
+                (followerId) => !memberCognitoIds.has(followerId),
+            )
+        }
+
+        if (recipientIds.length === 0) {
             return
         }
 
@@ -247,7 +276,7 @@ export class PostService {
             authorId,
             postTitle: postData.title,
             postPreview,
-            followerIds: campaignFollowerIds,
+            followerIds: recipientIds,
         } satisfies CampaignNewPostEvent)
     }
 

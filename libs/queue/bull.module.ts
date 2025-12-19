@@ -14,7 +14,7 @@ import { QUEUE_NAMES } from "./constants"
                 const redisConfig: any = {
                     host: env.redis.host,
                     port: env.redis.port,
-                    db: 0,
+                    db: env.nodeEnv === "development" ? 1 : 0,
                     enableOfflineQueue: true,
                     retryStrategy: (times: number) => {
                         if (times > 3) {
