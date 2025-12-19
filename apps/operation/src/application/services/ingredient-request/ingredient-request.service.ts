@@ -12,7 +12,10 @@ import {
     UserContext,
 } from "@app/operation/src/shared"
 import { IngredientRequest } from "@app/operation/src/domain"
-import { IngredientRequestStatus } from "@app/operation/src/domain/enums"
+import {
+    IngredientRequestSortOrder,
+    IngredientRequestStatus,
+} from "@app/operation/src/domain/enums"
 import { GrpcClientService } from "@libs/grpc"
 import { IngredientRequestCacheService } from "./ingredient-request-cache.service"
 import { BaseOperationService } from "@app/operation/src/shared/services"
@@ -85,10 +88,9 @@ export class IngredientRequestService extends BaseOperationService {
                 )
             }
 
-            const hasPending =
-                await this.repository.hasActiveRequest(
-                    input.campaignPhaseId,
-                )
+            const hasPending = await this.repository.hasActiveRequest(
+                input.campaignPhaseId,
+            )
             if (hasPending) {
                 throw new BadRequestException(
                     "Không thể tạo mới yêu cầu giải ngân vì đã có yêu cầu tồn tại trong giai đoạn chiến dịch này.",
@@ -196,7 +198,10 @@ export class IngredientRequestService extends BaseOperationService {
                 await this.cacheService.getRequestList(cacheKey)
 
             if (cachedRequests) {
-                return cachedRequests
+                return this.sortRequests(
+                    cachedRequests,
+                    filter?.sortBy || IngredientRequestSortOrder.NEWEST_FIRST,
+                )
             }
 
             let requests: IngredientRequest[]
@@ -223,9 +228,14 @@ export class IngredientRequestService extends BaseOperationService {
                 requests = await this.repository.findMany(filter, limit, offset)
             }
 
-            await this.cacheService.setRequestList(cacheKey, requests)
+            const sortedRequests = this.sortRequests(
+                requests,
+                filter?.sortBy || IngredientRequestSortOrder.NEWEST_FIRST,
+            )
 
-            return requests
+            await this.cacheService.setRequestList(cacheKey, sortedRequests)
+
+            return sortedRequests
         } catch (error) {
             this.sentryService.captureError(error as Error, {
                 operation: "IngredientRequestService.getRequests",
@@ -239,6 +249,7 @@ export class IngredientRequestService extends BaseOperationService {
         userContext: UserContext,
         limit: number = 10,
         offset: number = 0,
+        sortBy?: IngredientRequestSortOrder,
     ): Promise<IngredientRequest[]> {
         try {
             this.authService.requireAuthentication(
@@ -251,7 +262,10 @@ export class IngredientRequestService extends BaseOperationService {
             )
 
             if (cachedRequests) {
-                return cachedRequests
+                return this.sortRequests(
+                    cachedRequests,
+                    sortBy || IngredientRequestSortOrder.NEWEST_FIRST,
+                )
             }
 
             const requests = await this.repository.findByKitchenStaffId(
@@ -260,12 +274,17 @@ export class IngredientRequestService extends BaseOperationService {
                 offset,
             )
 
-            await this.cacheService.setUserRequests(
-                userContext.userId,
+            const sortedRequests = this.sortRequests(
                 requests,
+                sortBy || IngredientRequestSortOrder.NEWEST_FIRST,
             )
 
-            return requests
+            await this.cacheService.setUserRequests(
+                userContext.userId,
+                sortedRequests,
+            )
+
+            return sortedRequests
         } catch (error) {
             this.sentryService.captureError(error as Error, {
                 operation: "IngredientRequestService.getMyRequests",
@@ -358,6 +377,76 @@ export class IngredientRequestService extends BaseOperationService {
                 adminId: userContext.userId,
             })
             throw error
+        }
+    }
+
+    private sortRequests(
+        requests: IngredientRequest[],
+        sortBy: IngredientRequestSortOrder,
+    ): IngredientRequest[] {
+        const sorted = [...requests]
+
+        switch (sortBy) {
+        case IngredientRequestSortOrder.OLDEST_FIRST:
+            return sorted.sort(
+                (a, b) =>
+                    new Date(a.created_at).getTime() -
+                        new Date(b.created_at).getTime(),
+            )
+
+        case IngredientRequestSortOrder.STATUS_PENDING_FIRST: {
+            const pendingRequests = sorted.filter(
+                (r) => r.status === IngredientRequestStatus.PENDING,
+            )
+            const approvedRequests = sorted.filter(
+                (r) => r.status === IngredientRequestStatus.APPROVED,
+            )
+            const disbursedRequests = sorted.filter(
+                (r) => r.status === IngredientRequestStatus.DISBURSED,
+            )
+            const rejectedRequests = sorted.filter(
+                (r) => r.status === IngredientRequestStatus.REJECTED,
+            )
+
+            pendingRequests.sort(
+                (a, b) =>
+                    new Date(a.created_at).getTime() -
+                        new Date(b.created_at).getTime(),
+            )
+
+            approvedRequests.sort(
+                (a, b) =>
+                    new Date(b.created_at).getTime() -
+                        new Date(a.created_at).getTime(),
+            )
+
+            disbursedRequests.sort(
+                (a, b) =>
+                    new Date(b.created_at).getTime() -
+                        new Date(a.created_at).getTime(),
+            )
+
+            rejectedRequests.sort(
+                (a, b) =>
+                    new Date(b.created_at).getTime() -
+                        new Date(a.created_at).getTime(),
+            )
+
+            return [
+                ...pendingRequests,
+                ...approvedRequests,
+                ...disbursedRequests,
+                ...rejectedRequests,
+            ]
+        }
+
+        case IngredientRequestSortOrder.NEWEST_FIRST:
+        default:
+            return sorted.sort(
+                (a, b) =>
+                    new Date(b.created_at).getTime() -
+                        new Date(a.created_at).getTime(),
+            )
         }
     }
 }

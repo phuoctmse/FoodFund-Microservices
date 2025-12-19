@@ -1,6 +1,7 @@
 import { IngredientRequestFilterInput } from "@app/operation/src/application/dtos/ingredient-request/request/ingredient-request.input"
 import { IngredientRequestStatsResponse } from "@app/operation/src/application/dtos/ingredient-request/response"
 import { IngredientRequestService } from "@app/operation/src/application/services"
+import { IngredientRequestSortOrder } from "@app/operation/src/domain"
 import { IngredientRequest } from "@app/operation/src/domain/entities"
 import {
     CognitoGraphQLGuard,
@@ -59,6 +60,13 @@ export class IngredientRequestQueryResolver {
     })
     @UseGuards(CognitoGraphQLGuard)
     async getMyIngredientRequests(
+        @Args("sortBy", {
+            type: () => IngredientRequestSortOrder,
+            nullable: true,
+            defaultValue: IngredientRequestSortOrder.NEWEST_FIRST,
+            description: "Sort order for ingredient requests",
+        })
+            sortBy: IngredientRequestSortOrder,
         @CurrentUser("decodedToken") decodedToken: any,
         @Args("limit", {
             type: () => Int,
@@ -78,6 +86,7 @@ export class IngredientRequestQueryResolver {
             userContext,
             limit,
             offset,
+            sortBy,
         )
     }
 
