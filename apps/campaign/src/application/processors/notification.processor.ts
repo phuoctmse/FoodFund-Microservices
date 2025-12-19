@@ -104,9 +104,9 @@ export class NotificationProcessor {
                 userIds.map((userId) => {
                     const notificationData = {
                         ...jobData.data,
+                        ...content.metadata,
                         title: content.title,
                         message: content.message,
-                        ...content.metadata,
                         queueJobId: `grouped-${jobData.entityId}-${Date.now()}`,
                         processedAt: new Date().toISOString(),
                         isGrouped: true,
