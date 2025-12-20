@@ -17,15 +17,87 @@ export class IngredientRequestApprovedBuilder extends NotificationBuilder<Notifi
         const data = context.data
 
         const campaignTitle = this.truncate(data.campaignTitle, 50)
-        const message = `Your ingredient request for "${campaignTitle}" has been approved by ${data.approvedBy}.`
+        const message = `Yêu cầu giải ngân nguyên liệu của bạn cho chiến dịch "${campaignTitle}" đã được đồng ý.`
 
         return {
-            title: "Ingredient Request Approved",
+            title: "Yêu cầu giải ngân nguyên liệu được đồng ý",
             message,
             metadata: {
                 requestId: data.requestId,
                 campaignTitle: data.campaignTitle,
                 approvedBy: data.approvedBy,
+            },
+        }
+    }
+}
+
+/**
+ * Expense Proof Approved Notification Builder
+ */
+@Injectable()
+export class ExpenseProofApprovedBuilder extends NotificationBuilder<NotificationType.EXPENSE_PROOF_APPROVED> {
+    readonly type = NotificationType.EXPENSE_PROOF_APPROVED
+
+    build(
+        context: NotificationBuilderContext<NotificationType.EXPENSE_PROOF_APPROVED>,
+    ): NotificationBuilderResult {
+        this.validate(context.data)
+        const data = context.data
+
+        const campaignTitle = this.truncate(data.campaignTitle, 50)
+        const phaseName = this.truncate(data.phaseName, 40)
+
+        const message =
+            "Biên lai chi phí đã được phê duyệt! " +
+            `Chiến dịch: "${campaignTitle}", Giai đoạn: "${phaseName}". `
+
+        return {
+            title: "Biên Lai Chi Phí Được Phê Duyệt",
+            message,
+            metadata: {
+                expenseProofId: data.expenseProofId,
+                requestId: data.requestId,
+                campaignTitle: data.campaignTitle,
+                phaseName: data.phaseName,
+                amount: data.amount,
+            },
+        }
+    }
+}
+
+/**
+ * Expense Proof Rejected Notification Builder
+ */
+@Injectable()
+export class ExpenseProofRejectedBuilder extends NotificationBuilder<NotificationType.EXPENSE_PROOF_REJECTED> {
+    readonly type = NotificationType.EXPENSE_PROOF_REJECTED
+
+    build(
+        context: NotificationBuilderContext<NotificationType.EXPENSE_PROOF_REJECTED>,
+    ): NotificationBuilderResult {
+        this.validate(context.data)
+        const data = context.data
+
+        const campaignTitle = this.truncate(data.campaignTitle, 50)
+        const phaseName = this.truncate(data.phaseName, 40)
+        const adminNote = this.truncate(data.adminNote, 100)
+
+        const message =
+            "Biên lai chi phí đã bị từ chối. " +
+            `Chiến dịch: "${campaignTitle}", Giai đoạn: "${phaseName}". ` +
+            `Lý do: ${adminNote}. ` +
+            "Vui lòng tạo mới biên lai và nộp lại."
+
+        return {
+            title: "Biên Lai Chi Phí Bị Từ Chối",
+            message,
+            metadata: {
+                expenseProofId: data.expenseProofId,
+                requestId: data.requestId,
+                campaignTitle: data.campaignTitle,
+                phaseName: data.phaseName,
+                amount: data.amount,
+                adminNote: data.adminNote,
             },
         }
     }
@@ -45,10 +117,10 @@ export class DeliveryTaskAssignedBuilder extends NotificationBuilder<Notificatio
         const data = context.data
 
         const campaignTitle = this.truncate(data.campaignTitle, 50)
-        const message = `You have been assigned a delivery task for "${campaignTitle}" on ${data.deliveryDate} at ${data.location}.`
+        const message = `Bạn đã được giao một công việc vận chuyển cho chiến dịch "${campaignTitle}" vào lúc ${data.deliveryDate} tại ${data.location}.`
 
         return {
-            title: "New Delivery Task",
+            title: "Công việc vận chuyển mới",
             message,
             metadata: {
                 taskId: data.taskId,

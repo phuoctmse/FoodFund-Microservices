@@ -8,6 +8,7 @@ import {
     BadRequestException,
     ForbiddenException,
     Injectable,
+    Logger,
     NotFoundException,
 } from "@nestjs/common"
 import {
@@ -31,15 +32,18 @@ import { ExpenseProofCacheService } from "./expense-proof-cache.service"
 import { BaseOperationService } from "@app/operation/src/shared/services"
 import { BudgetValidationHelper } from "@app/operation/src/shared/helpers"
 import { ExpenseProofSortOrder } from "@app/operation/src/domain/enums/expense-proof"
+import { EventEmitter2 } from "@nestjs/event-emitter"
 
 @Injectable()
 export class ExpenseProofService extends BaseOperationService {
+    private readonly logger = new Logger(ExpenseProofService.name)
     constructor(
         private readonly expenseProofRepository: ExpenseProofRepository,
         private readonly ingredientRequestRepository: IngredientRequestRepository,
         private readonly spacesUploadService: SpacesUploadService,
         private readonly authorizationService: AuthorizationService,
         private readonly cacheService: ExpenseProofCacheService,
+        private readonly eventEmitter: EventEmitter2,
         sentryService: SentryService,
         grpcClient: GrpcClientService,
     ) {
@@ -248,6 +252,33 @@ export class ExpenseProofService extends BaseOperationService {
             )
 
             const mappedProof = this.mapToGraphQLModel(updatedProof)
+
+            const request = proof.request
+            const campaignPhase = await this.getCampaignPhaseDetails(
+                request.campaign_phase_id,
+            )
+            if (input.status === ExpenseProofStatus.APPROVED) {
+                this.eventEmitter.emit("expense-proof.approved", {
+                    expenseProofId: id,
+                    requestId: proof.request_id,
+                    kitchenStaffId: request.kitchen_staff_id,
+                    campaignTitle: campaignPhase.campaignTitle,
+                    phaseName: campaignPhase.phaseName,
+                    amount: proof.amount.toString(),
+                    approvedAt: new Date().toISOString(),
+                })
+            } else if (input.status === ExpenseProofStatus.REJECTED) {
+                this.eventEmitter.emit("expense-proof.rejected", {
+                    expenseProofId: id,
+                    requestId: proof.request_id,
+                    kitchenStaffId: request.kitchen_staff_id,
+                    campaignTitle: campaignPhase.campaignTitle,
+                    phaseName: campaignPhase.phaseName,
+                    amount: proof.amount.toString(),
+                    adminNote: input.adminNote || "Không có ghi chú",
+                    rejectedAt: new Date().toISOString(),
+                })
+            }
 
             await Promise.all([
                 this.cacheService.setProof(mappedProof.id, mappedProof),
@@ -472,6 +503,57 @@ export class ExpenseProofService extends BaseOperationService {
                 operation: "ExpenseProofService.getExpenseProofStats",
             })
             throw error
+        }
+    }
+
+    private async getCampaignPhaseDetails(phaseId: string): Promise<{
+        campaignTitle: string
+        phaseName: string
+    }> {
+        try {
+            const response = await this.grpcClient.callCampaignService<
+                { phaseId: string },
+                {
+                    success: boolean
+                    phase?: {
+                        id: string
+                        campaignId: string
+                        campaignTitle: string
+                        phaseName: string
+                        ingredientFundsAmount: string
+                        cookingFundsAmount: string
+                        deliveryFundsAmount: string
+                    }
+                    error?: string
+                }
+            >(
+                "GetCampaignPhaseInfo",
+                { phaseId },
+                { timeout: 5000, retries: 2 },
+            )
+
+            if (!response.success || !response.phase) {
+                this.logger.warn(
+                    `Failed to get campaign phase details: ${response.error || "Phase not found"}`,
+                )
+                return {
+                    campaignTitle: "Chiến dịch",
+                    phaseName: "Giai đoạn",
+                }
+            }
+
+            return {
+                campaignTitle: response.phase.campaignTitle,
+                phaseName: response.phase.phaseName,
+            }
+        } catch (error) {
+            this.logger.warn(
+                `Failed to get campaign phase details: ${error.message}`,
+            )
+            return {
+                campaignTitle: "Chiến dịch",
+                phaseName: "Giai đoạn",
+            }
         }
     }
 

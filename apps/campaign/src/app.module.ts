@@ -109,6 +109,8 @@ import {
     DeliveryDisbursementCompletedBuilder,
     CampaignExtendedBuilder,
     CampaignPhaseStatusUpdatedBuilder,
+    ExpenseProofApprovedBuilder,
+    ExpenseProofRejectedBuilder,
 } from "./application/builders/notification"
 import { NotificationQueryResolver } from "./presentation/graphql/notification/queries"
 import { NotificationMutationResolver } from "./presentation/graphql/notification/mutations"
@@ -291,6 +293,8 @@ import { DonationConsumer } from "./application/handlers/kafka/donation.consumer
         PostCommentBuilder,
         PostReplyBuilder,
         IngredientRequestApprovedBuilder,
+        ExpenseProofApprovedBuilder,
+        ExpenseProofRejectedBuilder,
         DeliveryTaskAssignedBuilder,
         SystemAnnouncementBuilder,
         SurplusTransferredBuilder,

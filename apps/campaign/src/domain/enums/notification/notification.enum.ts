@@ -23,6 +23,9 @@ export enum NotificationType {
     COOKING_DISBURSEMENT_COMPLETED = "COOKING_DISBURSEMENT_COMPLETED",
     DELIVERY_DISBURSEMENT_COMPLETED = "DELIVERY_DISBURSEMENT_COMPLETED",
 
+    EXPENSE_PROOF_APPROVED = "EXPENSE_PROOF_APPROVED",
+    EXPENSE_PROOF_REJECTED = "EXPENSE_PROOF_REJECTED",
+
     DELIVERY_TASK_ASSIGNED = "DELIVERY_TASK_ASSIGNED",
     SURPLUS_TRANSFERRED = "SURPLUS_TRANSFERRED",
 
@@ -35,7 +38,11 @@ export enum EntityType {
     COMMENT = "COMMENT",
     DONATION = "DONATION",
     INGREDIENT_REQUEST = "INGREDIENT_REQUEST",
+    OPERATION_REQUEST = "OPERATION_REQUEST",
+    EXPENSE_PROOF = "EXPENSE_PROOF",
     DELIVERY_TASK = "DELIVERY_TASK",
+    WALLET = "WALLET",
+    SYSTEM = "SYSTEM"
 }
 
 export enum NotificationPriority {
@@ -104,6 +111,8 @@ registerEnumType(NotificationType, {
         SURPLUS_TRANSFERRED: {
             description: "Surplus funds transferred to fundraiser wallet",
         },
+        EXPENSE_PROOF_APPROVED: {},
+        EXPENSE_PROOF_REJECTED: {},
         SYSTEM_ANNOUNCEMENT: {
             description: "System-wide announcement",
         },
@@ -129,6 +138,8 @@ registerEnumType(EntityType, {
         INGREDIENT_REQUEST: {
             description: "Ingredient request entity",
         },
+        OPERATION_REQUEST: {},
+        EXPENSE_PROOF: {},
         DELIVERY_TASK: {
             description: "Delivery task entity",
         },
@@ -179,15 +190,13 @@ export const NOTIFICATION_PRIORITY_MAP: Record<
     [NotificationType.CAMPAIGN_REASSIGNMENT_PENDING]: NotificationPriority.HIGH,
     [NotificationType.CAMPAIGN_REASSIGNMENT_EXPIRED]: NotificationPriority.HIGH,
     [NotificationType.CAMPAIGN_OWNERSHIP_RECEIVED]: NotificationPriority.HIGH,
-    [NotificationType.CAMPAIGN_OWNERSHIP_TRANSFERRED]:
-        NotificationPriority.HIGH,
+    [NotificationType.CAMPAIGN_OWNERSHIP_TRANSFERRED]: NotificationPriority.HIGH,
     [NotificationType.SURPLUS_TRANSFERRED]: NotificationPriority.HIGH,
-    [NotificationType.INGREDIENT_DISBURSEMENT_COMPLETED]:
-        NotificationPriority.HIGH,
-    [NotificationType.COOKING_DISBURSEMENT_COMPLETED]:
-        NotificationPriority.HIGH,
-    [NotificationType.DELIVERY_DISBURSEMENT_COMPLETED]:
-        NotificationPriority.HIGH,
+    [NotificationType.INGREDIENT_DISBURSEMENT_COMPLETED]: NotificationPriority.HIGH,
+    [NotificationType.COOKING_DISBURSEMENT_COMPLETED]: NotificationPriority.HIGH,
+    [NotificationType.DELIVERY_DISBURSEMENT_COMPLETED]: NotificationPriority.HIGH,
+    [NotificationType.EXPENSE_PROOF_APPROVED]: NotificationPriority.HIGH,
+    [NotificationType.EXPENSE_PROOF_REJECTED]: NotificationPriority.HIGH,
 
     // Medium priority
     [NotificationType.CAMPAIGN_DONATION_RECEIVED]: NotificationPriority.MEDIUM,
@@ -195,7 +204,8 @@ export const NOTIFICATION_PRIORITY_MAP: Record<
     [NotificationType.POST_COMMENT]: NotificationPriority.MEDIUM,
     [NotificationType.POST_REPLY]: NotificationPriority.MEDIUM,
     [NotificationType.CAMPAIGN_EXTENDED]: NotificationPriority.MEDIUM,
-    [NotificationType.CAMPAIGN_PHASE_STATUS_UPDATED]: NotificationPriority.MEDIUM,
+    [NotificationType.CAMPAIGN_PHASE_STATUS_UPDATED]:
+        NotificationPriority.MEDIUM,
 
     // Low priority
     [NotificationType.POST_LIKE]: NotificationPriority.LOW,
