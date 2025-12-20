@@ -7,6 +7,8 @@ export enum NotificationType {
     CAMPAIGN_CANCELLED = "CAMPAIGN_CANCELLED",
     CAMPAIGN_DONATION_RECEIVED = "CAMPAIGN_DONATION_RECEIVED",
     CAMPAIGN_NEW_POST = "CAMPAIGN_NEW_POST",
+    CAMPAIGN_EXTENDED = "CAMPAIGN_EXTENDED",
+    CAMPAIGN_PHASE_STATUS_UPDATED = "CAMPAIGN_PHASE_STATUS_UPDATED",
     CAMPAIGN_REASSIGNMENT_PENDING = "CAMPAIGN_REASSIGNMENT_PENDING",
     CAMPAIGN_OWNERSHIP_TRANSFERRED = "CAMPAIGN_OWNERSHIP_TRANSFERRED",
     CAMPAIGN_OWNERSHIP_RECEIVED = "CAMPAIGN_OWNERSHIP_RECEIVED",
@@ -20,6 +22,9 @@ export enum NotificationType {
     INGREDIENT_DISBURSEMENT_COMPLETED = "INGREDIENT_DISBURSEMENT_COMPLETED",
     COOKING_DISBURSEMENT_COMPLETED = "COOKING_DISBURSEMENT_COMPLETED",
     DELIVERY_DISBURSEMENT_COMPLETED = "DELIVERY_DISBURSEMENT_COMPLETED",
+
+    EXPENSE_PROOF_APPROVED = "EXPENSE_PROOF_APPROVED",
+    EXPENSE_PROOF_REJECTED = "EXPENSE_PROOF_REJECTED",
 
     DELIVERY_TASK_ASSIGNED = "DELIVERY_TASK_ASSIGNED",
     SURPLUS_TRANSFERRED = "SURPLUS_TRANSFERRED",
@@ -49,6 +54,12 @@ registerEnumType(NotificationType, {
         CAMPAIGN_NEW_POST: {
             description: "New post published in campaign",
         },
+        CAMPAIGN_EXTENDED: {
+            description: "Campaign fundraising period extended",
+        },
+        CAMPAIGN_PHASE_STATUS_UPDATED: {
+            description: "Campaign phase status updated by fundraiser",
+        },
         POST_LIKE: {
             description: "Post received likes (grouped)",
         },
@@ -76,6 +87,8 @@ registerEnumType(NotificationType, {
         SURPLUS_TRANSFERRED: {
             description: "Surplus funds transferred to fundraiser wallet",
         },
+        EXPENSE_PROOF_APPROVED: {},
+        EXPENSE_PROOF_REJECTED: {},
         SYSTEM_ANNOUNCEMENT: {
             description: "System-wide announcement",
         },

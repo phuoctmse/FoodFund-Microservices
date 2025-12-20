@@ -21,6 +21,8 @@ import {
 } from "./post-notification.builder"
 import {
     DeliveryTaskAssignedBuilder,
+    ExpenseProofApprovedBuilder,
+    ExpenseProofRejectedBuilder,
     IngredientRequestApprovedBuilder,
     SurplusTransferredBuilder,
     SystemAnnouncementBuilder,
@@ -68,6 +70,8 @@ export class NotificationBuilderFactory {
         private readonly deliveryDisbursementBuilder: DeliveryDisbursementCompletedBuilder,
         private readonly campaignExtendedBuilder: CampaignExtendedBuilder,
         private readonly campaignPhaseStatusUpdatedBuilder: CampaignPhaseStatusUpdatedBuilder,
+        private readonly expenseProofApprovedBuilder: ExpenseProofApprovedBuilder,
+        private readonly expenseProofRejectedBuilder: ExpenseProofRejectedBuilder,
     ) {
         this.builders = new Map<NotificationType, NotificationBuilder<any>>()
 
@@ -155,6 +159,14 @@ export class NotificationBuilderFactory {
         this.builders.set(
             NotificationType.CAMPAIGN_PHASE_STATUS_UPDATED,
             this.campaignPhaseStatusUpdatedBuilder,
+        )
+        this.builders.set(
+            NotificationType.EXPENSE_PROOF_APPROVED,
+            this.expenseProofApprovedBuilder,
+        )
+        this.builders.set(
+            NotificationType.EXPENSE_PROOF_REJECTED,
+            this.expenseProofRejectedBuilder,
         )
     }
 

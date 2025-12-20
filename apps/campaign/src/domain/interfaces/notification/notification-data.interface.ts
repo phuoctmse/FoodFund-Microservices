@@ -158,6 +158,25 @@ export interface CampaignPhaseStatusUpdatedData extends BaseNotificationData {
     newStatus: string
 }
 
+export interface ExpenseProofApprovedData extends BaseNotificationData {
+    expenseProofId: string
+    requestId: string
+    campaignTitle: string
+    phaseName: string
+    amount: string
+    approvedAt: string
+}
+
+export interface ExpenseProofRejectedData extends BaseNotificationData {
+    expenseProofId: string
+    requestId: string
+    campaignTitle: string
+    phaseName: string
+    amount: string
+    adminNote: string
+    rejectedAt: string
+}
+
 export type NotificationDataMap = {
     [NotificationType.CAMPAIGN_APPROVED]: CampaignApprovedData
     [NotificationType.CAMPAIGN_REJECTED]: CampaignRejectedData
@@ -181,4 +200,6 @@ export type NotificationDataMap = {
     [NotificationType.INGREDIENT_DISBURSEMENT_COMPLETED]: DisbursementCompletedData
     [NotificationType.COOKING_DISBURSEMENT_COMPLETED]: DisbursementCompletedData
     [NotificationType.DELIVERY_DISBURSEMENT_COMPLETED]: DisbursementCompletedData
+    [NotificationType.EXPENSE_PROOF_APPROVED]: ExpenseProofApprovedData
+    [NotificationType.EXPENSE_PROOF_REJECTED]: ExpenseProofRejectedData
 }

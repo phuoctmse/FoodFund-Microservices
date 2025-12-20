@@ -62,6 +62,8 @@ import { DeliveryTaskCacheService } from "./application/services/delivery-task"
 import { IngredientRequestCacheService } from "./application/services/ingredient-request"
 import { Organization } from "./shared/model"
 import { InflowTransactionNotificationService } from "./application/services/inflow-transaction"
+import { EventEmitterModule } from "@nestjs/event-emitter"
+import { ExpenseProofNotificationHandler } from "./application/handlers"
 
 @Module({
     imports: [
@@ -90,6 +92,15 @@ import { InflowTransactionNotificationService } from "./application/services/inf
         AwsCognitoModule.forRoot({
             isGlobal: false,
             mockMode: false,
+        }),
+        EventEmitterModule.forRoot({
+            wildcard: false,
+            delimiter: ".",
+            newListener: false,
+            removeListener: false,
+            maxListeners: 25,
+            verboseMemoryLeak: false,
+            ignoreErrors: false,
         }),
         GrpcModule,
     ],
@@ -145,6 +156,8 @@ import { InflowTransactionNotificationService } from "./application/services/inf
         InflowTransactionFundraiserResolver,
         InflowTransactionPublicResolver,
         InflowTransactionFieldResolver,
+
+        ExpenseProofNotificationHandler
     ],
 })
 export class AppModule {}
