@@ -34,10 +34,9 @@ export abstract class NotificationBuilder<
     }
 
     protected truncate(text: string, maxLength: number): string {
-        if (text.length <= maxLength) {
-            return text
-        }
-        return `${text.substring(0, maxLength - 3)}...`
+        return text.length > maxLength
+            ? `${text.substring(0, maxLength)}...`
+            : text
     }
 
     protected formatNumber(num: number): string {
