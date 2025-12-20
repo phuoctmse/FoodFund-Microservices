@@ -1,5 +1,6 @@
 import { OnEvent } from "@nestjs/event-emitter"
 import {
+    EntityType,
     NotificationPriority,
     NotificationType,
 } from "../../domain/enums/notification"
@@ -32,7 +33,7 @@ export class PostNotificationHandler {
             type: NotificationType.POST_LIKE,
             userId: event.postAuthorId,
             actorId: event.likerId,
-            entityType: "POST",
+            entityType: EntityType.POST,
             entityId: event.postId,
             data: {
                 postId: event.postId,
@@ -65,7 +66,7 @@ export class PostNotificationHandler {
             type: NotificationType.POST_LIKE,
             userId: event.postAuthorId,
             actorId: event.unlikerId,
-            entityType: "POST",
+            entityType: EntityType.POST,
             entityId: event.postId,
             data: {
                 postId: event.postId,
@@ -90,7 +91,7 @@ export class PostNotificationHandler {
             type: NotificationType.POST_COMMENT,
             userId: event.postAuthorId,
             actorId: event.commenterId,
-            entityType: "COMMENT",
+            entityType: EntityType.COMMENT,
             entityId: event.commentId,
             data: {
                 postId: event.postId,
@@ -115,7 +116,7 @@ export class PostNotificationHandler {
             type: NotificationType.POST_REPLY,
             userId: event.parentCommentAuthorId,
             actorId: event.replierId,
-            entityType: "COMMENT",
+            entityType: EntityType.COMMENT,
             entityId: event.replyId,
             data: {
                 postId: event.postId,

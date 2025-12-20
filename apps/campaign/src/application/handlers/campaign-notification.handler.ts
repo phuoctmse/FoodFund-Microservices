@@ -1,5 +1,6 @@
 import { OnEvent } from "@nestjs/event-emitter"
 import {
+    EntityType,
     NotificationPriority,
     NotificationType,
 } from "../../domain/enums/notification"
@@ -33,7 +34,7 @@ export class CampaignNotificationHandler {
             type: NotificationType.CAMPAIGN_APPROVED,
             userId: event.fundraiserId,
             actorId: event.approvedBy,
-            entityType: "CAMPAIGN",
+            entityType: EntityType.CAMPAIGN,
             entityId: event.campaignId,
             data: {
                 campaignId: event.campaignId,
@@ -53,7 +54,7 @@ export class CampaignNotificationHandler {
             type: NotificationType.CAMPAIGN_REJECTED,
             userId: event.fundraiserId,
             actorId: event.rejectedBy,
-            entityType: "CAMPAIGN",
+            entityType: EntityType.CAMPAIGN,
             entityId: event.campaignId,
             data: {
                 campaignId: event.campaignId,
@@ -72,7 +73,7 @@ export class CampaignNotificationHandler {
             priority: NotificationPriority.HIGH,
             type: NotificationType.CAMPAIGN_COMPLETED,
             userId: event.fundraiserId,
-            entityType: "CAMPAIGN",
+            entityType: EntityType.CAMPAIGN,
             entityId: event.campaignId,
             data: {
                 campaignId: event.campaignId,
@@ -91,7 +92,7 @@ export class CampaignNotificationHandler {
             priority: NotificationPriority.HIGH,
             type: NotificationType.CAMPAIGN_CANCELLED,
             userId: event.fundraiserId,
-            entityType: "CAMPAIGN",
+            entityType: EntityType.CAMPAIGN,
             entityId: event.campaignId,
             data: {
                 campaignId: event.campaignId,
@@ -110,7 +111,7 @@ export class CampaignNotificationHandler {
             type: NotificationType.CAMPAIGN_DONATION_RECEIVED,
             userId: event.fundraiserId,
             actorId: event.donorId,
-            entityType: "CAMPAIGN",
+            entityType: EntityType.CAMPAIGN,
             entityId: event.campaignId,
             data: {
                 campaignId: event.campaignId,
@@ -131,7 +132,7 @@ export class CampaignNotificationHandler {
             type: NotificationType.CAMPAIGN_NEW_POST,
             userIds: event.followerIds,
             actorId: event.authorId,
-            entityType: "POST",
+            entityType: EntityType.POST,
             entityId: event.postId,
             data: {
                 campaignId: event.campaignId,
@@ -152,7 +153,7 @@ export class CampaignNotificationHandler {
             type: NotificationType.CAMPAIGN_REASSIGNMENT_PENDING,
             userId: event.fundraiserId,
             actorId: event.assignedBy,
-            entityType: "CAMPAIGN",
+            entityType: EntityType.CAMPAIGN,
             entityId: event.campaignId,
             data: {
                 campaignId: event.campaignId,
@@ -172,7 +173,7 @@ export class CampaignNotificationHandler {
             priority: NotificationPriority.HIGH,
             type: NotificationType.CAMPAIGN_OWNERSHIP_TRANSFERRED,
             userId: event.previousFundraiserId,
-            entityType: "CAMPAIGN",
+            entityType: EntityType.CAMPAIGN,
             entityId: event.campaignId,
             data: {
                 campaignId: event.campaignId,
@@ -187,7 +188,7 @@ export class CampaignNotificationHandler {
             priority: NotificationPriority.HIGH,
             type: NotificationType.CAMPAIGN_OWNERSHIP_RECEIVED,
             userId: event.newFundraiserId,
-            entityType: "CAMPAIGN",
+            entityType: EntityType.CAMPAIGN,
             entityId: event.campaignId,
             data: {
                 campaignId: event.campaignId,
@@ -204,7 +205,7 @@ export class CampaignNotificationHandler {
             priority: NotificationPriority.HIGH,
             type: NotificationType.CAMPAIGN_REASSIGNMENT_EXPIRED,
             userId: event.originalFundraiserId,
-            entityType: "CAMPAIGN",
+            entityType: EntityType.CAMPAIGN,
             entityId: event.campaignId,
             data: {
                 campaignId: event.campaignId,
@@ -223,7 +224,7 @@ export class CampaignNotificationHandler {
             type: NotificationType.CAMPAIGN_EXTENDED,
             userIds: event.followerIds,
             actorId: event.fundraiserId,
-            entityType: "CAMPAIGN",
+            entityType: EntityType.CAMPAIGN,
             entityId: event.campaignId,
             data: {
                 campaignId: event.campaignId,
@@ -244,7 +245,7 @@ export class CampaignNotificationHandler {
             type: NotificationType.CAMPAIGN_PHASE_STATUS_UPDATED,
             userIds: event.followerIds,
             actorId: event.fundraiserId,
-            entityType: "CAMPAIGN",
+            entityType: EntityType.CAMPAIGN,
             entityId: event.campaignId,
             data: {
                 campaignId: event.campaignId,
