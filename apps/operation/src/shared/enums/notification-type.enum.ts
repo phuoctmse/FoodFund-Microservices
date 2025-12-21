@@ -26,6 +26,10 @@ export enum NotificationType {
 
     EXPENSE_PROOF_APPROVED = "EXPENSE_PROOF_APPROVED",
     EXPENSE_PROOF_REJECTED = "EXPENSE_PROOF_REJECTED",
+    COOKING_REQUEST_APPROVED = "COOKING_REQUEST_APPROVED",
+    COOKING_REQUEST_REJECTED = "COOKING_REQUEST_REJECTED",
+    DELIVERY_REQUEST_APPROVED = "DELIVERY_REQUEST_APPROVED",
+    DELIVERY_REQUEST_REJECTED = "DELIVERY_REQUEST_REJECTED",
 
     DELIVERY_TASK_ASSIGNED = "DELIVERY_TASK_ASSIGNED",
     SURPLUS_TRANSFERRED = "SURPLUS_TRANSFERRED",
@@ -95,6 +99,18 @@ registerEnumType(NotificationType, {
         },
         EXPENSE_PROOF_APPROVED: {},
         EXPENSE_PROOF_REJECTED: {},
+        COOKING_REQUEST_APPROVED: {
+            description: "Cooking wage request has been approved by admin",
+        },
+        COOKING_REQUEST_REJECTED: {
+            description: "Cooking wage request has been rejected by admin",
+        },
+        DELIVERY_REQUEST_APPROVED: {
+            description: "Delivery wage request has been approved by admin",
+        },
+        DELIVERY_REQUEST_REJECTED: {
+            description: "Delivery wage request has been rejected by admin",
+        },
         SYSTEM_ANNOUNCEMENT: {
             description: "System-wide announcement",
         },

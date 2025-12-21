@@ -94,6 +94,48 @@ export interface IngredientRequestRejectedData extends BaseNotificationData {
     rejectedAt: string
 }
 
+export interface CookingRequestApprovedData extends BaseNotificationData {
+    operationRequestId: string
+    campaignId: string
+    campaignPhaseId: string
+    campaignTitle: string
+    phaseName: string
+    totalCost: string
+    approvedAt: string
+}
+
+export interface CookingRequestRejectedData extends BaseNotificationData {
+    operationRequestId: string
+    campaignId: string
+    campaignPhaseId: string
+    campaignTitle: string
+    phaseName: string
+    totalCost: string
+    adminNote: string
+    rejectedAt: string
+}
+
+export interface DeliveryRequestApprovedData extends BaseNotificationData {
+    operationRequestId: string
+    campaignId: string
+    campaignPhaseId: string
+    campaignTitle: string
+    phaseName: string
+    totalCost: string
+    approvedAt: string
+}
+
+export interface DeliveryRequestRejectedData extends BaseNotificationData {
+    operationRequestId: string
+    campaignId: string
+    campaignPhaseId: string
+    campaignTitle: string
+    phaseName: string
+    totalCost: string
+    adminNote: string
+    rejectedAt: string
+}
+
 export interface DeliveryTaskAssignedData extends BaseNotificationData {
     taskId: string
     campaignTitle: string
@@ -220,4 +262,8 @@ export type NotificationDataMap = {
     [NotificationType.DELIVERY_DISBURSEMENT_COMPLETED]: DisbursementCompletedData
     [NotificationType.EXPENSE_PROOF_APPROVED]: ExpenseProofApprovedData
     [NotificationType.EXPENSE_PROOF_REJECTED]: ExpenseProofRejectedData
+    [NotificationType.COOKING_REQUEST_APPROVED]: CookingRequestApprovedData
+    [NotificationType.COOKING_REQUEST_REJECTED]: CookingRequestRejectedData
+    [NotificationType.DELIVERY_REQUEST_APPROVED]: DeliveryRequestApprovedData
+    [NotificationType.DELIVERY_REQUEST_REJECTED]: DeliveryRequestRejectedData
 }

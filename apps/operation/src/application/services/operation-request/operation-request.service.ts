@@ -30,6 +30,13 @@ import { GrpcClientService } from "@libs/grpc"
 import { OperationRequestCacheService } from "./operation-request-cache.service"
 import { BaseOperationService } from "@app/operation/src/shared/services"
 import { OperationRequestSortOrder } from "@app/operation/src/domain/enums/operation-request"
+import { EventEmitter2 } from "@nestjs/event-emitter"
+import {
+    CookingRequestApprovedEvent,
+    CookingRequestRejectedEvent,
+    DeliveryRequestApprovedEvent,
+    DeliveryRequestRejectedEvent,
+} from "@app/operation/src/domain/events"
 
 @Injectable()
 export class OperationRequestService extends BaseOperationService {
@@ -37,6 +44,7 @@ export class OperationRequestService extends BaseOperationService {
         private readonly repository: OperationRequestRepository,
         private readonly authService: AuthorizationService,
         private readonly cacheService: OperationRequestCacheService,
+        private readonly eventEmitter: EventEmitter2,
         sentryService: SentryService,
         grpcClient: GrpcClientService,
     ) {
@@ -210,6 +218,83 @@ export class OperationRequestService extends BaseOperationService {
                 input.requestId,
                 updateData,
             )
+
+            const campaignPhaseDetails = await this.getCampaignPhaseDetails(
+                request.campaign_phase_id,
+            )
+
+            if (input.status === OperationRequestStatus.APPROVED) {
+                if (request.expense_type === OperationExpenseType.COOKING) {
+                    this.eventEmitter.emit(
+                        "operation-request.cooking.approved",
+                        {
+                            operationRequestId: input.requestId,
+                            campaignId: campaignPhaseDetails.campaignId,
+                            campaignPhaseId: request.campaign_phase_id,
+                            campaignTitle: campaignPhaseDetails.campaignTitle,
+                            phaseName: campaignPhaseDetails.phaseName,
+                            fundraiserId: campaignPhaseDetails.fundraiserId,
+                            organizationId: request.organization_id || null,
+                            totalCost: request.total_cost.toString(),
+                            approvedAt: new Date().toISOString(),
+                        } satisfies CookingRequestApprovedEvent,
+                    )
+                } else if (
+                    request.expense_type === OperationExpenseType.DELIVERY
+                ) {
+                    this.eventEmitter.emit(
+                        "operation-request.delivery.approved",
+                        {
+                            operationRequestId: input.requestId,
+                            campaignId: campaignPhaseDetails.campaignId,
+                            campaignPhaseId: request.campaign_phase_id,
+                            campaignTitle: campaignPhaseDetails.campaignTitle,
+                            phaseName: campaignPhaseDetails.phaseName,
+                            fundraiserId: campaignPhaseDetails.fundraiserId,
+                            organizationId: request.organization_id || null,
+                            totalCost: request.total_cost.toString(),
+                            approvedAt: new Date().toISOString(),
+                        } satisfies DeliveryRequestApprovedEvent,
+                    )
+                }
+            } else if (input.status === OperationRequestStatus.REJECTED) {
+                if (request.expense_type === OperationExpenseType.COOKING) {
+                    this.eventEmitter.emit(
+                        "operation-request.cooking.rejected",
+                        {
+                            operationRequestId: input.requestId,
+                            campaignId: campaignPhaseDetails.campaignId,
+                            campaignPhaseId: request.campaign_phase_id,
+                            campaignTitle: campaignPhaseDetails.campaignTitle,
+                            phaseName: campaignPhaseDetails.phaseName,
+                            fundraiserId: campaignPhaseDetails.fundraiserId,
+                            organizationId: request.organization_id || null,
+                            totalCost: request.total_cost.toString(),
+                            adminNote: input.adminNote || "No reason provided",
+                            rejectedAt: new Date().toISOString(),
+                        } satisfies CookingRequestRejectedEvent,
+                    )
+                } else if (
+                    request.expense_type === OperationExpenseType.DELIVERY
+                ) {
+                    this.eventEmitter.emit(
+                        "operation-request.delivery.rejected",
+                        {
+                            operationRequestId: input.requestId,
+                            campaignId: campaignPhaseDetails.campaignId,
+                            campaignPhaseId: request.campaign_phase_id,
+                            campaignTitle: campaignPhaseDetails.campaignTitle,
+                            phaseName: campaignPhaseDetails.phaseName,
+                            fundraiserId: campaignPhaseDetails.fundraiserId,
+                            organizationId: request.organization_id || null,
+                            totalCost: request.total_cost.toString(),
+                            adminNote: input.adminNote || "No reason provided",
+                            rejectedAt: new Date().toISOString(),
+                        } satisfies DeliveryRequestRejectedEvent,
+                    )
+                }
+            }
+
             const mappedRequest = this.mapToGraphQLModel(updated)
 
             await Promise.all([
@@ -395,6 +480,44 @@ export class OperationRequestService extends BaseOperationService {
                 adminId: userContext.userId,
             })
             throw error
+        }
+    }
+
+    private async getCampaignPhaseDetails(phaseId: string): Promise<{
+        campaignId: string
+        campaignTitle: string
+        phaseName: string
+        fundraiserId: string
+    }> {
+        const response = await this.grpcClient.callCampaignService<
+            { phaseId: string },
+            {
+                success: boolean
+                phase?: {
+                    id: string
+                    campaignId: string
+                    campaignTitle: string
+                    phaseName: string
+                    fundraiserId: string
+                }
+                error?: string
+            }
+        >("GetCampaignPhaseInfo", { phaseId }, { timeout: 5000, retries: 2 })
+
+        if (!response.success || !response.phase) {
+            return {
+                campaignId: "unknown",
+                campaignTitle: "Chiến dịch",
+                phaseName: "Giai đoạn",
+                fundraiserId: "unknown",
+            }
+        }
+
+        return {
+            campaignId: response.phase.campaignId,
+            campaignTitle: response.phase.campaignTitle,
+            phaseName: response.phase.phaseName,
+            fundraiserId: response.phase.fundraiserId,
         }
     }
 

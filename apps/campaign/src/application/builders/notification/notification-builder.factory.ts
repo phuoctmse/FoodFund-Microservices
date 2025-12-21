@@ -20,6 +20,10 @@ import {
     PostReplyBuilder,
 } from "./post-notification.builder"
 import {
+    CookingRequestApprovedBuilder,
+    CookingRequestRejectedBuilder,
+    DeliveryRequestApprovedBuilder,
+    DeliveryRequestRejectedBuilder,
     DeliveryTaskAssignedBuilder,
     ExpenseProofApprovedBuilder,
     ExpenseProofRejectedBuilder,
@@ -75,6 +79,10 @@ export class NotificationBuilderFactory {
         private readonly campaignPhaseStatusUpdatedBuilder: CampaignPhaseStatusUpdatedBuilder,
         private readonly expenseProofApprovedBuilder: ExpenseProofApprovedBuilder,
         private readonly expenseProofRejectedBuilder: ExpenseProofRejectedBuilder,
+        private readonly cookingRequestApprovedBuilder: CookingRequestApprovedBuilder,
+        private readonly cookingRequestRejectedBuilder: CookingRequestRejectedBuilder,
+        private readonly deliveryRequestApprovedBuilder: DeliveryRequestApprovedBuilder,
+        private readonly deliveryRequestRejectedBuilder: DeliveryRequestRejectedBuilder,
     ) {
         this.builders = new Map<NotificationType, NotificationBuilder<any>>()
 
@@ -173,6 +181,22 @@ export class NotificationBuilderFactory {
         this.builders.set(
             NotificationType.EXPENSE_PROOF_REJECTED,
             this.expenseProofRejectedBuilder,
+        )
+        this.builders.set(
+            NotificationType.COOKING_REQUEST_APPROVED,
+            this.cookingRequestApprovedBuilder,
+        )
+        this.builders.set(
+            NotificationType.COOKING_REQUEST_REJECTED,
+            this.cookingRequestRejectedBuilder,
+        )
+        this.builders.set(
+            NotificationType.DELIVERY_REQUEST_APPROVED,
+            this.deliveryRequestApprovedBuilder,
+        )
+        this.builders.set(
+            NotificationType.DELIVERY_REQUEST_REJECTED,
+            this.deliveryRequestRejectedBuilder,
         )
     }
 

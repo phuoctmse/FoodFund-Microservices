@@ -112,6 +112,10 @@ import {
     ExpenseProofApprovedBuilder,
     ExpenseProofRejectedBuilder,
     IngredientRequestRejectedBuilder,
+    CookingRequestApprovedBuilder,
+    CookingRequestRejectedBuilder,
+    DeliveryRequestApprovedBuilder,
+    DeliveryRequestRejectedBuilder,
 } from "./application/builders/notification"
 import { NotificationQueryResolver } from "./presentation/graphql/notification/queries"
 import { NotificationMutationResolver } from "./presentation/graphql/notification/mutations"
@@ -307,6 +311,10 @@ import { DonationConsumer } from "./application/handlers/kafka/donation.consumer
         IngredientDisbursementCompletedBuilder,
         CookingDisbursementCompletedBuilder,
         DeliveryDisbursementCompletedBuilder,
+        CookingRequestApprovedBuilder,
+        CookingRequestRejectedBuilder,
+        DeliveryRequestApprovedBuilder,
+        DeliveryRequestRejectedBuilder,
 
         DonationSearchService,
         DonationSearchResolver,

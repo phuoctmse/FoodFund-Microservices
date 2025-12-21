@@ -26,6 +26,10 @@ export enum NotificationType {
 
     EXPENSE_PROOF_APPROVED = "EXPENSE_PROOF_APPROVED",
     EXPENSE_PROOF_REJECTED = "EXPENSE_PROOF_REJECTED",
+    COOKING_REQUEST_APPROVED = "COOKING_REQUEST_APPROVED",
+    COOKING_REQUEST_REJECTED = "COOKING_REQUEST_REJECTED",
+    DELIVERY_REQUEST_APPROVED = "DELIVERY_REQUEST_APPROVED",
+    DELIVERY_REQUEST_REJECTED = "DELIVERY_REQUEST_REJECTED",
 
     DELIVERY_TASK_ASSIGNED = "DELIVERY_TASK_ASSIGNED",
     SURPLUS_TRANSFERRED = "SURPLUS_TRANSFERRED",
@@ -43,7 +47,7 @@ export enum EntityType {
     EXPENSE_PROOF = "EXPENSE_PROOF",
     DELIVERY_TASK = "DELIVERY_TASK",
     WALLET = "WALLET",
-    SYSTEM = "SYSTEM"
+    SYSTEM = "SYSTEM",
 }
 
 export enum NotificationPriority {
@@ -95,12 +99,10 @@ registerEnumType(NotificationType, {
             description: "Reply to comment",
         },
         INGREDIENT_REQUEST_APPROVED: {
-            description:
-                "Ingredient request has been approved by admin",
+            description: "Ingredient request has been approved by admin",
         },
         INGREDIENT_REQUEST_REJECTED: {
-            description:
-                "Ingredient request has been rejected by admin",
+            description: "Ingredient request has been rejected by admin",
         },
         INGREDIENT_DISBURSEMENT_COMPLETED: {
             description: "Ingredient disbursement has been completed by admin",
@@ -119,6 +121,18 @@ registerEnumType(NotificationType, {
         },
         EXPENSE_PROOF_APPROVED: {},
         EXPENSE_PROOF_REJECTED: {},
+        COOKING_REQUEST_APPROVED: {
+            description: "Cooking wage request has been approved by admin",
+        },
+        COOKING_REQUEST_REJECTED: {
+            description: "Cooking wage request has been rejected by admin",
+        },
+        DELIVERY_REQUEST_APPROVED: {
+            description: "Delivery wage request has been approved by admin",
+        },
+        DELIVERY_REQUEST_REJECTED: {
+            description: "Delivery wage request has been rejected by admin",
+        },
         SYSTEM_ANNOUNCEMENT: {
             description: "System-wide announcement",
         },
@@ -197,13 +211,21 @@ export const NOTIFICATION_PRIORITY_MAP: Record<
     [NotificationType.CAMPAIGN_REASSIGNMENT_PENDING]: NotificationPriority.HIGH,
     [NotificationType.CAMPAIGN_REASSIGNMENT_EXPIRED]: NotificationPriority.HIGH,
     [NotificationType.CAMPAIGN_OWNERSHIP_RECEIVED]: NotificationPriority.HIGH,
-    [NotificationType.CAMPAIGN_OWNERSHIP_TRANSFERRED]: NotificationPriority.HIGH,
+    [NotificationType.CAMPAIGN_OWNERSHIP_TRANSFERRED]:
+        NotificationPriority.HIGH,
     [NotificationType.SURPLUS_TRANSFERRED]: NotificationPriority.HIGH,
-    [NotificationType.INGREDIENT_DISBURSEMENT_COMPLETED]: NotificationPriority.HIGH,
-    [NotificationType.COOKING_DISBURSEMENT_COMPLETED]: NotificationPriority.HIGH,
-    [NotificationType.DELIVERY_DISBURSEMENT_COMPLETED]: NotificationPriority.HIGH,
+    [NotificationType.INGREDIENT_DISBURSEMENT_COMPLETED]:
+        NotificationPriority.HIGH,
+    [NotificationType.COOKING_DISBURSEMENT_COMPLETED]:
+        NotificationPriority.HIGH,
+    [NotificationType.DELIVERY_DISBURSEMENT_COMPLETED]:
+        NotificationPriority.HIGH,
     [NotificationType.EXPENSE_PROOF_APPROVED]: NotificationPriority.HIGH,
     [NotificationType.EXPENSE_PROOF_REJECTED]: NotificationPriority.HIGH,
+    [NotificationType.COOKING_REQUEST_APPROVED]: NotificationPriority.HIGH,
+    [NotificationType.COOKING_REQUEST_REJECTED]: NotificationPriority.HIGH,
+    [NotificationType.DELIVERY_REQUEST_APPROVED]: NotificationPriority.HIGH,
+    [NotificationType.DELIVERY_REQUEST_REJECTED]: NotificationPriority.HIGH,
 
     // Medium priority
     [NotificationType.CAMPAIGN_DONATION_RECEIVED]: NotificationPriority.MEDIUM,
