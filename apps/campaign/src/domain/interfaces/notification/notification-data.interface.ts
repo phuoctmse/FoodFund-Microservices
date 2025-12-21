@@ -72,9 +72,68 @@ export interface PostReplyData extends BaseNotificationData {
 }
 
 export interface IngredientRequestApprovedData extends BaseNotificationData {
-    requestId: string
+    ingredientRequestId: string
+    campaignId: string
+    campaignPhaseId: string
     campaignTitle: string
-    approvedBy: string
+    phaseName: string
+    totalCost: string
+    itemCount: number
+    approvedAt: string
+}
+
+export interface IngredientRequestRejectedData extends BaseNotificationData {
+    ingredientRequestId: string
+    campaignId: string
+    campaignPhaseId: string
+    campaignTitle: string
+    phaseName: string
+    totalCost: string
+    itemCount: number
+    adminNote: string
+    rejectedAt: string
+}
+
+export interface CookingRequestApprovedData extends BaseNotificationData {
+    operationRequestId: string
+    campaignId: string
+    campaignPhaseId: string
+    campaignTitle: string
+    phaseName: string
+    totalCost: string
+    approvedAt: string
+}
+
+export interface CookingRequestRejectedData extends BaseNotificationData {
+    operationRequestId: string
+    campaignId: string
+    campaignPhaseId: string
+    campaignTitle: string
+    phaseName: string
+    totalCost: string
+    adminNote: string
+    rejectedAt: string
+}
+
+export interface DeliveryRequestApprovedData extends BaseNotificationData {
+    operationRequestId: string
+    campaignId: string
+    campaignPhaseId: string
+    campaignTitle: string
+    phaseName: string
+    totalCost: string
+    approvedAt: string
+}
+
+export interface DeliveryRequestRejectedData extends BaseNotificationData {
+    operationRequestId: string
+    campaignId: string
+    campaignPhaseId: string
+    campaignTitle: string
+    phaseName: string
+    totalCost: string
+    adminNote: string
+    rejectedAt: string
 }
 
 export interface DeliveryTaskAssignedData extends BaseNotificationData {
@@ -190,6 +249,7 @@ export type NotificationDataMap = {
     [NotificationType.POST_COMMENT]: PostCommentData
     [NotificationType.POST_REPLY]: PostReplyData
     [NotificationType.INGREDIENT_REQUEST_APPROVED]: IngredientRequestApprovedData
+    [NotificationType.INGREDIENT_REQUEST_REJECTED]: IngredientRequestRejectedData
     [NotificationType.DELIVERY_TASK_ASSIGNED]: DeliveryTaskAssignedData
     [NotificationType.SYSTEM_ANNOUNCEMENT]: SystemAnnouncementData
     [NotificationType.SURPLUS_TRANSFERRED]: SurplusTransferredData
@@ -202,4 +262,8 @@ export type NotificationDataMap = {
     [NotificationType.DELIVERY_DISBURSEMENT_COMPLETED]: DisbursementCompletedData
     [NotificationType.EXPENSE_PROOF_APPROVED]: ExpenseProofApprovedData
     [NotificationType.EXPENSE_PROOF_REJECTED]: ExpenseProofRejectedData
+    [NotificationType.COOKING_REQUEST_APPROVED]: CookingRequestApprovedData
+    [NotificationType.COOKING_REQUEST_REJECTED]: CookingRequestRejectedData
+    [NotificationType.DELIVERY_REQUEST_APPROVED]: DeliveryRequestApprovedData
+    [NotificationType.DELIVERY_REQUEST_REJECTED]: DeliveryRequestRejectedData
 }

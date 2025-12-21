@@ -119,12 +119,14 @@ message GetCampaignPhaseInfoResponse {
 
 message CampaignPhaseFullInfo {
   string id = 1;
-  string campaign_id = 2;
-  string campaign_title = 3;
-  string phase_name = 4;
-  string ingredient_funds_amount = 5;
-  string cooking_funds_amount = 6;
-  string delivery_funds_amount = 7;
+    string campaign_id = 2;
+    string campaign_title = 3;
+    string phase_name = 4;
+    string fundraiser_id = 5;
+    string ingredient_funds_amount = 6;
+    string cooking_funds_amount = 7;
+    string delivery_funds_amount = 8;
+
 }
 
 message GetCampaignPhaseStatusRequest {

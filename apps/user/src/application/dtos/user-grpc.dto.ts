@@ -307,6 +307,7 @@ export interface GetOrganizationByIdResponse {
 
 export interface GetOrganizationMembersRequest {
     organizationId: string
+    status: string
 }
 
 export interface GetOrganizationMembersResponse {

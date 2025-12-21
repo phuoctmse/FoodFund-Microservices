@@ -401,6 +401,8 @@ message OrganizationBasicInfo {
 
 message GetOrganizationMembersRequest {
   string organization_id = 1;
+      optional string status = 2;
+
 }
 
 message GetOrganizationMembersResponse {

@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "Notification_Type" ADD VALUE 'INGREDIENT_REQUEST_REJECTED';

@@ -483,6 +483,63 @@ export class OrganizationRepository {
         })
     }
 
+    async findVerifiedMembersOnly(organizationId: string) {
+        const organization = await this.prisma.organization.findUnique({
+            where: { id: organizationId },
+            select: { representative_id: true },
+        })
+
+        if (!organization) {
+            return []
+        }
+
+        return this.prisma.organization_Member.findMany({
+            where: {
+                organization_id: organizationId,
+                status: VerificationStatus.VERIFIED,
+                member_id: {
+                    not: organization.representative_id,
+                },
+            },
+            select: {
+                id: true,
+                member: {
+                    select: {
+                        id: true,
+                        cognito_id: true,
+                        full_name: true,
+                        email: true,
+                        role: true,
+                    },
+                },
+                member_role: true,
+                status: true,
+            },
+            orderBy: {
+                joined_at: "asc",
+            },
+        })
+    }
+
+    async findOrganizationRepresentative(organizationId: string) {
+        return this.prisma.organization.findUnique({
+            where: { id: organizationId },
+            select: {
+                id: true,
+                status: true,
+                user: {
+                    select: {
+                        id: true,
+                        cognito_id: true,
+                        full_name: true,
+                        email: true,
+                        role: true,
+                    },
+                },
+            },
+        })
+    }
+
     async findOrganizationBasicInfoByRepresentativeId(
         representativeId: string,
     ): Promise<{

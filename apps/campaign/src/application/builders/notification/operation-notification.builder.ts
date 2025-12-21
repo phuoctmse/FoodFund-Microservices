@@ -6,6 +6,9 @@ import {
     NotificationBuilderResult,
 } from "@app/campaign/src/domain/interfaces/notification"
 
+/**
+ * Ingredient Request Approved Notification Builder
+ */
 @Injectable()
 export class IngredientRequestApprovedBuilder extends NotificationBuilder<NotificationType.INGREDIENT_REQUEST_APPROVED> {
     readonly type = NotificationType.INGREDIENT_REQUEST_APPROVED
@@ -17,15 +20,65 @@ export class IngredientRequestApprovedBuilder extends NotificationBuilder<Notifi
         const data = context.data
 
         const campaignTitle = this.truncate(data.campaignTitle, 50)
-        const message = `Yêu cầu giải ngân nguyên liệu của bạn cho chiến dịch "${campaignTitle}" đã được đồng ý.`
+        const phaseName = this.truncate(data.phaseName, 40)
+        const costFormatted = this.formatCurrency(data.totalCost)
+
+        const message =
+            `Yêu cầu nguyên liệu cho chiến dịch "${campaignTitle}", ` +
+            `giai đoạn "${phaseName}" đã được phê duyệt. ` +
+            `Tổng chi phí: ${costFormatted}.`
 
         return {
-            title: "Yêu cầu giải ngân nguyên liệu được đồng ý",
+            title: "Yêu Cầu Nguyên Liệu Được Phê Duyệt",
             message,
             metadata: {
-                requestId: data.requestId,
+                ingredientRequestId: data.ingredientRequestId,
+                campaignId: data.campaignId,
+                campaignPhaseId: data.campaignPhaseId,
                 campaignTitle: data.campaignTitle,
-                approvedBy: data.approvedBy,
+                phaseName: data.phaseName,
+                totalCost: data.totalCost,
+            },
+        }
+    }
+}
+
+/**
+ * Ingredient Request Rejected Notification Builder
+ */
+@Injectable()
+export class IngredientRequestRejectedBuilder extends NotificationBuilder<NotificationType.INGREDIENT_REQUEST_REJECTED> {
+    readonly type = NotificationType.INGREDIENT_REQUEST_REJECTED
+
+    build(
+        context: NotificationBuilderContext<NotificationType.INGREDIENT_REQUEST_REJECTED>,
+    ): NotificationBuilderResult {
+        this.validate(context.data)
+        const data = context.data
+
+        const campaignTitle = this.truncate(data.campaignTitle, 50)
+        const phaseName = this.truncate(data.phaseName, 40)
+        const costFormatted = this.formatCurrency(data.totalCost)
+        const adminNote = this.truncate(data.adminNote, 100)
+
+        const message =
+            `Yêu cầu nguyên liệu cho chiến dịch "${campaignTitle}", ` +
+            `giai đoạn "${phaseName}" đã bị từ chối. ` +
+            `Tổng chi phí: ${costFormatted}.` +
+            `Lý do: ${adminNote}. Vui lòng tạo mới và nộp lại.`
+
+        return {
+            title: "Yêu Cầu Nguyên Liệu Bị Từ Chối",
+            message,
+            metadata: {
+                ingredientRequestId: data.ingredientRequestId,
+                campaignId: data.campaignId,
+                campaignPhaseId: data.campaignPhaseId,
+                campaignTitle: data.campaignTitle,
+                phaseName: data.phaseName,
+                totalCost: data.totalCost,
+                itemCount: data.itemCount,
+                adminNote: data.adminNote,
             },
         }
     }
@@ -205,6 +258,160 @@ export class SurplusTransferredBuilder extends NotificationBuilder<NotificationT
                 actualCost: data.actualCost,
                 surplusAmount: data.surplusAmount,
                 walletTransactionId: data.walletTransactionId,
+            },
+        }
+    }
+}
+
+/**
+ * Cooking Request Approved Notification Builder
+ */
+@Injectable()
+export class CookingRequestApprovedBuilder extends NotificationBuilder<NotificationType.COOKING_REQUEST_APPROVED> {
+    readonly type = NotificationType.COOKING_REQUEST_APPROVED
+
+    build(
+        context: NotificationBuilderContext<NotificationType.COOKING_REQUEST_APPROVED>,
+    ): NotificationBuilderResult {
+        this.validate(context.data)
+        const data = context.data
+
+        const campaignTitle = this.truncate(data.campaignTitle, 50)
+        const phaseName = this.truncate(data.phaseName, 40)
+        const costFormatted = this.formatCurrency(data.totalCost)
+
+        const message =
+            `Yêu cầu chi phí nấu ăn cho chiến dịch "${campaignTitle}", ` +
+            `giai đoạn "${phaseName}" đã được phê duyệt. ` +
+            `Tổng chi phí: ${costFormatted}.`
+
+        return {
+            title: "Yêu Cầu Chi Phí Nấu Ăn Được Phê Duyệt",
+            message,
+            metadata: {
+                operationRequestId: data.operationRequestId,
+                campaignId: data.campaignId,
+                campaignPhaseId: data.campaignPhaseId,
+                campaignTitle: data.campaignTitle,
+                phaseName: data.phaseName,
+                totalCost: data.totalCost,
+            },
+        }
+    }
+}
+
+/**
+ * Cooking Request Rejected Notification Builder
+ */
+@Injectable()
+export class CookingRequestRejectedBuilder extends NotificationBuilder<NotificationType.COOKING_REQUEST_REJECTED> {
+    readonly type = NotificationType.COOKING_REQUEST_REJECTED
+
+    build(
+        context: NotificationBuilderContext<NotificationType.COOKING_REQUEST_REJECTED>,
+    ): NotificationBuilderResult {
+        this.validate(context.data)
+        const data = context.data
+
+        const campaignTitle = this.truncate(data.campaignTitle, 50)
+        const phaseName = this.truncate(data.phaseName, 40)
+        const costFormatted = this.formatCurrency(data.totalCost)
+        const adminNote = this.truncate(data.adminNote, 100)
+
+        const message =
+            `Yêu cầu chi phí nấu ăn cho chiến dịch "${campaignTitle}", ` +
+            `giai đoạn "${phaseName}" đã bị từ chối. ` +
+            `Tổng chi phí: ${costFormatted}. ` +
+            `Lý do: ${adminNote}. Vui lòng tạo mới và nộp lại.`
+
+        return {
+            title: "Yêu Cầu Chi Phí Nấu Ăn Bị Từ Chối",
+            message,
+            metadata: {
+                operationRequestId: data.operationRequestId,
+                campaignId: data.campaignId,
+                campaignPhaseId: data.campaignPhaseId,
+                campaignTitle: data.campaignTitle,
+                phaseName: data.phaseName,
+                totalCost: data.totalCost,
+                adminNote: data.adminNote,
+            },
+        }
+    }
+}
+
+/**
+ * Delivery Request Approved Notification Builder
+ */
+@Injectable()
+export class DeliveryRequestApprovedBuilder extends NotificationBuilder<NotificationType.DELIVERY_REQUEST_APPROVED> {
+    readonly type = NotificationType.DELIVERY_REQUEST_APPROVED
+
+    build(
+        context: NotificationBuilderContext<NotificationType.DELIVERY_REQUEST_APPROVED>,
+    ): NotificationBuilderResult {
+        this.validate(context.data)
+        const data = context.data
+
+        const campaignTitle = this.truncate(data.campaignTitle, 50)
+        const phaseName = this.truncate(data.phaseName, 40)
+        const costFormatted = this.formatCurrency(data.totalCost)
+
+        const message =
+            `Yêu cầu chi phí giao hàng cho chiến dịch "${campaignTitle}", ` +
+            `giai đoạn "${phaseName}" đã được phê duyệt. ` +
+            `Tổng chi phí: ${costFormatted}.`
+
+        return {
+            title: "Yêu Cầu Chi Phí Giao Hàng Được Phê Duyệt",
+            message,
+            metadata: {
+                operationRequestId: data.operationRequestId,
+                campaignId: data.campaignId,
+                campaignPhaseId: data.campaignPhaseId,
+                campaignTitle: data.campaignTitle,
+                phaseName: data.phaseName,
+                totalCost: data.totalCost,
+            },
+        }
+    }
+}
+
+/**
+ * Delivery Request Rejected Notification Builder
+ */
+@Injectable()
+export class DeliveryRequestRejectedBuilder extends NotificationBuilder<NotificationType.DELIVERY_REQUEST_REJECTED> {
+    readonly type = NotificationType.DELIVERY_REQUEST_REJECTED
+
+    build(
+        context: NotificationBuilderContext<NotificationType.DELIVERY_REQUEST_REJECTED>,
+    ): NotificationBuilderResult {
+        this.validate(context.data)
+        const data = context.data
+
+        const campaignTitle = this.truncate(data.campaignTitle, 50)
+        const phaseName = this.truncate(data.phaseName, 40)
+        const costFormatted = this.formatCurrency(data.totalCost)
+        const adminNote = this.truncate(data.adminNote, 100)
+
+        const message =
+            `Yêu cầu chi phí giao hàng cho chiến dịch "${campaignTitle}", ` +
+            `giai đoạn "${phaseName}" đã bị từ chối. ` +
+            `Tổng chi phí: ${costFormatted}. ` +
+            `Lý do: ${adminNote}. Vui lòng tạo mới và nộp lại.`
+
+        return {
+            title: "Yêu Cầu Chi Phí Giao Hàng Bị Từ Chối",
+            message,
+            metadata: {
+                operationRequestId: data.operationRequestId,
+                campaignId: data.campaignId,
+                campaignPhaseId: data.campaignPhaseId,
+                campaignTitle: data.campaignTitle,
+                phaseName: data.phaseName,
+                totalCost: data.totalCost,
+                adminNote: data.adminNote,
             },
         }
     }

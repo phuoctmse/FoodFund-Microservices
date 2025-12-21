@@ -2,6 +2,7 @@ import {
     BadRequestException,
     ForbiddenException,
     Injectable,
+    Logger,
     NotFoundException,
 } from "@nestjs/common"
 import { SentryService } from "@libs/observability"
@@ -26,13 +27,17 @@ import {
     UpdateIngredientRequestStatusInput,
 } from "../../dtos/ingredient-request/request/ingredient-request.input"
 import { CampaignPhaseStatus } from "@app/operation/src/shared/enums"
+import { EventEmitter2 } from "@nestjs/event-emitter"
 
 @Injectable()
 export class IngredientRequestService extends BaseOperationService {
+    private readonly logger = new Logger(IngredientRequestService.name)
+
     constructor(
         private readonly repository: IngredientRequestRepository,
         private readonly authService: AuthorizationService,
         private readonly cacheService: IngredientRequestCacheService,
+        private readonly eventEmitter: EventEmitter2,
         sentryService: SentryService,
         grpcClient: GrpcClientService,
     ) {
@@ -356,6 +361,39 @@ export class IngredientRequestService extends BaseOperationService {
                 input.status,
             )
 
+            const campaignPhaseDetails = await this.getCampaignPhaseDetails(
+                existingRequest.campaignPhaseId,
+            )
+
+            if (input.status === IngredientRequestStatus.APPROVED) {
+                this.eventEmitter.emit("ingredient-request.approved", {
+                    ingredientRequestId: id,
+                    campaignId: campaignPhaseDetails.campaignId,
+                    campaignPhaseId: existingRequest.campaignPhaseId,
+                    campaignTitle: campaignPhaseDetails.campaignTitle,
+                    phaseName: campaignPhaseDetails.phaseName,
+                    fundraiserId: campaignPhaseDetails.fundraiserId,
+                    organizationId: existingRequest.organizationId || null,
+                    totalCost: existingRequest.totalCost.toString(),
+                    itemCount: existingRequest.items?.length || 0,
+                    approvedAt: new Date().toISOString(),
+                })
+            } else if (input.status === IngredientRequestStatus.REJECTED) {
+                this.eventEmitter.emit("ingredient-request.rejected", {
+                    ingredientRequestId: id,
+                    campaignId: campaignPhaseDetails.campaignId,
+                    campaignPhaseId: existingRequest.campaignPhaseId,
+                    campaignTitle: campaignPhaseDetails.campaignTitle,
+                    phaseName: campaignPhaseDetails.phaseName,
+                    fundraiserId: campaignPhaseDetails.fundraiserId,
+                    organizationId: existingRequest.organizationId || null,
+                    totalCost: existingRequest.totalCost.toString(),
+                    itemCount: existingRequest.items?.length || 0,
+                    adminNote: input.adminNote || "No reason provided",
+                    rejectedAt: new Date().toISOString(),
+                })
+            }
+
             await Promise.all([
                 this.cacheService.setRequest(id, updatedRequest),
                 this.cacheService.deletePhaseRequests(
@@ -377,6 +415,63 @@ export class IngredientRequestService extends BaseOperationService {
                 adminId: userContext.userId,
             })
             throw error
+        }
+    }
+
+    private async getCampaignPhaseDetails(phaseId: string): Promise<{
+        campaignId: string
+        campaignTitle: string
+        phaseName: string
+        fundraiserId: string
+    }> {
+        try {
+            const response = await this.grpcClient.callCampaignService<
+                { phaseId: string },
+                {
+                    success: boolean
+                    phase?: {
+                        id: string
+                        campaignId: string
+                        campaignTitle: string
+                        phaseName: string
+                        fundraiserId: string
+                    }
+                    error?: string
+                }
+            >(
+                "GetCampaignPhaseInfo",
+                { phaseId },
+                { timeout: 5000, retries: 2 },
+            )
+
+            if (!response.success || !response.phase) {
+                this.logger.warn(
+                    `Failed to get campaign phase details: ${response.error || "Phase not found"}`,
+                )
+                return {
+                    campaignId: "unknown",
+                    campaignTitle: "Chiến dịch",
+                    phaseName: "Giai đoạn",
+                    fundraiserId: "unknown",
+                }
+            }
+
+            return {
+                campaignId: response.phase.campaignId,
+                campaignTitle: response.phase.campaignTitle,
+                phaseName: response.phase.phaseName,
+                fundraiserId: response.phase.fundraiserId,
+            }
+        } catch (error) {
+            this.logger.warn(
+                `Failed to get campaign phase details: ${error.message}`,
+            )
+            return {
+                campaignId: "unknown",
+                campaignTitle: "Chiến dịch",
+                phaseName: "Giai đoạn",
+                fundraiserId: "unknown",
+            }
         }
     }
 

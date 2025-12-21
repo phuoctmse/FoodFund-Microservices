@@ -104,6 +104,7 @@ interface GetCampaignPhaseInfoResponse {
         campaignId: string
         campaignTitle: string
         phaseName: string
+        fundraiserId: string
         ingredientFundsAmount: string
         cookingFundsAmount: string
         deliveryFundsAmount: string
@@ -453,6 +454,7 @@ export class CampaignGrpcService {
                     campaignId: phase.campaignId,
                     campaignTitle: campaign.title,
                     phaseName: phase.phaseName,
+                    fundraiserId: campaign.createdBy,
                     ingredientFundsAmount: phase.ingredientFundsAmount || "0",
                     cookingFundsAmount: phase.cookingFundsAmount || "0",
                     deliveryFundsAmount: phase.deliveryFundsAmount || "0",

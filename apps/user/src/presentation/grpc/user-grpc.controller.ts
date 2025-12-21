@@ -86,7 +86,7 @@ export class UserGrpcController {
         private readonly userBadgeRepository: UserBadgeRepository,
         private readonly grpcClientService: GrpcClientService,
         private readonly systemConfigService: SystemConfigService,
-    ) { }
+    ) {}
 
     /**
      * Helper: Map user entity to gRPC response format
@@ -1169,7 +1169,7 @@ export class UserGrpcController {
     async getOrganizationMembers(
         data: GetOrganizationMembersRequest,
     ): Promise<GetOrganizationMembersResponse> {
-        const { organizationId } = data
+        const { organizationId, status } = data
 
         if (!organizationId) {
             return {
@@ -1180,19 +1180,6 @@ export class UserGrpcController {
         }
 
         try {
-            const organization =
-                await this.organizationRepository.findOrganizationWithMembers(
-                    organizationId,
-                )
-
-            if (!organization) {
-                return {
-                    success: false,
-                    members: [],
-                    error: `Organization ${organizationId} not found`,
-                }
-            }
-
             const members: Array<{
                 id: string
                 cognitoId: string
@@ -1203,31 +1190,55 @@ export class UserGrpcController {
                 status: string
             }> = []
 
-            if (organization.user) {
-                members.push({
-                    id: organization.user.id,
-                    cognitoId: organization.user.cognito_id || "",
-                    fullName: organization.user.full_name || "",
-                    email: organization.user.email,
-                    role: organization.user.role,
-                    memberRole: "REPRESENTATIVE",
-                    status: "ACTIVE",
-                })
-            }
+            if (!status || status === "VERIFIED") {
+                const organization =
+                    await this.organizationRepository.findOrganizationRepresentative(
+                        organizationId,
+                    )
 
-            if (organization.Organization_Member) {
-                organization.Organization_Member.forEach((orgMember) => {
-                    if (orgMember.member) {
-                        members.push({
-                            id: orgMember.member.id,
-                            cognitoId: orgMember.member.cognito_id || "",
-                            fullName: orgMember.member.full_name || "",
-                            email: orgMember.member.email,
-                            role: orgMember.member.role,
-                            memberRole: orgMember.member_role || "MEMBER",
-                            status: orgMember.status,
-                        })
+                if (!organization) {
+                    return {
+                        success: false,
+                        members: [],
+                        error: `Organization ${organizationId} not found`,
                     }
+                }
+
+                if (organization.user && organization.status === "VERIFIED") {
+                    members.push({
+                        id: organization.user.id,
+                        cognitoId: organization.user.cognito_id || "",
+                        fullName: organization.user.full_name || "",
+                        email: organization.user.email,
+                        role: organization.user.role,
+                        memberRole: "REPRESENTATIVE",
+                        status: "VERIFIED",
+                    })
+                }
+
+                const verifiedMembers =
+                    await this.organizationRepository.findVerifiedMembersOnly(
+                        organizationId,
+                    )
+
+                const representativeId = organization.user?.id
+                verifiedMembers.forEach((orgMember) => {
+                    if (
+                        representativeId &&
+                        orgMember.member.id === representativeId
+                    ) {
+                        return
+                    }
+
+                    members.push({
+                        id: orgMember.member.id,
+                        cognitoId: orgMember.member.cognito_id || "",
+                        fullName: orgMember.member.full_name || "",
+                        email: orgMember.member.email,
+                        role: orgMember.member.role,
+                        memberRole: orgMember.member_role,
+                        status: orgMember.status,
+                    })
                 })
             }
 
@@ -1279,7 +1290,10 @@ export class UserGrpcController {
         }
 
         try {
-            const user = await this.userRepository.findUserByCognitoIdSimple(fundraiserId)
+            const user =
+                await this.userRepository.findUserByCognitoIdSimple(
+                    fundraiserId,
+                )
             if (!user) {
                 return {
                     success: false,
@@ -1287,10 +1301,11 @@ export class UserGrpcController {
                 }
             }
 
-            const existingWallet = await this.walletRepository.findWalletByUserIdAndType(
-                user.id,
-                Wallet_Type.FUNDRAISER,
-            )
+            const existingWallet =
+                await this.walletRepository.findWalletByUserIdAndType(
+                    user.id,
+                    Wallet_Type.FUNDRAISER,
+                )
 
             if (!existingWallet) {
                 return {
@@ -1299,11 +1314,12 @@ export class UserGrpcController {
                 }
             }
 
-            const requestTypeLabel = {
-                INGREDIENT: "nguyên liệu",
-                COOKING: "nấu ăn",
-                DELIVERY: "giao hàng",
-            }[requestType] || requestType
+            const requestTypeLabel =
+                {
+                    INGREDIENT: "nguyên liệu",
+                    COOKING: "nấu ăn",
+                    DELIVERY: "giao hàng",
+                }[requestType] || requestType
 
             const description =
                 `Tiền dư từ yêu cầu ${requestTypeLabel}: ${campaignTitle} - ${phaseName}. ` +
@@ -1333,7 +1349,8 @@ export class UserGrpcController {
                 newBalance: newBalance.toString(),
             }
         } catch (error) {
-            const errorMessage = error?.message || error?.toString() || "Unknown error"
+            const errorMessage =
+                error?.message || error?.toString() || "Unknown error"
             this.logger.error(
                 "[CreditFundraiserWalletWithSurplus] ❌ Failed:",
                 error?.stack || errorMessage,
@@ -1374,7 +1391,10 @@ export class UserGrpcController {
                 dataType: config.dataType,
             }
         } catch (error) {
-            this.logger.error(`[GetSystemConfig] Failed to get config ${key}:`, error)
+            this.logger.error(
+                `[GetSystemConfig] Failed to get config ${key}:`,
+                error,
+            )
             return {
                 success: false,
                 error: error.message,
