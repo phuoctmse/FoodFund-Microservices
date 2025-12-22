@@ -318,6 +318,86 @@ export class CampaignReassignmentExpiredBuilder extends NotificationBuilder<Noti
 }
 
 /**
+ * Admin notification when fundraiser accepts campaign reassignment
+ */
+@Injectable()
+export class CampaignReassignmentAcceptedAdminBuilder extends NotificationBuilder<NotificationType.CAMPAIGN_REASSIGNMENT_ACCEPTED_ADMIN> {
+    readonly type = NotificationType.CAMPAIGN_REASSIGNMENT_ACCEPTED_ADMIN
+
+    build(
+        context: NotificationBuilderContext<NotificationType.CAMPAIGN_REASSIGNMENT_ACCEPTED_ADMIN>,
+    ): NotificationBuilderResult {
+        this.validate(context.data)
+        const data = context.data
+
+        const campaignTitle = this.truncate(data.campaignTitle, 50)
+        const organizationName = this.truncate(data.organizationName, 40)
+
+        let message =
+            `Tổ chức "${organizationName}" ` +
+            `đã chấp nhận tiếp nhận chiến dịch "${campaignTitle}".`
+
+        if (data.note) {
+            const note = this.truncate(data.note, 100)
+            message += ` Ghi chú: "${note}"`
+        }
+
+        return {
+            title: "Chiến dịch đã được chấp nhận",
+            message,
+            metadata: {
+                reassignmentId: data.reassignmentId,
+                campaignId: data.campaignId,
+                organizationName: data.organizationName,
+                fundraiserName: data.fundraiserName,
+                acceptedAt: data.acceptedAt,
+                note: data.note,
+            },
+        }
+    }
+}
+
+/**
+ * Admin notification when fundraiser rejects campaign reassignment
+ */
+@Injectable()
+export class CampaignReassignmentRejectedAdminBuilder extends NotificationBuilder<NotificationType.CAMPAIGN_REASSIGNMENT_REJECTED_ADMIN> {
+    readonly type = NotificationType.CAMPAIGN_REASSIGNMENT_REJECTED_ADMIN
+
+    build(
+        context: NotificationBuilderContext<NotificationType.CAMPAIGN_REASSIGNMENT_REJECTED_ADMIN>,
+    ): NotificationBuilderResult {
+        this.validate(context.data)
+        const data = context.data
+
+        const campaignTitle = this.truncate(data.campaignTitle, 50)
+        const organizationName = this.truncate(data.organizationName, 40)
+
+        let message =
+            `Tổ chức "${organizationName}" ` +
+            `đã từ chối tiếp nhận chiến dịch "${campaignTitle}".`
+
+        if (data.note) {
+            const note = this.truncate(data.note, 100)
+            message += ` Lý do: "${note}"`
+        }
+
+        return {
+            title: "Chiến dịch bị từ chối",
+            message,
+            metadata: {
+                reassignmentId: data.reassignmentId,
+                campaignId: data.campaignId,
+                organizationName: data.organizationName,
+                fundraiserName: data.fundraiserName,
+                rejectedAt: data.rejectedAt,
+                note: data.note,
+            },
+        }
+    }
+}
+
+/**
  * Campaign Extended Notification Builder
  */
 @Injectable()

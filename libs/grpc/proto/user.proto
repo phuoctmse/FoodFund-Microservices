@@ -39,6 +39,7 @@ service UserService {
   rpc GetVerifiedOrganizations(GetVerifiedOrganizationsRequest) returns (GetVerifiedOrganizationsResponse);
   rpc GetOrganizationById(GetOrganizationByIdRequest) returns (GetOrganizationByIdResponse);
   rpc GetUserCognitoId(GetUserCognitoIdRequest) returns (GetUserCognitoIdResponse);
+  rpc GetAdminCognitoIds(GetAdminCognitoIdsRequest) returns (GetAdminCognitoIdsResponse);
 
   // Process bank transfer out (for withdrawal/payout)
   rpc ProcessBankTransferOut(ProcessBankTransferOutRequest) returns (ProcessBankTransferOutResponse);
@@ -270,6 +271,14 @@ message GetUserOrganizationResponse {
 message OrganizationInfo {
   string id = 1;
   string name = 2;
+}
+
+message GetAdminCognitoIdsRequest {}
+
+message GetAdminCognitoIdsResponse {
+  bool success = 1;
+  repeated string admin_ids = 2;
+  string error = 3;
 }
 
 message ProcessBankTransferOutRequest {

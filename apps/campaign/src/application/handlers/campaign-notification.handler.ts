@@ -17,14 +17,20 @@ import {
     CampaignRejectedEvent,
 } from "../../domain/events"
 import {
+    CampaignReassignmentAcceptedAdminEvent,
     CampaignReassignmentApprovedEvent,
     CampaignReassignmentAssignedEvent,
     CampaignReassignmentExpiredEvent,
+    CampaignReassignmentRejectedAdminEvent,
 } from "../../domain/events/campaign-reassignment.event"
+import { UserClientService } from "../../shared"
 
 @Injectable()
 export class CampaignNotificationHandler {
-    constructor(private readonly notificationQueue: NotificationQueue) {}
+    constructor(
+        private readonly notificationQueue: NotificationQueue,
+        private readonly userClientService: UserClientService,
+    ) {}
 
     @OnEvent("campaign.approved")
     async handleCampaignApproved(event: CampaignApprovedEvent) {
@@ -146,9 +152,7 @@ export class CampaignNotificationHandler {
     }
 
     @OnEvent("campaign.reassignment.assigned")
-    async handleReassignmentAssigned(
-        event: CampaignReassignmentAssignedEvent,
-    ) {
+    async handleReassignmentAssigned(event: CampaignReassignmentAssignedEvent) {
         await this.notificationQueue.addNotificationJob({
             eventId: `reassignment-assigned-${event.reassignmentId}`,
             priority: NotificationPriority.HIGH,
@@ -170,9 +174,7 @@ export class CampaignNotificationHandler {
     }
 
     @OnEvent("campaign.reassignment.approved")
-    async handleReassignmentApproved(
-        event: CampaignReassignmentApprovedEvent,
-    ) {
+    async handleReassignmentApproved(event: CampaignReassignmentApprovedEvent) {
         await this.notificationQueue.addNotificationJob({
             eventId: `reassignment-transferred-${event.reassignmentId}`,
             priority: NotificationPriority.HIGH,
@@ -209,9 +211,7 @@ export class CampaignNotificationHandler {
     }
 
     @OnEvent("campaign.reassignment.expired")
-    async handleReassignmentExpired(
-        event: CampaignReassignmentExpiredEvent,
-    ) {
+    async handleReassignmentExpired(event: CampaignReassignmentExpiredEvent) {
         await this.notificationQueue.addNotificationJob({
             eventId: `reassignment-expired-${event.campaignId}`,
             priority: NotificationPriority.HIGH,
@@ -223,6 +223,68 @@ export class CampaignNotificationHandler {
                 campaignId: event.campaignId,
                 campaignTitle: event.campaignTitle,
                 totalRefunds: event.totalRefunds,
+            },
+            timestamp: new Date().toISOString(),
+        })
+    }
+
+    @OnEvent("campaign.reassignment.accepted.admin")
+    async handleReassignmentAcceptedAdmin(
+        event: CampaignReassignmentAcceptedAdminEvent,
+    ) {
+        const adminCognitoIds = await this.getAdminCognitoIds()
+
+        if (adminCognitoIds.length === 0) {
+            return
+        }
+
+        await this.notificationQueue.addGroupedNotificationJob({
+            eventIds: [`reassignment-accepted-admin-${event.reassignmentId}`],
+            priority: NotificationPriority.HIGH,
+            type: NotificationType.CAMPAIGN_REASSIGNMENT_ACCEPTED_ADMIN,
+            userIds: adminCognitoIds,
+            actorId: event.fundraiserId,
+            entityType: EntityType.CAMPAIGN,
+            entityId: event.campaignId,
+            data: {
+                reassignmentId: event.reassignmentId,
+                campaignId: event.campaignId,
+                campaignTitle: event.campaignTitle,
+                organizationName: event.organizationName,
+                fundraiserName: event.fundraiserName,
+                acceptedAt: new Date().toISOString(),
+                note: event.note,
+            },
+            timestamp: new Date().toISOString(),
+        })
+    }
+
+    @OnEvent("campaign.reassignment.rejected.admin")
+    async handleReassignmentRejectedAdmin(
+        event: CampaignReassignmentRejectedAdminEvent,
+    ) {
+        const adminCognitoIds = await this.getAdminCognitoIds()
+
+        if (adminCognitoIds.length === 0) {
+            return
+        }
+
+        await this.notificationQueue.addGroupedNotificationJob({
+            eventIds: [`reassignment-rejected-admin-${event.reassignmentId}`],
+            priority: NotificationPriority.HIGH,
+            type: NotificationType.CAMPAIGN_REASSIGNMENT_REJECTED_ADMIN,
+            userIds: adminCognitoIds,
+            actorId: event.fundraiserId,
+            entityType: EntityType.CAMPAIGN,
+            entityId: event.campaignId,
+            data: {
+                reassignmentId: event.reassignmentId,
+                campaignId: event.campaignId,
+                campaignTitle: event.campaignTitle,
+                organizationName: event.organizationName,
+                fundraiserName: event.fundraiserName,
+                rejectedAt: new Date().toISOString(),
+                note: event.note,
             },
             timestamp: new Date().toISOString(),
         })
@@ -269,5 +331,9 @@ export class CampaignNotificationHandler {
             },
             timestamp: new Date().toISOString(),
         })
+    }
+
+    private async getAdminCognitoIds(): Promise<string[]> {
+        return this.userClientService.getAdminCognitoIds()
     }
 }

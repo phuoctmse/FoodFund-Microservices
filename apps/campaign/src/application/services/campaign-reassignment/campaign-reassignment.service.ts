@@ -22,9 +22,11 @@ import {
     EligibleOrganizationsResponse,
 } from "../../dtos/campaign-reassignment/response"
 import {
+    CampaignReassignmentAcceptedAdminEvent,
     CampaignReassignmentApprovedEvent,
     CampaignReassignmentAssignedEvent,
     CampaignReassignmentExpiredEvent,
+    CampaignReassignmentRejectedAdminEvent,
 } from "@app/campaign/src/domain/events/campaign-reassignment.event"
 
 @Injectable()
@@ -309,7 +311,7 @@ export class CampaignReassignmentService {
         if (accept) {
             return this.acceptReassignment(reassignment, userContext, note)
         } else {
-            return this.rejectReassignment(reassignment, note)
+            return this.rejectReassignment(reassignment, userContext, note)
         }
     }
 
@@ -338,6 +340,10 @@ export class CampaignReassignmentService {
             )
         }
 
+        const fundraiserName = await this.userClientService.getUserDisplayName(
+            userContext.userId,
+        )
+
         const previousStatus =
             (campaign as any).previousStatus || CampaignStatus.ACTIVE
 
@@ -363,18 +369,67 @@ export class CampaignReassignmentService {
             acceptedBy: userContext.userId,
         } satisfies CampaignReassignmentApprovedEvent)
 
+        this.eventEmitter.emit("campaign.reassignment.accepted.admin", {
+            reassignmentId: reassignment.id,
+            campaignId: campaign.id,
+            campaignTitle: campaign.title,
+            organizationId: reassignment.organizationId,
+            organizationName: orgInfo.organization.name,
+            fundraiserId: userContext.userId,
+            fundraiserName: fundraiserName || "Unknown User",
+            acceptedBy: userContext.userId,
+            note,
+        } satisfies CampaignReassignmentAcceptedAdminEvent)
+
         return updatedReassignment
     }
 
     private async rejectReassignment(
         reassignment: CampaignReassignment,
+        userContext: UserContext,
         note?: string,
     ): Promise<CampaignReassignment> {
+        const campaign = await this.campaignRepository.findById(
+            reassignment.campaignId,
+        )
+
+        if (!campaign) {
+            throw new NotFoundException(
+                `Campaign ${reassignment.campaignId} not found`,
+            )
+        }
+
+        const orgInfo = await this.userClientService.getOrganizationById(
+            reassignment.organizationId,
+        )
+
+        if (!orgInfo.success || !orgInfo.organization) {
+            throw new BadRequestException(
+                "Failed to fetch organization information",
+            )
+        }
+
+        const fundraiserName = await this.userClientService.getUserDisplayName(
+            userContext.userId,
+        )
+
         const updated = await this.reassignmentRepository.updateStatus(
             reassignment.id,
             CampaignReassignmentStatus.REJECTED,
             note,
         )
+
+        this.eventEmitter.emit("campaign.reassignment.rejected.admin", {
+            reassignmentId: reassignment.id,
+            campaignId: campaign.id,
+            campaignTitle: campaign.title,
+            organizationId: reassignment.organizationId,
+            organizationName: orgInfo.organization.name,
+            fundraiserId: userContext.userId,
+            fundraiserName: fundraiserName || "Unknown User",
+            rejectedBy: userContext.userId,
+            note,
+        } satisfies CampaignReassignmentRejectedAdminEvent)
 
         return updated
     }

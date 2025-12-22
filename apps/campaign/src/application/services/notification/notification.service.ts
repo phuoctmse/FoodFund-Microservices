@@ -394,7 +394,7 @@ export class NotificationService {
             [NotificationType.POST_COMMENT]: EntityType.COMMENT,
             [NotificationType.POST_REPLY]: EntityType.COMMENT,
             [NotificationType.INGREDIENT_REQUEST_APPROVED]: EntityType.INGREDIENT_REQUEST,
-            [NotificationType.INGREDIENT_REQUEST_REJECTED]:EntityType.INGREDIENT_REQUEST,
+            [NotificationType.INGREDIENT_REQUEST_REJECTED]: EntityType.INGREDIENT_REQUEST,
             [NotificationType.COOKING_REQUEST_APPROVED]: EntityType.OPERATION_REQUEST,
             [NotificationType.COOKING_REQUEST_REJECTED]: EntityType.OPERATION_REQUEST,
             [NotificationType.DELIVERY_REQUEST_APPROVED]: EntityType.OPERATION_REQUEST,
@@ -406,13 +406,14 @@ export class NotificationService {
             [NotificationType.CAMPAIGN_OWNERSHIP_TRANSFERRED]: EntityType.CAMPAIGN,
             [NotificationType.CAMPAIGN_OWNERSHIP_RECEIVED]: EntityType.CAMPAIGN,
             [NotificationType.CAMPAIGN_REASSIGNMENT_EXPIRED]: EntityType.CAMPAIGN,
+            [NotificationType.CAMPAIGN_REASSIGNMENT_ACCEPTED_ADMIN]: EntityType.CAMPAIGN,
+            [NotificationType.CAMPAIGN_REASSIGNMENT_REJECTED_ADMIN]: EntityType.CAMPAIGN,
             [NotificationType.INGREDIENT_DISBURSEMENT_COMPLETED]: EntityType.CAMPAIGN,
             [NotificationType.COOKING_DISBURSEMENT_COMPLETED]: EntityType.CAMPAIGN,
             [NotificationType.DELIVERY_DISBURSEMENT_COMPLETED]: EntityType.CAMPAIGN,
             [NotificationType.SYSTEM_ANNOUNCEMENT]: EntityType.SYSTEM,
             [NotificationType.SURPLUS_TRANSFERRED]: EntityType.WALLET,
         }
-
         return typeMap[type] || "UNKNOWN"
     }
 }

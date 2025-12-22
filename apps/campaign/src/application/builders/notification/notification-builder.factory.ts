@@ -13,6 +13,8 @@ import {
     CampaignReassignmentExpiredBuilder,
     CampaignExtendedBuilder,
     CampaignPhaseStatusUpdatedBuilder,
+    CampaignReassignmentAcceptedAdminBuilder,
+    CampaignReassignmentRejectedAdminBuilder,
 } from "./campaign-notification.builder"
 import {
     PostCommentBuilder,
@@ -71,7 +73,8 @@ export class NotificationBuilderFactory {
         private readonly campaignOwnershipTransferredBuilder: CampaignOwnershipTransferredBuilder,
         private readonly campaignOwnershipReceivedBuilder: CampaignOwnershipReceivedBuilder,
         private readonly campaignReassignmentExpiredBuilder: CampaignReassignmentExpiredBuilder,
-
+        private readonly campaignReassignmentAcceptedAdminBuilder: CampaignReassignmentAcceptedAdminBuilder,
+        private readonly campaignReassignmentRejectedAdminBuilder: CampaignReassignmentRejectedAdminBuilder,
         private readonly ingredientDisbursementBuilder: IngredientDisbursementCompletedBuilder,
         private readonly cookingDisbursementBuilder: CookingDisbursementCompletedBuilder,
         private readonly deliveryDisbursementBuilder: DeliveryDisbursementCompletedBuilder,
@@ -110,7 +113,6 @@ export class NotificationBuilderFactory {
             NotificationType.CAMPAIGN_NEW_POST,
             this.campaignNewPostBuilder,
         )
-
         this.builders.set(NotificationType.POST_LIKE, this.postLikeBuilder)
         this.builders.set(
             NotificationType.POST_COMMENT,
@@ -153,6 +155,14 @@ export class NotificationBuilderFactory {
         this.builders.set(
             NotificationType.CAMPAIGN_REASSIGNMENT_EXPIRED,
             this.campaignReassignmentExpiredBuilder,
+        )
+        this.builders.set(
+            NotificationType.CAMPAIGN_REASSIGNMENT_ACCEPTED_ADMIN,
+            this.campaignReassignmentAcceptedAdminBuilder,
+        )
+        this.builders.set(
+            NotificationType.CAMPAIGN_REASSIGNMENT_REJECTED_ADMIN,
+            this.campaignReassignmentRejectedAdminBuilder,
         )
         this.builders.set(
             NotificationType.INGREDIENT_DISBURSEMENT_COMPLETED,

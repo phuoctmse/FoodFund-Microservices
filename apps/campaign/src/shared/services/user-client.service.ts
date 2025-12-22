@@ -47,7 +47,7 @@ export interface GetOrganizationByIdResponse {
 export class UserClientService {
     private readonly logger = new Logger(UserClientService.name)
 
-    constructor(private readonly grpcClient: GrpcClientService) { }
+    constructor(private readonly grpcClient: GrpcClientService) {}
 
     async getUserById(userId: string): Promise<UserProfile | null> {
         try {
@@ -100,11 +100,7 @@ export class UserClientService {
                     cognitoId?: string
                     error?: string
                 }
-            >(
-                "GetUserCognitoId",
-                { userId },
-                { timeout: 3000, retries: 2 },
-            )
+            >("GetUserCognitoId", { userId }, { timeout: 3000, retries: 2 })
 
             if (!response.success || !response.cognitoId) {
                 this.logger.warn(
@@ -171,7 +167,6 @@ export class UserClientService {
         return user?.fullName || user?.username || null
     }
 
-
     async getUserNamesByIds(userIds: string[]): Promise<Map<string, string>> {
         const userNameMap = new Map<string, string>()
 
@@ -195,6 +190,29 @@ export class UserClientService {
         })
 
         return userNameMap
+    }
+
+    async getAdminCognitoIds(): Promise<string[]> {
+        try {
+            const response = await this.grpcClient.callUserService<
+                Record<string, never>,
+                {
+                    success: boolean
+                    adminIds?: string[]
+                    error?: string
+                }
+            >("GetAdminCognitoIds", {}, { timeout: 5000, retries: 2 })
+
+            if (!response.success || !response.adminIds) {
+                this.logger.warn("[gRPC] Failed to fetch admin Cognito IDs")
+                return []
+            }
+
+            return response.adminIds
+        } catch (error) {
+            this.logger.error("[gRPC] Error fetching admin Cognito IDs:", error)
+            return []
+        }
     }
 
     async creditFundraiserWallet(data: {
@@ -330,7 +348,6 @@ export class UserClientService {
             throw error
         }
     }
-
 
     async getWalletTransactionsByPaymentId(
         paymentTransactionId: string,

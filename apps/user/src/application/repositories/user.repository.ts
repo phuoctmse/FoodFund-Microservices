@@ -11,7 +11,7 @@ import {
 
 @Injectable()
 export class UserRepository {
-    constructor(private readonly prisma: PrismaClient) { }
+    constructor(private readonly prisma: PrismaClient) {}
 
     // User CRUD operations
     async createUser(data: CreateUserInput) {
@@ -202,6 +202,22 @@ export class UserRepository {
                         Organization_Member: true,
                     },
                 },
+            },
+        })
+    }
+
+    async findAllAdmins() {
+        return this.prisma.user.findMany({
+            where: {
+                role: Role.ADMIN,
+                is_active: true,
+            },
+            select: {
+                id: true,
+                cognito_id: true,
+                full_name: true,
+                email: true,
+                is_active: true,
             },
         })
     }

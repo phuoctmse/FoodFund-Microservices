@@ -38,3 +38,27 @@ export interface CampaignReassignmentReceivedEvent {
     targetAmount: string
     receivedAmount: string
 }
+
+export interface CampaignReassignmentAcceptedAdminEvent {
+    reassignmentId: string
+    campaignId: string
+    campaignTitle: string
+    organizationId: string
+    organizationName: string
+    fundraiserId: string
+    fundraiserName: string
+    acceptedBy: string
+    note?: string
+}
+
+export interface CampaignReassignmentRejectedAdminEvent {
+    reassignmentId: string
+    campaignId: string
+    campaignTitle: string
+    organizationId: string
+    organizationName: string
+    fundraiserId: string
+    fundraiserName: string
+    rejectedBy: string
+    note?: string
+}

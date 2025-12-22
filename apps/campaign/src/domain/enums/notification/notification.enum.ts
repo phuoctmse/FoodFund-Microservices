@@ -13,6 +13,8 @@ export enum NotificationType {
     CAMPAIGN_OWNERSHIP_TRANSFERRED = "CAMPAIGN_OWNERSHIP_TRANSFERRED",
     CAMPAIGN_OWNERSHIP_RECEIVED = "CAMPAIGN_OWNERSHIP_RECEIVED",
     CAMPAIGN_REASSIGNMENT_EXPIRED = "CAMPAIGN_REASSIGNMENT_EXPIRED",
+    CAMPAIGN_REASSIGNMENT_ACCEPTED_ADMIN = "CAMPAIGN_REASSIGNMENT_ACCEPTED_ADMIN",
+    CAMPAIGN_REASSIGNMENT_REJECTED_ADMIN = "CAMPAIGN_REASSIGNMENT_REJECTED_ADMIN",
 
     POST_COMMENT = "POST_COMMENT",
     POST_REPLY = "POST_REPLY",
@@ -133,6 +135,14 @@ registerEnumType(NotificationType, {
         DELIVERY_REQUEST_REJECTED: {
             description: "Delivery wage request has been rejected by admin",
         },
+        CAMPAIGN_REASSIGNMENT_ACCEPTED_ADMIN: {
+            description:
+                "Admin notification when fundraiser accepts campaign reassignment",
+        },
+        CAMPAIGN_REASSIGNMENT_REJECTED_ADMIN: {
+            description:
+                "Admin notification when fundraiser rejects campaign reassignment",
+        },
         SYSTEM_ANNOUNCEMENT: {
             description: "System-wide announcement",
         },
@@ -212,6 +222,10 @@ export const NOTIFICATION_PRIORITY_MAP: Record<
     [NotificationType.CAMPAIGN_REASSIGNMENT_EXPIRED]: NotificationPriority.HIGH,
     [NotificationType.CAMPAIGN_OWNERSHIP_RECEIVED]: NotificationPriority.HIGH,
     [NotificationType.CAMPAIGN_OWNERSHIP_TRANSFERRED]:
+        NotificationPriority.HIGH,
+    [NotificationType.CAMPAIGN_REASSIGNMENT_ACCEPTED_ADMIN]:
+        NotificationPriority.HIGH,
+    [NotificationType.CAMPAIGN_REASSIGNMENT_REJECTED_ADMIN]:
         NotificationPriority.HIGH,
     [NotificationType.SURPLUS_TRANSFERRED]: NotificationPriority.HIGH,
     [NotificationType.INGREDIENT_DISBURSEMENT_COMPLETED]:
