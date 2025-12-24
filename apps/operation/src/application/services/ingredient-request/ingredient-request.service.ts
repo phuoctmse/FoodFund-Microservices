@@ -28,7 +28,6 @@ import {
 } from "../../dtos/ingredient-request/request/ingredient-request.input"
 import { CampaignPhaseStatus } from "@app/operation/src/shared/enums"
 import { EventEmitter2 } from "@nestjs/event-emitter"
-import { CampaignStatus } from "@app/campaign/src/domain/enums/campaign/campaign.enum"
 
 @Injectable()
 export class IngredientRequestService extends BaseOperationService {
@@ -106,7 +105,7 @@ export class IngredientRequestService extends BaseOperationService {
 
             const campaignStatus = await this.getCampaignStatus(campaignId)
 
-            if (campaignStatus !== CampaignStatus.PROCESSING) {
+            if (campaignStatus !== "PROCESSING") {
                 throw new BadRequestException(
                     "Không thể tạo yêu cầu giải ngân tiền nguyên liệu. Chiến dịch phải trong trạng thái đang vận hành. " +
                         `Trạng thái hiện tại: ${campaignStatus}. `,
