@@ -193,6 +193,58 @@ export class OrganizationService {
         return transformedOrganization
     }
 
+    async getStaffOrganization(cognitoId: string) {
+        const user = await this.userRepository.findUserByCognitoId(cognitoId)
+        if (!user) {
+            UserErrorHelper.throwUserNotFound(cognitoId)
+        }
+
+        const staffRoles = [Role.KITCHEN_STAFF, Role.DELIVERY_STAFF]
+        if (!staffRoles.includes(user.role as Role)) {
+            UserErrorHelper.throwUnauthorizedRole(user.role, staffRoles)
+        }
+
+        const memberRecord =
+            await this.organizationRepository.findVerifiedMembershipByUserId(
+                user.id,
+            )
+
+        if (!memberRecord) {
+            throw new NotFoundException(
+                "No active organization found for this staff member",
+            )
+        }
+
+        const organization =
+            await this.organizationRepository.findOrganizationWithMembers(
+                memberRecord.organization.id,
+            )
+
+        if (!organization) {
+            throw new NotFoundException(
+                "Organization not found",
+            )
+        }
+
+        const transformedOrganization = {
+            ...organization,
+            representative: organization.user,
+            members: organization.Organization_Member.map((member) => ({
+                id: member.id,
+                member: member.member,
+                member_role: member.member_role,
+                status: member.status,
+                joined_at: member.joined_at,
+            })),
+            total_members: organization.Organization_Member.length,
+            active_members: organization.Organization_Member.filter(
+                (member) => member.status === VerificationStatus.VERIFIED,
+            ).length,
+        }
+
+        return transformedOrganization
+    }
+
     /**
      * Approve organization request with transaction
      * Uses Prisma Transaction for database operations + Saga pattern for Cognito sync
