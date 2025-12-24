@@ -25,7 +25,7 @@ export class CreateIngredientRequestItemInput {
         description: "Quantity as decimal (e.g., '2.5', '10.75')",
     })
     @IsNumberString(
-        { no_symbols: true },
+        {},
         { message: "Quantity must be a valid decimal number" },
     )
     @IsNotEmpty({ message: "Quantity is required" })

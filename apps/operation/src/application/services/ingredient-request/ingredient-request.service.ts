@@ -28,6 +28,7 @@ import {
 } from "../../dtos/ingredient-request/request/ingredient-request.input"
 import { CampaignPhaseStatus } from "@app/operation/src/shared/enums"
 import { EventEmitter2 } from "@nestjs/event-emitter"
+import { CampaignStatus } from "@app/campaign/src/domain/enums/campaign/campaign.enum"
 
 @Injectable()
 export class IngredientRequestService extends BaseOperationService {
@@ -88,14 +89,34 @@ export class IngredientRequestService extends BaseOperationService {
 
             if (!allowedStatuses.includes(currentPhaseStatus)) {
                 throw new BadRequestException(
-                    `Cannot create ingredient request when phase is in ${currentPhaseStatus} status. ` +
-                        "Phase must be in PLANNING or AWAITING_INGREDIENT_DISBURSEMENT.",
+                    `Không thể tạo yêu cầu giải ngân tiền nguyên liệu khi giai đoạn chiến dịch ở trạng thái ${currentPhaseStatus}. ` +
+                        "Giai đoạn phải trong trạng thái PLANNING hoặc AWAITING_INGREDIENT_DISBURSEMENT.",
+                )
+            }
+
+            const campaignId = await this.getCampaignIdFromPhaseId(
+                input.campaignPhaseId,
+            )
+
+            if (!campaignId) {
+                throw new NotFoundException(
+                    `Chiến dịch không tìm thấy ${input.campaignPhaseId}`,
+                )
+            }
+
+            const campaignStatus = await this.getCampaignStatus(campaignId)
+
+            if (campaignStatus !== CampaignStatus.PROCESSING) {
+                throw new BadRequestException(
+                    "Không thể tạo yêu cầu giải ngân tiền nguyên liệu. Chiến dịch phải trong trạng thái đang vận hành. " +
+                        `Trạng thái hiện tại: ${campaignStatus}. `,
                 )
             }
 
             const hasPending = await this.repository.hasActiveRequest(
                 input.campaignPhaseId,
             )
+
             if (hasPending) {
                 throw new BadRequestException(
                     "Không thể tạo mới yêu cầu giải ngân vì đã có yêu cầu tồn tại trong giai đoạn chiến dịch này.",
@@ -138,10 +159,6 @@ export class IngredientRequestService extends BaseOperationService {
                     "AWAITING_INGREDIENT_DISBURSEMENT",
                 )
             }
-
-            const campaignId = await this.getCampaignIdFromPhaseId(
-                input.campaignPhaseId,
-            )
 
             await Promise.all([
                 this.cacheService.setRequest(request.id, request),

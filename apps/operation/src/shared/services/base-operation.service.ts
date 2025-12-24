@@ -113,6 +113,36 @@ export abstract class BaseOperationService {
         }
     }
 
+    protected async getCampaignStatus(campaignId: string): Promise<string> {
+        try {
+            const response = await this.grpcClient.callCampaignService<
+                { id: string },
+                {
+                    success: boolean
+                    campaign?: {
+                        id: string
+                        status: string
+                    }
+                    error?: string
+                }
+            >("GetCampaign", { id: campaignId }, { timeout: 5000, retries: 2 })
+
+            if (!response.success || !response.campaign) {
+                throw new BadRequestException(
+                    `Chiến dịch ${campaignId} không tìm thấy.`,
+                )
+            }
+
+            return response.campaign.status
+        } catch (error) {
+            this.sentryService.captureError(error as Error, {
+                operation: "BaseOperationService.getCampaignStatus",
+                campaignId,
+            })
+            throw error
+        }
+    }
+
     protected async getCampaignPhaseStatus(
         phaseId: string,
     ): Promise<CampaignPhaseStatus> {
@@ -233,30 +263,15 @@ export abstract class BaseOperationService {
     /**
      * Invalidate campaign cache via gRPC
      */
-    protected async invalidateCampaignCache(
-        campaignId: string,
-    ): Promise<void> {
-        try {
-            await this.grpcClient.callCampaignService<
-                { campaignId: string },
-                { success: boolean; error?: string }
-            >(
-                "InvalidateCampaignCache",
-                { campaignId },
-                { timeout: 3000, retries: 1 },
-            )
-        } catch (error) {
-            // Log warning but don't fail the operation
-            this.sentryService.addBreadcrumb(
-                "Failed to invalidate campaign cache",
-                "warning",
-                {
-                    campaignId,
-                    error: error.message,
-                    service: this.constructor.name,
-                },
-            )
-        }
+    protected async invalidateCampaignCache(campaignId: string): Promise<void> {
+        await this.grpcClient.callCampaignService<
+            { campaignId: string },
+            { success: boolean; error?: string }
+        >(
+            "InvalidateCampaignCache",
+            { campaignId },
+            { timeout: 3000, retries: 1 },
+        )
     }
 
     // ==================== Utility Methods ====================
@@ -302,7 +317,10 @@ export abstract class BaseOperationService {
     protected async validateBudget(
         phaseId: string,
         requestCost: bigint,
-        budgetType: "ingredientFundsAmount" | "cookingFundsAmount" | "deliveryFundsAmount",
+        budgetType:
+            | "ingredientFundsAmount"
+            | "cookingFundsAmount"
+            | "deliveryFundsAmount",
         phaseName?: string,
     ): Promise<void> {
         const phase = await this.getCampaignPhase(phaseId)

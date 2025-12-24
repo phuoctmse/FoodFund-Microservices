@@ -98,8 +98,7 @@ export class OperationRequestService extends BaseOperationService {
 
             if (hasActive) {
                 throw new BadRequestException(
-                    `You already have a PENDING or APPROVED ${input.expenseType} request for this campaign phase. ` +
-                        "You can only create a new request after the current one is REJECTED.",
+                    `Tổ chức của bạn đã tạo yêu cầu giải ngân ${input.expenseType} cho giai đoạn chiến dịch này rồi.`,
                 )
             }
 

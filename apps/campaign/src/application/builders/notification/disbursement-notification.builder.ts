@@ -1,6 +1,5 @@
 import { NotificationType } from "@app/campaign/src/domain/enums/notification"
 import { NotificationBuilder, NotificationBuilderContext, NotificationBuilderResult } from "@app/campaign/src/domain/interfaces/notification"
-import { formatDateVietnamese } from "@app/campaign/src/shared"
 import { Injectable } from "@nestjs/common"
 
 @Injectable()
@@ -16,12 +15,11 @@ export class IngredientDisbursementCompletedBuilder extends NotificationBuilder<
         const campaignTitle = this.truncate(data.campaignTitle, 50)
         const phaseName = this.truncate(data.phaseName, 30)
         const amountFormatted = this.formatCurrency(data.amount)
-        const disbursedDate = formatDateVietnamese(new Date(data.disbursedAt))
 
         const message =
             "Giải ngân chi phí nguyên liệu đã hoàn tất! " +
             `Chiến dịch: "${campaignTitle}", Giai đoạn: "${phaseName}". ` +
-            `Số tiền: ${amountFormatted} VND (Ngày: ${disbursedDate}). ` +
+            `Số tiền: ${amountFormatted}. ` +
             "Vui lòng kiểm tra tài khoản ngân hàng của bạn."
 
         return {
@@ -50,12 +48,11 @@ export class CookingDisbursementCompletedBuilder extends NotificationBuilder<Not
         const campaignTitle = this.truncate(data.campaignTitle, 50)
         const phaseName = this.truncate(data.phaseName, 30)
         const amountFormatted = this.formatCurrency(data.amount)
-        const disbursedDate = formatDateVietnamese(new Date(data.disbursedAt))
 
         const message =
             "Giải ngân chi phí nấu ăn đã hoàn tất! " +
             `Chiến dịch: "${campaignTitle}", Giai đoạn: "${phaseName}". ` +
-            `Số tiền: ${amountFormatted} VND (Ngày: ${disbursedDate}). ` +
+            `Số tiền: ${amountFormatted}. ` +
             "Vui lòng kiểm tra tài khoản ngân hàng của bạn."
 
         return {
@@ -84,12 +81,11 @@ export class DeliveryDisbursementCompletedBuilder extends NotificationBuilder<No
         const campaignTitle = this.truncate(data.campaignTitle, 50)
         const phaseName = this.truncate(data.phaseName, 30)
         const amountFormatted = this.formatCurrency(data.amount)
-        const disbursedDate = formatDateVietnamese(new Date(data.disbursedAt))
 
         const message =
             "Giải ngân chi phí giao hàng đã hoàn tất! " +
             `Chiến dịch: "${campaignTitle}", Giai đoạn: "${phaseName}". ` +
-            `Số tiền: ${amountFormatted} VND (Ngày: ${disbursedDate}). ` +
+            `Số tiền: ${amountFormatted}. ` +
             "Vui lòng kiểm tra tài khoản ngân hàng của bạn."
 
         return {
