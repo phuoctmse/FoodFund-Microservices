@@ -111,6 +111,7 @@ export class OperationRequestCacheService extends BaseCacheService<OperationRequ
         pendingCount: number
         approvedCount: number
         rejectedCount: number
+        disbursedCount: number
     } | null> {
         return this.getStats(this.KEYS.STATS)
     }
@@ -120,6 +121,7 @@ export class OperationRequestCacheService extends BaseCacheService<OperationRequ
         pendingCount: number
         approvedCount: number
         rejectedCount: number
+        disbursedCount: number
     }): Promise<void> {
         return this.setStats(this.KEYS.STATS, stats, this.TTL.STATS)
     }

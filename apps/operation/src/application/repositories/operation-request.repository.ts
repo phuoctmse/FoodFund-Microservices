@@ -158,7 +158,7 @@ export class OperationRequestRepository {
     }
 
     async getStats() {
-        const [total, pending, approved, rejected] = await Promise.all([
+        const [total, pending, approved, rejected, disbursed] = await Promise.all([
             this.prisma.operation_Request.count(),
             this.prisma.operation_Request.count({
                 where: { status: OperationRequestStatus.PENDING },
@@ -169,6 +169,9 @@ export class OperationRequestRepository {
             this.prisma.operation_Request.count({
                 where: { status: OperationRequestStatus.REJECTED },
             }),
+            this.prisma.operation_Request.count({
+                where: { status: OperationRequestStatus.DISBURSED },
+            }),
         ])
 
         return {
@@ -176,6 +179,7 @@ export class OperationRequestRepository {
             pendingCount: pending,
             approvedCount: approved,
             rejectedCount: rejected,
+            disbursedCount: disbursed,
         }
     }
 

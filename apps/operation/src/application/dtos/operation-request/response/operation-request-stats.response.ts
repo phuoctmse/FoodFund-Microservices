@@ -13,4 +13,7 @@ export class OperationRequestStatsResponse {
 
     @Field(() => Int, { description: "Number of rejected requests" })
         rejectedCount: number
+
+    @Field(() => Int, { description: "Number of disbursed requests" })
+        disbursedCount: number
 }
