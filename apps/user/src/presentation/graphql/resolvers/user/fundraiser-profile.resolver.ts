@@ -15,7 +15,7 @@ import { Resolver, Mutation, Args, Query, Int } from "@nestjs/graphql"
 export class FundraiserProfileResolver {
     constructor(
         private readonly organizationService: OrganizationService,
-    ) {}
+    ) { }
 
     @Query(() => OrganizationWithMembers, {
         description:
