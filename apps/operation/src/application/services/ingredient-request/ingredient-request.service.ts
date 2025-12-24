@@ -551,6 +551,52 @@ export class IngredientRequestService extends BaseOperationService {
             ]
         }
 
+        case IngredientRequestSortOrder.STATUS_APPROVED_FIRST: {
+            const approvedRequests = sorted.filter(
+                (r) => r.status === IngredientRequestStatus.APPROVED,
+            )
+            const pendingRequests = sorted.filter(
+                (r) => r.status === IngredientRequestStatus.PENDING,
+            )
+            const disbursedRequests = sorted.filter(
+                (r) => r.status === IngredientRequestStatus.DISBURSED,
+            )
+            const rejectedRequests = sorted.filter(
+                (r) => r.status === IngredientRequestStatus.REJECTED,
+            )
+
+            approvedRequests.sort(
+                (a, b) =>
+                    new Date(a.created_at).getTime() -
+                        new Date(b.created_at).getTime(),
+            )
+
+            pendingRequests.sort(
+                (a, b) =>
+                    new Date(b.created_at).getTime() -
+                        new Date(a.created_at).getTime(),
+            )
+
+            disbursedRequests.sort(
+                (a, b) =>
+                    new Date(b.created_at).getTime() -
+                        new Date(a.created_at).getTime(),
+            )
+
+            rejectedRequests.sort(
+                (a, b) =>
+                    new Date(b.created_at).getTime() -
+                        new Date(a.created_at).getTime(),
+            )
+
+            return [
+                ...approvedRequests,
+                ...pendingRequests,
+                ...disbursedRequests,
+                ...rejectedRequests,
+            ]
+        }
+
         case IngredientRequestSortOrder.NEWEST_FIRST:
         default:
             return sorted.sort(

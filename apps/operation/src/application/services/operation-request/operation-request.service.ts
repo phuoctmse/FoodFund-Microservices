@@ -659,6 +659,52 @@ export class OperationRequestService extends BaseOperationService {
             ]
         }
 
+        case OperationRequestSortOrder.STATUS_APPROVED_FIRST: {
+            const approvedRequests = sorted.filter(
+                (r) => r.status === OperationRequestStatus.APPROVED,
+            )
+            const pendingRequests = sorted.filter(
+                (r) => r.status === OperationRequestStatus.PENDING,
+            )
+            const disbursedRequests = sorted.filter(
+                (r) => r.status === OperationRequestStatus.DISBURSED,
+            )
+            const rejectedRequests = sorted.filter(
+                (r) => r.status === OperationRequestStatus.REJECTED,
+            )
+
+            approvedRequests.sort(
+                (a, b) =>
+                    new Date(a.created_at).getTime() -
+                        new Date(b.created_at).getTime(),
+            )
+
+            pendingRequests.sort(
+                (a, b) =>
+                    new Date(b.created_at).getTime() -
+                        new Date(a.created_at).getTime(),
+            )
+
+            disbursedRequests.sort(
+                (a, b) =>
+                    new Date(b.created_at).getTime() -
+                        new Date(a.created_at).getTime(),
+            )
+
+            rejectedRequests.sort(
+                (a, b) =>
+                    new Date(b.created_at).getTime() -
+                        new Date(a.created_at).getTime(),
+            )
+
+            return [
+                ...approvedRequests,
+                ...pendingRequests,
+                ...disbursedRequests,
+                ...rejectedRequests,
+            ]
+        }
+
         case OperationRequestSortOrder.NEWEST_FIRST:
         default:
             return sorted.sort(
