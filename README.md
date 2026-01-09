@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="./images/System Architecture Diagram.jpg" alt="FoodFund System Architecture" width="800"/>
-</p>
-
 <h1 align="center">🍲 FoodFund Microservices</h1>
 
 <p align="center">
