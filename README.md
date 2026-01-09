@@ -61,7 +61,7 @@ The system follows a **microservices architecture** with the following key compo
 | **Client Layer** | Web Application, Mobile Application |
 | **API Gateway** | Apollo GraphQL Federation Gateway |
 | **Services** | Auth, User, Campaign, Operation |
-| **Data Layer** | PostgreSQL (per service), Redis Cache |
+| **Data Layer** | PostgreSQL (per service), Valkey Cache |
 | **Event Streaming** | Apache Kafka, Debezium CDC |
 | **Search Engine** | AWS OpenSearch |
 | **Observability** | Datadog, Sentry |
