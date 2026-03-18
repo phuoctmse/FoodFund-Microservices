@@ -326,18 +326,69 @@ npm run format
 
 ---
 
-## 🚢 Deployment
+## 🚢 Deployment & CI/CD (GitOps)
 
-### Kubernetes Deployment
+The project uses a modern **GitOps** approach for Continuous Integration and Continuous Deployment (CI/CD) using **GitHub Actions** and **ArgoCD**.
 
-The project includes Kubernetes manifests in the `k8s/` directory for deployment to clusters like DigitalOcean Kubernetes (DOKS).
+### CI/CD Workflow
 
-```bash
-# Apply Kubernetes configurations
-kubectl apply -f k8s/
+1. **Code Commit**: Developers push code to `main` or `develop` branches.
+2. **Detect Changes**: GitHub Actions identifies exactly which microservices were modified to optimize the build process.
+3. **CI Pipeline (GitHub Actions)**:
+   - Installs dependencies, generates Prisma clients, and runs linting/tests.
+   - Builds the application.
+   - Builds a new Docker image and pushes it to DockerHub with a unique tag (based on git commit SHA).
+4. **Manifest Update**: Instead of deploying directly to Kubernetes, the pipeline updates the `image.tag` inside the respective Helm chart's `values.yaml` and automatically commits this change back to the Git repository.
+5. **CD Pipeline (ArgoCD)**:
+   - **ArgoCD** runs inside the Kubernetes cluster and continuously monitors the `k8s/charts` directory in the Git repository.
+   - Upon detecting the new commit in `values.yaml`, ArgoCD pulls the changes and automatically synchronizes the cluster state to match the Git repository.
+   - Services are deployed using rolling updates, ensuring zero downtime.
+
+### DevOps Workflow Diagram
+
+```mermaid
+graph TD
+    Dev((Developer)) -->|1. Push Code| GitRepo[(GitHub Repo)]
+    
+    subgraph CI Pipeline
+        direction TB
+        GitRepo -->|2. Trigger Workflow| GHA[GitHub Actions]
+        GHA -->|3. Build & Test| GHA
+        GHA -->|4. Push Image| DockerHub[(DockerHub)]
+        GHA -->|5. Update values.yaml| GitRepo
+    end
+
+    subgraph CD Pipeline
+        direction TB
+        ArgoCD[ArgoCD] -->|6. Monitor changes| GitRepo
+        ArgoCD -->|7. Sync Manifests| K8s((Kubernetes Cluster))
+    end
+    
+    K8s -.->|8. Pull new Image| DockerHub
+    
+    classDef git fill:#f34f29,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef cicd fill:#2088FF,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef deploy fill:#326CE5,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef registry fill:#0db7ed,stroke:#fff,stroke-width:2px,color:#fff;
+    
+    class GitRepo git;
+    class GHA cicd;
+    class ArgoCD,K8s deploy;
+    class DockerHub registry;
 ```
 
-### Docker
+### Kubernetes Configurations
+
+The project includes all Kubernetes manifests and Helm charts in the `k8s/` directory:
+- `k8s/charts/`: Helm charts for all microservices.
+- `k8s/argocd-apps/`: ArgoCD Application manifests defining the GitOps deployments.
+
+```bash
+# Manually apply ArgoCD applications if setting up for the first time
+kubectl apply -f k8s/argocd-apps/ -n argocd
+```
+
+### Docker (Local Development)
 
 ```bash
 # Build and run with Docker Compose
@@ -381,5 +432,5 @@ This project is **UNLICENSED** - private and proprietary.
 ---
 
 <p align="center">
-  Made with ❤️ by the FoodFund Team
+  Made with ❤️ by the Truong Minh Phuoc
 </p>
