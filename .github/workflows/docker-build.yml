@@ -201,68 +201,53 @@ jobs:
           echo "| Operation | ${{ needs.detect-changes.outputs.operation }} | ${{ needs.detect-changes.outputs.operation == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Gateway | ${{ needs.detect-changes.outputs.gateway }} | ${{ needs.detect-changes.outputs.gateway == 'true' && '✅ Built' || '⏭️ Skipped' }} |" >> $GITHUB_STEP_SUMMARY
 
-  # ================= DEPLOY =================
-  deploy:
+  # ================= UPDATE MANIFESTS (GITOPS) =================
+  update-manifests:
     needs: [detect-changes, docker]
     runs-on: ubuntu-latest
-    timeout-minutes: 30  # Set job timeout to 30 minutes
+    timeout-minutes: 5
     if: github.event_name == 'push' && needs.detect-changes.outputs.any-service == 'true'
     steps:
       - uses: actions/checkout@v4
       
-      - name: Install doctl
+      - name: Update Helm values
         env:
-          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-        run: |
-          if [ -z "$DIGITALOCEAN_ACCESS_TOKEN" ]; then
-            echo "DIGITALOCEAN_ACCESS_TOKEN not set; skipping doctl install"
-            exit 0
-          fi
-          curl -sL https://github.com/digitalocean/doctl/releases/download/v1.110.0/doctl-1.110.0-linux-amd64.tar.gz | tar -xzv
-          sudo mv doctl /usr/local/bin/doctl
-
-      - name: Authenticate doctl and fetch kubeconfig
-        env:
-          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-          DO_K8S_CLUSTER_NAME: ${{ secrets.DO_K8S_CLUSTER_NAME }}
-        run: |
-          if [ -z "$DIGITALOCEAN_ACCESS_TOKEN" ] || [ -z "$DO_K8S_CLUSTER_NAME" ]; then
-            echo "DIGITALOCEAN_ACCESS_TOKEN or DO_K8S_CLUSTER_NAME not set; skipping k8s deploy"
-            exit 0
-          fi
-          doctl auth init -t $DIGITALOCEAN_ACCESS_TOKEN
-          doctl kubernetes cluster kubeconfig save $DO_K8S_CLUSTER_NAME
-
-      - name: Ensure namespace exists
-        run: |
-          kubectl create namespace foodfund-k8s --dry-run=client -o yaml | kubectl apply -f -
-
-      - name: Deploy services with deployment script
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DEPLOY_AUTH: ${{ needs.detect-changes.outputs.auth }}
           DEPLOY_USER: ${{ needs.detect-changes.outputs.user }}
           DEPLOY_CAMPAIGN: ${{ needs.detect-changes.outputs.campaign }}
           DEPLOY_OPERATION: ${{ needs.detect-changes.outputs.operation }}
           DEPLOY_GATEWAY: ${{ needs.detect-changes.outputs.gateway }}
-          DD_GIT_COMMIT_SHA: ${{ github.sha }}
-          DD_GIT_REPOSITORY_URL: https://github.com/${{ github.repository }}
         run: |
-          # Set image tags based on branch
           if [ "${GITHUB_REF##*/}" = "main" ]; then
-            export TAG="latest"
             export UNIQUE_TAG="latest"
           else
-            export TAG="develop"
             export UNIQUE_TAG="develop-${GITHUB_SHA::8}"
           fi
           
-          # Make script executable and run it
-          chmod +x scripts/deploy.sh
-          ./scripts/deploy.sh
+          if [ "$DEPLOY_AUTH" = "true" ]; then
+            sed -i "s/tag: .*/tag: $UNIQUE_TAG/g" k8s/charts/auth-service/values.yaml
+          fi
+          if [ "$DEPLOY_USER" = "true" ]; then
+            sed -i "s/tag: .*/tag: $UNIQUE_TAG/g" k8s/charts/user-service/values.yaml
+          fi
+          if [ "$DEPLOY_CAMPAIGN" = "true" ]; then
+            sed -i "s/tag: .*/tag: $UNIQUE_TAG/g" k8s/charts/campaign-service/values.yaml
+          fi
+          if [ "$DEPLOY_OPERATION" = "true" ]; then
+            sed -i "s/tag: .*/tag: $UNIQUE_TAG/g" k8s/charts/operation-service/values.yaml
+          fi
+          if [ "$DEPLOY_GATEWAY" = "true" ]; then
+            sed -i "s/tag: .*/tag: $UNIQUE_TAG/g" k8s/charts/graphql-gateway/values.yaml
+          fi
 
-      - name: Final status
+      - name: Commit and push changes
         run: |
-          kubectl get pods -n foodfund-k8s
-          kubectl get deployments -n foodfund-k8s
-          kubectl get services -n foodfund-k8s
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/charts/*/values.yaml
+          if ! git diff-index --quiet HEAD; then
+            git commit -m "chore(cd): update image tags to $UNIQUE_TAG for GitOps"
+            git push
+          else
+            echo "No changes to commit"
+          fi
