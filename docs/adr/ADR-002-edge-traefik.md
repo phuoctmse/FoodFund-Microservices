@@ -47,6 +47,20 @@ Lớp biên nhận traffic từ web và webhook ngân hàng (SePay, PayOS). Yêu
 5. **Code service không đọc header riêng của Cloudflare.** Chỉ Traefik biết IP thật của client và chuyển tiếp theo chuẩn (`X-Forwarded-For`).
 6. Nếu lên Kubernetes: dùng **Gateway API**, không dùng Ingress (ingress-nginx đã ngừng hỗ trợ 03/2026 — [nguồn](https://platformengineeringplaybook.com/blog/ingress-nginx-retirement-gateway-api-migration-2026/)).
 
+## Lớp biên giai đoạn hiện tại (chưa có Cloudflare — quyết định 2026-10-10)
+
+Phần mềm ở biên chỉ có Traefik; các trách nhiệm còn lại do máy chủ đảm nhận:
+
+| Trách nhiệm | Đảm nhận |
+|---|---|
+| Chứng chỉ HTTPS | Traefik ACME với Let's Encrypt (CA mặc định); TLS-ALPN-01 cần cổng 443, HTTP-01 cần cổng 80, DNS-01 cho wildcard ([Traefik ACME](https://doc.traefik.io/traefik/reference/install-configuration/tls/certificate-resolvers/acme/)) |
+| Định tuyến, chuyển HTTP → HTTPS, `RateLimit`, `IPAllowList` (IP SePay), `Buffering`, `Headers` (header bảo mật, CORS) | Traefik |
+| Tường lửa | Firewall VPS: chỉ mở 80, 443, SSH (chỉ khoá, giới hạn IP nếu được). Postgres, NATS, Keycloak admin, dashboard Traefik không công khai |
+| Docker socket | Không mount trực tiếp vào Traefik. Dùng socket proxy chỉ cho phép đọc trong mạng Docker riêng, hoặc khai báo route bằng file — tài liệu Traefik cảnh báo truy cập Docker API không giới hạn có thể dẫn tới chiếm quyền máy chủ ([Traefik Docker provider](https://doc.traefik.io/traefik/reference/install-configuration/providers/docker/)) |
+| Access log | Traefik ghi log JSON gửi về hệ thống quan sát |
+
+**Rủi ro chấp nhận:** IP máy chủ lộ, không có chống DDoS (rate limit chỉ chống lạm dụng ở tầng ứng dụng). Xử lý bằng Cloudflare Tunnel ở giai đoạn sau.
+
 ## Chuẩn bị để bật Cloudflare Tunnel (làm ngay từ bây giờ)
 
 | Việc | Vì sao |
