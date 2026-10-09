@@ -56,7 +56,7 @@
 5. **Service sẵn sàng cho Kubernetes (NFR-14):** cấu hình qua biến môi trường, `/healthz` và `/readyz`, tắt êm khi nhận SIGTERM, log JSON ra stdout, không ghi trạng thái ra đĩa cục bộ.
 6. **Không làm ở giai đoạn 1:** GitOps (ArgoCD/Flux), nhiều node, service mesh, autoscaling. CI deploy bằng `helm upgrade`.
 7. **Vòng lặp code nhanh:** service đang phát triển chạy trực tiếp trên máy (`go run`) nối vào hạ tầng trong cluster qua port-forward; hoặc công cụ đồng bộ code vào pod — chọn ở spike S-8 (tình trạng bảo trì của Tilt chưa kiểm chứng).
-8. **Laptop không chạy model AI cùng lúc với stack app.** Đo 2026-10-10: GPU RTX 3070 Laptop 8 GB VRAM, RAM trống 4,3 GB khi Docker chưa chạy, WSL mặc định dùng tối đa 50% RAM. Code hằng ngày dùng adapter AI chế độ `fake`; eval model (S-6) chạy khi cluster đã tắt; demo dùng HF Endpoint. Tạo `.wslconfig` giới hạn RAM cho WSL2 (giá trị chốt sau S-4).
+8. **Phân bổ chạy model AI.** Đo 2026-10-10: RTX 3070 Laptop 8 GB VRAM; RAM khả dụng ~4,9 GB khi Docker chưa chạy (committed 20,2 GB > 15,9 GB vật lý) → laptop không gánh nổi stack app + model ổn định. Vì vậy: **laptop chỉ chạy stack app**; test E2E (cần app và model chạy song song) và demo gọi model ở **HF Spaces ZeroGPU** (miễn phí, mỗi model một Space; dự phòng Modal, rồi HF Endpoint); eval S-6 chạy model **local** trên RTX 3070 (không cần bật app); code hằng ngày và CI dùng chế độ `fake` với phản hồi thật đã ghi lại; chạy offline dùng llama.cpp bản GGUF. Tạo `.wslconfig` giới hạn RAM cho WSL2 (giá trị chốt sau S-4). Nâng RAM lên 32 GB (máy có 2 khe, báo hỗ trợ tối đa 32 GB) là phương án nếu S-4 cho thấy stack app vẫn quá chật.
 
 ## Phương án đã cân nhắc
 
