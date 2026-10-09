@@ -49,7 +49,7 @@ flowchart LR
 | **Transparency** | Sao kê, báo cáo theo thời hạn, tìm kiếm; **chỉ đọc** | FR-TRN-*, FR-SRC-* | Phần search/statement rải rác + OpenSearch CDC |
 | **AI** | Xác minh chứng từ (AI-01), tóm tắt báo cáo (AI-04) | AI-01, AI-04, NFR-10 | Mới |
 | *Notification* (worker) | Gửi email theo event; không có API | FR-NTF-01 | Phần notification của `campaign` |
-| *Gateway* | Điểm vào duy nhất; xác thực token; định tuyến; **không** chứa nghiệp vụ | NFR-04 | `graphql-gateway` |
+| *Gateway* | Điểm vào duy nhất; TLS, định tuyến, giới hạn tần suất; **không** chứa nghiệp vụ, **không** xác thực token (xem T-7 trong `03-tech-stack.md`) | NFR-04 | `graphql-gateway` |
 
 **Funds là service lớn nhất** — bên trong chia module rõ ràng (`payment`, `reconciliation`, `ledger`, `disbursement`, `refund-surplus`, `approval`) để có thể tách `payment` ra thành service riêng sau này nếu cần (phương án 7 service đã cân nhắc và hoãn lại).
 
@@ -230,7 +230,7 @@ Funds mở `SurplusCase` (khi UNDERFUNDED, CANCELLED, hoặc còn tiền sau COM
 | **C-4 Thử lại & hàng lỗi** | Lỗi tạm thời thử lại có giãn cách; quá số lần → hàng lỗi (dead-letter) + cảnh báo |
 | **C-5 Đọc đồng bộ có dự phòng** | Chỉ dùng cho truy vấn đọc (ví dụ ngân sách còn lại); có timeout và hành vi khi bên kia không phản hồi |
 | **C-6 Phiên bản event** | Thêm trường không phá vỡ consumer; thay đổi phá vỡ → tên/phiên bản mới; có contract test |
-| **C-7 Phân quyền tại service sở hữu** | Gateway chỉ xác thực token; **quyền sở hữu tài nguyên** (ví dụ "chỉ chủ campaign được đăng bài") kiểm tra tại service sở hữu dữ liệu (NFR-04) |
+| **C-7 Phân quyền tại service sở hữu** | Mỗi service tự xác thực token (middleware dùng chung); **quyền sở hữu tài nguyên** (ví dụ "chỉ chủ campaign được đăng bài") kiểm tra tại service sở hữu dữ liệu (NFR-04) |
 | **C-8 Truy vết** | `correlationId` đi từ request gốc qua mọi event và log (NFR-08) |
 | **C-9 Webhook** | Gateway chuyển tiếp nguyên vẹn header và body; Funds xác thực; không log body chứa dữ liệu nhạy cảm |
 
