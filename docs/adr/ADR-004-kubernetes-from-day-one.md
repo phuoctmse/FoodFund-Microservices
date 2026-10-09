@@ -56,6 +56,7 @@
 5. **Service sẵn sàng cho Kubernetes (NFR-14):** cấu hình qua biến môi trường, `/healthz` và `/readyz`, tắt êm khi nhận SIGTERM, log JSON ra stdout, không ghi trạng thái ra đĩa cục bộ.
 6. **Không làm ở giai đoạn 1:** GitOps (ArgoCD/Flux), nhiều node, service mesh, autoscaling. CI deploy bằng `helm upgrade`.
 7. **Vòng lặp code nhanh:** service đang phát triển chạy trực tiếp trên máy (`go run`) nối vào hạ tầng trong cluster qua port-forward; hoặc công cụ đồng bộ code vào pod — chọn ở spike S-8 (tình trạng bảo trì của Tilt chưa kiểm chứng).
+8. **Laptop không chạy model AI cùng lúc với stack app.** Đo 2026-10-10: GPU RTX 3070 Laptop 8 GB VRAM, RAM trống 4,3 GB khi Docker chưa chạy, WSL mặc định dùng tối đa 50% RAM. Code hằng ngày dùng adapter AI chế độ `fake`; eval model (S-6) chạy khi cluster đã tắt; demo dùng HF Endpoint. Tạo `.wslconfig` giới hạn RAM cho WSL2 (giá trị chốt sau S-4).
 
 ## Phương án đã cân nhắc
 

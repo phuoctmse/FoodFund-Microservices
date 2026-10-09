@@ -1,6 +1,6 @@
 # FoodFund (bản viết lại) — Lựa chọn công nghệ
 
-> **Trạng thái:** NHÁP v0.4 — 2026-10-10 — đã chốt: T-5 Temporal ([ADR-003](../adr/ADR-003-workflow-temporal.md)), T-6 PostgreSQL 18 ([ADR-001](../adr/ADR-001-database-postgresql.md)), T-7 Traefik qua Gateway API ([ADR-002](../adr/ADR-002-edge-traefik.md)), T-14 Kubernetes từ ngày đầu ([ADR-004](../adr/ADR-004-kubernetes-from-day-one.md)); các mục khác chờ duyệt.
+> **Trạng thái:** NHÁP v0.5 — 2026-10-10 — đã chốt: T-5 Temporal ([ADR-003](../adr/ADR-003-workflow-temporal.md)), T-6 PostgreSQL 18 ([ADR-001](../adr/ADR-001-database-postgresql.md)), T-7 Traefik qua Gateway API ([ADR-002](../adr/ADR-002-edge-traefik.md)), T-11 model mở tự chạy (Qwen3-VL-4B / Vintern-1B-v3.5), T-14 Kubernetes từ ngày đầu ([ADR-004](../adr/ADR-004-kubernetes-from-day-one.md)); các mục khác chờ duyệt.
 > **Đầu vào:** [`01-requirements.md`](./01-requirements.md) v1.0, [`02-decomposition.md`](./02-decomposition.md) v1.0.
 > **Đã chốt trước:** Go cho 5 service lõi (Identity & Org, Campaign, Funds, Operations, Transparency) và Notification worker; Python cho service AI.
 > **Quy ước:** mỗi quyết định ghi *Chọn / Đã cân nhắc / Lý do / Hệ quả*. Thông tin ghi *(chưa kiểm chứng)* phải được xác nhận trong các spike ở mục 13 trước khi viết plan triển khai.
@@ -21,7 +21,7 @@
 | T-8 | Danh tính | Keycloak (OIDC, đăng nhập Google qua identity brokering) | Trung bình — audit + tài liệu; RAM chưa đo |
 | T-9 | Thanh toán | SePay API v2 — VA theo đơn hàng (chính); PayOS (phụ) — sau lớp adapter chung | Mạnh — audit + tài liệu nhà cung cấp |
 | T-10 | Tệp, PDF, email | Lưu trữ tương thích S3; PDF sinh trong Transparency; email qua SMTP (local: Mailpit) | Yếu — chưa chọn cụ thể (spike S-5) |
-| T-11 | AI | FastAPI + Anthropic Python SDK, model `claude-opus-5-5`, structured outputs | Trung bình — tài liệu; chất lượng chưa đo (spike S-6) |
+| T-11 | AI | **Đã chốt:** tự chạy model mở — S-6 so Qwen3-VL-4B và Vintern-1B-v3.5; Temporal worker Python; adapter OpenAI-compatible 4 chế độ (`fake`/`local`/`hf-endpoint`/`hf-serverless`) | Trung bình — model card; chất lượng tiếng Việt chưa đo (S-6) |
 | T-12 | Frontend | React + TypeScript (Vite), client sinh từ OpenAPI | Yếu — chủ yếu đánh giá |
 | T-13 | Quan sát | OpenTelemetry; log JSON (`log/slog`); local: một container Grafana LGTM | Yếu — chủ yếu đánh giá |
 | T-14 | Chạy local, CI, deploy | **Đã chốt (ADR-004):** Kubernetes từ ngày đầu — k3d (local, CI), k3s một node (demo); `make up`; chart/operator chính chủ, không Bitnami | Trung bình — đo máy phát triển; còn spike S-4, S-8 |
@@ -109,22 +109,37 @@
 
 ## T-11. AI
 
-- **Chọn:** service Python: **FastAPI** (health, endpoint nội bộ chạy lại phân tích) + consumer NATS; **Anthropic Python SDK**; model **`claude-opus-5-5`**.
+- **Chọn (đã chốt 2026-10-10):** **tự chạy model mở trên Hugging Face Hub**; spike S-6 chỉ đánh giá **2 ứng viên**:
+
+  | Ứng viên | Giấy phép | Vì sao |
+  |---|---|---|
+  | **Qwen3-VL-4B-Instruct** (Alibaba Qwen) | Apache 2.0 | Model thị giác đa năng, trả JSON trực tiếp; OCR 32 ngôn ngữ (**chưa xác nhận có tiếng Việt**); có bản 8B cùng họ làm bậc nâng cấp ([model card](https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct)) |
+  | **Vintern-1B-v3.5** (5CD-AI) | MIT | Chuyên tiếng Việt (vi-MTVQA 41,9 so với 24,8 của model nền); rất nhẹ, có đường chạy CPU bằng llama.cpp; nhưng kém model nền ở DocVQA/OCRBench ([model card](https://huggingface.co/5CD-AI/Vintern-1B-v3_5)) |
+
+  Đã loại khỏi S-6 theo quyết định chủ dự án: PaddleOCR-VL-1.6 và các API trả phí (Anthropic, Gemini, Mistral OCR, FPT.AI). Loại vì giấy phép: LayoutLMv3 (CC BY-NC-SA), Qwen2.5-VL-3B (giấy phép nghiên cứu), Chandra OCR 2 (OpenRAIL-M sửa đổi).
+- **Service AI:** **Temporal worker Python** (task queue `ai`) + endpoint health tối thiểu; **không dùng FastAPI**, không có API công khai (`02-decomposition.md` v1.1).
+- **Adapter "OpenAI-compatible" với 4 chế độ** (đổi bằng cấu hình, không sửa code):
+
+  | Chế độ | Dùng khi | Dữ liệu ra nước ngoài |
+  |---|---|---|
+  | `fake` | Code hằng ngày, CI — trả kết quả mẫu cố định | Không |
+  | `local` | Spike S-6, chạy thử có model thật — vLLM (WSL2) hoặc llama.cpp trên RTX 3070 | Không |
+  | `hf-endpoint` | Demo — HF Inference Endpoint engine vLLM, **số bản tối thiểu = 0** | **Có** |
+  | `hf-serverless` | Dự phòng cho Qwen3-VL — Featherless qua HF Inference Providers (khả năng nhận ảnh **chưa kiểm chứng**) | **Có** |
+
+- **Luật về tài nguyên laptop (ADR-004):** model **không chạy cùng lúc với stack app**. Code hằng ngày dùng `fake`; spike S-6 chạy khi cluster đã tắt (`k3d cluster stop`); demo dùng `hf-endpoint`.
 - **AI-01 — xác minh chứng từ:**
-  - Ảnh hoá đơn + danh sách món đã duyệt + số đã giải ngân → **structured outputs** (`client.messages.parse()` với model Pydantic) trả về: danh sách dòng hàng (tên, số lượng, đơn giá, thành tiền), tổng tiền, ngày, nhà cung cấp, độ tin cậy, danh sách cờ (`TOTAL_MISMATCH`, `OVER_DISBURSED`, `ITEM_NOT_APPROVED`, `DUPLICATE_SUSPECTED`, `UNREADABLE`).
-  - Phép so sánh số tiền và phát hiện trùng **tính bằng code** từ dữ liệu trích xuất, không để model tự cộng.
+  - Ảnh hoá đơn + danh sách món đã duyệt + số đã giải ngân → model trả **JSON theo schema cố định** (ép bằng structured output của vLLM, kiểm tra lại bằng Pydantic): dòng hàng (tên, số lượng, đơn giá, thành tiền), tổng tiền, ngày, người bán, độ tin cậy, cờ (`TOTAL_MISMATCH`, `OVER_DISBURSED`, `ITEM_NOT_APPROVED`, `DUPLICATE_SUSPECTED`, `UNREADABLE`).
+  - Phép so sánh số tiền và phát hiện trùng **tính bằng code**, không để model tự cộng.
   - Kết quả chỉ là gợi ý; admin quyết định (NFR-10).
-- **AI-04 — tóm tắt báo cáo:** đầu vào là số liệu đã chốt từ báo cáo; model chỉ diễn đạt. Không gấp nên có thể dùng Batch API (giảm 50% chi phí).
-- **Cấu hình model:**
-  - `output_config.effort` đặt **tường minh** (mặc định của model này là `medium`); bắt đầu ở `low` cho AI-01 và chỉ tăng nếu eval cho thấy cần.
-  - Prompt hệ thống cố định đặt trước, bật prompt caching.
-  - Bật **fallback phía server** (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`) để yêu cầu bị từ chối được chạy lại trên model dự phòng; luôn kiểm tra `stop_reason` trước khi đọc kết quả.
-- **Kiểm soát chi phí:** giới hạn ngân sách tháng trong service (đếm `usage` từng lần gọi, vượt ngưỡng → tạm dừng phân tích và cảnh báo, luồng duyệt vẫn chạy — NFR-07); giới hạn kích thước ảnh. Giá tham khảo `claude-opus-5-5`: $4 / $20 cho mỗi triệu token vào/ra *(chi phí mỗi hoá đơn cần đo thực tế bằng eval)*.
+- **AI-04 — tóm tắt báo cáo:** *chưa chốt* (giữ, hạ ưu tiên, hay thay bằng template).
 - **Eval (NFR-10):**
-  - Tập 30–50 ảnh hoá đơn có nhãn (tự thu thập/tự tạo, không chứa dữ liệu cá nhân thật), kèm JSON đáp án.
-  - Chỉ số: khớp tổng tiền, F1 dòng hàng, precision/recall cho từng loại cờ.
-  - CI chạy phần chấm điểm trên **phản hồi đã ghi lại** (không tốn tiền); chạy eval thật thủ công hoặc định kỳ với trần chi phí.
-- **Dữ liệu:** ảnh hoá đơn được gửi tới API của Anthropic — ghi rõ trong tài liệu dự án; không gửi thông tin donor.
+  - Dữ liệu: MC-OCR 2021 (2.436 hoá đơn tiếng Việt chụp bằng điện thoại, 4 trường — **kiểm tra giấy phép dữ liệu trước khi dùng**) + 30–50 ảnh tự chụp (phiếu POS, bảng kê viết tay), không chứa dữ liệu cá nhân thật.
+  - Chỉ số: khớp chính xác tổng tiền, ngày, người bán; F1 dòng hàng; recall cờ sai lệch; tỉ lệ JSON đúng schema; thời gian xử lý mỗi ảnh trên GPU và CPU; VRAM/RAM tối đa.
+  - Luật chọn: model **nhẹ hơn** thắng nếu cả hai đạt ngưỡng (ví dụ tổng tiền đúng ≥ 95% với phiếu in, recall cờ ≥ 90%).
+  - CI chấm điểm trên phản hồi đã ghi lại (không cần GPU).
+- **Khi cả hai trượt ngưỡng:** thử Qwen3-VL-8B lượng tử 4-bit; vẫn trượt → mở lại đánh giá API hoặc chuỗi OCR (PaddleOCR-VL) + bóc trường.
+- **Dữ liệu:** chế độ `local` giữ dữ liệu trong hệ thống; `hf-endpoint`/`hf-serverless` gửi ảnh ra nước ngoài → demo chỉ dùng ảnh tự tạo; vận hành thật cần xử lý theo Luật Bảo vệ dữ liệu cá nhân (hiệu lực 01/01/2026).
 
 ## T-12. Frontend
 
@@ -178,7 +193,7 @@ Mỗi spike là thử nghiệm nhỏ (≤ 1–2 ngày), kết quả ghi lại th
 | S-3 | Saga giải ngân trên Temporal + Postgres: giữ tiền → chờ tín hiệu có hạn → ghi sổ hoặc hoàn lại; webhook khởi động workflow với ID tất định (chống trùng); replay test; có bỏ được NATS không | T-4, T-5, ADR-003 |
 | S-4 | Đo thời gian `make up` (k3d) từ máy sạch và RAM thực tế (đặc biệt Keycloak và Temporal) | NFR-05, NFR-09 |
 | S-5 | Chọn trình giả lập S3 (giấy phép), thư viện PDF Go hỗ trợ tiếng Việt, nhà cung cấp email/quan sát miễn phí | T-10, T-13 |
-| S-6 | AI-01 trên 5–10 ảnh hoá đơn thật: chất lượng trích xuất ở effort `low` vs `medium`, chi phí mỗi ảnh | T-11 |
+| S-6 | Eval AI-01: Qwen3-VL-4B vs Vintern-1B-v3.5 trên MC-OCR + ảnh tự chụp, chạy trên RTX 3070 khi cluster đã tắt (đo cả CPU); deploy model thắng lên HF Endpoint (tối thiểu 0 bản), đo thời gian khởi động lại và chi phí; kiểm tra Featherless có nhận ảnh | T-11 |
 | S-7 | Traefik trên k3s một node: `IPAllowList` gắn qua `ExtensionRef` hoạt động; proxy nhận đúng IP thật của request từ bên ngoài (trượt → Envoy Gateway) | T-7, ADR-002 |
 | S-8 | Vòng lặp code nhanh với cluster local: `go run` + port-forward hay công cụ đồng bộ code vào pod (kiểm tra tình trạng bảo trì của Tilt) | T-14, ADR-004 |
 | S-9 | Temporal trên PostgreSQL 18: công cụ quản lý schema có hỗ trợ không, hay phải chạy thủ công / dùng PG17 riêng | T-5, T-6, ADR-001, ADR-003 |
@@ -297,7 +312,20 @@ foodfund/
 
 - Chưa chọn thư viện/dịch vụ cụ thể; quyết định thật nằm ở spike S-5.
 
-### T-11. AI với Anthropic SDK — *Trung bình*
+### T-11. Model mở tự chạy (Qwen3-VL, Vintern) — *Trung bình*
+
+- **[Tài liệu]** Qwen3-VL-4B: Apache 2.0, OCR 32 ngôn ngữ; Vintern-1B-v3.5: MIT, chuyên tiếng Việt, có số liệu vi-MTVQA/DocVQA/OCRBench trên model card.
+- **[Tài liệu]** HF API (kiểm tra 2026-10-10): Qwen3-VL-4B có nhà cung cấp Featherless đang chạy; Vintern-1B-v3.5 và PaddleOCR-VL-1.6 **không có** nhà cung cấp serverless → demo dùng Inference Endpoints (T4 $0,50/giờ, L4 $0,80/giờ, tính theo phút, tự tắt khi không dùng — [HF pricing](https://huggingface.co/docs/inference-endpoints/en/pricing)).
+- **[Tài liệu]** TGI của HF ở chế độ bảo trì từ 12/2025, HF khuyến nghị vLLM/SGLang ([HF docs](https://huggingface.co/docs/text-generation-inference/en/index.md)) → dùng vLLM/llama.cpp.
+- **[Đo]** Laptop: **RTX 3070 Laptop 8 GB VRAM** (driver 596.21); RAM trống 4,3 GB khi Docker chưa chạy; WSL chưa có `.wslconfig` (mặc định 50% RAM) → không chạy model cùng stack app. *(Bản v0.4 ghi sai "không có GPU NVIDIA" — đã sửa.)*
+- **[Requirement]** NFR-07 (AI không chặn duyệt), NFR-10.
+- **Chưa có:** không tìm thấy benchmark nào so các model này trên hoá đơn tiếng Việt → S-6 là nguồn bằng chứng duy nhất.
+- **Rủi ro:** Vintern phụ thuộc một nhóm nhỏ, chưa có bản nào trong năm 2026 → nếu thắng, lưu bản sao trọng số; Qwen3-VL là dự phòng. Vintern cần `trust_remote_code` → kiểm tra khi deploy lên HF Endpoint.
+
+#### (Lịch sử) AI với Anthropic SDK
+
+Phương án v0.4 (API Anthropic, `claude-opus-5-5`) không còn là lựa chọn; giữ lại để so sánh. Tài liệu được soạn với sự hỗ trợ của Claude (Anthropic); lựa chọn cuối cùng là model mở do chủ dự án quyết định.
+
 
 - **[Tài liệu]** Structured outputs (`client.messages.parse()`) kiểm tra kết quả theo schema; `claude-opus-5-5` là model mặc định hiện tại, giá $4/$20 cho mỗi triệu token vào/ra, effort mặc định `medium`; Batch API giảm 50% chi phí cho tác vụ không gấp (tài liệu Claude API đi kèm công cụ phát triển, bản cache 2026-09-25).
 - **[Requirement]** NFR-10: AI chỉ gợi ý, có eval, có trần chi phí.
@@ -358,6 +386,6 @@ foodfund/
 | T-6 | `sqlc` báo lỗi SQL lúc sinh code; constraint trigger cân bằng bút toán | S-2 |
 | T-9 | Webhook SePay end-to-end; tiền tố VA cho campaign; thuật toán ký PayOS | S-1 |
 | T-10 | Thư viện PDF hỗ trợ tiếng Việt; trình giả lập S3 và giấy phép | S-5 |
-| T-11 | Chất lượng/chi phí trích xuất hoá đơn; so sánh với ít nhất một nhà cung cấp khác | S-6 |
+| T-11 | Chất lượng hoá đơn tiếng Việt của Qwen3-VL-4B và Vintern-1B-v3.5; thời gian khởi động lại HF Endpoint | S-6 |
 | T-7 | `IPAllowList` qua `ExtensionRef`, IP thật trên k3s; lọc IP sau Cloudflare Tunnel | S-7, S-10 |
 | T-12 | Không cần spike — chấp nhận là quyết định theo đánh giá, dễ thay sau | — |
