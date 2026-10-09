@@ -1,21 +1,26 @@
 # FoodFund (bản viết lại) — Tách hệ thống (Decomposition)
 
-> **Trạng thái:** v1.0 — 2026-10-09 — chủ dự án đã đồng ý phương án 6 service + 1 worker + gateway.
-> **Đầu vào:** [`01-requirements.md`](./01-requirements.md) v1.0.
-> **⚠️ Cần cập nhật (2026-10-10):** theo [ADR-003](../adr/ADR-003-workflow-temporal.md), các luồng tiền ở mục 5 chuyển từ choreography (event + saga tự viết) sang **orchestration bằng workflow Temporal**; quy tắc C-1, C-2 ở mục 6 và vai trò event bus sẽ được viết lại ở v1.1. Ranh giới 6 service không đổi.
-> **Phạm vi tài liệu:** ranh giới service, dữ liệu mỗi service sở hữu, event, luồng xuyên service, xử lý lỗi. **Không** chọn ngôn ngữ, cơ sở dữ liệu, broker hay kiểu API — các quyết định đó nằm ở `03-tech-stack.md` (mục 9 liệt kê những gì cần quyết định).
+> **Trạng thái:** v1.1 — 2026-10-10 — viết lại theo [ADR-002](../adr/ADR-002-edge-traefik.md), [ADR-003](../adr/ADR-003-workflow-temporal.md), [ADR-004](../adr/ADR-004-kubernetes-from-day-one.md). Ranh giới 6 service + 1 worker + gateway của v1.0 **giữ nguyên**.
+> **Đầu vào:** [`01-requirements.md`](./01-requirements.md) v1.1, [`03-tech-stack.md`](./03-tech-stack.md) v0.4.
+> **Thay đổi so với v1.0:**
+> - Luồng tiền chuyển từ **choreography** (event + saga tự viết + outbox) sang **orchestration** bằng workflow Temporal có chủ sở hữu rõ ràng.
+> - Event bus chỉ còn **phát sự kiện tới read model và tác vụ phụ** (Transparency, Notification, projection).
+> - Bỏ transactional outbox: thay đổi cần phát event đi qua workflow (quy tắc C-2).
+> - Thêm danh mục workflow, tín hiệu, hợp đồng activity xuyên service, góc nhìn triển khai trên Kubernetes.
 
 ---
 
 ## 1. Các yếu tố quyết định cách tách
 
-| # | Yếu tố (từ requirements) | Hệ quả lên ranh giới |
+| # | Yếu tố | Hệ quả lên ranh giới |
 |---|---|---|
-| D-1 | Tiền phải có **một nguồn sự thật** (FR-LED, NFR-01, NFR-03); hệ thống cũ chia tiền ra 3 nơi và lệch nhau (mục 8 của requirements) | Mọi thao tác tiền nằm trong **một service (Funds)**, bút toán ghi trong một transaction cục bộ |
-| D-2 | Vai trò thay đổi theo tổ chức (FR-ID-02) | Danh tính và tổ chức nằm **cùng service** |
-| D-3 | Báo cáo/sao kê cần dữ liệu từ campaign, tiền và chứng từ (FR-TRN) | Một service **chỉ đọc**, dựng dữ liệu từ event, không gọi đồng bộ sang nhiều nơi |
-| D-4 | Thông báo, AI, tìm kiếm hỏng không được chặn tiền (NFR-07) | Các phần này chỉ **tiêu thụ event**, không nằm trên đường đi đồng bộ của luồng tiền |
-| D-5 | Làm solo 5–6 tháng | Giữ số service ở mức tối thiểu có lý do; chỉ **một saga** (giải ngân) |
+| D-1 | Tiền phải có **một nguồn sự thật** (FR-LED, NFR-01, NFR-03) | Mọi thao tác tiền nằm trong **Funds**; bút toán ghi trong một transaction cục bộ |
+| D-2 | Vai trò thay đổi theo tổ chức (FR-ID-02) | Danh tính và tổ chức **cùng service** |
+| D-3 | Báo cáo/sao kê cần dữ liệu từ campaign, tiền và chứng từ (FR-TRN) | Một service **chỉ đọc** dựng dữ liệu từ event |
+| D-4 | Thông báo, AI, tìm kiếm hỏng không được chặn tiền (NFR-07) | Các phần này không nằm trên đường đi bắt buộc của luồng tiền |
+| D-5 | Làm solo 5–6 tháng | Số service tối thiểu có lý do |
+| D-6 | **Hệ thống nặng về quy trình:** quy trình dài nhiều ngày, có hẹn giờ và chờ con người (ADR-003) | Mỗi quy trình là **một workflow có chủ sở hữu**; service khác tham gia qua activity |
+| D-7 | Kubernetes từ ngày đầu, laptop 16 GB (ADR-004) | Một binary mỗi service (API + worker); không thêm service chỉ vì kỹ thuật |
 
 ---
 
@@ -23,261 +28,346 @@
 
 ```mermaid
 flowchart LR
-    Web[Web tối thiểu] --> GW[Gateway]
-    PayOS([PayOS]) -- webhook --> GW
+    Web[Web tối thiểu] --> GW[Traefik<br/>Gateway API]
     SePay([SePay]) -- webhook --> GW
+    PayOS([PayOS]) -- webhook --> GW
     GW --> IDO[Identity & Organization]
     GW --> CMP[Campaign]
     GW --> FND[Funds]
     GW --> OPS[Operations]
     GW --> TRN[Transparency]
-    IDO -. event .-> BUS{{Event bus}}
-    CMP -. event .-> BUS
-    FND -. event .-> BUS
-    OPS -. event .-> BUS
-    AI[AI] -. event .-> BUS
-    BUS -. event .-> CMP & FND & OPS & TRN & AI & NTF[Notification worker]
-    NTF --> Mail([Dịch vụ email])
-    IDO --> IdP([Nhà cung cấp danh tính])
+    subgraph Orchestration
+        TMP[(Temporal)]
+    end
+    CMP <-- workflow / activity --> TMP
+    FND <-- workflow / activity --> TMP
+    OPS <-- workflow / activity --> TMP
+    TRN <-- workflow / activity --> TMP
+    IDO <-- workflow / activity --> TMP
+    AI[AI - Python] <-- activity --> TMP
+    TMP -. activity phát event .-> BUS{{NATS: fan-out}}
+    BUS -. event .-> TRN & NTF[Notification worker] & CMP & FND & OPS
+    NTF --> Mail([Email])
+    IDO --> KC([Keycloak])
 ```
 
 | Service | Trách nhiệm | Requirement | Thay cho (hệ thống cũ) |
 |---|---|---|---|
 | **Identity & Organization** | Tài khoản, vai trò, tổ chức, thành viên, KYC | FR-ID-*, FR-ORG-* | `auth` + phần hồ sơ/tổ chức của `user` |
-| **Campaign** | Campaign, phase, kế hoạch ngân sách, vòng đời & lịch tự động, danh mục, cấu hình, điều phối lại, bài đăng | FR-CMP-*, FR-CFG-01, FR-RSG-01, FR-COM-* | Phần campaign của `campaign` |
-| **Funds** | Payment intent, webhook, đối soát, **sổ cái**, giữ tiền & giải ngân, hoàn tiền, tiền dư, biên nhận, duyệt hai người cho thao tác tiền | FR-PAY-*, FR-LED-*, FR-SUR-01, BR-07, BR-08, BR-11–BR-13 | Phần donation/payment của `campaign` + ví của `user` + `Inflow_Transaction` của `operation` |
-| **Operations** | Yêu cầu chi, phê duyệt, chứng từ, mẻ ăn, giao hàng | FR-DSB-*, FR-KIT-*, FR-DLV-* | `operation` (trừ phần tiền) |
-| **Transparency** | Sao kê, báo cáo theo thời hạn, tìm kiếm; **chỉ đọc** | FR-TRN-*, FR-SRC-* | Phần search/statement rải rác + OpenSearch CDC |
-| **AI** | Xác minh chứng từ (AI-01), tóm tắt báo cáo (AI-04) | AI-01, AI-04, NFR-10 | Mới |
-| *Notification* (worker) | Gửi email theo event; không có API | FR-NTF-01 | Phần notification của `campaign` |
-| *Gateway* | Điểm vào duy nhất; TLS, định tuyến, giới hạn tần suất; **không** chứa nghiệp vụ, **không** xác thực token (xem T-7 trong `03-tech-stack.md`) | NFR-04 | `graphql-gateway` |
+| **Campaign** | Campaign, phase, kế hoạch ngân sách, **vòng đời campaign**, danh mục, cấu hình, điều phối lại, bài đăng | FR-CMP-*, FR-CFG-01, FR-RSG-01, FR-COM-* | Phần campaign của `campaign` |
+| **Funds** | Thanh toán và webhook, đối soát, **sổ cái**, giữ tiền và giải ngân, hoàn tiền, tiền dư, biên nhận, duyệt hai người | FR-PAY-*, FR-LED-*, FR-SUR-01, BR-07, BR-08, BR-11–BR-13 | Donation/payment của `campaign` + ví của `user` + `Inflow_Transaction` của `operation` |
+| **Operations** | Yêu cầu chi, phê duyệt yêu cầu, chứng từ, mẻ ăn, giao hàng | FR-DSB-*, FR-KIT-*, FR-DLV-* | `operation` (trừ phần tiền) |
+| **Transparency** | Sao kê, báo cáo theo thời hạn, tìm kiếm; **chỉ đọc** dữ liệu nghiệp vụ, sở hữu báo cáo | FR-TRN-*, FR-SRC-* | Search/statement rải rác + OpenSearch CDC |
+| **AI** (Python) | Xác minh chứng từ (AI-01), tóm tắt báo cáo (AI-04); **chỉ là worker activity**, không có API công khai | AI-01, AI-04, NFR-10 | Mới |
+| *Notification* (worker) | Gửi email theo event | FR-NTF-01 | Notification của `campaign` |
+| *Gateway* | Traefik: TLS, định tuyến `HTTPRoute`, rate limit, lọc IP SePay; **không** nghiệp vụ, **không** xác thực token | NFR-04 | `graphql-gateway` |
 
-**Funds là service lớn nhất** — bên trong chia module rõ ràng (`payment`, `reconciliation`, `ledger`, `disbursement`, `refund-surplus`, `approval`) để có thể tách `payment` ra thành service riêng sau này nếu cần (phương án 7 service đã cân nhắc và hoãn lại).
+**Funds là service lớn nhất** — module nội bộ: `payment`, `reconciliation`, `ledger`, `disbursement`, `refund-surplus`, `approval`.
 
 ---
 
-## 3. Dữ liệu mỗi service sở hữu
+## 3. Bốn kiểu tương tác — dùng kiểu nào khi nào
 
-Mỗi service có cơ sở dữ liệu riêng; **không** service nào đọc/ghi trực tiếp dữ liệu của service khác.
+| Kiểu | Dùng khi | Công cụ | Ví dụ |
+|---|---|---|---|
+| **I-1 Lệnh từ người dùng** | Người dùng thao tác trên một service | HTTP qua Traefik → service sở hữu dữ liệu | Fundraiser sửa campaign; kitchen nộp chứng từ |
+| **I-2 Điều phối quy trình** | Thay đổi nhiều service, có tiền, có hẹn giờ hoặc chờ con người | **Workflow Temporal** do một service sở hữu; service khác tham gia qua **activity** trên task queue của chúng; người dùng tác động bằng **tín hiệu (signal)** | Giải ngân; đóng gây quỹ; tiền dư |
+| **I-3 Phát sự kiện** | Thông báo "đã xảy ra" cho read model và tác vụ phụ | NATS JetStream; event được phát bởi **activity** chạy sau khi dữ liệu đã commit | `DonationConfirmed` → Transparency, Notification |
+| **I-4 Đọc đồng bộ** | Cần dữ liệu của service khác để trả lời ngay | ConnectRPC, chỉ đọc, có timeout | Operations hỏi Funds ngân sách còn lại để báo lỗi sớm |
 
-| Service | Thực thể sở hữu | Bản sao cục bộ (projection) từ event |
+**Nguyên tắc chọn:** nếu một thao tác *làm thay đổi* dữ liệu của hơn một service hoặc phải *chờ* (thời gian, con người) → I-2. Nếu chỉ *báo tin* → I-3. Không bao giờ dùng I-3 để điều khiển luồng tiền.
+
+---
+
+## 4. Dữ liệu mỗi service sở hữu
+
+Mỗi service có database riêng trên PostgreSQL 18 (CloudNativePG, ADR-001); không service nào đọc/ghi trực tiếp database của service khác.
+
+| Service | Thực thể sở hữu | Projection từ event |
 |---|---|---|
 | Identity & Org | User, Organization, Membership, KycSubmission, KycReview | — |
-| Campaign | Campaign, Phase, PlannedMeal, PlannedIngredient, Category, SystemConfig, Reassignment, Post, Comment, Like | Tổ chức đã xác minh, fundraiser của tổ chức; tiến độ tiền nhận (chỉ để hiển thị) |
-| Funds | PaymentIntent, ProviderEvent (webhook thô), ReconciliationItem, Account, JournalEntry, Posting, Reservation, Disbursement, Refund, SurplusCase, Receipt, ApprovalRequest | Kế hoạch ngân sách của campaign (phase × hạng mục × %); fundraiser nhận tiền |
-| Operations | IngredientRequest (+Item), OperationRequest, ExpenseProof, MealBatch (+IngredientUsage), DeliveryTask (+StatusLog) | Thành viên tổ chức & vai trò; trạng thái campaign/phase; kết quả phân tích AI cho chứng từ |
-| Transparency | CampaignStatementLine, Report (+Version), SearchDocument | Gần như mọi event công khai (không có dữ liệu cá nhân) |
-| AI | AnalysisJob, AnalysisResult, EvalRun, AuditLog (đầu vào/đầu ra/người duyệt) | — |
-| Notification | Outbox gửi mail, ContactBook (email người nhận) | Thông tin liên hệ từ Identity; email nhận biên nhận từ Funds |
+| Campaign | Campaign, Phase, PlannedMeal, PlannedIngredient, Category, SystemConfig, Reassignment, Post, Comment, Like | Tổ chức đã xác minh; tiến độ tiền nhận (chỉ hiển thị) |
+| Funds | PaymentIntent, ProviderEvent (webhook thô), ReconciliationCase, Account, JournalEntry, Posting, Reservation, Disbursement, Refund, SurplusCase, Receipt, ApprovalRecord | Kế hoạch ngân sách (phase × hạng mục × %); fundraiser nhận tiền |
+| Operations | IngredientRequest (+Item), OperationRequest, ExpenseProof (+AiAnalysis), MealBatch (+IngredientUsage), DeliveryTask (+StatusLog) | Thành viên tổ chức và vai trò; trạng thái campaign/phase |
+| Transparency | CampaignStatementLine, Report (+Version, mã băm), SearchDocument | Gần như mọi event công khai (không có dữ liệu cá nhân) |
+| AI | AnalysisResult, EvalRun, AuditLog (đầu vào/đầu ra/người duyệt) | — |
+| Notification | Lịch sử gửi mail, ContactBook | Liên hệ từ Identity; email nhận biên nhận từ Funds |
 
-**Dữ liệu cá nhân (NFR-13):** chỉ nằm ở Identity & Org, Funds (email tuỳ chọn của khách quyên góp) và Notification. Event gửi sang Transparency chỉ mang **tên hiển thị hoặc "Ẩn danh"**, không mang email, số điện thoại, số tài khoản.
+**Trạng thái quy trình ≠ dữ liệu nghiệp vụ.** Lịch sử workflow trong Temporal là trạng thái *quy trình* (đang chờ gì, hẹn giờ khi nào). Dữ liệu nghiệp vụ (số dư, trạng thái yêu cầu, trạng thái campaign) luôn được activity ghi vào database của service sở hữu. **UI đọc database của service, không đọc trạng thái từ Temporal.**
 
-**Sổ cái (FR-LED):** các loại tài khoản tối thiểu trong Funds:
+**Dữ liệu cá nhân (NFR-13):** chỉ ở Identity & Org, Funds (email tuỳ chọn của khách quyên góp), Notification. Event sang Transparency chỉ mang tên hiển thị hoặc "Ẩn danh".
+
+**Sổ cái (FR-LED)** — tài khoản tối thiểu trong Funds; ngữ nghĩa theo chuyển khoản hai pha (ADR-001):
 
 | Tài khoản | Ý nghĩa |
 |---|---|
 | `platform_cash` | Tiền thật trong tài khoản ngân hàng nhận |
-| `campaign_received:{campaign}` | Tiền quyên góp đã xác nhận của campaign |
-| `budget:{phase}:{category}` | Ngân sách đã phân bổ cho hạng mục nguyên liệu/nấu/giao của phase |
-| `reserved:{request}` | Tiền đang giữ cho một yêu cầu chi đã duyệt |
+| `campaign_received:{campaign}` | Tiền quyên góp đã xác nhận |
+| `budget:{phase}:{category}` | Ngân sách đã phân bổ cho hạng mục của phase |
+| `reserved:{request}` | Tiền đang giữ cho một yêu cầu chi (pending) |
 | `disbursed:{campaign}` | Tiền đã chuyển cho fundraiser |
-| `surplus:{campaign}` | Tiền dư chờ xử lý theo BR-12 |
+| `surplus:{campaign}` | Tiền dư chờ xử lý (BR-12) |
 | `refund_payable:{campaign}` | Tiền phải hoàn cho donor |
-| `suspense` | Tiền vào chưa khớp được (hàng chờ đối soát FR-PAY-10) |
-
-Số dư mọi tài khoản = tổng bút toán (FR-LED-02); tổng nợ = tổng có cho mỗi JournalEntry.
+| `suspense` | Tiền vào chưa khớp (FR-PAY-10) |
 
 ---
 
-## 4. Danh mục event
+## 5. Danh mục workflow
 
-Quy ước: tên ở thì quá khứ; mỗi event có `eventId`, `occurredAt`, `correlationId`, `schemaVersion`; payload chỉ chứa định danh và dữ liệu cần thiết.
+Mỗi service có **task queue riêng** cùng tên (`identity`, `campaign`, `funds`, `operations`, `transparency`, `ai`). Workflow chạy trên task queue của service sở hữu; activity của service khác được gọi qua task queue của service đó.
+
+| Workflow | Sở hữu | Khởi động bởi | ID (tất định, chống trùng) | Hẹn giờ | Tín hiệu | Activity ở service khác |
+|---|---|---|---|---|---|---|
+| `CampaignLifecycle` | Campaign | Fundraiser nộp campaign | `campaign-{id}` | Hạn duyệt; ngày bắt đầu; hạn gây quỹ; thời gian chờ giao dịch treo | `Approve`, `Reject`, `Extend` (FR-CMP-04), `Cancel`, `AllPhasesTerminal` | Funds: `OpenIntake`, `CloseIntake`, `SettleFunding`, `AllocateBudget`; khởi động `SurplusCase`, `ReportDeadline` (workflow con) |
+| `DonationPayment` | Funds | Donor tạo khoản quyên góp | `donation-{intentId}` | Hết hạn VA / link (FR-PAY-05) | `PaymentReceived` | — |
+| `IncomingTransfer` | Funds | Webhook đã verify | `transfer-{provider}-{providerTxnId}` | Hạn xử lý đối soát (FR-PAY-10) | `Resolve` (admin gán donation / hoàn tiền) | — |
+| `Disbursement` | Funds | Operations sau khi admin duyệt yêu cầu | `disbursement-{requestId}` | Hạn chờ xác nhận nhận tiền (ví dụ 7 ngày) | `TransferRecorded`, `SecondApproval` (BR-13), `ReceiptConfirmed`, `ReceiptDisputed`, `AdminResolved` | Operations: `MarkReadyToDisburse`, `MarkDisbursed`, `RejectRequest`, `MarkDisbursementFailed`; Campaign: `AdvancePhase` |
+| `ExpenseProofAnalysis` | Operations | Kitchen nộp chứng từ | `proof-{proofId}` | Timeout phân tích | — | AI: `AnalyzeReceipt` (Python) |
+| `SurplusCase` | Funds | `CampaignLifecycle` (UNDERFUNDED / CANCELLED / còn dư sau COMPLETED) | `surplus-{campaignId}` | Hạn phản đối của donor | `PlanApproved`, `DonorObjected` | Identity: lấy danh sách liên hệ donor (đọc) |
+| `ReportDeadline` | Transparency | `CampaignLifecycle` (đóng gây quỹ → báo cáo tiếp nhận ≤ 15 ngày; hoàn thành → báo cáo phân phối ≤ 30 ngày) | `report-{campaignId}-{kind}` | Hạn công khai; nhắc trước hạn | `Retry` | Funds: `GetLedgerTotals` (đối chiếu); AI: `SummarizeReport` (AI-04, tuỳ chọn) |
+| `CampaignReassignment` [C] | Campaign | Admin đề xuất | `reassign-{campaignId}-{n}` | 7 ngày (BR-09) | `Accept`, `Decline` | — |
+| `DailyReconciliation` | Funds | Temporal Schedule | theo ngày | — | — | — |
+| `RecordAndPublish` (mẫu chung, workflow ngắn) | Service sở hữu dữ liệu | Thao tác I-1 cần phát event: xác minh tổ chức, duyệt thành viên, sửa campaign, duyệt chứng từ… | `{loại}-{entityId}-{phiên bản}` | — | — | Không — chỉ gồm activity ghi DB → activity phát event (C-2) |
+
+**Hợp đồng activity xuyên service** (ví dụ `operations.MarkDisbursed`) là API nội bộ: định nghĩa trong `proto/`, có phiên bản, có contract test như event (C-6).
+
+---
+
+## 6. Danh mục event (chỉ để phát tin)
+
+Quy ước: thì quá khứ; có `eventId`, `occurredAt`, `correlationId`, `schemaVersion`; payload chỉ chứa định danh và dữ liệu cần thiết; **không có dữ liệu cá nhân trong event công khai**.
 
 | Event | Phát bởi | Tiêu thụ bởi | Mục đích |
 |---|---|---|---|
-| `OrganizationVerified` / `OrganizationRejected` | Identity & Org | Campaign, Funds, Notification | Cho phép tổ chức tạo campaign; biết fundraiser nhận tiền |
-| `MembershipApproved` / `MembershipEnded` | Identity & Org | Operations, Notification | Quyền tạo yêu cầu, nhận việc giao hàng |
-| `CampaignApproved` | Campaign | Funds, Transparency, Notification | Funds tạo định danh nhận tiền (BR-11) và lưu kế hoạch ngân sách |
-| `CampaignActivated` | Campaign | Funds, Transparency | Funds bắt đầu nhận quyên góp |
-| `FundingWindowClosed` | Campaign | Funds | Ngừng tạo payment intent mới; bắt đầu chốt số liệu |
-| `FundingSettled` | Funds | Campaign | Tổng tiền đã nhận sau thời gian chờ giao dịch treo |
-| `CampaignFundingClosed{outcome}` | Campaign | Funds, Transparency, Notification | `PROCESSING` → Funds phân bổ ngân sách; `UNDERFUNDED` → Funds mở SurplusCase (BR-12) |
-| `CampaignCancelled` | Campaign | Funds, Operations, Transparency, Notification | Funds mở SurplusCase; Operations huỷ yêu cầu đang mở |
-| `PhaseStatusChanged` / `CampaignCompleted` | Campaign | Operations, Transparency, Funds | Ràng buộc nghiệp vụ theo phase; báo cáo phân phối |
-| `DonationConfirmed` / `DonationFailed` | Funds | Campaign, Transparency, Notification | Tiến độ, sao kê, biên nhận |
-| `BudgetAllocated` | Funds | Transparency, Operations | Ngân sách từng hạng mục sau khi chốt |
-| `RequestSubmitted` | Operations | Campaign | Campaign chuyển phase sang AWAITING_* (BR-02) |
-| `RequestApproved` / `RequestRejected` | Operations | Funds, Notification | Funds giữ tiền; báo người gửi |
-| `ReservationCreated` / `ReservationRejected` | Funds | Operations | Yêu cầu sẵn sàng giải ngân / bị từ chối do thiếu ngân sách |
-| `DisbursementSent` | Funds | Operations, Notification | Admin đã chuyển tiền, chờ fundraiser xác nhận |
-| `DisbursementCompleted` / `DisbursementFailed` | Funds | Operations, Campaign, Transparency | Yêu cầu → DISBURSED; phase sang bước kế tiếp; sao kê tiền ra |
-| `ExpenseProofSubmitted` | Operations | AI, Transparency | AI phân tích chứng từ |
-| `ExpenseProofAnalyzed` | AI | Operations | Gắn cờ sai lệch để admin xem khi duyệt |
-| `ExpenseProofReviewed` | Operations | Transparency, Notification | Chứng từ được công khai sau khi duyệt |
+| `OrganizationVerified` / `OrganizationRejected` | Identity & Org | Campaign, Funds, Notification | Projection: tổ chức được tạo campaign; fundraiser nhận tiền |
+| `MembershipApproved` / `MembershipEnded` | Identity & Org | Operations, Notification | Projection quyền của staff |
+| `CampaignApproved` / `CampaignActivated` / `CampaignCancelled` / `CampaignCompleted` | Campaign | Transparency, Notification, Operations | Trang công khai, thông báo, chặn yêu cầu khi campaign không còn chạy |
+| `CampaignFundingClosed{outcome}` | Campaign | Transparency, Notification | Hiển thị kết quả gây quỹ |
+| `PhaseStatusChanged` | Campaign | Operations, Transparency | Projection trạng thái phase |
+| `DonationConfirmed` | Funds | Campaign, Transparency, Notification | Tiến độ hiển thị, sao kê, biên nhận |
+| `BudgetAllocated` | Funds | Transparency | Ngân sách từng hạng mục |
+| `RequestDecided{approved/rejected}` | Operations | Notification | Báo người gửi |
+| `DisbursementCompleted` / `DisbursementFailed` | Funds | Transparency, Notification | Sao kê tiền ra |
+| `ExpenseProofReviewed` | Operations | Transparency, Notification | Chứng từ công khai sau khi duyệt |
 | `RefundCompleted` / `SurplusResolved` | Funds | Transparency, Notification | Sao kê tiền ra; báo donor |
-| `ReconciliationItemOpened` | Funds | Notification | Cảnh báo admin có tiền chưa khớp |
-| `ReportPublished` | Transparency | AI, Notification | AI-04 tóm tắt; báo donor |
+| `SurplusNoticeRequested` | Funds | Notification | Gửi thông báo phương án tiền dư kèm hạn phản đối |
+| `ReconciliationCaseOpened` | Funds | Notification | Cảnh báo admin có tiền chưa khớp |
+| `ReportPublished` | Transparency | Notification | Báo donor có báo cáo mới |
+
+Các event của v1.0 dùng để điều khiển luồng (`FundingWindowClosed`, `FundingSettled`, `RequestApproved` → Funds, `ReservationCreated/Rejected`, `DisbursementSent`, `ExpenseProofSubmitted` → AI, `ExpenseProofAnalyzed`) **đã bị bỏ** — nay là bước trong workflow.
 
 ---
 
-## 5. Luồng xuyên service
+## 7. Luồng xuyên service
 
-### 5.1 Quyên góp
+### 7.1 Quyên góp
 
 ```mermaid
 sequenceDiagram
     actor D as Donor
-    participant GW as Gateway
-    participant F as Funds
-    participant P as PayOS/SePay
-    participant BUS as Event bus
-    D->>GW: Tạo khoản quyên góp
-    GW->>F: CreatePaymentIntent(campaignId, amount, anonymous)
-    F-->>D: Link/QR + mã đơn hàng
-    D->>P: Thanh toán
-    P->>GW: Webhook (có chữ ký)
-    GW->>F: Chuyển tiếp nguyên vẹn
-    F->>F: Xác thực chữ ký → lưu ProviderEvent (chống trùng theo id) → khớp mã đơn
-    alt Khớp
-        F->>F: Bút toán: platform_cash ↑ / campaign_received ↑ (cùng transaction với outbox)
-        F--)BUS: DonationConfirmed
+    participant F as Funds (API)
+    participant T as Temporal
+    participant P as SePay
+    participant N as NATS
+    D->>F: Tạo khoản quyên góp
+    F->>T: Start DonationPayment (ID donation-{intentId})
+    T->>F: activity CreateVA (SePay VA theo đơn hàng)
+    F-->>D: VA + QR + hạn thanh toán
+    D->>P: Chuyển khoản đúng số tiền
+    P->>F: Webhook (qua Traefik, IP SePay)
+    F->>F: Verify HMAC, lưu ProviderEvent
+    F->>T: Start IncomingTransfer (ID transfer-sepay-{id}) — trùng ID = bỏ qua
+    F-->>P: 200 (Temporal lỗi → 5xx để SePay gửi lại)
+    T->>F: activity MatchTransfer
+    alt Khớp VA
+        T->>T: Signal PaymentReceived → DonationPayment
+        T->>F: activity PostDonation (bút toán, idempotent theo mã giao dịch)
+        T->>N: activity Publish DonationConfirmed
     else Không khớp
-        F->>F: Bút toán vào suspense + ReconciliationItem
-        F--)BUS: ReconciliationItemOpened
+        T->>F: activity OpenReconciliationCase (bút toán vào suspense)
+        T->>N: activity Publish ReconciliationCaseOpened
+        Note over T: Chờ signal Resolve từ admin, nhắc khi quá hạn
     end
-    F-->>P: 200 (hoặc 5xx nếu lỗi tạm thời để được gửi lại)
-    BUS--)D: Biên nhận (qua Notification)
+    Note over T: Không có thanh toán trước hạn → DonationPayment huỷ VA, đánh dấu hết hạn
 ```
 
-### 5.2 Đóng gây quỹ
-
-Mục tiêu: không để giao dịch đến muộn làm sai quyết định PROCESSING/UNDERFUNDED.
+### 7.2 Vòng đời campaign và đóng gây quỹ
 
 ```mermaid
 sequenceDiagram
-    participant C as Campaign (lịch tự động)
-    participant BUS as Event bus
+    actor A as Admin
+    participant C as Campaign
+    participant T as Temporal (CampaignLifecycle)
     participant F as Funds
-    C--)BUS: FundingWindowClosed(campaignId)
-    BUS--)F: FundingWindowClosed
-    F->>F: Ngừng tạo payment intent; chờ intent treo hết hạn
-    F--)BUS: FundingSettled(totalReceived)
-    BUS--)C: FundingSettled
-    C->>C: So với MIN_FUNDING_PERCENTAGE (BR-01)
-    C--)BUS: CampaignFundingClosed(outcome)
-    alt PROCESSING
-        BUS--)F: Phân bổ min(received, target) × % vào budget:{phase}:{category}; phần vượt vào surplus
-    else UNDERFUNDED
-        BUS--)F: Mở SurplusCase (BR-12)
+    C->>T: Start CampaignLifecycle (ID campaign-{id})
+    A->>C: Duyệt
+    C->>T: Signal Approve
+    T->>T: Hẹn giờ tới ngày bắt đầu
+    T->>C: activity SetStatus(ACTIVE)
+    T->>F: activity OpenIntake
+    T->>T: Hẹn giờ tới hạn gây quỹ (Signal Extend dời hạn, tối đa 1 lần)
+    T->>F: activity CloseIntake (ngừng tạo VA mới)
+    T->>T: Chờ VA đang treo hết hạn
+    T->>F: activity SettleFunding → tổng đã nhận
+    alt ≥ MIN_FUNDING_PERCENTAGE
+        T->>C: activity SetStatus(PROCESSING)
+        T->>F: activity AllocateBudget (phần vượt mục tiêu → surplus)
+    else Không đạt
+        T->>C: activity SetStatus(UNDERFUNDED)
+        T->>F: child workflow SurplusCase
     end
+    T->>T: child workflow ReportDeadline (báo cáo tiếp nhận ≤ 15 ngày)
+    Note over T: Chờ Signal AllPhasesTerminal → COMPLETED → SurplusCase nếu còn dư → ReportDeadline (phân phối ≤ 30 ngày)
 ```
 
-Tiền đến sau khi đã chốt → vào `suspense` và hàng chờ đối soát, không tự cộng vào campaign.
+Tiền đến sau khi đã chốt → `IncomingTransfer` không khớp VA đang mở → vào `suspense` và hàng chờ đối soát.
 
-Riêng trường hợp **vượt mục tiêu khi còn ACTIVE** (BR-01): Campaign tự phát `FundingWindowClosed` sớm khi tiến độ hiển thị vượt mục tiêu; quyết định cuối vẫn dựa trên `FundingSettled`.
-
-### 5.3 Giải ngân — saga duy nhất
+### 7.3 Giải ngân
 
 ```mermaid
 sequenceDiagram
     actor K as Kitchen/Fundraiser
     actor A as Admin
+    actor A2 as Admin thứ hai
     actor FR as Fundraiser
     participant O as Operations
+    participant T as Temporal (Disbursement)
     participant F as Funds
     participant C as Campaign
-    K->>O: Gửi yêu cầu chi (phase, hạng mục, chi phí)
-    O->>F: (đồng bộ, chỉ đọc) Ngân sách còn lại? — để báo lỗi sớm
-    O--)C: RequestSubmitted → phase sang AWAITING_*
+    K->>O: Gửi yêu cầu chi
+    O->>F: (I-4, chỉ đọc) Ngân sách còn lại? — báo lỗi sớm
     A->>O: Duyệt yêu cầu
-    O--)F: RequestApproved
-    alt Đủ ngân sách
-        F->>F: Bút toán budget → reserved:{request}
-        F--)O: ReservationCreated
-        A->>F: Ghi nhận đã chuyển tiền + bằng chứng (duyệt hai người nếu vượt ngưỡng — BR-13)
-        F--)O: DisbursementSent
+    O->>T: Start Disbursement (ID disbursement-{requestId})
+    T->>F: activity Reserve (budget → reserved, pending)
+    alt Thiếu ngân sách
+        T->>O: activity RejectRequest(lý do)
+    else Đủ
+        T->>O: activity MarkReadyToDisburse
+        A->>F: Ghi nhận đã chuyển tiền + bằng chứng
+        F->>T: Signal TransferRecorded
+        opt Vượt ngưỡng BR-13
+            A2->>F: Duyệt lần hai (khác người)
+            F->>T: Signal SecondApproval
+        end
         FR->>F: Xác nhận đã nhận tiền
-        F->>F: Bút toán reserved → disbursed
-        F--)O: DisbursementCompleted → yêu cầu DISBURSED
-        F--)C: DisbursementCompleted → phase sang bước kế tiếp
-    else Thiếu ngân sách
-        F--)O: ReservationRejected → yêu cầu bị từ chối kèm lý do
-    end
-    opt Fundraiser báo không nhận được
-        F->>F: Bút toán đảo reserved → budget
-        F--)O: DisbursementFailed
+        F->>T: Signal ReceiptConfirmed
+        T->>F: activity PostDisbursement (reserved → disbursed)
+        T->>O: activity MarkDisbursed
+        T->>C: activity AdvancePhase
+        T->>T: activity Publish DisbursementCompleted
     end
 ```
 
-Kiểm tra ngân sách đồng bộ ở bước gửi yêu cầu chỉ để báo lỗi sớm cho người dùng; **quyết định có hiệu lực là bước giữ tiền trong Funds** (tránh hai yêu cầu cùng vượt qua kiểm tra).
+**Hết hạn chờ xác nhận hoặc fundraiser báo chưa nhận:** **không tự hoàn lại phần đã giữ**, vì tiền có thể đã thực sự rời tài khoản. Workflow mở case đối soát và chờ `AdminResolved`; chỉ khi admin xác định tiền chưa chuyển mới chạy bút toán đảo `reserved → budget` và `MarkDisbursementFailed`.
 
-### 5.4 Chứng từ & AI
+Kiểm tra ngân sách đồng bộ ở bước gửi yêu cầu chỉ để báo lỗi sớm; **quyết định có hiệu lực là activity `Reserve` trong Funds**.
 
-Operations nhận chứng từ → phát `ExpenseProofSubmitted` → AI phân tích (trích xuất, so với yêu cầu và số đã giải ngân) → `ExpenseProofAnalyzed` gắn cờ vào chứng từ → admin duyệt. Nếu AI không phản hồi, admin vẫn duyệt được bình thường; giao diện hiển thị "chưa có phân tích AI" (NFR-07).
+### 7.4 Chứng từ và AI
 
-### 5.5 Tiền dư (BR-12)
+Kitchen nộp chứng từ → Operations ghi `ExpenseProof` và khởi động `ExpenseProofAnalysis` → activity `AnalyzeReceipt` chạy trên worker Python (task queue `ai`) có timeout và số lần thử giới hạn → Operations lưu kết quả và cờ sai lệch. Admin duyệt chứng từ bằng thao tác I-1 thường; **không chờ AI**. AI lỗi hoặc hết thời gian → chứng từ hiển thị "chưa có phân tích AI" (NFR-07).
 
-Funds mở `SurplusCase` (khi UNDERFUNDED, CANCELLED, hoặc còn tiền sau COMPLETED) → admin duyệt phương án đã cam kết → Notification gửi thông báo donor kèm hạn phản đối → donor phản đối được tạo Refund → hết hạn: chuyển phần còn lại theo phương án → `SurplusResolved`.
+### 7.5 Tiền dư (BR-12)
+
+`SurplusCase` tính số dư → chờ `PlanApproved` (admin) → phát `SurplusNoticeRequested` → hẹn giờ hết hạn phản đối, nhận `DonorObjected` → hoàn tiền cho donor phản đối (activity `Refund`) → chuyển phần còn lại theo phương án đã cam kết (bút toán hai chiều) → phát `SurplusResolved`.
 
 ---
 
-## 6. Quy tắc giao tiếp & xử lý lỗi
+## 8. Quy tắc giao tiếp và xử lý lỗi
 
 | Quy tắc | Nội dung |
 |---|---|
-| **C-1 Event là mặc định** | Thay đổi trạng thái giữa các service đi qua event; không gọi đồng bộ để *ghi* sang service khác |
-| **C-2 Transactional outbox** | Service ghi dữ liệu và event vào cùng một transaction; tiến trình relay đẩy event lên bus |
-| **C-3 Consumer idempotent** | Mỗi consumer lưu `eventId` đã xử lý (inbox); nhận lặp thì bỏ qua |
-| **C-4 Thử lại & hàng lỗi** | Lỗi tạm thời thử lại có giãn cách; quá số lần → hàng lỗi (dead-letter) + cảnh báo |
-| **C-5 Đọc đồng bộ có dự phòng** | Chỉ dùng cho truy vấn đọc (ví dụ ngân sách còn lại); có timeout và hành vi khi bên kia không phản hồi |
-| **C-6 Phiên bản event** | Thêm trường không phá vỡ consumer; thay đổi phá vỡ → tên/phiên bản mới; có contract test |
-| **C-7 Phân quyền tại service sở hữu** | Mỗi service tự xác thực token (middleware dùng chung); **quyền sở hữu tài nguyên** (ví dụ "chỉ chủ campaign được đăng bài") kiểm tra tại service sở hữu dữ liệu (NFR-04) |
-| **C-8 Truy vết** | `correlationId` đi từ request gốc qua mọi event và log (NFR-08) |
-| **C-9 Webhook** | Gateway chuyển tiếp nguyên vẹn header và body; Funds xác thực; không log body chứa dữ liệu nhạy cảm |
+| **C-1 Chọn kiểu tương tác theo mục 3** | Luồng tiền và mọi thao tác thay đổi nhiều service đi qua workflow (I-2); event chỉ để phát tin (I-3) |
+| **C-2 Không outbox** | Thay đổi **cần phát event** đi qua workflow: activity ghi DB → activity phát event (giao ít nhất một lần). Thay đổi chỉ nội bộ một service dùng transaction thường, không phát event. *Kiểm chứng ở spike S-3; nếu quá nặng cho thao tác đơn giản → bổ sung outbox tối thiểu trong `libs/events`.* |
+| **C-3 Idempotent ở mọi nơi** | Workflow ID tất định (mục 5); activity ghi bằng khoá chống trùng (UNIQUE theo mã giao dịch / ID workflow + bước); consumer event lưu `eventId` đã xử lý |
+| **C-4 Thử lại và hàng lỗi** | Activity: retry policy của Temporal có giãn cách và giới hạn; consumer NATS: giới hạn số lần gửi → hàng lỗi + cảnh báo |
+| **C-5 Đọc đồng bộ có dự phòng** | I-4 chỉ để đọc, có timeout; không phụ thuộc kết quả đọc để quyết định tiền |
+| **C-6 Hợp đồng có phiên bản** | Event, activity xuyên service, RPC: định nghĩa trong `proto/`, `buf breaking` trong CI; workflow thay đổi dùng versioning của Temporal + replay test |
+| **C-7 Phân quyền tại service sở hữu** | Service tự xác thực JWT; kiểm tra quyền sở hữu tài nguyên tại service sở hữu dữ liệu; **tín hiệu gửi tới workflow chỉ được gửi từ service sở hữu sau khi đã kiểm tra quyền** — người dùng không gửi tín hiệu trực tiếp |
+| **C-8 Truy vết** | `correlationId` đi từ request gốc qua workflow, activity, event và log |
+| **C-9 Webhook** | Traefik chuyển nguyên vẹn; Funds verify chữ ký trước khi khởi động workflow; trả 5xx khi không khởi động được workflow để nhà cung cấp gửi lại |
+| **C-10 Workflow tất định** | Không I/O, không `time.Now`, không goroutine, không ngẫu nhiên trong code workflow (ADR-003) |
 
----
+**Khi một thành phần ngừng:**
 
-## 7. Truy vết requirement → service
-
-| Nhóm requirement | Service chính | Service liên quan |
+| Thành phần ngừng | Ảnh hưởng | Hệ thống phản ứng |
 |---|---|---|
-| FR-ID, FR-ORG | Identity & Org | Notification |
-| FR-CMP, FR-CFG, FR-RSG, FR-COM | Campaign | Funds, Transparency |
-| FR-PAY, FR-LED, FR-SUR | Funds | Notification, Transparency |
-| FR-DSB | Operations | Funds, Campaign, AI |
-| FR-KIT, FR-DLV | Operations | — |
-| FR-NTF | Notification | tất cả (nguồn event) |
-| FR-TRN, FR-SRC | Transparency | AI (AI-04), Funds (đối chiếu số liệu trước khi phát hành báo cáo) |
-| FR-UPL | Service sở hữu tài nguyên | — |
-| AI-01, AI-04 | AI | Operations, Transparency |
-| BR-01, BR-02, BR-06, BR-09 | Campaign | — |
-| BR-03, BR-04 | Operations | — |
-| BR-05, BR-07, BR-08, BR-11–BR-14 | Funds | (BR-14 áp dụng mọi service có dữ liệu tiền/chứng từ) |
-
-**Báo cáo công khai (FR-TRN-02):** trước khi phát hành, Transparency đối chiếu tổng tiền vào/ra của báo cáo với số dư sổ cái trong Funds; lệch → không phát hành, cảnh báo admin.
+| Temporal | Không khởi động / tiến triển được quy trình | API đọc vẫn chạy; lệnh cần workflow trả 503; webhook trả 5xx → SePay/PayOS gửi lại; workflow tự chạy tiếp khi Temporal lên |
+| NATS | Read model và email chậm | Activity phát event retry; tiền không bị ảnh hưởng |
+| AI | Không có phân tích chứng từ | Chứng từ vẫn duyệt được (NFR-07) |
+| Một service | Activity trên task queue của nó chờ | Workflow tự tiếp tục khi service lên lại; không mất trạng thái |
+| PostgreSQL | Toàn hệ thống dừng | Điểm hỏng chung đã chấp nhận; PITR qua CloudNativePG (ADR-001) |
 
 ---
 
-## 8. Rủi ro của cách tách này
+## 9. Góc nhìn triển khai trên Kubernetes (ADR-004)
+
+| Namespace | Thành phần |
+|---|---|
+| `edge` | Traefik (controller Gateway API), `Gateway` công khai; cert-manager (demo) |
+| `infra` | CloudNativePG cluster, Temporal + UI, NATS, Keycloak, trình giả lập S3, Mailpit, LGTM (tuỳ chọn) |
+| `foodfund` | 6 service + Notification worker |
+
+- **Mỗi service một binary** chạy cả HTTP API và Temporal worker của task queue tương ứng; tách thành hai Deployment sau nếu cần mở rộng riêng.
+- Probe `/healthz`, `/readyz`; tắt êm khi SIGTERM (dừng nhận việc mới, chờ activity đang chạy) — NFR-14.
+
+**Bảng route công khai** (dịch trực tiếp thành `HTTPRoute`):
+
+| Đường dẫn | Service | Chính sách ở biên |
+|---|---|---|
+| `/api/identity/*` | Identity & Org | Rate limit |
+| `/api/campaigns/*` | Campaign | Rate limit |
+| `/api/funds/*` | Funds | Rate limit |
+| `/api/operations/*` | Operations | Rate limit |
+| `/api/transparency/*` | Transparency | Rate limit |
+| `/webhooks/sepay` | Funds | Lọc IP SePay, giới hạn body |
+| `/webhooks/payos` | Funds | Giới hạn body |
+| `/auth/*` | Keycloak (luồng đăng nhập công khai) | Rate limit; **không** mở console admin |
+
+**Không công khai:** service AI, Temporal UI, NATS, PostgreSQL, console admin Keycloak, dashboard Traefik (truy cập qua port-forward).
+
+---
+
+## 10. Truy vết requirement → service / workflow
+
+| Nhóm requirement | Service chính | Workflow liên quan |
+|---|---|---|
+| FR-ID, FR-ORG | Identity & Org | — |
+| FR-CMP, FR-CFG, BR-01, BR-02, BR-06, BR-09 | Campaign | `CampaignLifecycle`, `CampaignReassignment` |
+| FR-PAY, BR-08, BR-11 | Funds | `DonationPayment`, `IncomingTransfer`, `DailyReconciliation` |
+| FR-LED, BR-05, BR-07, BR-13, BR-14 | Funds | `Disbursement` |
+| FR-SUR, BR-12 | Funds | `SurplusCase` |
+| FR-DSB, BR-03, BR-04 | Operations | `Disbursement`, `ExpenseProofAnalysis` |
+| FR-KIT, FR-DLV | Operations | — |
+| FR-NTF | Notification | (tiêu thụ event) |
+| FR-TRN, FR-SRC | Transparency | `ReportDeadline` |
+| AI-01, AI-04, NFR-10 | AI | `ExpenseProofAnalysis`, `ReportDeadline` |
+| FR-RSG | Campaign | `CampaignReassignment` |
+
+**Báo cáo công khai (FR-TRN-02):** `ReportDeadline` đối chiếu tổng tiền của báo cáo với sổ cái qua activity `funds.GetLedgerTotals`; lệch → không phát hành, cảnh báo admin, chờ `Retry`.
+
+---
+
+## 11. Rủi ro
 
 | Rủi ro | Giảm thiểu |
 |---|---|
-| Funds quá lớn | Module nội bộ có ranh giới rõ; test riêng từng module; có thể tách `payment` sau |
-| Nhất quán cuối cùng gây khó hiểu cho người dùng (vừa chuyển khoản nhưng tiến độ chưa cập nhật) | Hiển thị trạng thái "đang xác nhận"; tiến độ chính thức lấy từ Funds |
-| Saga giải ngân có nhiều bước | Trạng thái của saga lưu tường minh trong Funds; test cho từng nhánh lỗi |
-| Event thay đổi làm hỏng consumer | Contract test (C-6) chạy trong CI |
-| Chạy local 6 service + worker vượt 10 phút (NFR-05) | Cách đóng gói và khởi động quyết định ở `03-tech-stack.md`; job smoke trong CI |
+| Funds quá lớn | Module nội bộ rõ ràng; có thể tách `payment` sau |
+| Activity xuyên service tạo phụ thuộc chặt giữa các service | Hợp đồng trong `proto/` có phiên bản (C-6); số activity xuyên service giữ ít (mục 5) |
+| Sai luật tất định làm workflow lỗi khi replay | Replay test trong CI; lint/review cho code workflow (C-10) |
+| Mọi thay đổi cần phát event phải qua workflow → nặng cho thao tác đơn giản | Spike S-3; phương án dự phòng: outbox tối thiểu |
+| Temporal là thành phần trung tâm mới | Trạng thái lưu trên PostgreSQL có PITR; thử kịch bản Temporal ngừng (mục 8) |
+| Nhất quán cuối cùng ở read model (vừa chuyển khoản nhưng sao kê chưa cập nhật) | UI hiển thị "đang xác nhận"; tiến độ chính thức lấy từ Funds |
+| RAM local (ADR-004) | LGTM tuỳ chọn; đo ở S-4 |
 
 ---
 
-## 9. Quyết định chuyển sang `03-tech-stack.md`
+## 12. Liên kết quyết định
 
-1. Ngôn ngữ cho từng service (một ngôn ngữ chung hay khác nhau, đặc biệt service AI).
-2. Kiểu API phía client: GraphQL (federation hay không) hay REST; cách Gateway định tuyến.
-3. Event bus / broker và cách hiện thực outbox, inbox, dead-letter.
-4. Cơ sở dữ liệu cho từng service; cách lưu sổ cái và audit chỉ thêm.
-5. Nhà cung cấp danh tính (đăng ký, đăng nhập, Google OIDC).
-6. Cách hiện thực định danh nhận tiền riêng cho mỗi campaign với PayOS/SePay (BR-11, Q-13).
-7. Lưu trữ tệp; tạo PDF báo cáo; tìm kiếm.
-8. Mô hình AI, cách chạy eval, cách giới hạn chi phí.
-9. Cách chạy local, CI, deploy môi trường demo trong ngân sách NFR-09.
+| Chủ đề | Quyết định |
+|---|---|
+| Ngôn ngữ | Go cho service lõi, Python cho AI (`03-tech-stack.md` T-1) |
+| Database | PostgreSQL 18 + CloudNativePG — [ADR-001](../adr/ADR-001-database-postgresql.md) |
+| Lớp biên | Traefik qua Gateway API — [ADR-002](../adr/ADR-002-edge-traefik.md) |
+| Điều phối | Temporal — [ADR-003](../adr/ADR-003-workflow-temporal.md) |
+| Hạ tầng | Kubernetes từ ngày đầu — [ADR-004](../adr/ADR-004-kubernetes-from-day-one.md) |
+| Còn mở | T-2 (kiểu API), T-3, T-4 (NATS — có thể bỏ sau S-3), T-8 … T-13; spike S-1 … S-10 |
