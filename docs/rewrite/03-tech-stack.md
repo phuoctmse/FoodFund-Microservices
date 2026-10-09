@@ -1,6 +1,6 @@
 # FoodFund (bản viết lại) — Lựa chọn công nghệ
 
-> **Trạng thái:** NHÁP v0.3 — 2026-10-10 — T-6 (PostgreSQL 18, [ADR-001](../adr/ADR-001-database-postgresql.md)) và T-7 (Traefik v3, [ADR-002](../adr/ADR-002-edge-traefik.md)) **đã chốt**; T-5 chờ chọn hồ sơ kiến trúc (River / Temporal / DBOS); các mục khác chờ duyệt.
+> **Trạng thái:** NHÁP v0.3 — 2026-10-10 — T-6 (PostgreSQL 18, [ADR-001](../adr/ADR-001-database-postgresql.md)) và T-7 (Traefik v3, [ADR-002](../adr/ADR-002-edge-traefik.md)) và T-5 (Temporal, [ADR-003](../adr/ADR-003-workflow-temporal.md)) **đã chốt**; các mục khác chờ duyệt.
 > **Đầu vào:** [`01-requirements.md`](./01-requirements.md) v1.0, [`02-decomposition.md`](./02-decomposition.md) v1.0.
 > **Đã chốt trước:** Go cho 5 service lõi (Identity & Org, Campaign, Funds, Operations, Transparency) và Notification worker; Python cho service AI.
 > **Quy ước:** mỗi quyết định ghi *Chọn / Đã cân nhắc / Lý do / Hệ quả*. Thông tin ghi *(chưa kiểm chứng)* phải được xác nhận trong các spike ở mục 13 trước khi viết plan triển khai.
@@ -14,8 +14,8 @@
 | T-1 | Ngôn ngữ | Go (bản ổn định mới nhất) cho service lõi; Python ≥ 3.12 cho AI | Trung bình — đo trên máy (Phụ lục B) + chủ dự án chọn |
 | T-2 | API phía client | REST + OpenAPI, sinh code từ spec | Trung bình — audit + tài liệu |
 | T-3 | Gọi đồng bộ nội bộ (chỉ đọc) | ConnectRPC + Protobuf, quản lý bằng `buf` | Trung bình — tài liệu |
-| T-4 | Event bus | NATS JetStream; event định nghĩa bằng Protobuf | Trung bình — audit + tài liệu; RAM chưa đo |
-| T-5 | Outbox / job / lịch | Bảng outbox + job queue chạy trên Postgres (River) trong từng service | Mạnh — tài liệu xác nhận đúng tính năng cần |
+| T-4 | Event bus | NATS JetStream **chỉ để phát event tới read model** (Transparency, Notification); có thể bỏ sau spike S-3 | Trung bình — audit + tài liệu; RAM chưa đo |
+| T-5 | Điều phối quy trình | **Đã chốt (ADR-003):** Temporal (tự host, lưu trên PostgreSQL 18); worker Go + Python | Trung bình — tài liệu; footprint và độ phức tạp chưa đo (S-3, S-4) |
 | T-6 | Cơ sở dữ liệu | **Đã chốt (ADR-001):** PostgreSQL 18; mỗi service một database; `pgx` + `sqlc`; `goose`; backup PITR | Mạnh — dữ liệu D1–D5 trong ADR-001 |
 | T-7 | Gateway | **Đã chốt (ADR-002):** Traefik v3 (TLS, định tuyến, `RateLimit`, `IPAllowList`); Cloudflare Tunnel bật sau; xác thực token trong từng service | Trung bình — chấm theo requirement E-1…E-10 |
 | T-8 | Danh tính | Keycloak (OIDC, đăng nhập Google qua identity brokering) | Trung bình — audit + tài liệu; RAM chưa đo |
@@ -51,17 +51,17 @@
 
 ## T-4. Event bus
 
-- **Chọn:** NATS JetStream. Mỗi bounded context một stream; consumer bền (durable) cho mỗi service tiêu thụ; payload là Protobuf có `schemaVersion`.
+- **Chọn:** NATS JetStream, **vai trò thu hẹp theo ADR-003:** chỉ phát event tới các read model (Transparency, Notification); các quy trình tiền đi qua Temporal. Spike S-3 đánh giá bỏ hẳn NATS. Mỗi bounded context một stream; consumer bền (durable) cho mỗi service tiêu thụ; payload là Protobuf có `schemaVersion`.
 - **Đã cân nhắc:** Kafka (hệ thống cũ), RabbitMQ, Redis Streams.
 - **Lý do:** một binary nhẹ, chạy local nhanh; có lưu bền, ack, gửi lại, giới hạn số lần gửi — đủ cho C-3/C-4. Kafka quá nặng cho một VPS demo và một người vận hành.
 - **Hệ quả:** dead-letter (C-4) hiện thực bằng giới hạn số lần gửi + chuyển sang stream lỗi; cần thư viện nội bộ nhỏ `libs/events` (publish, subscribe, inbox) dùng chung cho các service Go. Service AI dùng client NATS cho Python.
 
 ## T-5. Outbox, job, lịch tự động
 
-- **Chọn:** job queue chạy trên Postgres (**River**) trong từng service Go: ghi dữ liệu nghiệp vụ và chèn job "publish event" **trong cùng một transaction** (đây chính là transactional outbox — C-2); job đẩy event lên NATS, River lo thử lại. Lịch tự động (đóng gây quỹ, huỷ link treo, nhắc hạn báo cáo, đối soát hằng ngày) dùng job định kỳ của River.
-- **Đã cân nhắc:** tự viết bảng outbox + tiến trình relay; cron riêng.
-- **Lý do:** bớt code tự viết cho phần dễ sai (relay, retry, khoá khi chạy nhiều bản); job định kỳ không chạy trùng.
-- **Hệ quả:** phụ thuộc River *(chưa kiểm chứng: giấy phép bản miễn phí và tính năng job định kỳ — spike S-3)*. Phương án dự phòng: bảng outbox tự viết (~200 dòng).
+- **Chọn (đã chốt — [ADR-003](../adr/ADR-003-workflow-temporal.md)):** **Temporal** tự host, lưu trạng thái trên PostgreSQL 18 (không cần Elasticsearch); worker Go cho service lõi, worker Python cho AI; local dùng `temporal server start-dev`. Các quy trình dài (VA hết hạn, đóng gây quỹ, saga giải ngân, tiền dư, hạn báo cáo, phân tích chứng từ, đối soát hằng ngày) viết thành workflow.
+- **Đã cân nhắc:** River + NATS + saga tự viết; DBOS (Go chưa 1.0); Restate (BSL 1.1); Hatchet.
+- **Lý do:** FoodFund nặng về quy trình dài có hẹn giờ và chờ con người — đúng bài toán của durable execution; Temporal trưởng thành nhất cho luồng tiền.
+- **Hệ quả:** bỏ River và outbox tự viết (điểm vào dùng workflow ID tất định để chống trùng — kiểm chứng ở S-3); thêm một thành phần phải vận hành; phải tuân thủ luật tất định và versioning của workflow (ADR-003).
 
 ## T-6. Cơ sở dữ liệu
 
@@ -162,7 +162,7 @@
 | Object storage, email, quan sát | 0 USD | Gói miễn phí *(chưa kiểm chứng)* |
 | **Tổng** | **~13–21 USD** | |
 
-**RAM dự kiến trên VPS:** Postgres ~0,5–1 GB · Keycloak ~1,25 GB · NATS < 100 MB · 6 tiến trình Go ~30–80 MB mỗi cái · AI (Python) ~150–300 MB · Traefik < 100 MB *(chưa đo)* · LGTM ~1 GB → **~4–5 GB**, vừa VPS 8 GB *(con số ước lượng, đo lại trong spike S-4)*.
+**RAM dự kiến trên VPS:** Postgres ~0,5–1 GB · Keycloak ~1,25 GB · NATS < 100 MB · Temporal + UI ~0,7 GB *(số đo bên thứ ba, chưa đo)* · 6 tiến trình Go ~30–80 MB mỗi cái · AI (Python) ~150–300 MB · Traefik < 100 MB *(chưa đo)* · LGTM ~1 GB → **~4–5 GB**, vừa VPS 8 GB *(con số ước lượng, đo lại trong spike S-4)*.
 
 ---
 
@@ -174,8 +174,8 @@ Mỗi spike là thử nghiệm nhỏ (≤ 1–2 ngày), kết quả ghi lại th
 |---|---|---|
 | S-1 | SePay sandbox: tạo VA theo đơn hàng, giả lập thanh toán, nhận webhook đã ký end-to-end? Có tiền tố VA riêng cho mỗi campaign không? Thuật toán ký webhook PayOS? | T-9, BR-11 |
 | S-2 | Kiểm tra cân bằng bút toán bằng constraint trigger hoãn + quyền chỉ INSERT hoạt động đúng với `pgx`/`sqlc`? | T-6, FR-LED |
-| S-3 | River: giấy phép bản miễn phí, job định kỳ, chèn job trong transaction của `pgx` → publish NATS → consumer idempotent | T-4, T-5 |
-| S-4 | Đo thời gian `docker compose up` từ máy sạch và RAM thực tế (đặc biệt Keycloak) | NFR-05, NFR-09 |
+| S-3 | Saga giải ngân trên Temporal + Postgres: giữ tiền → chờ tín hiệu có hạn → ghi sổ hoặc hoàn lại; webhook khởi động workflow với ID tất định (chống trùng); replay test; có bỏ được NATS không | T-4, T-5, ADR-003 |
+| S-4 | Đo thời gian `docker compose up` từ máy sạch và RAM thực tế (đặc biệt Keycloak và Temporal) | NFR-05, NFR-09 |
 | S-5 | Chọn trình giả lập S3 (giấy phép), thư viện PDF Go hỗ trợ tiếng Việt, nhà cung cấp email/quan sát miễn phí | T-10, T-13 |
 | S-6 | AI-01 trên 5–10 ảnh hoá đơn thật: chất lượng trích xuất ở effort `low` vs `medium`, chi phí mỗi ảnh | T-11 |
 | S-7 | Trước khi bật Cloudflare Tunnel: lọc IP SePay khi Traefik đứng sau `cloudflared` (lấy IP thật an toàn, hoặc lọc tại Cloudflare); giới hạn kích thước/thời gian request của Cloudflare gói miễn phí | T-7, ADR-002 |
@@ -251,7 +251,11 @@ foodfund/
 - **Chưa có:** số đo RAM của NATS (Docker chưa chạy) → spike S-4.
 - **Sẽ đổi nếu:** cần CDC bằng Debezium hoặc lưu trữ/phát lại event ở quy mô rất lớn.
 
-### T-5. River (job queue trên Postgres) làm outbox và lịch — *Mạnh*
+### T-5. Temporal làm lớp điều phối — *Trung bình* (xem [ADR-003](../adr/ADR-003-workflow-temporal.md))
+
+*Phương án River bên dưới được giữ lại làm hồ sơ so sánh; không còn là lựa chọn.*
+
+#### (Lịch sử) River (job queue trên Postgres) làm outbox và lịch
 
 - **[Tài liệu]** River chèn job **trong cùng transaction**: job chắc chắn được ghi nếu transaction commit, bị huỷ nếu rollback, và không ai thấy trước khi commit. Có job định kỳ/cron, tự thử lại, job duy nhất. Giấy phép MPL-2.0; gói mã nguồn mở miễn phí đã gồm job định kỳ (gói Pro trả phí chỉ thêm workflow, batching, giới hạn đồng thời — không cần) ([River — brandur.org](https://brandur.org/river), [itechguides — River](https://www.itechguides.com/products/river/)).
 - **[Audit]** Hệ thống cũ đã phải tự viết `OutboxEvent` + processor trong `campaign` → nhu cầu outbox là có thật; River thay phần tự viết đó.
@@ -344,7 +348,7 @@ foodfund/
 | Quyết định | Thiếu gì | Spike |
 |---|---|---|
 | T-4, T-8, T-13, T-14 | RAM và thời gian khởi động thực của NATS, Keycloak, Postgres, LGTM trong Compose | S-4 |
-| T-5 | Thử thực tế: chèn job trong transaction `pgx` → publish NATS | S-3 |
+| T-5 | Saga giải ngân trên Temporal, chống trùng ở điểm vào, footprint thực tế | S-3, S-4 |
 | T-6 | `sqlc` báo lỗi SQL lúc sinh code; constraint trigger cân bằng bút toán | S-2 |
 | T-9 | Webhook SePay end-to-end; tiền tố VA cho campaign; thuật toán ký PayOS | S-1 |
 | T-10 | Thư viện PDF hỗ trợ tiếng Việt; trình giả lập S3 và giấy phép | S-5 |

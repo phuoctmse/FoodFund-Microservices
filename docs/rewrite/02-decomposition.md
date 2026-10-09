@@ -2,6 +2,7 @@
 
 > **Trạng thái:** v1.0 — 2026-10-09 — chủ dự án đã đồng ý phương án 6 service + 1 worker + gateway.
 > **Đầu vào:** [`01-requirements.md`](./01-requirements.md) v1.0.
+> **⚠️ Cần cập nhật (2026-10-10):** theo [ADR-003](../adr/ADR-003-workflow-temporal.md), các luồng tiền ở mục 5 chuyển từ choreography (event + saga tự viết) sang **orchestration bằng workflow Temporal**; quy tắc C-1, C-2 ở mục 6 và vai trò event bus sẽ được viết lại ở v1.1. Ranh giới 6 service không đổi.
 > **Phạm vi tài liệu:** ranh giới service, dữ liệu mỗi service sở hữu, event, luồng xuyên service, xử lý lỗi. **Không** chọn ngôn ngữ, cơ sở dữ liệu, broker hay kiểu API — các quyết định đó nằm ở `03-tech-stack.md` (mục 9 liệt kê những gì cần quyết định).
 
 ---
