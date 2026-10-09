@@ -1,6 +1,6 @@
 # FoodFund (bản viết lại) — Requirements
 
-> **Trạng thái:** NHÁP v0.2 — 2026-10-09 — đã có **đề xuất trả lời** cho mục 9, chờ chủ dự án chốt.
+> **Trạng thái:** v1.0 — 2026-10-09 — đã chốt. Chủ dự án đồng ý toàn bộ đề xuất ở mục 9.
 > **Nguồn:** dựng ngược từ hệ thống cũ (`origin/master` @ `84fed04`) → được BA review đối chiếu code (có `file:line`) và thực tế pháp lý/vận hành ở Việt Nam.
 > **Quy ước:** `FR-*` chức năng · `BR-*` quy tắc nghiệp vụ · `NFR-*` phi chức năng · `Q-*` câu hỏi mở · **[M]** Must / **[S]** Should / **[C]** Could (giai đoạn 2) · *(chưa kiểm chứng)* = thông tin chưa đối chiếu được nguồn gốc.
 
@@ -270,65 +270,65 @@ FoodFund là nền tảng gây quỹ từ thiện về thực phẩm: kết nố
 
 ---
 
-## 9. Câu hỏi mở — đề xuất trả lời
+## 9. Câu hỏi mở — đã chốt
 
 > Mỗi câu gồm **Đề xuất** (từ review BA + kiểm chứng code) và dòng **Quyết định** để chủ dự án chốt. Các mục ở phần 1–7 đã được viết theo đề xuất; nếu quyết định khác, phần tương ứng sẽ được sửa.
 
 **Q-01. Tác nhân & luồng chính có sai/thiếu gì?**
 Đề xuất: thêm "Người đại diện tổ chức" (gộp với fundraiser: duyệt thành viên, giao việc giao hàng, nhận giải ngân) và "Bộ lập lịch hệ thống"; sửa người nhận giải ngân thành fundraiser. → Đã áp dụng ở mục 2–3. *Chi phí phạm vi: thấp.*
-Quyết định:
+Quyết định: **Đồng ý đề xuất** (2026-10-09).
 
 **Q-02. "Fund committee" duyệt rút tiền nhiều chữ ký?**
 Đề xuất: không tạo vai trò riêng; thay bằng **duyệt hai người** (BR-13) cho giải ngân/điều chỉnh vượt ngưỡng, mức [S]. Tăng minh bạch mà không thêm tác nhân. *Chi phí: trung bình.*
-Quyết định:
+Quyết định: **Đồng ý đề xuất** (2026-10-09).
 
 **Q-03. Phiếu ăn điện tử?**
 Đề xuất: ngoài phạm vi giai đoạn 1 [C]; hệ thống cũ không có, lại kéo theo tác nhân "người nhận suất ăn". *Chi phí nếu làm: cao.*
-Quyết định:
+Quyết định: **Đồng ý đề xuất** (2026-10-09).
 
 **Q-04. ENDED vs COMPLETED; khi nào PROCESSING?**
 Đề xuất: theo đúng hành vi code cũ (BR-01): ENDED = hết hạn mà không đạt % tối thiểu → **đổi tên UNDERFUNDED** và bắt buộc xử lý tiền theo BR-12; COMPLETED = mọi phase kết thúc; PROCESSING khi hết hạn đạt ≥ % tối thiểu hoặc ngay khi vượt mục tiêu. *Chi phí: thấp.*
-Quyết định:
+Quyết định: **Đồng ý đề xuất** (2026-10-09).
 
 **Q-05. Có luồng hoàn tiền không?**
 Đề xuất: có, mức tối thiểu [S] — admin ghi nhận hoàn tiền kèm bằng chứng, khớp giao dịch tiền ra; áp dụng khi campaign huỷ/không đạt hoặc donor phản đối phương án tiền dư (FR-PAY-08). *Chi phí: trung bình.*
-Quyết định:
+Quyết định: **Đồng ý đề xuất** (2026-10-09).
 
 **Q-06. Tổng % ngân sách phase?**
 Đề xuất: giữ quy tắc code cũ — tổng % của **tất cả phase** = 100% (BR-06); phần chưa dùng xử lý theo BR-12, không vào quỹ tự động. *Chi phí: thấp.*
-Quyết định:
+Quyết định: **Đồng ý đề xuất** (2026-10-09).
 
 **Q-07. Giữ đăng nhập Google?**
 Đề xuất: giữ [S], dùng luồng OIDC chuẩn của nhà cung cấp danh tính, không tự viết luồng (luồng cũ đổi mật khẩu người dùng). *Chi phí: thấp.*
-Quyết định:
+Quyết định: **Đồng ý đề xuất** (2026-10-09).
 
 **Q-08. Quyên góp ẩn danh / không tài khoản?**
 Đề xuất: có [M], tách hai chế độ (khách không tài khoản; có tài khoản nhưng ẩn tên); định danh donor để trống thay vì lưu chuỗi "Người dùng ẩn danh"; email tuỳ chọn để nhận biên nhận. *Chi phí: thấp.*
-Quyết định:
+Quyết định: **Đồng ý đề xuất** (2026-10-09).
 
 **Q-09. Có làm frontend không?**
 Đề xuất: **web tối thiểu** cho luồng demo (mục 7.1); không làm mobile. Portfolio cần demo được end-to-end. *Chi phí: trung bình.*
-Quyết định:
+Quyết định: **Đồng ý đề xuất** (2026-10-09).
 
 **Q-10. Chọn tính năng mới nào?**
 Đề xuất: **AI-01** [M] (nằm ngay trên luồng tiền, sửa đúng lỗ hổng "chứng từ không được đối chiếu"); AI-04 [S] nếu còn thời gian; AI-02 để giai đoạn 2 vì rủi ro rò dữ liệu. *Chi phí: trung bình.*
-Quyết định:
+Quyết định: **Đồng ý đề xuất** (2026-10-09).
 
 **Q-11. Mục tiêu coverage?**
 Đề xuất: ≥ 85% cho thanh toán, sổ cái, giải ngân và state machine; webhook bắt buộc có test tích hợp (giả mạo, gửi lặp, chuyển thiếu, chuyển dư, không khớp); toàn hệ thống ≥ 60%. *Chi phí: thấp nếu làm từ đầu.*
-Quyết định:
+Quyết định: **Đồng ý đề xuất** (2026-10-09).
 
 **Q-12. Ngân sách hạ tầng; có bắt buộc deploy?**
 Đề xuất: bắt buộc có môi trường demo online; trần ~25 USD/tháng (*mục tiêu, chưa tra giá*); dùng sandbox PayOS/SePay. *Chi phí: thấp–trung bình.*
-Quyết định:
+Quyết định: **Đồng ý đề xuất** (2026-10-09).
 
 **Q-13 (mới). Mỗi campaign có định danh nhận tiền riêng (BR-11)?**
 Đề xuất: có trong **mô hình dữ liệu và sao kê** (mỗi campaign một định danh nhận tiền); cách hiện thực (tài khoản ảo/sub-account của SePay hay mã nội dung riêng) quyết định ở `03-tech-stack.md` sau khi kiểm tra tài liệu nhà cung cấp. *Chi phí: chưa ước lượng được.*
-Quyết định:
+Quyết định: **Đồng ý đề xuất** (2026-10-09).
 
 **Q-14 (mới). Bỏ khái niệm "ví fundraiser" của hệ thống cũ?**
 Đề xuất: bỏ; thay bằng sổ cái (mục 4.5) với tài khoản theo campaign/hạng mục. Ví cũ là quỹ ảo nhận tiền từ 3 nguồn và tự chuyển sang campaign khác — chính là nguồn gốc của nhiều lỗi ở mục 8. *Chi phí: trung bình (đã tính trong FR-LED).*
-Quyết định:
+Quyết định: **Đồng ý đề xuất** (2026-10-09).
 
 ---
 
@@ -344,6 +344,6 @@ Quyết định:
 
 ## 11. Bước tiếp theo
 
-1. Chủ dự án điền **Quyết định** cho Q-01…Q-14 → cập nhật lên v1.0.
+1. ~~Chốt Q-01…Q-14~~ — xong (v1.0).
 2. Viết `02-decomposition.md`: tách hệ thống thành service dựa trên requirement đã chốt.
 3. Viết `03-tech-stack.md`: chọn ngôn ngữ, cơ sở dữ liệu, cách giao tiếp, hạ tầng — mỗi lựa chọn kèm lý do.
