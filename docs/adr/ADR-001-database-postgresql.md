@@ -41,6 +41,12 @@ Dùng **PostgreSQL 18** cho mọi service (mỗi service một database và mộ
   - Các service dùng chung instance có thể ảnh hưởng nhau về tài nguyên → mỗi service một user, giới hạn kết nối theo user.
 - **Ràng buộc thiết kế đi kèm:** sổ cái theo ngữ nghĩa chuyển khoản bất biến và chuyển khoản pending/post/void có hạn (giữ tiền giải ngân, VA hết hạn); số dư tính từ bút toán, không cập nhật trực tiếp.
 
+## Triển khai trên Kubernetes (cập nhật theo [ADR-004](./ADR-004-kubernetes-from-day-one.md))
+
+- Chạy bằng operator **CloudNativePG**; PITR qua backup lên object storage của operator; khôi phục được kiểm tra định kỳ ([CloudNativePG docs](https://cloudnative-pg.io/docs/1.30/)).
+- **Không dùng chart/image Bitnami** (ADR-004, luật 1).
+- **Rủi ro cần kiểm chứng (spike S-9):** một báo cáo cộng đồng cho biết công cụ quản lý schema của Temporal chỉ có plugin `postgres12`, với PostgreSQL 18 phải chạy schema thủ công bằng `temporal-sql-tool` ([community thread](https://community.temporal.io/t/schema-auto-management-support-for-postgresql-13-in-self-hosted-temporal/19566)). Phương án dự phòng: cluster PostgreSQL 17 riêng cho Temporal.
+
 ## Điều kiện để xem lại quyết định
 
 - Xuất hiện yêu cầu ghi đa vùng toàn cầu.

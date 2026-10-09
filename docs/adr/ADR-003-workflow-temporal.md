@@ -28,8 +28,8 @@ Dùng **Temporal** (tự host) làm lớp điều phối:
 
 - **Server:** Temporal server + Web UI; lưu trạng thái trong **PostgreSQL 18** (database riêng trên cùng instance — ADR-001). PostgreSQL 12+ hỗ trợ cả lưu trữ lẫn advanced visibility, **không cần Elasticsearch** ([Temporal visibility](https://docs.temporal.io/self-hosted-guide/visibility)).
 - **Worker:** service Go dùng Temporal Go SDK; service AI dùng Temporal Python SDK (phân tích chứng từ là một activity chạy trên worker Python).
-- **Local:** `temporal server start-dev` với `--db-filename` để giữ trạng thái giữa các lần chạy; Web UI tại `localhost:8233`. Dev server **không dành cho production** ([Temporal CLI server](https://docs.temporal.io/cli/server)).
-- **Demo:** container Temporal server + UI trên VPS, dùng chung Postgres.
+- **Local và CI (k3d) / demo (k3s) — theo [ADR-004](./ADR-004-kubernetes-from-day-one.md):** Helm chart chính chủ, **tắt các dependency đóng gói sẵn**, trỏ vào PostgreSQL của CloudNativePG. `temporal server start-dev` (Web UI `localhost:8233`) chỉ dùng cho test tự động và thử nhanh ngoài cluster; dev server **không dành cho production** ([Temporal CLI server](https://docs.temporal.io/cli/server)).
+- **Rủi ro PostgreSQL 18:** công cụ quản lý schema có thể chỉ hỗ trợ plugin `postgres12` → kiểm chứng ở spike S-9 (xem ADR-001).
 - **Giấy phép:** MIT ([temporalio/temporal](https://github.com/temporalio/temporal)).
 
 ## Thay đổi so với thiết kế trước
@@ -77,10 +77,10 @@ Dùng **Temporal** (tự host) làm lớp điều phối:
 - **Tiêu cực:**
   - **Đường cong học:** luật tất định và versioning — sai là workflow lỗi khi replay.
   - **Thêm một thành phần phải vận hành:** một phép đo bên thứ ba ghi nhận Temporal ~668 MB + UI ~9 MB (cộng Postgres ~239 MB) khi không dùng Elasticsearch ([Railway](https://railway.com/deploy/temporal-or-durable-workflows-no-elastic)) — **chưa đo trên cấu hình của dự án** (spike S-4).
-  - Cách triển khai self-hosted được hỗ trợ chính thức là Helm trên Kubernetes ([Automation Atlas](https://automationatlas.io/answers/how-to-deploy-temporal-self-hosted-2026/)); chạy bằng Compose trên VPS là lựa chọn chấp nhận được cho **demo**, không phải cấu hình production chuẩn.
+  - Triển khai bằng Helm trên Kubernetes — đúng cách self-host được hỗ trợ chính thức ([Temporal deployment](https://docs.temporal.io/self-hosted-guide/deployment)); kéo theo chi phí học Kubernetes (ADR-004).
   - `02-decomposition.md` mục 5–6 phải cập nhật từ choreography sang orchestration cho các luồng tiền.
 
 ## Điều kiện để xem lại quyết định
 
-- Spike S-3/S-4 cho thấy Temporal làm vượt RAM VPS demo hoặc vượt mục tiêu chạy local ≤ 10 phút → chuyển sang DBOS (khi có bản Go 1.0) hoặc Restate.
+- Spike S-3/S-4/S-9 cho thấy Temporal làm vượt RAM (laptop hoặc VPS demo), vượt mục tiêu chạy local ≤ 10 phút, hoặc không chạy ổn trên PostgreSQL 18 → chuyển sang DBOS (khi có bản Go 1.0) hoặc Restate.
 - Sau 2 tuần làm việc với Temporal, luật tất định/versioning làm chậm tiến độ rõ rệt so với kế hoạch.

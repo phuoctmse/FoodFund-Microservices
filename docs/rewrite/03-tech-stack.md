@@ -1,6 +1,6 @@
 # FoodFund (bản viết lại) — Lựa chọn công nghệ
 
-> **Trạng thái:** NHÁP v0.3 — 2026-10-10 — T-6 (PostgreSQL 18, [ADR-001](../adr/ADR-001-database-postgresql.md)) và T-7 (Traefik v3, [ADR-002](../adr/ADR-002-edge-traefik.md)) và T-5 (Temporal, [ADR-003](../adr/ADR-003-workflow-temporal.md)) **đã chốt**; các mục khác chờ duyệt.
+> **Trạng thái:** NHÁP v0.4 — 2026-10-10 — đã chốt: T-5 Temporal ([ADR-003](../adr/ADR-003-workflow-temporal.md)), T-6 PostgreSQL 18 ([ADR-001](../adr/ADR-001-database-postgresql.md)), T-7 Traefik qua Gateway API ([ADR-002](../adr/ADR-002-edge-traefik.md)), T-14 Kubernetes từ ngày đầu ([ADR-004](../adr/ADR-004-kubernetes-from-day-one.md)); các mục khác chờ duyệt.
 > **Đầu vào:** [`01-requirements.md`](./01-requirements.md) v1.0, [`02-decomposition.md`](./02-decomposition.md) v1.0.
 > **Đã chốt trước:** Go cho 5 service lõi (Identity & Org, Campaign, Funds, Operations, Transparency) và Notification worker; Python cho service AI.
 > **Quy ước:** mỗi quyết định ghi *Chọn / Đã cân nhắc / Lý do / Hệ quả*. Thông tin ghi *(chưa kiểm chứng)* phải được xác nhận trong các spike ở mục 13 trước khi viết plan triển khai.
@@ -16,15 +16,15 @@
 | T-3 | Gọi đồng bộ nội bộ (chỉ đọc) | ConnectRPC + Protobuf, quản lý bằng `buf` | Trung bình — tài liệu |
 | T-4 | Event bus | NATS JetStream **chỉ để phát event tới read model** (Transparency, Notification); có thể bỏ sau spike S-3 | Trung bình — audit + tài liệu; RAM chưa đo |
 | T-5 | Điều phối quy trình | **Đã chốt (ADR-003):** Temporal (tự host, lưu trên PostgreSQL 18); worker Go + Python | Trung bình — tài liệu; footprint và độ phức tạp chưa đo (S-3, S-4) |
-| T-6 | Cơ sở dữ liệu | **Đã chốt (ADR-001):** PostgreSQL 18; mỗi service một database; `pgx` + `sqlc`; `goose`; backup PITR | Mạnh — dữ liệu D1–D5 trong ADR-001 |
-| T-7 | Gateway | **Đã chốt (ADR-002):** Traefik v3 (TLS, định tuyến, `RateLimit`, `IPAllowList`); Cloudflare Tunnel bật sau; xác thực token trong từng service | Trung bình — chấm theo requirement E-1…E-10 |
+| T-6 | Cơ sở dữ liệu | **Đã chốt (ADR-001):** PostgreSQL 18 chạy bằng operator CloudNativePG; mỗi service một database; `pgx` + `sqlc`; `goose`; backup PITR | Mạnh — dữ liệu D1–D5 trong ADR-001 |
+| T-7 | Gateway | **Đã chốt (ADR-002):** Traefik ≥ 3.7.10 làm controller Gateway API (`HTTPRoute` chuẩn; `RateLimit`, `IPAllowList` qua `ExtensionRef`); cert-manager cho demo; Envoy Gateway dự phòng; Cloudflare Tunnel sau | Trung bình — chấm theo E-1…E-10, K-1…K-6; còn spike S-7 |
 | T-8 | Danh tính | Keycloak (OIDC, đăng nhập Google qua identity brokering) | Trung bình — audit + tài liệu; RAM chưa đo |
 | T-9 | Thanh toán | SePay API v2 — VA theo đơn hàng (chính); PayOS (phụ) — sau lớp adapter chung | Mạnh — audit + tài liệu nhà cung cấp |
 | T-10 | Tệp, PDF, email | Lưu trữ tương thích S3; PDF sinh trong Transparency; email qua SMTP (local: Mailpit) | Yếu — chưa chọn cụ thể (spike S-5) |
 | T-11 | AI | FastAPI + Anthropic Python SDK, model `claude-opus-5-5`, structured outputs | Trung bình — tài liệu; chất lượng chưa đo (spike S-6) |
 | T-12 | Frontend | React + TypeScript (Vite), client sinh từ OpenAPI | Yếu — chủ yếu đánh giá |
 | T-13 | Quan sát | OpenTelemetry; log JSON (`log/slog`); local: một container Grafana LGTM | Yếu — chủ yếu đánh giá |
-| T-14 | Chạy local, CI, deploy | Docker Compose; GitHub Actions; một VPS chạy Compose cho môi trường demo | Trung bình — audit |
+| T-14 | Chạy local, CI, deploy | **Đã chốt (ADR-004):** Kubernetes từ ngày đầu — k3d (local, CI), k3s một node (demo); `make up`; chart/operator chính chủ, không Bitnami | Trung bình — đo máy phát triển; còn spike S-4, S-8 |
 
 ---
 
@@ -77,7 +77,7 @@
 
 ## T-7. Gateway
 
-- **Chọn (đã chốt — [ADR-002](../adr/ADR-002-edge-traefik.md)):** Traefik v3 làm reverse proxy: TLS, định tuyến `/api/{service}/…` và `/webhooks/{provider}`, `RateLimit`, `IPAllowList` (IP SePay), `Buffering` (giới hạn body) — chỉ middleware có sẵn. **Cloudflare Tunnel** bật ở giai đoạn deploy demo, đã chuẩn bị sẵn (DNS ở Cloudflare từ đầu, webhook đăng ký bằng tên miền, hai chế độ TLS). **Xác thực token (JWT từ Keycloak) thực hiện trong từng service** bằng middleware dùng chung `libs/auth`; kiểm tra quyền sở hữu tài nguyên tại service sở hữu dữ liệu (C-7).
+- **Chọn (đã chốt — [ADR-002](../adr/ADR-002-edge-traefik.md)):** Traefik ≥ 3.7.10 làm controller **Gateway API** trên Kubernetes (ADR-004): route viết bằng `HTTPRoute` chuẩn (không dùng `IngressRoute`); `RateLimit`, `IPAllowList` (IP SePay), `Buffering`, `Headers` là `Middleware` gắn qua `ExtensionRef`; cert-manager + Let's Encrypt cho demo; Envoy Gateway là phương án dự phòng nếu spike S-7 thất bại; Cloudflare Tunnel bật sau (chuẩn bị: DNS ở Cloudflare từ đầu, webhook đăng ký bằng tên miền). **Xác thực token (JWT từ Keycloak) thực hiện trong từng service** bằng middleware dùng chung `libs/auth`; kiểm tra quyền sở hữu tài nguyên tại service sở hữu dữ liệu (C-7).
 - **Đã cân nhắc:** Caddy (rate limit không có sẵn — cần module cộng đồng, build lại), Nginx, Envoy Gateway (dành cho Kubernetes), Kong (bỏ image OSS từ 3.10), APISIX (cần etcd).
 - **Lý do:** đáp ứng requirement lớp biên E-1…E-10 bằng tính năng có sẵn; gateway không chứa nghiệp vụ nên không cần viết code; xác thực ở service là phòng thủ nhiều lớp và test được bằng unit test.
 - **Hệ quả:** **điều chỉnh nhỏ so với `02-decomposition.md`:** gateway không xác thực token, chỉ TLS + định tuyến + giới hạn tần suất (đã cập nhật dòng Gateway trong tài liệu đó).
@@ -103,7 +103,7 @@
 
 ## T-10. Tệp, PDF, email
 
-- **Lưu trữ tệp:** API tương thích S3, URL ký sẵn (FR-UPL-01). Local: một trình giả lập S3 trong Compose; demo: dịch vụ object storage có gói miễn phí *(lựa chọn cụ thể và giấy phép của trình giả lập — spike S-5)*.
+- **Lưu trữ tệp:** API tương thích S3, URL ký sẵn (FR-UPL-01). Local: một trình giả lập S3 trong cluster k3d; demo: dịch vụ object storage có gói miễn phí *(lựa chọn cụ thể và giấy phép của trình giả lập — spike S-5)*.
 - **PDF báo cáo (FR-TRN-02):** sinh trong Transparency bằng thư viện PDF thuần Go hỗ trợ font Unicode tiếng Việt *(chọn thư viện sau khi kiểm tra tình trạng bảo trì — spike S-5)*; CSV bằng thư viện chuẩn. Báo cáo được lưu kèm mã băm để chứng minh bất biến.
 - **Email (FR-NTF-01):** Notification gửi qua SMTP; local dùng **Mailpit** để xem email; demo dùng một nhà cung cấp email giao dịch có gói miễn phí *(chưa kiểm chứng hạn mức)*.
 
@@ -140,15 +140,16 @@
 
 ## T-14. Chạy local, CI, deploy
 
-- **Local (NFR-05):** `docker compose up` dựng hạ tầng (Postgres, NATS, Keycloak, trình giả lập S3, Mailpit, LGTM) + các service; script seed tạo dữ liệu mẫu và người dùng mỗi vai trò; `tools/paysim` giả lập thanh toán. Mục tiêu đo được: từ clone sạch đến gọi được API qua Traefik ≤ 10 phút.
+- **Chọn (đã chốt — [ADR-004](../adr/ADR-004-kubernetes-from-day-one.md)):** Kubernetes từ ngày đầu — **k3d** ở local và CI, **k3s một node** cho demo; cùng Helm values cho mọi môi trường.
+- **Local (NFR-05):** `make up` tạo cluster k3d, cài hạ tầng (CloudNativePG, Temporal, Keycloak, NATS, Traefik, trình giả lập S3, Mailpit; LGTM tuỳ chọn), deploy các service, seed dữ liệu mẫu và người dùng mỗi vai trò; `tools/paysim` giả lập thanh toán. Service đang phát triển chạy bằng `go run` nối vào cluster (cách cụ thể chọn ở S-8). Mục tiêu đo được: từ clone sạch đến gọi được API qua Traefik ≤ 10 phút.
 - **CI (GitHub Actions)** — mỗi PR:
   - Go: `golangci-lint`, `go test` (unit + integration với testcontainers-go cho Postgres/NATS), ngưỡng coverage theo NFR-06.
   - Python: `ruff`, `pyright`, `pytest`, chấm điểm eval trên phản hồi đã ghi lại.
   - Hợp đồng: `buf lint`, `buf breaking`, kiểm tra code sinh từ OpenAPI.
   - Bảo mật: quét secret (gitleaks), quét lỗ hổng phụ thuộc.
-  - **Smoke:** dựng Compose, chạy luồng quyên góp → giải ngân bằng `paysim`.
+  - **Smoke:** dựng cluster k3d bằng `make up`, chạy luồng quyên góp → giải ngân bằng `paysim`.
   - Nhánh mặc định được bảo vệ: CI phải xanh mới merge.
-- **Deploy demo:** một VPS chạy Docker Compose + Traefik (Cloudflare Tunnel phía trước khi bật); image build trong CI, đẩy lên GitHub Container Registry; deploy bằng workflow thủ công.
+- **Deploy demo:** k3s một node trên VPS; image build trong CI, đẩy lên GitHub Container Registry; deploy bằng `helm upgrade` từ workflow thủ công (không GitOps ở giai đoạn 1); cert-manager cấp chứng chỉ; Cloudflare Tunnel phía trước khi bật.
 
 ---
 
@@ -162,7 +163,7 @@
 | Object storage, email, quan sát | 0 USD | Gói miễn phí *(chưa kiểm chứng)* |
 | **Tổng** | **~13–21 USD** | |
 
-**RAM dự kiến trên VPS:** Postgres ~0,5–1 GB · Keycloak ~1,25 GB · NATS < 100 MB · Temporal + UI ~0,7 GB *(số đo bên thứ ba, chưa đo)* · 6 tiến trình Go ~30–80 MB mỗi cái · AI (Python) ~150–300 MB · Traefik < 100 MB *(chưa đo)* · LGTM ~1 GB → **~4–5 GB**, vừa VPS 8 GB *(con số ước lượng, đo lại trong spike S-4)*.
+**RAM dự kiến trên VPS:** k3s ~0,5 GB · Postgres ~0,5–1 GB · Keycloak ~1,25 GB · NATS < 100 MB · Temporal + UI ~0,7 GB *(số đo bên thứ ba, chưa đo)* · 6 tiến trình Go ~30–80 MB mỗi cái · AI (Python) ~150–300 MB · Traefik < 100 MB *(chưa đo)* · LGTM ~1 GB → **~4–5 GB**, vừa VPS 8 GB *(con số ước lượng, đo lại trong spike S-4)*.
 
 ---
 
@@ -175,10 +176,13 @@ Mỗi spike là thử nghiệm nhỏ (≤ 1–2 ngày), kết quả ghi lại th
 | S-1 | SePay sandbox: tạo VA theo đơn hàng, giả lập thanh toán, nhận webhook đã ký end-to-end? Có tiền tố VA riêng cho mỗi campaign không? Thuật toán ký webhook PayOS? | T-9, BR-11 |
 | S-2 | Kiểm tra cân bằng bút toán bằng constraint trigger hoãn + quyền chỉ INSERT hoạt động đúng với `pgx`/`sqlc`? | T-6, FR-LED |
 | S-3 | Saga giải ngân trên Temporal + Postgres: giữ tiền → chờ tín hiệu có hạn → ghi sổ hoặc hoàn lại; webhook khởi động workflow với ID tất định (chống trùng); replay test; có bỏ được NATS không | T-4, T-5, ADR-003 |
-| S-4 | Đo thời gian `docker compose up` từ máy sạch và RAM thực tế (đặc biệt Keycloak và Temporal) | NFR-05, NFR-09 |
+| S-4 | Đo thời gian `make up` (k3d) từ máy sạch và RAM thực tế (đặc biệt Keycloak và Temporal) | NFR-05, NFR-09 |
 | S-5 | Chọn trình giả lập S3 (giấy phép), thư viện PDF Go hỗ trợ tiếng Việt, nhà cung cấp email/quan sát miễn phí | T-10, T-13 |
 | S-6 | AI-01 trên 5–10 ảnh hoá đơn thật: chất lượng trích xuất ở effort `low` vs `medium`, chi phí mỗi ảnh | T-11 |
-| S-7 | Trước khi bật Cloudflare Tunnel: lọc IP SePay khi Traefik đứng sau `cloudflared` (lấy IP thật an toàn, hoặc lọc tại Cloudflare); giới hạn kích thước/thời gian request của Cloudflare gói miễn phí | T-7, ADR-002 |
+| S-7 | Traefik trên k3s một node: `IPAllowList` gắn qua `ExtensionRef` hoạt động; proxy nhận đúng IP thật của request từ bên ngoài (trượt → Envoy Gateway) | T-7, ADR-002 |
+| S-8 | Vòng lặp code nhanh với cluster local: `go run` + port-forward hay công cụ đồng bộ code vào pod (kiểm tra tình trạng bảo trì của Tilt) | T-14, ADR-004 |
+| S-9 | Temporal trên PostgreSQL 18: công cụ quản lý schema có hỗ trợ không, hay phải chạy thủ công / dùng PG17 riêng | T-5, T-6, ADR-001, ADR-003 |
+| S-10 | Trước khi bật Cloudflare Tunnel: `cloudflared` trong cluster, lọc IP SePay phía sau tunnel, giới hạn request của Cloudflare gói miễn phí | T-7, ADR-002 |
 
 ---
 
@@ -199,7 +203,7 @@ foodfund/
 ├── api/                 # OpenAPI spec từng service
 ├── web/                 # React + TypeScript
 ├── tools/paysim/        # Giả lập webhook SePay/PayOS đã ký
-├── deploy/              # docker-compose, cấu hình Traefik, realm Keycloak, seed
+├── deploy/              # cấu hình k3d, Helm values (hạ tầng + service), HTTPRoute, realm Keycloak, seed
 ├── docs/                # requirements, decomposition, tech-stack, adr/
 └── go.work
 ```
@@ -309,10 +313,12 @@ foodfund/
 - **[Requirement]** NFR-08 (trace xuyên service, cảnh báo).
 - **[Đánh giá]** OpenTelemetry là chuẩn mở, không khoá vào nhà cung cấp (hệ thống cũ dùng Datadog + Sentry). Chưa đo RAM của container LGTM.
 
-### T-14. Compose, GitHub Actions, một VPS — *Trung bình*
+### T-14. Kubernetes từ ngày đầu (k3d, k3s), GitHub Actions — *Trung bình* (xem [ADR-004](../adr/ADR-004-kubernetes-from-day-one.md))
 
-- **[Audit]** Hệ thống cũ: `docker-compose up` theo README thất bại (thiếu `.env.docker`, không có Postgres/Redis/Kafka); bước test trong CI bị comment; không có smoke test → cần Compose dựng đủ hạ tầng và job smoke trong CI.
-- **[Requirement]** NFR-05, NFR-09; Kubernetes nằm ngoài phạm vi (mục 7.1 requirements).
+- **[Audit]** Hệ thống cũ: `docker-compose up` theo README thất bại (thiếu `.env.docker`, không có Postgres/Redis/Kafka); bước test trong CI bị comment; không có smoke test → cần một lệnh dựng đủ hạ tầng và job smoke trong CI.
+- **[Đo]** Máy phát triển: RAM 15,9 GB (trống 4,7 GB lúc đo), 8 nhân/16 luồng; RAM ước tính đủ stack trong cluster ~3,7–5,7 GB → vừa nhưng sát (ADR-004).
+- **[Tài liệu]** Temporal tự host chính thức bằng Helm trên Kubernetes; image Bitnami không còn cập nhật từ 08/2025 → chỉ dùng chart/operator chính chủ.
+- **[Requirement]** NFR-05, NFR-09, NFR-14; requirements v1.1 đưa Kubernetes vào phạm vi (mục 7.1).
 
 ---
 
@@ -347,11 +353,11 @@ foodfund/
 
 | Quyết định | Thiếu gì | Spike |
 |---|---|---|
-| T-4, T-8, T-13, T-14 | RAM và thời gian khởi động thực của NATS, Keycloak, Postgres, LGTM trong Compose | S-4 |
+| T-4, T-8, T-13, T-14 | RAM và thời gian khởi động thực của k3s, NATS, Keycloak, Postgres, Temporal, LGTM trong cluster k3d | S-4, S-8 |
 | T-5 | Saga giải ngân trên Temporal, chống trùng ở điểm vào, footprint thực tế | S-3, S-4 |
 | T-6 | `sqlc` báo lỗi SQL lúc sinh code; constraint trigger cân bằng bút toán | S-2 |
 | T-9 | Webhook SePay end-to-end; tiền tố VA cho campaign; thuật toán ký PayOS | S-1 |
 | T-10 | Thư viện PDF hỗ trợ tiếng Việt; trình giả lập S3 và giấy phép | S-5 |
 | T-11 | Chất lượng/chi phí trích xuất hoá đơn; so sánh với ít nhất một nhà cung cấp khác | S-6 |
-| T-7 | Lọc IP khi đứng sau Cloudflare Tunnel | S-7 |
+| T-7 | `IPAllowList` qua `ExtensionRef`, IP thật trên k3s; lọc IP sau Cloudflare Tunnel | S-7, S-10 |
 | T-12 | Không cần spike — chấp nhận là quyết định theo đánh giá, dễ thay sau | — |
