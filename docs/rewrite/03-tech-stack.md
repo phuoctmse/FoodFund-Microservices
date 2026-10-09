@@ -1,6 +1,6 @@
 # FoodFund (bản viết lại) — Lựa chọn công nghệ
 
-> **Trạng thái:** NHÁP v0.2 — 2026-10-09 — bổ sung bằng chứng cho từng quyết định (Phụ lục A, B); chờ chủ dự án duyệt.
+> **Trạng thái:** NHÁP v0.3 — 2026-10-10 — T-6 (PostgreSQL 18, [ADR-001](../adr/ADR-001-database-postgresql.md)) và T-7 (Traefik v3, [ADR-002](../adr/ADR-002-edge-traefik.md)) **đã chốt**; T-5 chờ chọn hồ sơ kiến trúc (River / Temporal / DBOS); các mục khác chờ duyệt.
 > **Đầu vào:** [`01-requirements.md`](./01-requirements.md) v1.0, [`02-decomposition.md`](./02-decomposition.md) v1.0.
 > **Đã chốt trước:** Go cho 5 service lõi (Identity & Org, Campaign, Funds, Operations, Transparency) và Notification worker; Python cho service AI.
 > **Quy ước:** mỗi quyết định ghi *Chọn / Đã cân nhắc / Lý do / Hệ quả*. Thông tin ghi *(chưa kiểm chứng)* phải được xác nhận trong các spike ở mục 13 trước khi viết plan triển khai.
@@ -16,8 +16,8 @@
 | T-3 | Gọi đồng bộ nội bộ (chỉ đọc) | ConnectRPC + Protobuf, quản lý bằng `buf` | Trung bình — tài liệu |
 | T-4 | Event bus | NATS JetStream; event định nghĩa bằng Protobuf | Trung bình — audit + tài liệu; RAM chưa đo |
 | T-5 | Outbox / job / lịch | Bảng outbox + job queue chạy trên Postgres (River) trong từng service | Mạnh — tài liệu xác nhận đúng tính năng cần |
-| T-6 | Cơ sở dữ liệu | PostgreSQL; mỗi service một database; truy cập bằng `pgx` + `sqlc`; migration bằng `goose` | Mạnh — tài liệu Postgres/sqlc |
-| T-7 | Gateway | Caddy (TLS, định tuyến, giới hạn tần suất); xác thực token trong từng service | Yếu — chủ yếu đánh giá |
+| T-6 | Cơ sở dữ liệu | **Đã chốt (ADR-001):** PostgreSQL 18; mỗi service một database; `pgx` + `sqlc`; `goose`; backup PITR | Mạnh — dữ liệu D1–D5 trong ADR-001 |
+| T-7 | Gateway | **Đã chốt (ADR-002):** Traefik v3 (TLS, định tuyến, `RateLimit`, `IPAllowList`); Cloudflare Tunnel bật sau; xác thực token trong từng service | Trung bình — chấm theo requirement E-1…E-10 |
 | T-8 | Danh tính | Keycloak (OIDC, đăng nhập Google qua identity brokering) | Trung bình — audit + tài liệu; RAM chưa đo |
 | T-9 | Thanh toán | SePay API v2 — VA theo đơn hàng (chính); PayOS (phụ) — sau lớp adapter chung | Mạnh — audit + tài liệu nhà cung cấp |
 | T-10 | Tệp, PDF, email | Lưu trữ tương thích S3; PDF sinh trong Transparency; email qua SMTP (local: Mailpit) | Yếu — chưa chọn cụ thể (spike S-5) |
@@ -65,7 +65,7 @@
 
 ## T-6. Cơ sở dữ liệu
 
-- **Chọn:** PostgreSQL. Môi trường local/demo: **một instance, mỗi service một database và một user riêng** (không có quyền sang database khác). Truy cập bằng `pgx` + `sqlc` (SQL viết tay, sinh code có kiểu); migration bằng `goose`.
+- **Chọn (đã chốt — [ADR-001](../adr/ADR-001-database-postgresql.md)):** PostgreSQL 18 (lên 19 sau bản vá đầu tiên). Môi trường local/demo: **một instance, mỗi service một database và một user riêng** (không có quyền sang database khác). Truy cập bằng `pgx` + `sqlc` (SQL viết tay, sinh code có kiểu); migration bằng `goose`.
 - **Đã cân nhắc:** ORM (GORM, ent).
 - **Lý do:** sổ cái cần kiểm soát transaction và câu SQL tường minh; `sqlc` bắt lỗi SQL lúc build.
 - **Sổ cái & audit (FR-LED, NFR-02, BR-14):**
@@ -73,13 +73,13 @@
   - Bảng `postings` và `audit_log`: user ứng dụng **không có quyền UPDATE/DELETE** (cấp quyền ở mức database), chỉ INSERT.
   - Mỗi `journal_entry` cân bằng (tổng nợ = tổng có): kiểm tra bằng constraint trigger hoãn đến cuối transaction, kèm test.
   - Khoá ngoại không dùng `ON DELETE CASCADE` cho dữ liệu tiền/chứng từ.
-- **Hệ quả:** một instance là điểm hỏng chung ở môi trường demo — chấp nhận được với phạm vi portfolio; ranh giới database vẫn tách để có thể tách instance sau.
+- **Hệ quả:** một instance là điểm hỏng chung ở môi trường demo → **bắt buộc backup khôi phục theo thời điểm (PITR)** và bài kiểm tra khôi phục định kỳ, hoặc dùng Postgres managed khi deploy; ranh giới database vẫn tách để có thể tách instance sau. Khoá chính dùng `uuidv7()`. Sổ cái theo ngữ nghĩa chuyển khoản bất biến + pending/post/void có hạn.
 
 ## T-7. Gateway
 
-- **Chọn:** Caddy làm reverse proxy: TLS tự động, định tuyến `/api/{service}/…` và `/webhooks/{provider}` tới service, giới hạn tần suất cho webhook. **Xác thực token (JWT từ Keycloak) thực hiện trong từng service** bằng middleware dùng chung `libs/auth`; kiểm tra quyền sở hữu tài nguyên tại service sở hữu dữ liệu (C-7).
-- **Đã cân nhắc:** tự viết gateway Go; Envoy; KrakenD.
-- **Lý do:** gateway không chứa nghiệp vụ (decomposition mục 2) nên không cần viết code; xác thực ở service là phòng thủ nhiều lớp và test được bằng unit test.
+- **Chọn (đã chốt — [ADR-002](../adr/ADR-002-edge-traefik.md)):** Traefik v3 làm reverse proxy: TLS, định tuyến `/api/{service}/…` và `/webhooks/{provider}`, `RateLimit`, `IPAllowList` (IP SePay), `Buffering` (giới hạn body) — chỉ middleware có sẵn. **Cloudflare Tunnel** bật ở giai đoạn deploy demo, đã chuẩn bị sẵn (DNS ở Cloudflare từ đầu, webhook đăng ký bằng tên miền, hai chế độ TLS). **Xác thực token (JWT từ Keycloak) thực hiện trong từng service** bằng middleware dùng chung `libs/auth`; kiểm tra quyền sở hữu tài nguyên tại service sở hữu dữ liệu (C-7).
+- **Đã cân nhắc:** Caddy (rate limit không có sẵn — cần module cộng đồng, build lại), Nginx, Envoy Gateway (dành cho Kubernetes), Kong (bỏ image OSS từ 3.10), APISIX (cần etcd).
+- **Lý do:** đáp ứng requirement lớp biên E-1…E-10 bằng tính năng có sẵn; gateway không chứa nghiệp vụ nên không cần viết code; xác thực ở service là phòng thủ nhiều lớp và test được bằng unit test.
 - **Hệ quả:** **điều chỉnh nhỏ so với `02-decomposition.md`:** gateway không xác thực token, chỉ TLS + định tuyến + giới hạn tần suất (đã cập nhật dòng Gateway trong tài liệu đó).
 
 ## T-8. Danh tính
@@ -140,7 +140,7 @@
 
 ## T-14. Chạy local, CI, deploy
 
-- **Local (NFR-05):** `docker compose up` dựng hạ tầng (Postgres, NATS, Keycloak, trình giả lập S3, Mailpit, LGTM) + các service; script seed tạo dữ liệu mẫu và người dùng mỗi vai trò; `tools/paysim` giả lập thanh toán. Mục tiêu đo được: từ clone sạch đến gọi được API qua Caddy ≤ 10 phút.
+- **Local (NFR-05):** `docker compose up` dựng hạ tầng (Postgres, NATS, Keycloak, trình giả lập S3, Mailpit, LGTM) + các service; script seed tạo dữ liệu mẫu và người dùng mỗi vai trò; `tools/paysim` giả lập thanh toán. Mục tiêu đo được: từ clone sạch đến gọi được API qua Traefik ≤ 10 phút.
 - **CI (GitHub Actions)** — mỗi PR:
   - Go: `golangci-lint`, `go test` (unit + integration với testcontainers-go cho Postgres/NATS), ngưỡng coverage theo NFR-06.
   - Python: `ruff`, `pyright`, `pytest`, chấm điểm eval trên phản hồi đã ghi lại.
@@ -148,7 +148,7 @@
   - Bảo mật: quét secret (gitleaks), quét lỗ hổng phụ thuộc.
   - **Smoke:** dựng Compose, chạy luồng quyên góp → giải ngân bằng `paysim`.
   - Nhánh mặc định được bảo vệ: CI phải xanh mới merge.
-- **Deploy demo:** một VPS chạy Docker Compose + Caddy; image build trong CI, đẩy lên GitHub Container Registry; deploy bằng workflow thủ công.
+- **Deploy demo:** một VPS chạy Docker Compose + Traefik (Cloudflare Tunnel phía trước khi bật); image build trong CI, đẩy lên GitHub Container Registry; deploy bằng workflow thủ công.
 
 ---
 
@@ -162,7 +162,7 @@
 | Object storage, email, quan sát | 0 USD | Gói miễn phí *(chưa kiểm chứng)* |
 | **Tổng** | **~13–21 USD** | |
 
-**RAM dự kiến trên VPS:** Postgres ~0,5–1 GB · Keycloak ~1,25 GB · NATS < 100 MB · 6 tiến trình Go ~30–80 MB mỗi cái · AI (Python) ~150–300 MB · Caddy < 50 MB · LGTM ~1 GB → **~4–5 GB**, vừa VPS 8 GB *(con số ước lượng, đo lại trong spike S-4)*.
+**RAM dự kiến trên VPS:** Postgres ~0,5–1 GB · Keycloak ~1,25 GB · NATS < 100 MB · 6 tiến trình Go ~30–80 MB mỗi cái · AI (Python) ~150–300 MB · Traefik < 100 MB *(chưa đo)* · LGTM ~1 GB → **~4–5 GB**, vừa VPS 8 GB *(con số ước lượng, đo lại trong spike S-4)*.
 
 ---
 
@@ -178,6 +178,7 @@ Mỗi spike là thử nghiệm nhỏ (≤ 1–2 ngày), kết quả ghi lại th
 | S-4 | Đo thời gian `docker compose up` từ máy sạch và RAM thực tế (đặc biệt Keycloak) | NFR-05, NFR-09 |
 | S-5 | Chọn trình giả lập S3 (giấy phép), thư viện PDF Go hỗ trợ tiếng Việt, nhà cung cấp email/quan sát miễn phí | T-10, T-13 |
 | S-6 | AI-01 trên 5–10 ảnh hoá đơn thật: chất lượng trích xuất ở effort `low` vs `medium`, chi phí mỗi ảnh | T-11 |
+| S-7 | Trước khi bật Cloudflare Tunnel: lọc IP SePay khi Traefik đứng sau `cloudflared` (lấy IP thật an toàn, hoặc lọc tại Cloudflare); giới hạn kích thước/thời gian request của Cloudflare gói miễn phí | T-7, ADR-002 |
 
 ---
 
@@ -198,7 +199,7 @@ foodfund/
 ├── api/                 # OpenAPI spec từng service
 ├── web/                 # React + TypeScript
 ├── tools/paysim/        # Giả lập webhook SePay/PayOS đã ký
-├── deploy/              # docker-compose, Caddyfile, realm Keycloak, seed
+├── deploy/              # docker-compose, cấu hình Traefik, realm Keycloak, seed
 ├── docs/                # requirements, decomposition, tech-stack, adr/
 └── go.work
 ```
@@ -262,11 +263,12 @@ foodfund/
 - **[Tài liệu]** `sqlc` hỗ trợ `pgx/v5` từ v1.18.0 qua `sql_package: "pgx/v5"` ([sqlc — Using Go and pgx](https://docs.sqlc.dev/en/latest/guides/using-go-and-pgx.html)). *(Khả năng báo lỗi SQL lúc sinh code chưa được trích dẫn — kiểm tra trong spike S-2.)*
 - **[Audit]** Hệ thống cũ: `onDelete: Cascade` trên dữ liệu tiền, xoá cứng campaign, `received_amount` cập nhật hai lần không nguyên tử → cần transaction tường minh và quyền chỉ-INSERT ở mức database.
 
-### T-7. Caddy làm gateway — *Yếu*
+### T-7. Traefik làm gateway — *Trung bình* (xem [ADR-002](../adr/ADR-002-edge-traefik.md))
 
-- **[Tài liệu]** Caddy tự cấp và gia hạn chứng chỉ TLS mặc định ([Caddy Automatic HTTPS](https://caddyserver.com/docs/automatic-https)).
+- **[Tài liệu — để so sánh]** Caddy tự cấp và gia hạn chứng chỉ TLS mặc định (điểm mạnh của Caddy, nhưng không bù được việc thiếu rate limit) ([Caddy Automatic HTTPS](https://caddyserver.com/docs/automatic-https)).
 - **[Requirement]** C-7/NFR-04 buộc kiểm tra quyền tại service sở hữu dữ liệu → service phải xác thực token dù gateway có làm hay không → gateway không cần logic.
-- **[Đánh giá]** Nginx, Traefik hoặc gateway tự viết đều dùng được; chọn Caddy vì cấu hình ngắn và TLS tự động cho VPS demo.
+- **[Tài liệu]** Traefik có sẵn `RateLimit`, `IPAllowList`, `Buffering`, `ForwardAuth` ([Traefik middlewares](https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/overview/)); Caddy **không** có rate limit sẵn ([stackharbor](https://stackharbor.com/en/knowledge-base/caddy-rate-limiting/)) — đây là lỗi của bản v0.2 khi ghi Caddy "giới hạn tần suất".
+- **[Tài liệu]** SePay công bố danh sách IP gửi webhook và yêu cầu HTTPS ([SePay IP](https://developer.sepay.vn/en/dia-chi-ip)).
 
 ### T-8. Keycloak — *Trung bình*
 
@@ -347,4 +349,5 @@ foodfund/
 | T-9 | Webhook SePay end-to-end; tiền tố VA cho campaign; thuật toán ký PayOS | S-1 |
 | T-10 | Thư viện PDF hỗ trợ tiếng Việt; trình giả lập S3 và giấy phép | S-5 |
 | T-11 | Chất lượng/chi phí trích xuất hoá đơn; so sánh với ít nhất một nhà cung cấp khác | S-6 |
-| T-7, T-12 | Không cần spike — chấp nhận là quyết định theo đánh giá, dễ thay sau | — |
+| T-7 | Lọc IP khi đứng sau Cloudflare Tunnel | S-7 |
+| T-12 | Không cần spike — chấp nhận là quyết định theo đánh giá, dễ thay sau | — |
