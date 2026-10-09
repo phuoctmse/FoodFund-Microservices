@@ -1,6 +1,6 @@
 # FoodFund (bản viết lại) — Lựa chọn công nghệ
 
-> **Trạng thái:** NHÁP v0.1 — 2026-10-09 — chờ chủ dự án duyệt.
+> **Trạng thái:** NHÁP v0.2 — 2026-10-09 — bổ sung bằng chứng cho từng quyết định (Phụ lục A, B); chờ chủ dự án duyệt.
 > **Đầu vào:** [`01-requirements.md`](./01-requirements.md) v1.0, [`02-decomposition.md`](./02-decomposition.md) v1.0.
 > **Đã chốt trước:** Go cho 5 service lõi (Identity & Org, Campaign, Funds, Operations, Transparency) và Notification worker; Python cho service AI.
 > **Quy ước:** mỗi quyết định ghi *Chọn / Đã cân nhắc / Lý do / Hệ quả*. Thông tin ghi *(chưa kiểm chứng)* phải được xác nhận trong các spike ở mục 13 trước khi viết plan triển khai.
@@ -9,22 +9,22 @@
 
 ## 0. Tóm tắt
 
-| # | Hạng mục | Chọn |
-|---|---|---|
-| T-1 | Ngôn ngữ | Go (bản ổn định mới nhất) cho service lõi; Python ≥ 3.12 cho AI |
-| T-2 | API phía client | REST + OpenAPI, sinh code từ spec |
-| T-3 | Gọi đồng bộ nội bộ (chỉ đọc) | ConnectRPC + Protobuf, quản lý bằng `buf` |
-| T-4 | Event bus | NATS JetStream; event định nghĩa bằng Protobuf |
-| T-5 | Outbox / job / lịch | Bảng outbox + job queue chạy trên Postgres (River) trong từng service |
-| T-6 | Cơ sở dữ liệu | PostgreSQL; mỗi service một database; truy cập bằng `pgx` + `sqlc`; migration bằng `goose` |
-| T-7 | Gateway | Caddy (TLS, định tuyến, giới hạn tần suất); xác thực token trong từng service |
-| T-8 | Danh tính | Keycloak (OIDC, đăng nhập Google qua identity brokering) |
-| T-9 | Thanh toán | SePay API v2 — VA theo đơn hàng (chính); PayOS (phụ) — sau lớp adapter chung |
-| T-10 | Tệp, PDF, email | Lưu trữ tương thích S3; PDF sinh trong Transparency; email qua SMTP (local: Mailpit) |
-| T-11 | AI | FastAPI + Anthropic Python SDK, model `claude-opus-5-5`, structured outputs |
-| T-12 | Frontend | React + TypeScript (Vite), client sinh từ OpenAPI |
-| T-13 | Quan sát | OpenTelemetry; log JSON (`log/slog`); local: một container Grafana LGTM |
-| T-14 | Chạy local, CI, deploy | Docker Compose; GitHub Actions; một VPS chạy Compose cho môi trường demo |
+| # | Hạng mục | Chọn | Mức bằng chứng (Phụ lục A) |
+|---|---|---|---|
+| T-1 | Ngôn ngữ | Go (bản ổn định mới nhất) cho service lõi; Python ≥ 3.12 cho AI | Trung bình — đo trên máy (Phụ lục B) + chủ dự án chọn |
+| T-2 | API phía client | REST + OpenAPI, sinh code từ spec | Trung bình — audit + tài liệu |
+| T-3 | Gọi đồng bộ nội bộ (chỉ đọc) | ConnectRPC + Protobuf, quản lý bằng `buf` | Trung bình — tài liệu |
+| T-4 | Event bus | NATS JetStream; event định nghĩa bằng Protobuf | Trung bình — audit + tài liệu; RAM chưa đo |
+| T-5 | Outbox / job / lịch | Bảng outbox + job queue chạy trên Postgres (River) trong từng service | Mạnh — tài liệu xác nhận đúng tính năng cần |
+| T-6 | Cơ sở dữ liệu | PostgreSQL; mỗi service một database; truy cập bằng `pgx` + `sqlc`; migration bằng `goose` | Mạnh — tài liệu Postgres/sqlc |
+| T-7 | Gateway | Caddy (TLS, định tuyến, giới hạn tần suất); xác thực token trong từng service | Yếu — chủ yếu đánh giá |
+| T-8 | Danh tính | Keycloak (OIDC, đăng nhập Google qua identity brokering) | Trung bình — audit + tài liệu; RAM chưa đo |
+| T-9 | Thanh toán | SePay API v2 — VA theo đơn hàng (chính); PayOS (phụ) — sau lớp adapter chung | Mạnh — audit + tài liệu nhà cung cấp |
+| T-10 | Tệp, PDF, email | Lưu trữ tương thích S3; PDF sinh trong Transparency; email qua SMTP (local: Mailpit) | Yếu — chưa chọn cụ thể (spike S-5) |
+| T-11 | AI | FastAPI + Anthropic Python SDK, model `claude-opus-5-5`, structured outputs | Trung bình — tài liệu; chất lượng chưa đo (spike S-6) |
+| T-12 | Frontend | React + TypeScript (Vite), client sinh từ OpenAPI | Yếu — chủ yếu đánh giá |
+| T-13 | Quan sát | OpenTelemetry; log JSON (`log/slog`); local: một container Grafana LGTM | Yếu — chủ yếu đánh giá |
+| T-14 | Chạy local, CI, deploy | Docker Compose; GitHub Actions; một VPS chạy Compose cho môi trường demo | Trung bình — audit |
 
 ---
 
@@ -210,3 +210,141 @@ foodfund/
 1. Toàn bộ lựa chọn T-1 … T-14.
 2. **Đề xuất điều chỉnh requirement ở T-9:** hạ FR-PAY-02 (PayOS) xuống [S]; BR-11 phụ thuộc kết quả spike S-1.
 3. Thứ tự: chạy spike S-1 … S-6 trước, sau đó mới viết plan triển khai.
+
+---
+
+## Phụ lục A — Bằng chứng cho từng quyết định
+
+**Loại bằng chứng:**
+- **[Audit]** quan sát/đo trực tiếp trên hệ thống cũ trong buổi audit (2026-10-07);
+- **[Tài liệu]** tài liệu chính thức hoặc nguồn công khai, có link;
+- **[Đo]** đo trên máy phát triển (Phụ lục B);
+- **[Requirement]** suy ra trực tiếp từ `01-requirements.md` / `02-decomposition.md`;
+- **[Đánh giá]** nhận định của người thiết kế, chưa có bằng chứng khách quan.
+
+**Mức bằng chứng:** *Mạnh* = có tài liệu/đo xác nhận đúng tính năng cần; *Trung bình* = có bằng chứng một phần, phần còn lại là đánh giá; *Yếu* = chủ yếu là đánh giá.
+
+### T-1. Go cho lõi, Python cho AI — *Trung bình*
+
+- **[Đo]** Service HTTP tối thiểu (Phụ lục B): Go dùng ~20 MB RAM, khởi động ~0,52 giây; FastAPI dùng ~62 MB, khởi động ~1,1 giây — cùng phương pháp đo, 3 lần chạy.
+- **[Đánh giá — nói thẳng]** Chênh lệch RAM tuyệt đối cho 6 service chỉ khoảng 250 MB ở mức hello-world — **nhỏ** so với Keycloak (~1,25 GB). RAM **không phải** lý do quyết định. Lý do chính: chủ dự án chọn Go; kiểu tĩnh và lỗi tường minh hợp code tiền (Python có `pyright` cũng đạt được phần lớn điều này).
+- **Sẽ đổi quyết định nếu:** tốc độ làm một mình được ưu tiên hơn việc học Go → Python cho tất cả.
+
+### T-2. REST + OpenAPI thay cho GraphQL Federation — *Trung bình*
+
+- **[Audit]** Gateway Apollo của hệ thống cũ không phục vụ request nào cho đến khi kiểm tra xong từng subgraph: mỗi subgraph không sẵn sàng bị thử lại ~34 giây, **tuần tự** cho 4 subgraph. Lưu ý công bằng: một phần là do cách hiện thực (compose lúc khởi động), không hoàn toàn do Federation.
+- **[Requirement]** Web chỉ ở mức tối thiểu (mục 7.1 requirements); Transparency đã là read model gộp dữ liệu (D-3) → không còn nhu cầu ghép schema từ nhiều service.
+- **[Tài liệu]** `oapi-codegen` sinh interface server cho `net/http` chuẩn, có chế độ strict server tự xử lý marshal/unmarshal, và sinh client ([oapi-codegen](https://github.com/oapi-codegen/oapi-codegen)).
+- **Sẽ đổi nếu:** có nhiều loại client cần truy vấn linh hoạt (ví dụ thêm app mobile).
+
+### T-3. ConnectRPC + `buf` cho gọi nội bộ — *Trung bình*
+
+- **[Tài liệu]** Connect chạy trên HTTP/1.1, HTTP/2, HTTP/3; gọi được bằng cURL với JSON; hỗ trợ đầy đủ giao thức gRPC và gRPC-Web ([Connect docs](https://connectrpc.com/docs/introduction)). `buf` phát hiện thay đổi phá vỡ ([Buf CLI](https://webflow-new.buf.build/product/cli)).
+- **[Requirement]** C-6 (contract test cho schema); dùng chung Protobuf với event (T-4).
+- **[Đánh giá]** REST nội bộ cũng làm được; chọn Protobuf để có **một** nguồn schema cho cả RPC và event.
+
+### T-4. NATS JetStream thay cho Kafka — *Trung bình*
+
+- **[Audit]** Service `user` và `campaign` cũ **crash ngay khi khởi động** nếu không có Kafka (`KafkaJSConnectionError … Port … NaN`). Stack Kafka nằm riêng ở `infrastructure/docker-compose.yml` với 3 container (Zookeeper, Kafka, Debezium Connect) và README không nhắc tới.
+- **[Tài liệu]** JetStream có `AckWait` (hết hạn thì gửi lại), `MaxDeliver` (giới hạn số lần gửi), và phát advisory khi vượt giới hạn — dùng làm hàng lỗi (dead-letter) có thể phát lại ([Synadia: reliable delivery & DLQ](https://www.synadia.com/blog/jetstream-reliable-delivery-dlq-replay), [NATS docs: consumers](https://docs.nats.io/~/revisions/FTWMYYvWt52KJd0gQISk/using-nats/developer/develop_jetstream/consumers)). Đáp ứng C-3/C-4.
+- **Chưa có:** số đo RAM của NATS (Docker chưa chạy) → spike S-4.
+- **Sẽ đổi nếu:** cần CDC bằng Debezium hoặc lưu trữ/phát lại event ở quy mô rất lớn.
+
+### T-5. River (job queue trên Postgres) làm outbox và lịch — *Mạnh*
+
+- **[Tài liệu]** River chèn job **trong cùng transaction**: job chắc chắn được ghi nếu transaction commit, bị huỷ nếu rollback, và không ai thấy trước khi commit. Có job định kỳ/cron, tự thử lại, job duy nhất. Giấy phép MPL-2.0; gói mã nguồn mở miễn phí đã gồm job định kỳ (gói Pro trả phí chỉ thêm workflow, batching, giới hạn đồng thời — không cần) ([River — brandur.org](https://brandur.org/river), [itechguides — River](https://www.itechguides.com/products/river/)).
+- **[Audit]** Hệ thống cũ đã phải tự viết `OutboxEvent` + processor trong `campaign` → nhu cầu outbox là có thật; River thay phần tự viết đó.
+- **[Requirement]** C-2, C-4, BR-01 (lịch tự động), FR-PAY-05, FR-TRN-02 (nhắc hạn), NFR-01 (đối soát hằng ngày).
+
+### T-6. PostgreSQL + `pgx` + `sqlc` — *Mạnh*
+
+- **[Tài liệu]** Postgres hỗ trợ constraint trigger hoãn đến **cuối transaction** (`DEFERRABLE INITIALLY DEFERRED`) → kiểm tra mỗi bút toán cân bằng sau khi đã ghi hết các dòng ([PostgreSQL CREATE TRIGGER](https://www.postgresql.org/docs/current/sql-createtrigger.html)).
+- **[Tài liệu]** `sqlc` hỗ trợ `pgx/v5` từ v1.18.0 qua `sql_package: "pgx/v5"` ([sqlc — Using Go and pgx](https://docs.sqlc.dev/en/latest/guides/using-go-and-pgx.html)). *(Khả năng báo lỗi SQL lúc sinh code chưa được trích dẫn — kiểm tra trong spike S-2.)*
+- **[Audit]** Hệ thống cũ: `onDelete: Cascade` trên dữ liệu tiền, xoá cứng campaign, `received_amount` cập nhật hai lần không nguyên tử → cần transaction tường minh và quyền chỉ-INSERT ở mức database.
+
+### T-7. Caddy làm gateway — *Yếu*
+
+- **[Tài liệu]** Caddy tự cấp và gia hạn chứng chỉ TLS mặc định ([Caddy Automatic HTTPS](https://caddyserver.com/docs/automatic-https)).
+- **[Requirement]** C-7/NFR-04 buộc kiểm tra quyền tại service sở hữu dữ liệu → service phải xác thực token dù gateway có làm hay không → gateway không cần logic.
+- **[Đánh giá]** Nginx, Traefik hoặc gateway tự viết đều dùng được; chọn Caddy vì cấu hình ngắn và TLS tự động cho VPS demo.
+
+### T-8. Keycloak — *Trung bình*
+
+- **[Audit]** Service `auth` cũ phụ thuộc AWS Cognito thật → không chạy được local; luồng Google tự viết đổi mật khẩu người dùng (`libs/aws-cognito/aws-cognito.service.ts:851-853`).
+- **[Tài liệu]** `--import-realm` nạp file realm JSON khi khởi động, bỏ qua nếu realm đã có → seed sẵn người dùng cho từng vai trò, phục vụ NFR-05 ([Red Hat build of Keycloak — Importing and Exporting Realms](https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/24.0/html/server_guide/importexport-)).
+- **[Tài liệu]** Hướng dẫn sizing chính thức: bộ nhớ cơ sở **1250 MB** (gồm cache realm và 10.000 phiên) — con số cho production, môi trường dev có thể thấp hơn nhưng **chưa đo** ([Keycloak sizing](https://www.keycloak.org/high-availability/single-cluster/concepts-memory-and-cpu-sizing)).
+- **Bằng chứng mâu thuẫn:** Zitadel được một nguồn nêu ~512 MB nhưng khuyến nghị nhiều hơn ([Zitadel minimum specs](https://help.zitadel.com/what-are-zitadel-minimum-self-hosted-specs), [SSD Nodes](https://www.ssdnodes.com/learn/lang/it/keycloak-vs-authentik-vs-zitadel)) → không đủ căn cứ để nói Zitadel nhẹ hơn trong thực tế.
+- **[Đánh giá]** Keycloak phổ biến, dễ giải thích khi phỏng vấn. Đăng nhập Google qua identity brokering là tính năng chuẩn của Keycloak *(chưa trích dẫn trực tiếp)*.
+- **Sẽ đổi nếu:** spike S-4 cho thấy Keycloak làm vượt RAM VPS hoặc vượt 10 phút khởi động.
+
+### T-9. SePay VA theo đơn hàng — *Mạnh*
+
+- **[Audit]** Lỗi thanh toán của hệ thống cũ đều đến từ việc khớp theo nội dung/số tiền: coi hai khoản cùng số tiền là trùng, tiền không khớp vào thẳng ví admin, phải xử lý chuyển thiếu/dư (mục 8 requirements).
+- **[Tài liệu]** VA theo đơn hàng: mỗi đơn một VA, **ngân hàng báo lỗi ngay nếu chuyển sai số tiền**, VA tự huỷ sau khi thanh toán hoặc hết hạn; API v1 ngừng phát triển ([SePay — VA theo đơn hàng](https://developer.sepay.vn/en/sepay-api/api-va-theo-don-hang)). Sandbox giả lập thanh toán VA cho BIDV, Sacombank, Vietcombank, VietinBank, Shinhan ([SePay Sandbox](https://developer.sepay.vn/en/sepay-api/v2/sandbox)). Webhook xác thực HMAC-SHA256/API key, gửi lại tối đa 7 lần trong 5 giờ ([SePay webhooks](https://docs.sepay.vn/tich-hop-webhooks.html)).
+- **[Tài liệu]** PayOS có chữ ký webhook và môi trường test ([payOS webhook](https://payos.vn/docs/du-lieu-tra-ve/webhook/)).
+
+### T-10. Tệp, PDF, email — *Yếu*
+
+- Chưa chọn thư viện/dịch vụ cụ thể; quyết định thật nằm ở spike S-5.
+
+### T-11. AI với Anthropic SDK — *Trung bình*
+
+- **[Tài liệu]** Structured outputs (`client.messages.parse()`) kiểm tra kết quả theo schema; `claude-opus-5-5` là model mặc định hiện tại, giá $4/$20 cho mỗi triệu token vào/ra, effort mặc định `medium`; Batch API giảm 50% chi phí cho tác vụ không gấp (tài liệu Claude API đi kèm công cụ phát triển, bản cache 2026-09-25).
+- **[Requirement]** NFR-10: AI chỉ gợi ý, có eval, có trần chi phí.
+- **Chưa có:** chất lượng trích xuất hoá đơn tiếng Việt và chi phí thực mỗi ảnh → spike S-6.
+- **Minh bạch về thiên lệch:** tài liệu này được soạn với sự hỗ trợ của Claude (sản phẩm của Anthropic), và chưa có phép so sánh với nhà cung cấp khác (spec chatbot cũ dùng Gemini). **Spike S-6 nên chạy cùng bộ eval trên ít nhất một nhà cung cấp khác** trước khi chốt; lớp adapter trong service AI giữ khả năng đổi nhà cung cấp.
+
+### T-12. React + TypeScript — *Yếu*
+
+- **[Đánh giá]** Phổ biến, thể hiện được kỹ năng frontend cho vị trí SE I tổng quát; client có kiểu sinh từ OpenAPI. Go + htmx cũng đáp ứng requirement với ít code hơn.
+
+### T-13. OpenTelemetry + Grafana LGTM — *Yếu*
+
+- **[Requirement]** NFR-08 (trace xuyên service, cảnh báo).
+- **[Đánh giá]** OpenTelemetry là chuẩn mở, không khoá vào nhà cung cấp (hệ thống cũ dùng Datadog + Sentry). Chưa đo RAM của container LGTM.
+
+### T-14. Compose, GitHub Actions, một VPS — *Trung bình*
+
+- **[Audit]** Hệ thống cũ: `docker-compose up` theo README thất bại (thiếu `.env.docker`, không có Postgres/Redis/Kafka); bước test trong CI bị comment; không có smoke test → cần Compose dựng đủ hạ tầng và job smoke trong CI.
+- **[Requirement]** NFR-05, NFR-09; Kubernetes nằm ngoài phạm vi (mục 7.1 requirements).
+
+---
+
+## Phụ lục B — Phép đo Go vs Python (2026-10-09)
+
+**Mục đích:** có số liệu cho T-1 thay vì khẳng định chung chung.
+
+**Môi trường:** Windows 11 Pro, Go 1.26.2, Python 3.13.3, FastAPI 0.143.0, uvicorn 0.54.0, pydantic 2.14.0. Docker không chạy nên không đo được Keycloak, NATS, Postgres.
+
+**Phương pháp:** mỗi bên một endpoint `GET /health` trả JSON. Chạy tiến trình, đo thời gian tới khi trả lời được request đầu tiên; nghỉ 2 giây rồi đo working set của **cả cây tiến trình** (cả hai bên đều có một tiến trình console host đi kèm; với Python còn có trình khởi chạy của venv); gửi 1.000 request tuần tự từ PowerShell. Lặp 3 lần.
+
+| Lần | Service | Khởi động (ms) | RAM nghỉ (MB) | RAM sau 1.000 request (MB) | 1.000 request (ms) |
+|---|---|---|---|---|---|
+| 1 | Go `net/http` | 624 | 20,1 | 23,3 | 169 |
+| 1 | FastAPI + uvicorn | 1.110 | 62,4 | 62,5 | 550 |
+| 2 | Go `net/http` | 523 | 20,1 | 23,3 | 117 |
+| 2 | FastAPI + uvicorn | 1.103 | 62,4 | 62,5 | 517 |
+| 3 | Go `net/http` | 524 | 20,1 | 24,6 | 111 |
+| 3 | FastAPI + uvicorn | 1.091 | 62,5 | 62,6 | 518 |
+
+**Kết luận:** trong phép đo này Go dùng RAM ít hơn ~3 lần và khởi động nhanh hơn ~2 lần.
+
+**Giới hạn — đọc trước khi trích dẫn:**
+- Chỉ là hello-world; service thật có driver DB, client NATS, SDK nên số tuyệt đối sẽ khác.
+- Đo trên Windows, không phải container Linux như khi deploy.
+- Thời gian 1.000 request gồm cả chi phí phía client PowerShell; không phải benchmark hiệu năng.
+- Lần đo đầu tiên bị sai (chỉ đo trình khởi chạy của venv, ra 4,1 MB cho Python) và đã được đo lại bằng cách tính cả cây tiến trình.
+
+---
+
+## Phụ lục C — Những gì còn thiếu bằng chứng
+
+| Quyết định | Thiếu gì | Spike |
+|---|---|---|
+| T-4, T-8, T-13, T-14 | RAM và thời gian khởi động thực của NATS, Keycloak, Postgres, LGTM trong Compose | S-4 |
+| T-5 | Thử thực tế: chèn job trong transaction `pgx` → publish NATS | S-3 |
+| T-6 | `sqlc` báo lỗi SQL lúc sinh code; constraint trigger cân bằng bút toán | S-2 |
+| T-9 | Webhook SePay end-to-end; tiền tố VA cho campaign; thuật toán ký PayOS | S-1 |
+| T-10 | Thư viện PDF hỗ trợ tiếng Việt; trình giả lập S3 và giấy phép | S-5 |
+| T-11 | Chất lượng/chi phí trích xuất hoá đơn; so sánh với ít nhất một nhà cung cấp khác | S-6 |
+| T-7, T-12 | Không cần spike — chấp nhận là quyết định theo đánh giá, dễ thay sau | — |
