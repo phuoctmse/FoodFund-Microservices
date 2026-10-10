@@ -1,6 +1,6 @@
 # FoodFund (bản viết lại) — Requirements
 
-> **Trạng thái:** v1.2 — 2026-10-10 — v1.0 đã chốt Q-01…Q-14; v1.1 đưa Kubernetes vào phạm vi (ADR-004); v1.2: chủ dự án xác định **pháp lý chỉ để tham khảo** với bản demo (mục 7.2) — NFR-12 hạ xuống ghi chú, không thêm yêu cầu tuân thủ chuyển dữ liệu ra nước ngoài.
+> **Trạng thái:** v1.3 — 2026-10-10 — v1.0 đã chốt Q-01…Q-14; v1.1 đưa Kubernetes vào phạm vi (ADR-004); v1.2 pháp lý chỉ để tham khảo (mục 7.2); v1.3 tóm tắt báo cáo bằng template (FR-TRN-02), AI-04 hạ xuống [C].
 > **Nguồn:** dựng ngược từ hệ thống cũ (`origin/master` @ `84fed04`) → được BA review đối chiếu code (có `file:line`) và thực tế pháp lý/vận hành ở Việt Nam.
 > **Quy ước:** `FR-*` chức năng · `BR-*` quy tắc nghiệp vụ · `NFR-*` phi chức năng · `Q-*` câu hỏi mở · **[M]** Must / **[S]** Should / **[C]** Could (giai đoạn 2) · *(chưa kiểm chứng)* = thông tin chưa đối chiếu được nguồn gốc.
 
@@ -154,7 +154,7 @@ FoodFund là nền tảng gây quỹ từ thiện về thực phẩm: kết nố
 - **FR-SRC-02 [M]** Tìm quyên góp theo campaign, số tiền, thời gian; **tìm theo email/định danh donor chỉ dành cho admin**.
 - **FR-SRC-03 [C]** Tìm kiếm toàn văn (full-text).
 - **FR-TRN-01 [M]** **Sao kê công khai** theo campaign: tiền vào, tiền ra (giải ngân, hoàn tiền, chuyển dư) kèm chứng từ; che số tài khoản và thông tin cá nhân.
-- **FR-TRN-02 [M]** Tự phát hành **Báo cáo tiếp nhận** ≤ 15 ngày sau khi kết thúc gây quỹ và **Báo cáo phân phối** ≤ 30 ngày sau khi phase cuối kết thúc; báo cáo bất biến, có phiên bản, tải được (PDF/CSV); cảnh báo khi sắp trễ hạn.
+- **FR-TRN-02 [M]** Tự phát hành **Báo cáo tiếp nhận** ≤ 15 ngày sau khi kết thúc gây quỹ và **Báo cáo phân phối** ≤ 30 ngày sau khi phase cuối kết thúc; báo cáo bất biến, có phiên bản, tải được (PDF/CSV); cảnh báo khi sắp trễ hạn. Báo cáo có **phần tóm tắt bằng lời sinh từ template** (không dùng AI): mọi số liệu lấy từ sổ cái; có biến thể cho các trường hợp còn/không còn tiền dư, hoàn thành/bị huỷ.
 - **FR-TRN-03 [S]** Xuất mẫu báo cáo để tổ chức nộp chính quyền địa phương.
 
 ### 4.14 Upload tệp
@@ -166,7 +166,7 @@ FoodFund là nền tảng gây quỹ từ thiện về thực phẩm: kết nố
 | Mã | Ưu tiên | Tính năng | Ghi chú |
 |---|---|---|---|
 | AI-01 | **[M]** | **Xác minh chứng từ chi tiêu**: trích xuất món, đơn giá, tổng tiền từ ảnh hoá đơn; đối chiếu với yêu cầu đã duyệt và số đã giải ngân; gắn cờ sai lệch, trùng lặp. Admin quyết định cuối | Gắn với FR-DSB-05; có bộ eval |
-| AI-04 | [S] | Tóm tắt báo cáo phân phối thành văn bản dễ đọc cho donor | Gắn với FR-TRN-02; số liệu lấy từ sổ cái, AI chỉ diễn đạt |
+| AI-04 | [C] | Viết lại tóm tắt báo cáo (bản template của FR-TRN-02) cho tự nhiên hơn | Giai đoạn 2. Luật bắt buộc: AI chỉ viết lại câu chữ từ bản template, không tự tính; code kiểm tra mọi con số khớp bản template, lệch → dùng bản template; hiển thị nhãn "tóm tắt do AI viết lại, số liệu đã được đối chiếu" |
 | AI-02 | [C] | Chatbot minh bạch cho donor (chỉ đọc dữ liệu công khai qua API, **không** NL→SQL) | Spec cũ chỉ tồn tại ở máy local và hiện không còn |
 | AI-03 | [C] | Tìm kiếm campaign theo ngữ nghĩa | |
 | AI-05 | [C] | Trợ lý soạn campaign, kiểm duyệt nội dung | |
@@ -317,7 +317,7 @@ Quyết định: **Đồng ý đề xuất** (2026-10-09).
 Quyết định: **Đồng ý đề xuất** (2026-10-09).
 
 **Q-10. Chọn tính năng mới nào?**
-Đề xuất: **AI-01** [M] (nằm ngay trên luồng tiền, sửa đúng lỗ hổng "chứng từ không được đối chiếu"); AI-04 [S] nếu còn thời gian; AI-02 để giai đoạn 2 vì rủi ro rò dữ liệu. *Chi phí: trung bình.*
+Đề xuất: **AI-01** [M] (nằm ngay trên luồng tiền, sửa đúng lỗ hổng "chứng từ không được đối chiếu"); AI-04 [S] nếu còn thời gian *(cập nhật v1.3: AI-04 hạ xuống [C], tóm tắt báo cáo dùng template)*; AI-02 để giai đoạn 2 vì rủi ro rò dữ liệu. *Chi phí: trung bình.*
 Quyết định: **Đồng ý đề xuất** (2026-10-09).
 
 **Q-11. Mục tiêu coverage?**

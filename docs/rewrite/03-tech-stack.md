@@ -133,7 +133,7 @@
   - Ảnh hoá đơn + danh sách món đã duyệt + số đã giải ngân → model trả **JSON theo schema cố định** (ép bằng structured output của vLLM, kiểm tra lại bằng Pydantic): dòng hàng (tên, số lượng, đơn giá, thành tiền), tổng tiền, ngày, người bán, độ tin cậy, cờ (`TOTAL_MISMATCH`, `OVER_DISBURSED`, `ITEM_NOT_APPROVED`, `DUPLICATE_SUSPECTED`, `UNREADABLE`).
   - Phép so sánh số tiền và phát hiện trùng **tính bằng code**, không để model tự cộng.
   - Kết quả chỉ là gợi ý; admin quyết định (NFR-10).
-- **AI-04 — tóm tắt báo cáo:** *chưa chốt* (giữ, hạ ưu tiên, hay thay bằng template).
+- **AI-04 — tóm tắt báo cáo:** **giai đoạn 1 không dùng AI** — Transparency sinh tóm tắt từ template, số liệu lấy từ sổ cái (FR-TRN-02). AI-04 hạ xuống [C]; nếu làm ở giai đoạn 2: model chỉ viết lại câu chữ, code đối chiếu mọi con số với bản template, lệch → dùng bản template.
 - **Eval (NFR-10):**
   - Dữ liệu: MC-OCR 2021 (2.436 hoá đơn tiếng Việt chụp bằng điện thoại, 4 trường — **kiểm tra giấy phép dữ liệu trước khi dùng**) + 30–50 ảnh tự chụp (phiếu POS, bảng kê viết tay), không chứa dữ liệu cá nhân thật.
   - Chỉ số: khớp chính xác tổng tiền, ngày, người bán; F1 dòng hàng; recall cờ sai lệch; tỉ lệ JSON đúng schema; thời gian xử lý mỗi ảnh trên GPU và CPU; VRAM/RAM tối đa.

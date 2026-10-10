@@ -58,7 +58,7 @@ flowchart LR
 | **Funds** | Thanh toán và webhook, đối soát, **sổ cái**, giữ tiền và giải ngân, hoàn tiền, tiền dư, biên nhận, duyệt hai người | FR-PAY-*, FR-LED-*, FR-SUR-01, BR-07, BR-08, BR-11–BR-13 | Donation/payment của `campaign` + ví của `user` + `Inflow_Transaction` của `operation` |
 | **Operations** | Yêu cầu chi, phê duyệt yêu cầu, chứng từ, mẻ ăn, giao hàng | FR-DSB-*, FR-KIT-*, FR-DLV-* | `operation` (trừ phần tiền) |
 | **Transparency** | Sao kê, báo cáo theo thời hạn, tìm kiếm; **chỉ đọc** dữ liệu nghiệp vụ, sở hữu báo cáo | FR-TRN-*, FR-SRC-* | Search/statement rải rác + OpenSearch CDC |
-| **AI** (Python) | Xác minh chứng từ (AI-01), tóm tắt báo cáo (AI-04); **chỉ là worker activity**, không có API công khai | AI-01, AI-04, NFR-10 | Mới |
+| **AI** (Python) | Xác minh chứng từ (AI-01); **chỉ là worker activity**, không có API công khai. (AI-04 viết lại tóm tắt báo cáo — giai đoạn 2) | AI-01, NFR-10 | Mới |
 | *Notification* (worker) | Gửi email theo event | FR-NTF-01 | Notification của `campaign` |
 | *Gateway* | Traefik: TLS, định tuyến `HTTPRoute`, rate limit, lọc IP SePay; **không** nghiệp vụ, **không** xác thực token | NFR-04 | `graphql-gateway` |
 
@@ -124,7 +124,7 @@ Mỗi service có **task queue riêng** cùng tên (`identity`, `campaign`, `fun
 | `Disbursement` | Funds | Operations sau khi admin duyệt yêu cầu | `disbursement-{requestId}` | Hạn chờ xác nhận nhận tiền (ví dụ 7 ngày) | `TransferRecorded`, `SecondApproval` (BR-13), `ReceiptConfirmed`, `ReceiptDisputed`, `AdminResolved` | Operations: `MarkReadyToDisburse`, `MarkDisbursed`, `RejectRequest`, `MarkDisbursementFailed`; Campaign: `AdvancePhase` |
 | `ExpenseProofAnalysis` | Operations | Kitchen nộp chứng từ | `proof-{proofId}` | Timeout phân tích | — | AI: `AnalyzeReceipt` (Python) |
 | `SurplusCase` | Funds | `CampaignLifecycle` (UNDERFUNDED / CANCELLED / còn dư sau COMPLETED) | `surplus-{campaignId}` | Hạn phản đối của donor | `PlanApproved`, `DonorObjected` | Identity: lấy danh sách liên hệ donor (đọc) |
-| `ReportDeadline` | Transparency | `CampaignLifecycle` (đóng gây quỹ → báo cáo tiếp nhận ≤ 15 ngày; hoàn thành → báo cáo phân phối ≤ 30 ngày) | `report-{campaignId}-{kind}` | Hạn công khai; nhắc trước hạn | `Retry` | Funds: `GetLedgerTotals` (đối chiếu); AI: `SummarizeReport` (AI-04, tuỳ chọn) |
+| `ReportDeadline` | Transparency | `CampaignLifecycle` (đóng gây quỹ → báo cáo tiếp nhận ≤ 15 ngày; hoàn thành → báo cáo phân phối ≤ 30 ngày) | `report-{campaignId}-{kind}` | Hạn công khai; nhắc trước hạn | `Retry` | Funds: `GetLedgerTotals` (đối chiếu). Tóm tắt bằng lời sinh từ template trong Transparency (giai đoạn 2 có thể thêm AI: `RewriteSummary`, AI-04) |
 | `CampaignReassignment` [C] | Campaign | Admin đề xuất | `reassign-{campaignId}-{n}` | 7 ngày (BR-09) | `Accept`, `Decline` | — |
 | `DailyReconciliation` | Funds | Temporal Schedule | theo ngày | — | — | — |
 | `RecordAndPublish` (mẫu chung, workflow ngắn) | Service sở hữu dữ liệu | Thao tác I-1 cần phát event: xác minh tổ chức, duyệt thành viên, sửa campaign, duyệt chứng từ… | `{loại}-{entityId}-{phiên bản}` | — | — | Không — chỉ gồm activity ghi DB → activity phát event (C-2) |
@@ -340,7 +340,8 @@ Kitchen nộp chứng từ → Operations ghi `ExpenseProof` và khởi động 
 | FR-KIT, FR-DLV | Operations | — |
 | FR-NTF | Notification | (tiêu thụ event) |
 | FR-TRN, FR-SRC | Transparency | `ReportDeadline` |
-| AI-01, AI-04, NFR-10 | AI | `ExpenseProofAnalysis`, `ReportDeadline` |
+| AI-01, NFR-10 | AI | `ExpenseProofAnalysis` |
+| AI-04 [C] | AI | `ReportDeadline` (giai đoạn 2) |
 | FR-RSG | Campaign | `CampaignReassignment` |
 
 **Báo cáo công khai (FR-TRN-02):** `ReportDeadline` đối chiếu tổng tiền của báo cáo với sổ cái qua activity `funds.GetLedgerTotals`; lệch → không phát hành, cảnh báo admin, chờ `Retry`.
