@@ -1,6 +1,6 @@
 # FoodFund (bản viết lại) — Requirements
 
-> **Trạng thái:** v1.1 — 2026-10-10 — v1.0 đã chốt Q-01…Q-14; v1.1 đưa Kubernetes vào phạm vi (ADR-004): sửa mục 7.1, NFR-05, thêm NFR-14.
+> **Trạng thái:** v1.2 — 2026-10-10 — v1.0 đã chốt Q-01…Q-14; v1.1 đưa Kubernetes vào phạm vi (ADR-004); v1.2: chủ dự án xác định **pháp lý chỉ để tham khảo** với bản demo (mục 7.2) — NFR-12 hạ xuống ghi chú, không thêm yêu cầu tuân thủ chuyển dữ liệu ra nước ngoài.
 > **Nguồn:** dựng ngược từ hệ thống cũ (`origin/master` @ `84fed04`) → được BA review đối chiếu code (có `file:line`) và thực tế pháp lý/vận hành ở Việt Nam.
 > **Quy ước:** `FR-*` chức năng · `BR-*` quy tắc nghiệp vụ · `NFR-*` phi chức năng · `Q-*` câu hỏi mở · **[M]** Must / **[S]** Should / **[C]** Could (giai đoạn 2) · *(chưa kiểm chứng)* = thông tin chưa đối chiếu được nguồn gốc.
 
@@ -218,7 +218,7 @@ FoodFund là nền tảng gây quỹ từ thiện về thực phẩm: kết nố
 | NFR-09 | **Chi phí vận hành** ≤ ~25 USD/tháng cho môi trường demo *(con số mục tiêu, chưa tra giá)* | Ước tính chi phí trong `03-tech-stack.md` |
 | NFR-10 | **AI có trách nhiệm**: AI chỉ gợi ý, con người quyết định ở luồng tiền; bộ eval có nhãn chạy trong CI; ẩn thông tin cá nhân trước khi gửi mô hình; giới hạn chi phí; lưu log đầu vào/đầu ra/người duyệt | Eval pass ngưỡng; audit log |
 | NFR-11 | Nội dung tiếng Việt; tiền tệ VND, lưu số nguyên | |
-| NFR-12 | **Ghi rõ khung pháp lý giả định**; mục đích campaign thuộc phạm vi cho phép | Mục 7.2 |
+| NFR-12 | *(Tham khảo, không bắt buộc với bản demo)* README ghi rõ đây là dự án demo, không vận hành gây quỹ thật; khung pháp lý ở mục 7.2 chỉ để hiểu bối cảnh | README |
 | NFR-13 | **Bảo vệ dữ liệu cá nhân**: API công khai không trả email, số điện thoại, số tài khoản; không log dữ liệu nhạy cảm | Test hợp đồng API công khai |
 | NFR-14 | **Sẵn sàng cho Kubernetes**: cấu hình qua biến môi trường, `/healthz` và `/readyz`, tắt êm khi nhận SIGTERM, log JSON ra stdout, không lưu trạng thái trên đĩa cục bộ, khai báo `requests`/`limits` | Kiểm tra trong CI (probe, test tắt êm) |
 
@@ -236,7 +236,9 @@ FoodFund là nền tảng gây quỹ từ thiện về thực phẩm: kết nố
 
 **Trong phạm vi:** backend + **web tối thiểu** cho các luồng demo (trang campaign, quyên góp bằng QR, sao kê/báo cáo, màn hình admin duyệt – giải ngân – đối soát, màn hình nộp chứng từ).
 
-### 7.2 Đối chiếu pháp lý (Việt Nam)
+### 7.2 Đối chiếu pháp lý (Việt Nam) — chỉ để tham khảo
+
+> **Quyết định của chủ dự án (2026-10-10):** bản viết lại là demo/portfolio, **không phải tuân thủ pháp lý**. Mục này giữ lại để hiểu bối cảnh khi trình bày (phỏng vấn, báo cáo). Các yêu cầu bên trên có nguồn gốc pháp lý (FR-TRN-02, BR-11, BR-12, FR-ORG-04, FR-PAY-09) vẫn giữ **vì chúng là giá trị minh bạch của sản phẩm**, không phải vì nghĩa vụ pháp lý.
 
 *Thông tin lấy từ bài báo và tóm tắt pháp luật; **chưa đối chiếu nguyên văn** Nghị định 93/2021/NĐ-CP — cần kiểm tra lại trước khi coi là căn cứ.*
 
@@ -249,6 +251,7 @@ FoodFund là nền tảng gây quỹ từ thiện về thực phẩm: kết nố
 | Sổ ghi nhận tiếp nhận/phân phối; biên nhận khi donor yêu cầu | FR-LED-*, FR-PAY-09 | [nhandan](https://nhandan.vn/quy-dinh-moi-ve-ca-nhan-van-dong-tu-thien-cong-khai-minh-bach-va-co-thoi-han-post671412.html) |
 | SePay: xác thực HMAC-SHA256/API key/OAuth2; gửi lại tối đa 7 lần trong 5 giờ; phản hồi trong 30 giây; chống trùng theo `id` | NFR-01, BR-08 | [docs.sepay.vn](https://docs.sepay.vn/tich-hop-webhooks.html) |
 | PayOS: webhook có chữ ký | NFR-01 | [payos.vn](https://payos.vn/docs/du-lieu-tra-ve/webhook/) |
+| *(Tham khảo)* Luật Bảo vệ dữ liệu cá nhân hiệu lực 01/01/2026 (Nghị định 356/2025): xử lý dữ liệu thu thập ở Việt Nam trên nền tảng nước ngoài được tính là chuyển dữ liệu ra nước ngoài (đánh giá tác động, đồng ý của chủ thể). Liên quan khi gửi ảnh chứng từ tới HF ZeroGPU/Modal (T-11) | Không thành yêu cầu — demo chỉ dùng ảnh tự tạo | [Tilleke](https://www.tilleke.com/insights/vietnam-issues-personal-data-protection-law/13/), [PwC](https://legal.pwc.de/en/news/articles/pwc-vietnam-new-personal-data-protection-law) |
 
 ---
 
