@@ -130,12 +130,12 @@
 
 - **Phân bổ chạy model (ADR-004, luật 8):** laptop chỉ chạy stack app; test E2E và demo gọi model ở ZeroGPU (app và model chạy song song thật); eval S-6 chạy local vì cần nhiều ảnh, vượt quota ZeroGPU.
 - **AI-01 — xác minh chứng từ:**
-  - Ảnh hoá đơn + danh sách món đã duyệt + số đã giải ngân → model trả **JSON theo schema cố định** (ép bằng structured output của vLLM, kiểm tra lại bằng Pydantic): dòng hàng (tên, số lượng, đơn giá, thành tiền), tổng tiền, ngày, người bán, độ tin cậy, cờ (`TOTAL_MISMATCH`, `OVER_DISBURSED`, `ITEM_NOT_APPROVED`, `DUPLICATE_SUSPECTED`, `UNREADABLE`).
+  - Đầu vào: ảnh phiếu siêu thị/cửa hàng, giấy viết tay/bảng kê, ảnh chụp màn hình chuyển khoản (video không phân tích) + danh sách món đã duyệt + tổng tiền người nộp khai + số đã giải ngân → model trả **JSON theo schema cố định** (ép bằng structured output của vLLM, kiểm tra lại bằng Pydantic): dòng hàng (tên, số lượng, đơn giá, thành tiền), tổng tiền, ngày, người bán, độ tin cậy, cờ (`TOTAL_MISMATCH`, `OVER_DISBURSED`, `ITEM_NOT_APPROVED`, `DECLARED_TOTAL_MISMATCH`, `UNREADABLE`). Ảnh trùng phát hiện bằng perceptual hash trong Operations (FR-DSB-08), không qua model.
   - Phép so sánh số tiền và phát hiện trùng **tính bằng code**, không để model tự cộng.
   - Kết quả chỉ là gợi ý; admin quyết định (NFR-10).
 - **AI-04 — tóm tắt báo cáo:** **giai đoạn 1 không dùng AI** — Transparency sinh tóm tắt từ template, số liệu lấy từ sổ cái (FR-TRN-02). AI-04 hạ xuống [C]; nếu làm ở giai đoạn 2: model chỉ viết lại câu chữ, code đối chiếu mọi con số với bản template, lệch → dùng bản template.
 - **Eval (NFR-10):**
-  - Dữ liệu: MC-OCR 2021 (2.436 hoá đơn tiếng Việt chụp bằng điện thoại, 4 trường — **kiểm tra giấy phép dữ liệu trước khi dùng**) + 30–50 ảnh tự chụp (phiếu POS, bảng kê viết tay), không chứa dữ liệu cá nhân thật.
+  - Dữ liệu: MC-OCR 2021 (2.436 hoá đơn tiếng Việt chụp bằng điện thoại, 4 trường — **kiểm tra giấy phép dữ liệu trước khi dùng**) + ảnh tự tạo **bắt buộc đủ 3 loại**: phiếu POS, giấy viết tay/bảng kê, ảnh chụp màn hình chuyển khoản (mỗi loại ≥ 15 ảnh; MC-OCR chủ yếu là phiếu in nên không đại diện cho chợ). Không chứa dữ liệu cá nhân thật. Chỉ số báo cáo **theo từng loại chứng từ**.
   - Chỉ số: khớp chính xác tổng tiền, ngày, người bán; F1 dòng hàng; recall cờ sai lệch; tỉ lệ JSON đúng schema; thời gian xử lý mỗi ảnh trên GPU và CPU; VRAM/RAM tối đa.
   - Luật chọn: model **nhẹ hơn** thắng nếu cả hai đạt ngưỡng (ví dụ tổng tiền đúng ≥ 95% với phiếu in, recall cờ ≥ 90%).
   - CI chấm điểm trên phản hồi đã ghi lại (không cần GPU).
@@ -194,7 +194,7 @@ Mỗi spike là thử nghiệm nhỏ (≤ 1–2 ngày), kết quả ghi lại th
 | S-3 | Saga giải ngân trên Temporal + Postgres: giữ tiền → chờ tín hiệu có hạn → ghi sổ hoặc hoàn lại; webhook khởi động workflow với ID tất định (chống trùng); replay test; có bỏ được NATS không | T-4, T-5, ADR-003 |
 | S-4 | Đo thời gian `make up` (k3d) từ máy sạch và RAM thực tế (đặc biệt Keycloak và Temporal) | NFR-05, NFR-09 |
 | S-5 | Chọn trình giả lập S3 (giấy phép), thư viện PDF Go hỗ trợ tiếng Việt, nhà cung cấp email/quan sát miễn phí | T-10, T-13 |
-| S-6 | (a) Eval AI-01: Qwen3-VL-4B vs Vintern-1B-v3.5 trên MC-OCR + ảnh tự chụp, chạy **local** trên RTX 3070 (đo cả CPU). (b) Deploy 2 Space ZeroGPU (Gradio): Vintern với `trust_remote_code` có chạy không; thời gian mỗi lần gọi; quota có trừ vào tài khoản của token gọi không; thời gian chờ khi Space ngủ/xếp hàng. (c) Nếu (b) trượt: deploy lên Modal | T-11, ADR-004 |
+| S-6 | (a) Eval AI-01: Qwen3-VL-4B vs Vintern-1B-v3.5 trên MC-OCR + ảnh tự tạo đủ 3 loại (phiếu POS, viết tay, chuyển khoản), báo cáo theo từng loại, chạy **local** trên RTX 3070 (đo cả CPU). (b) Deploy 2 Space ZeroGPU (Gradio): Vintern với `trust_remote_code` có chạy không; thời gian mỗi lần gọi; quota có trừ vào tài khoản của token gọi không; thời gian chờ khi Space ngủ/xếp hàng. (c) Nếu (b) trượt: deploy lên Modal | T-11, ADR-004 |
 | S-7 | Traefik trên k3s một node: `IPAllowList` gắn qua `ExtensionRef` hoạt động; proxy nhận đúng IP thật của request từ bên ngoài (trượt → Envoy Gateway) | T-7, ADR-002 |
 | S-8 | Vòng lặp code nhanh với cluster local: `go run` + port-forward hay công cụ đồng bộ code vào pod (kiểm tra tình trạng bảo trì của Tilt) | T-14, ADR-004 |
 | S-9 | Temporal trên PostgreSQL 18: công cụ quản lý schema có hỗ trợ không, hay phải chạy thủ công / dùng PG17 riêng | T-5, T-6, ADR-001, ADR-003 |

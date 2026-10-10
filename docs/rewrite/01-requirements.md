@@ -1,6 +1,6 @@
 # FoodFund (bản viết lại) — Requirements
 
-> **Trạng thái:** v1.3 — 2026-10-10 — v1.0 đã chốt Q-01…Q-14; v1.1 đưa Kubernetes vào phạm vi (ADR-004); v1.2 pháp lý chỉ để tham khảo (mục 7.2); v1.3 tóm tắt báo cáo bằng template (FR-TRN-02), AI-04 hạ xuống [C].
+> **Trạng thái:** v1.4 — 2026-10-10 — v1.0 đã chốt Q-01…Q-14; v1.1 đưa Kubernetes vào phạm vi (ADR-004); v1.2 pháp lý chỉ để tham khảo (mục 7.2); v1.3 tóm tắt báo cáo bằng template, AI-04 hạ xuống [C]; v1.4 nộp chứng từ theo luồng "chụp và gửi" cho người dùng không rành công nghệ (FR-DSB-05, FR-DSB-08, FR-DSB-09, AI-01).
 > **Nguồn:** dựng ngược từ hệ thống cũ (`origin/master` @ `84fed04`) → được BA review đối chiếu code (có `file:line`) và thực tế pháp lý/vận hành ở Việt Nam.
 > **Quy ước:** `FR-*` chức năng · `BR-*` quy tắc nghiệp vụ · `NFR-*` phi chức năng · `Q-*` câu hỏi mở · **[M]** Must / **[S]** Should / **[C]** Could (giai đoạn 2) · *(chưa kiểm chứng)* = thông tin chưa đối chiếu được nguồn gốc.
 
@@ -114,9 +114,17 @@ FoodFund là nền tảng gây quỹ từ thiện về thực phẩm: kết nố
 - **FR-DSB-02 [M]** Gửi yêu cầu chi phí vận hành loại COOKING/DELIVERY (cùng ràng buộc như trên).
 - **FR-DSB-03 [M]** Admin duyệt/từ chối kèm ghi chú.
 - **FR-DSB-04 [M]** Admin giải ngân yêu cầu đã duyệt cho **fundraiser của campaign**, kèm bằng chứng chuyển khoản; số tiền bằng chi phí đã duyệt; yêu cầu chỉ chuyển DISBURSED **sau khi** fundraiser xác nhận đã nhận (FR-DSB-07).
-- **FR-DSB-05 [M]** Nộp chứng từ chi tiêu (ảnh/tệp, số tiền) cho **mọi loại** chi phí đã giải ngân; admin duyệt/từ chối; hệ thống **so sánh tổng chứng từ với số đã giải ngân** và gắn cờ chênh lệch.
+- **FR-DSB-05 [M]** Nộp chứng từ chi tiêu theo luồng **"chụp và gửi"** cho **mọi loại** chi phí đã giải ngân (người nộp có thể không rành công nghệ):
+  - Một chứng từ gồm **một hoặc nhiều ảnh**, chọn loại: phiếu siêu thị/cửa hàng · giấy viết tay hoặc bảng kê · ảnh chụp màn hình chuyển khoản · ảnh hàng hoá · video (lưu để admin xem, không phân tích tự động).
+  - Người nộp **chỉ bắt buộc nhập một con số: tổng tiền đã chi**; không bắt nhập từng món.
+  - Không có giấy tờ → dùng **bảng kê nhanh trong app** (tên món, số lượng, đơn giá; app tự tính thành tiền), **kèm ít nhất một ảnh** hàng hoá hoặc ảnh chuyển khoản.
+  - Kitchen staff **hoặc fundraiser** (nộp thay) được nộp.
+  - Admin duyệt/từ chối; hệ thống **so sánh tổng chứng từ với số đã giải ngân** và gắn cờ chênh lệch.
+  - *Bằng chứng từ hệ thống cũ:* toàn bộ chứng từ đã nộp là ảnh JPEG (có một video), nơi mua là siêu thị và chợ đầu mối; có chứng từ bị từ chối vì "Bị lặp"; dữ liệu nhập tay có lỗi đơn giá × số lượng ≠ thành tiền (`seed_data/operations_db.sql`).
 - **FR-DSB-06 [S]** Thống kê yêu cầu (đã duyệt, đã giải ngân, đang chờ, chênh lệch chứng từ).
 - **FR-DSB-07 [M]** Fundraiser xác nhận đã nhận giải ngân (COMPLETED) hoặc báo lỗi (FAILED).
+- **FR-DSB-08 [M]** **Phát hiện ảnh nộp trùng bằng code** (băm ảnh theo cảm nhận — perceptual hash), so với mọi chứng từ của cùng tổ chức; trùng → gắn cờ cho admin, không tự từ chối.
+- **FR-DSB-09 [S]** Giao diện nộp chứng từ **ưu tiên điện thoại**: chữ to, tiếng Việt đơn giản, ảnh mẫu hướng dẫn cách chụp, tự nén ảnh trước khi tải lên, tải lại được khi mạng chập chờn.
 
 ### 4.7 Bếp
 
@@ -165,13 +173,14 @@ FoodFund là nền tảng gây quỹ từ thiện về thực phẩm: kết nố
 
 | Mã | Ưu tiên | Tính năng | Ghi chú |
 |---|---|---|---|
-| AI-01 | **[M]** | **Xác minh chứng từ chi tiêu**: trích xuất món, đơn giá, tổng tiền từ ảnh hoá đơn; đối chiếu với yêu cầu đã duyệt và số đã giải ngân; gắn cờ sai lệch, trùng lặp. Admin quyết định cuối | Gắn với FR-DSB-05; có bộ eval |
+| AI-01 | **[M]** | **Xác minh chứng từ chi tiêu**: trích xuất món, đơn giá, tổng tiền, ngày, người bán từ **ảnh phiếu siêu thị/cửa hàng, giấy viết tay/bảng kê, ảnh chụp màn hình chuyển khoản** (không gồm video); đối chiếu với yêu cầu đã duyệt, tổng tiền người nộp khai và số đã giải ngân; gắn cờ sai lệch. Phát hiện trùng ảnh do FR-DSB-08 (code) đảm nhận. Admin quyết định cuối | Gắn với FR-DSB-05; có bộ eval |
 | AI-04 | [C] | Viết lại tóm tắt báo cáo (bản template của FR-TRN-02) cho tự nhiên hơn | Giai đoạn 2. Luật bắt buộc: AI chỉ viết lại câu chữ từ bản template, không tự tính; code kiểm tra mọi con số khớp bản template, lệch → dùng bản template; hiển thị nhãn "tóm tắt do AI viết lại, số liệu đã được đối chiếu" |
 | AI-02 | [C] | Chatbot minh bạch cho donor (chỉ đọc dữ liệu công khai qua API, **không** NL→SQL) | Spec cũ chỉ tồn tại ở máy local và hiện không còn |
 | AI-03 | [C] | Tìm kiếm campaign theo ngữ nghĩa | |
 | AI-05 | [C] | Trợ lý soạn campaign, kiểm duyệt nội dung | |
 | NEW-01 | [S] | **Duyệt hai người** cho giải ngân/điều chỉnh trên ngưỡng (thay cho "fund committee multi-signature") | Xem BR-13 |
 | NEW-02 | [C] | Phiếu ăn điện tử | Ngoài phạm vi giai đoạn 1 |
+| NEW-03 | [C] | Nhận file hoá đơn điện tử (XML) và đối chiếu bằng code, không dùng AI | Người dùng thực tế hầu như chỉ có ảnh chụp; chỉ làm khi có nhu cầu thật |
 
 ---
 

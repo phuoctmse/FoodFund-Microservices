@@ -264,7 +264,7 @@ Kiểm tra ngân sách đồng bộ ở bước gửi yêu cầu chỉ để bá
 
 ### 7.4 Chứng từ và AI
 
-Kitchen nộp chứng từ → Operations ghi `ExpenseProof` và khởi động `ExpenseProofAnalysis` → activity `AnalyzeReceipt` chạy trên worker Python (task queue `ai`) có timeout và số lần thử giới hạn → Operations lưu kết quả và cờ sai lệch. Admin duyệt chứng từ bằng thao tác I-1 thường; **không chờ AI**. AI lỗi hoặc hết thời gian → chứng từ hiển thị "chưa có phân tích AI" (NFR-07).
+Kitchen (hoặc fundraiser nộp thay) chụp và gửi ảnh, khai tổng tiền → Operations ghi `ExpenseProof`, tính perceptual hash và gắn cờ trùng ảnh (FR-DSB-08, không qua AI) → khởi động `ExpenseProofAnalysis` (bỏ qua ảnh loại video/hàng hoá) → activity `AnalyzeReceipt` chạy trên worker Python (task queue `ai`) có timeout và số lần thử giới hạn → Operations lưu kết quả và cờ sai lệch. Admin duyệt chứng từ bằng thao tác I-1 thường; **không chờ AI**. AI lỗi hoặc hết thời gian → chứng từ hiển thị "chưa có phân tích AI" (NFR-07).
 
 ### 7.5 Tiền dư (BR-12)
 
