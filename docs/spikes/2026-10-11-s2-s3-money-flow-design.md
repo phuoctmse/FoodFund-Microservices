@@ -40,7 +40,7 @@
 | D-12 | **Versioning:** patching `GetVersion` + replay test + `workflowcheck` từ ngày đầu; chưa bật Worker Versioning | Workflow dài ngày vẫn cần patching dù có Worker Versioning |
 | D-13 | **Throwaway-but-harvest:** code Go bỏ; giữ migration SQL, bộ kiểm tra sổ cái, danh sách kịch bản (tên test), bảng phân loại lỗi, bảng tài khoản | Bố cục repo (`libs/`, `proto/`, S-8) chưa chốt; code spike chứa cờ tiêm lỗi và stub |
 
-**Giả định chưa kiểm chứng:** trường định danh giao dịch duy nhất của SePay là `id` trong payload webhook — chủ dự án đối chiếu với kết quả S-1. Spike dùng `providerTxnId` dạng chuỗi nên không phụ thuộc tên trường.
+**Đã xác nhận (S-1):** định danh giao dịch của SePay là trường `id` (kiểu `integer`) trong payload webhook — "ID giao dịch trên SePay, không đổi qua mọi lần retry và replay". Dùng làm `providerTxnId` và khoá chống trùng; lưu dạng `text` trong `provider_events.provider_txn_id` để không phụ thuộc kiểu dữ liệu của từng nhà cung cấp; khoá `donation:sepay:{id}`.
 
 ---
 
