@@ -304,7 +304,7 @@ Kitchen (hoặc fundraiser nộp thay) chụp và gửi ảnh, khai tổng tiề
 | Namespace | Thành phần |
 |---|---|
 | `edge` | Traefik (controller Gateway API), `Gateway` công khai; cert-manager (demo) |
-| `infra` | CloudNativePG cluster, Temporal + UI, NATS, Keycloak, trình giả lập S3, Mailpit, LGTM (tuỳ chọn) |
+| `infra` | CloudNativePG cluster, Temporal + UI, NATS, Keycloak, SeaweedFS, Mailpit, `otel-lgtm` (tuỳ chọn) |
 | `foodfund` | 6 service + Notification worker |
 
 - **Mỗi service một binary** chạy cả HTTP API và Temporal worker của task queue tương ứng; tách thành hai Deployment sau nếu cần mở rộng riêng.

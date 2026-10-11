@@ -1,6 +1,6 @@
 # FoodFund (bản viết lại) — Requirements
 
-> **Trạng thái:** v1.4 — 2026-10-10 — v1.0 đã chốt Q-01…Q-14; v1.1 đưa Kubernetes vào phạm vi (ADR-004); v1.2 pháp lý chỉ để tham khảo (mục 7.2); v1.3 tóm tắt báo cáo bằng template, AI-04 hạ xuống [C]; v1.4 nộp chứng từ theo luồng "chụp và gửi" cho người dùng không rành công nghệ (FR-DSB-05, FR-DSB-08, FR-DSB-09, AI-01).
+> **Trạng thái:** v1.5 — 2026-10-11 — v1.0 đã chốt Q-01…Q-14; v1.1 Kubernetes vào phạm vi (ADR-004); v1.2 pháp lý chỉ để tham khảo; v1.3 tóm tắt báo cáo bằng template, AI-04 [C]; v1.4 nộp chứng từ "chụp và gửi"; v1.5 thêm FR-CMP-08 (chia sẻ mạng xã hội), giữ FR-PAY-02 ở [M] (theo `03-tech-stack.md` v1.0).
 > **Nguồn:** dựng ngược từ hệ thống cũ (`origin/master` @ `84fed04`) → được BA review đối chiếu code (có `file:line`) và thực tế pháp lý/vận hành ở Việt Nam.
 > **Quy ước:** `FR-*` chức năng · `BR-*` quy tắc nghiệp vụ · `NFR-*` phi chức năng · `Q-*` câu hỏi mở · **[M]** Must / **[S]** Should / **[C]** Could (giai đoạn 2) · *(chưa kiểm chứng)* = thông tin chưa đối chiếu được nguồn gốc.
 
@@ -83,6 +83,7 @@ FoodFund là nền tảng gây quỹ từ thiện về thực phẩm: kết nố
 - **FR-CMP-05 [M]** Admin huỷ campaign (bắt buộc lý do) → tiền xử lý theo BR-12. Chủ campaign chỉ **rút lại** (không xoá cứng) khi PENDING/APPROVED/REJECTED.
 - **FR-CMP-06 [M]** Admin quản lý danh mục.
 - **FR-CMP-07 [C]** Thống kê campaign và nền tảng (tổng tiền, số donor, tiến độ phase).
+- **FR-CMP-08 [S]** **Chia sẻ trang campaign lên mạng xã hội** (Facebook, Zalo) với ảnh xem trước, tiêu đề, mô tả (thẻ Open Graph render phía server) và nút chia sẻ/sao chép link.
 - **FR-CFG-01 [M]** Admin cấu hình tham số hệ thống: % gây quỹ tối thiểu (`MIN_FUNDING_PERCENTAGE`), thời gian huỷ link treo, ngưỡng duyệt hai người (BR-13).
 
 ### 4.4 Quyên góp & thanh toán

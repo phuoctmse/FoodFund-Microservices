@@ -1,7 +1,7 @@
 # FoodFund (bản viết lại) — Lựa chọn công nghệ
 
-> **Trạng thái:** NHÁP v0.6 — 2026-10-10 — đã chốt: T-5 Temporal ([ADR-003](../adr/ADR-003-workflow-temporal.md)), T-6 PostgreSQL 18 ([ADR-001](../adr/ADR-001-database-postgresql.md)), T-7 Traefik qua Gateway API ([ADR-002](../adr/ADR-002-edge-traefik.md)), T-11 model mở tự chạy (Qwen3-VL-4B / Vintern-1B-v3.5; E2E/demo trên HF ZeroGPU), T-14 Kubernetes từ ngày đầu ([ADR-004](../adr/ADR-004-kubernetes-from-day-one.md)); các mục khác chờ duyệt.
-> **Đầu vào:** [`01-requirements.md`](./01-requirements.md) v1.0, [`02-decomposition.md`](./02-decomposition.md) v1.0.
+> **Trạng thái:** **v1.0 — 2026-10-11 — toàn bộ T-1 … T-14 đã chốt.** Quyết định lớn có ADR riêng: [ADR-001](../adr/ADR-001-database-postgresql.md) PostgreSQL 18, [ADR-002](../adr/ADR-002-edge-traefik.md) Traefik qua Gateway API, [ADR-003](../adr/ADR-003-workflow-temporal.md) Temporal, [ADR-004](../adr/ADR-004-kubernetes-from-day-one.md) Kubernetes từ ngày đầu. Các điểm *(chưa kiểm chứng)* được xác nhận trong spike S-1 … S-10 (mục 13) trước khi viết plan triển khai.
+> **Đầu vào:** [`01-requirements.md`](./01-requirements.md) v1.5, [`02-decomposition.md`](./02-decomposition.md) v1.1.
 > **Đã chốt trước:** Go cho 5 service lõi (Identity & Org, Campaign, Funds, Operations, Transparency) và Notification worker; Python cho service AI.
 > **Quy ước:** mỗi quyết định ghi *Chọn / Đã cân nhắc / Lý do / Hệ quả*. Thông tin ghi *(chưa kiểm chứng)* phải được xác nhận trong các spike ở mục 13 trước khi viết plan triển khai.
 
@@ -11,19 +11,19 @@
 
 | # | Hạng mục | Chọn | Mức bằng chứng (Phụ lục A) |
 |---|---|---|---|
-| T-1 | Ngôn ngữ | Go (bản ổn định mới nhất) cho service lõi; Python ≥ 3.12 cho AI | Trung bình — đo trên máy (Phụ lục B) + chủ dự án chọn |
-| T-2 | API phía client | REST + OpenAPI, sinh code từ spec | Trung bình — audit + tài liệu |
-| T-3 | Gọi đồng bộ nội bộ (chỉ đọc) | ConnectRPC + Protobuf, quản lý bằng `buf` | Trung bình — tài liệu |
-| T-4 | Event bus | NATS JetStream **chỉ để phát event tới read model** (Transparency, Notification); có thể bỏ sau spike S-3 | Trung bình — audit + tài liệu; RAM chưa đo |
+| T-1 | Ngôn ngữ | Go (bản ổn định mới nhất) cho service lõi; Python ≥ 3.12 cho AI (Temporal worker, không FastAPI) | Trung bình — đo trên máy (Phụ lục B) + chủ dự án chọn |
+| T-2 | API phía client | REST + **OpenAPI 3.0.x** viết spec trước, sinh code (`oapi-codegen`, client TypeScript); lệnh khởi động quy trình dài trả `202 Accepted` | Trung bình — audit + tài liệu |
+| T-3 | Gọi đồng bộ nội bộ (chỉ đọc) | ConnectRPC + Protobuf (`buf`), chỉ cho 1–2 truy vấn đọc; phần lớn giao tiếp là activity Temporal | Trung bình — tài liệu |
+| T-4 | Event bus | NATS JetStream (Apache 2.0, ở lại CNCF) **chỉ để phát tin** tới read model và Notification; stream lưu đĩa, luôn có giới hạn; cài khi có consumer đầu tiên | Trung bình — audit + tài liệu; RAM chưa đo |
 | T-5 | Điều phối quy trình | **Đã chốt (ADR-003):** Temporal (tự host, lưu trên PostgreSQL 18); worker Go + Python | Trung bình — tài liệu; footprint và độ phức tạp chưa đo (S-3, S-4) |
 | T-6 | Cơ sở dữ liệu | **Đã chốt (ADR-001):** PostgreSQL 18 chạy bằng operator CloudNativePG; mỗi service một database; `pgx` + `sqlc`; `goose`; backup PITR | Mạnh — dữ liệu D1–D5 trong ADR-001 |
 | T-7 | Gateway | **Đã chốt (ADR-002):** Traefik ≥ 3.7.10 làm controller Gateway API (`HTTPRoute` chuẩn; `RateLimit`, `IPAllowList` qua `ExtensionRef`); cert-manager cho demo; Envoy Gateway dự phòng; Cloudflare Tunnel sau | Trung bình — chấm theo E-1…E-10, K-1…K-6; còn spike S-7 |
-| T-8 | Danh tính | Keycloak (OIDC, đăng nhập Google qua identity brokering) | Trung bình — audit + tài liệu; RAM chưa đo |
-| T-9 | Thanh toán | SePay API v2 — VA theo đơn hàng (chính); PayOS (phụ) — sau lớp adapter chung | Mạnh — audit + tài liệu nhà cung cấp |
-| T-10 | Tệp, PDF, email | Lưu trữ tương thích S3; PDF sinh trong Transparency; email qua SMTP (local: Mailpit) | Yếu — chưa chọn cụ thể (spike S-5) |
+| T-8 | Danh tính | Keycloak (Apache 2.0; OIDC, đăng nhập Google qua identity brokering) | Trung bình — tài liệu; RAM chưa đo |
+| T-9 | Thanh toán | SePay VA theo đơn hàng + PayOS, **cả hai [M]**, sau interface `PaymentProvider`; dev/CI/demo dùng sandbox + `paysim` | Mạnh — audit + tài liệu nhà cung cấp |
+| T-10 | Tệp, PDF, email | Lưu trữ API S3: **SeaweedFS** (local) / **Cloudflare R2** (demo); PDF: Maroto v2 hoặc Typst (chọn ở S-5); email SMTP: Mailpit (local) / **Brevo** (demo) | Trung bình — tài liệu; PDF tiếng Việt chưa đo |
 | T-11 | AI | **Đã chốt:** tự chạy model mở — S-6 so Qwen3-VL-4B và Vintern-1B-v3.5; Temporal worker Python; adapter 5 chế độ; E2E/demo trên HF Spaces ZeroGPU (miễn phí), dự phòng Modal | Trung bình — tài liệu HF; chất lượng tiếng Việt chưa đo (S-6) |
-| T-12 | Frontend | React + TypeScript (Vite), client sinh từ OpenAPI | Yếu — chủ yếu đánh giá |
-| T-13 | Quan sát | OpenTelemetry; log JSON (`log/slog`); local: một container Grafana LGTM | Yếu — chủ yếu đánh giá |
+| T-12 | Frontend | React + TypeScript **có SSR** (Next.js standalone hoặc React Router v7 — chọn sau prototype) + **BFF** giữ token OIDC phía server; client sinh từ OpenAPI | Yếu — chủ yếu đánh giá |
+| T-13 | Quan sát | OpenTelemetry (Go, Python); log JSON; local: `otel-lgtm` (tắt mặc định); demo: **Grafana Cloud gói miễn phí** | Trung bình — tài liệu nhà cung cấp |
 | T-14 | Chạy local, CI, deploy | **Đã chốt (ADR-004):** Kubernetes từ ngày đầu — k3d (local, CI), k3s một node (demo); `make up`; chart/operator chính chủ, không Bitnami | Trung bình — đo máy phát triển; còn spike S-4, S-8 |
 
 ---
@@ -32,31 +32,34 @@
 
 - **Chọn:** Go cho Identity & Org, Campaign, Funds, Operations, Transparency, Notification worker; Python ≥ 3.12 cho AI.
 - **Đã cân nhắc:** Python cho tất cả; TypeScript lõi + Python AI.
-- **Lý do:** kiểu tĩnh và xử lý lỗi tường minh phù hợp code tiền (NFR-01); mỗi service là một binary nhỏ, ít RAM — quan trọng cho chạy local ≤ 10 phút (NFR-05) và chi phí demo (NFR-09). Python dùng cho AI vì hệ sinh thái và SDK.
-- **Hệ quả:** hai bộ công cụ (Go: `golangci-lint`, `go test`; Python: `uv`, `ruff`, `pyright`, `pytest`). Hợp đồng giữa hai ngôn ngữ chỉ qua Protobuf event (T-4), không chia sẻ code.
+- **Lý do:** kiểu tĩnh và xử lý lỗi tường minh phù hợp code tiền (NFR-01); mỗi service là một binary nhỏ, ít RAM. Python dùng cho AI vì hệ sinh thái model.
+- **Hệ quả:** hai bộ công cụ (Go: `golangci-lint`, `go test`; Python: `uv`, `ruff`, `pyright`, `pytest`). Service AI chỉ là Temporal worker → **không dùng FastAPI** (bớt một framework). Hợp đồng giữa hai ngôn ngữ chỉ qua Protobuf (activity, event), không chia sẻ code.
 
 ## T-2. API phía client
 
-- **Chọn:** REST + JSON, **OpenAPI-first** — viết spec trước, sinh server stub Go (`oapi-codegen`) và client TypeScript cho web.
-- **Đã cân nhắc:** GraphQL Federation (như hệ thống cũ).
-- **Lý do:** web tối thiểu (mục 7.1 requirements) không cần truy vấn linh hoạt; Transparency đã là read model gộp dữ liệu (D-3) nên không cần federation để ghép. Federation trong Go cần thêm router và thư viện riêng — tăng độ phức tạp mà không giải quyết requirement nào. Spec OpenAPI đồng thời là tài liệu API và cơ sở cho contract test.
-- **Hệ quả:** mỗi service công bố một file `openapi.yaml`; CI kiểm tra code sinh ra khớp spec.
+- **Chọn:** REST + JSON, **OpenAPI-first** — viết spec trước bằng **OpenAPI 3.0.x**, sinh server stub Go (`oapi-codegen`, chế độ strict server) và client TypeScript cho web.
+- **Đã cân nhắc:** GraphQL Federation (hệ thống cũ); Connect cho cả phía ngoài (một hệ schema, nhưng ít người quen, mất lợi thế Swagger khi demo); `huma` (viết code trước, tự sinh spec 3.1).
+- **Lý do:** web tối thiểu không cần truy vấn linh hoạt; Transparency đã gộp dữ liệu; reviewer thử API ngay bằng Swagger; trang công khai (sao kê) tận dụng cache HTTP; webhook ngân hàng vốn là REST. `oapi-codegen` mới hỗ trợ OpenAPI 3.1 ở mức ban đầu (v2.8, cần Go 1.25) → dùng 3.0.x để công cụ hai phía đều ổn định.
+- **Quy ước do có Temporal:** lệnh khởi động quy trình dài (tạo khoản quyên góp, yêu cầu giải ngân…) trả **`202 Accepted` + ID**; client đọc trạng thái từ database của service, không chờ workflow chạy xong.
+- **Hệ quả:** mỗi service công bố `openapi.yaml`; CI kiểm tra code sinh ra khớp spec.
 
 ## T-3. Gọi đồng bộ nội bộ
 
 - **Chọn:** ConnectRPC (`connect-go`) + Protobuf; schema quản lý bằng `buf` (lint + `buf breaking`).
+- **Phạm vi:** chỉ 1–2 truy vấn đọc (ví dụ Operations hỏi Funds ngân sách còn lại để báo lỗi sớm). Phần lớn giao tiếp giữa service đã là **activity Temporal** (`02-decomposition.md` mục 3).
 - **Đã cân nhắc:** REST nội bộ; gRPC thuần.
-- **Lý do:** chỉ có vài truy vấn đọc (ngân sách còn lại, tổng tiền đã nhận — mục 5 decomposition), nhưng cần hợp đồng có kiểu và kiểm tra thay đổi phá vỡ (C-6). Connect chạy trên HTTP thường, dễ debug bằng `curl`, dùng chung Protobuf với event.
+- **Lý do:** dùng chung một nguồn schema Protobuf với activity và event; Connect chạy trên HTTP thường, gọi được bằng `curl`.
 - **Hệ quả:** thư mục `proto/` chung; `buf breaking` chạy trong CI.
 
 ## T-4. Event bus
 
-- **Chọn:** NATS JetStream, **vai trò thu hẹp theo ADR-003:** chỉ phát event tới các read model (Transparency, Notification); các quy trình tiền đi qua Temporal. Spike S-3 đánh giá bỏ hẳn NATS. Mỗi bounded context một stream; consumer bền (durable) cho mỗi service tiêu thụ; payload là Protobuf có `schemaVersion`.
-- **Đã cân nhắc:** Kafka (hệ thống cũ), RabbitMQ, Redis Streams.
-- **Lý do:** một binary nhẹ, chạy local nhanh; có lưu bền, ack, gửi lại, giới hạn số lần gửi — đủ cho C-3/C-4. Kafka quá nặng cho một VPS demo và một người vận hành.
-- **Hệ quả:** dead-letter (C-4) hiện thực bằng giới hạn số lần gửi + chuyển sang stream lỗi; cần thư viện nội bộ nhỏ `libs/events` (publish, subscribe, inbox) dùng chung cho các service Go. Service AI dùng client NATS cho Python.
+- **Chọn:** NATS JetStream, **chỉ để phát tin** tới read model (Transparency), Notification và projection; luồng tiền đi qua Temporal (ADR-003).
+- **Giấy phép:** rủi ro chuyển sang BSL năm 2025 đã được giải quyết — ngày 01/05/2025 NATS **ở lại CNCF dưới Apache 2.0**, thương hiệu chuyển cho Linux Foundation.
+- **Đã cân nhắc:** Kafka (hệ thống cũ, quá nặng); bỏ hẳn NATS, workflow gọi trực tiếp activity của từng bên nhận (bên phát phải biết danh sách bên nhận → ghép nối chặt với ~5 bên nhận × ~15 loại event).
+- **Cách dùng:** mỗi bounded context một stream; **lưu trên đĩa và luôn đặt giới hạn** (`max_age`, `max_bytes`) — stream lưu RAM không giới hạn sẽ phình vô hạn; consumer bền cho mỗi bên nhận; payload Protobuf có `schemaVersion`; giới hạn số lần gửi → stream lỗi + cảnh báo.
+- **Hệ quả:** cài NATS **khi có consumer đầu tiên** (không cài sẵn từ ngày đầu); thư viện nhỏ `libs/events` (publish, subscribe, inbox) cho Go; client NATS cho Python nếu cần.
 
-## T-5. Outbox, job, lịch tự động
+## T-5. Điều phối quy trình (thay cho outbox, job, lịch tự động)
 
 - **Chọn (đã chốt — [ADR-003](../adr/ADR-003-workflow-temporal.md)):** **Temporal** tự host, lưu trạng thái trên PostgreSQL 18 (không cần Elasticsearch); worker Go cho service lõi, worker Python cho AI; local dùng `temporal server start-dev`. Các quy trình dài (VA hết hạn, đóng gây quỹ, saga giải ngân, tiền dư, hạn báo cáo, phân tích chứng từ, đối soát hằng ngày) viết thành workflow.
 - **Đã cân nhắc:** River + NATS + saga tự viết; DBOS (Go chưa 1.0); Restate (BSL 1.1); Hatchet.
@@ -84,28 +87,40 @@
 
 ## T-8. Danh tính
 
-- **Chọn:** Keycloak — OIDC; đăng nhập Google qua identity brokering; realm và người dùng mẫu cho từng vai trò được import tự động khi khởi động local.
-- **Đã cân nhắc:** Zitadel, Ory, dịch vụ quản lý (Cognito như hệ thống cũ, Auth0…).
-- **Lý do:** chạy được hoàn toàn local, không cần credential cloud (NFR-05); chuẩn OIDC nên đổi nhà cung cấp sau không ảnh hưởng service; phổ biến, dễ giải thích khi phỏng vấn. Tài nguyên tối thiểu khoảng 1,25 GB RAM theo một bài so sánh *(chưa kiểm chứng với tài liệu chính thức — spike S-4)*.
-- **Hệ quả:** vai trò và tổ chức **không** lưu trong Keycloak — Identity & Org là nguồn sự thật (FR-ID-02); token chỉ mang `sub`, service tra vai trò hiện tại từ projection của Identity & Org. Tránh được tình huống vai trò đã đổi nhưng token cũ vẫn mang vai trò cũ.
+- **Chọn:** Keycloak (Apache 2.0) — OIDC; đăng nhập Google qua identity brokering; realm và người dùng mẫu cho từng vai trò import tự động khi khởi động (`--import-realm`).
+- **Đã cân nhắc:**
+
+  | Phương án | Lý do không chọn |
+  |---|---|
+  | Zitadel | **Chuyển sang AGPL 3.0 từ v3** → tăng rủi ro giấy phép; lợi thế nhiều tenant (B2B) không cần |
+  | Ory (Kratos, Hydra…) | Bộ linh kiện tự lắp — quá nhiều việc cho một người |
+  | Authentik | Không có lợi thế rõ cho FoodFund |
+  | Cognito, Auth0 (dịch vụ) | Không chạy được local (NFR-05); hệ thống cũ gặp đúng vấn đề này |
+
+- **Hệ quả:** vai trò và tổ chức **không** lưu trong Keycloak — Identity & Org là nguồn sự thật (FR-ID-02); token chỉ mang `sub`, service tra vai trò hiện tại từ projection → không có chuyện vai trò đã đổi mà token cũ vẫn mang vai trò cũ. Rủi ro còn lại: RAM (sizing chính thức 1.250 MB cho production) → đo ở S-4.
 
 ## T-9. Thanh toán
 
-- **Chọn:**
-  - **SePay API v2 — "VA theo đơn hàng"** là kênh chuyển khoản chính: mỗi khoản quyên góp được cấp một tài khoản ảo riêng, **ngân hàng chỉ chấp nhận đúng số tiền**, VA tự huỷ sau khi thanh toán hoặc hết hạn ([SePay — VA theo đơn hàng](https://developer.sepay.vn/en/sepay-api/api-va-theo-don-hang)). Sandbox `https://userapi-sandbox.sepay.vn/v2` hỗ trợ giả lập thanh toán VA cho BIDV, Sacombank, Vietcombank, VietinBank, Shinhan ([SePay Sandbox](https://developer.sepay.vn/en/sepay-api/v2/sandbox)). API v1 đã ngừng phát triển.
-  - **PayOS** là kênh thứ hai; webhook có chữ ký và có môi trường test ([payOS webhook](https://payos.vn/docs/du-lieu-tra-ve/webhook/)) *(thuật toán ký chưa đọc — spike S-1)*.
-  - Cả hai sau một interface `PaymentProvider` trong module `payment` của Funds; mỗi provider có **trình giả lập** (`tools/paysim`) gửi webhook đã ký để test và chạy local.
-- **Lý do:** VA theo đơn hàng khớp giao dịch theo số tài khoản thay vì nội dung chuyển khoản → loại bỏ phần lớn ca "không khớp", "chuyển thiếu/dư" của hệ thống cũ (mục 8 requirements). Webhook SePay được xác thực bằng HMAC-SHA256 hoặc API key ([SePay webhooks](https://docs.sepay.vn/tich-hop-webhooks.html)).
-- **Hệ quả & đề xuất điều chỉnh requirement (cần chủ dự án duyệt):**
-  1. **FR-PAY-02 (PayOS) hạ từ [M] xuống [S]** — làm SePay VA trước; PayOS thêm sau khi luồng chính ổn định.
-  2. **BR-11 (định danh nhận tiền riêng mỗi campaign):** VA theo đơn hàng cho định danh riêng *mỗi khoản quyên góp* dưới tài khoản chính của nền tảng; việc dùng **tiền tố VA riêng cho mỗi campaign** *(chưa kiểm chứng — spike S-1)* sẽ quyết định BR-11 đáp ứng ở mức nào. Mô hình dữ liệu vẫn gắn mọi VA với campaign.
-  3. FR-PAY-03 (chuyển thiếu/dư) và FR-PAY-10 (hàng chờ đối soát) **vẫn giữ** cho PayOS và cho tiền vào tài khoản chính ngoài VA.
+- **Chọn:** **SePay VA theo đơn hàng** và **PayOS**, **cả hai giữ mức [M]**, sau interface `PaymentProvider` trong module `payment` của Funds; mỗi provider có trình giả lập `tools/paysim` gửi webhook đã ký.
+- **Phát hiện làm đổi đề xuất cũ:** VA theo đơn hàng của SePay ở môi trường thật **chỉ dành cho tài khoản doanh nghiệp BIDV**, giá liên hệ ([SePay](https://sepay.vn/en/tai-khoan-ao-theo-don-hang.html)) → **rút lại đề xuất hạ PayOS xuống [S]**. Ưu tiên cuối cùng giữa hai kênh quyết định sau spike S-1 (kèm kiểm tra điều kiện mở tài khoản PayOS — *chưa kiểm chứng*).
+- **Lý do giữ VA:** khớp giao dịch theo số tài khoản ảo thay vì nội dung chuyển khoản → loại phần lớn ca "không khớp", "chuyển thiếu/dư" của hệ thống cũ; sandbox giả lập được thanh toán VA ([SePay Sandbox](https://developer.sepay.vn/en/sepay-api/v2/sandbox)); webhook xác thực HMAC-SHA256/API key ([SePay webhooks](https://docs.sepay.vn/tich-hop-webhooks.html)).
+- **Hệ quả:**
+  - Dev, CI và demo chạy **sandbox + `paysim`**; README ghi rõ demo dùng sandbox.
+  - BR-11 (định danh nhận tiền riêng mỗi campaign): mô hình dữ liệu gắn mọi VA/link với campaign; mức đáp ứng ở môi trường thật phụ thuộc S-1.
+  - FR-PAY-03 (thiếu/dư) và FR-PAY-10 (hàng chờ đối soát) giữ cho PayOS và tiền vào ngoài VA.
 
 ## T-10. Tệp, PDF, email
 
-- **Lưu trữ tệp:** API tương thích S3, URL ký sẵn (FR-UPL-01). Local: một trình giả lập S3 trong cluster k3d; demo: dịch vụ object storage có gói miễn phí *(lựa chọn cụ thể và giấy phép của trình giả lập — spike S-5)*.
-- **PDF báo cáo (FR-TRN-02):** sinh trong Transparency bằng thư viện PDF thuần Go hỗ trợ font Unicode tiếng Việt *(chọn thư viện sau khi kiểm tra tình trạng bảo trì — spike S-5)*; CSV bằng thư viện chuẩn. Báo cáo được lưu kèm mã băm để chứng minh bất biến.
-- **Email (FR-NTF-01):** Notification gửi qua SMTP; local dùng **Mailpit** để xem email; demo dùng một nhà cung cấp email giao dịch có gói miễn phí *(chưa kiểm chứng hạn mức)*.
+- **Lưu trữ tệp (FR-UPL-01):** code **chỉ dùng API S3** + URL ký sẵn → đổi nơi lưu là đổi cấu hình.
+
+  | Môi trường | Chọn | Lý do |
+  |---|---|---|
+  | Local (k3d) | **SeaweedFS** (Apache 2.0, Go, chạy được một node) | MinIO bản cộng đồng **đã ngừng** (không còn image từ 10/2025, rồi archive) → không dùng |
+  | Demo | **Cloudflare R2** | Gói miễn phí ~10 GB, không tính phí băng thông ra *(một nguồn mâu thuẫn — kiểm tra trang giá)*; không tốn RAM VPS |
+
+  Đã cân nhắc: Garage (AGPL 3.0, một nguồn nói cần ≥ 3 node), RustFS (mới, ít lịch sử vận hành).
+- **PDF báo cáo (FR-TRN-02):** sinh trong Transparency; chọn giữa **Maroto v2** (thuần Go, font UTF-8, dựa trên gofpdf) và **Typst** (dàn trang tốt nhất, thêm một binary và ngôn ngữ template) sau **spike S-5 kiểm tra đủ 134 chữ cái tiếng Việt có dấu**, gồm chữ mang hai dấu. Gotenberg (Chromium) loại vì quá nặng. CSV bằng thư viện chuẩn; báo cáo lưu kèm mã băm.
+- **Email (FR-NTF-01):** Notification gửi qua **SMTP chuẩn**; local **Mailpit**; demo **Brevo** (300 email/ngày miễn phí; hệ thống cũ cũng dùng Brevo). Resend chỉ 100/ngày; SendGrid đã bỏ gói miễn phí từ 05/2025.
 
 ## T-11. AI
 
@@ -144,20 +159,28 @@
 
 ## T-12. Frontend
 
-- **Chọn:** React + TypeScript (Vite); client API sinh từ OpenAPI; đăng nhập OIDC với Keycloak.
-- **Đã cân nhắc:** Go render HTML + htmx.
-- **Lý do:** thể hiện được phía client cho vị trí SE I tổng quát; client có kiểu sinh từ spec giảm lỗi tích hợp. Phạm vi giữ đúng các màn hình ở mục 7.1 requirements.
-- **Hệ quả:** thư viện UI chọn khi bắt đầu frontend; không đặt mục tiêu thiết kế cầu kỳ.
+- **Chọn:** React + TypeScript **có SSR** — Next.js (chạy standalone) hoặc React Router v7, chọn sau một prototype nhỏ *(tình trạng 2026 của hai framework chưa kiểm chứng)*; client API sinh từ OpenAPI.
+- **Lý do cần SSR:** trang campaign được **chia sẻ lên Facebook/Zalo** để kêu gọi quyên góp (FR-CMP-08) → thẻ Open Graph (ảnh, tiêu đề, mô tả) phải render phía server; SPA thuần làm việc này kém. Màn admin, bếp vẫn chạy như SPA.
+- **Đăng nhập — mô hình BFF:** token OIDC (Keycloak) giữ ở server của frontend, trình duyệt chỉ giữ cookie phiên `HttpOnly` → không lưu token trong trình duyệt.
+- **Đã cân nhắc:** SPA thuần (React + Vite — chia sẻ link kém); Go render trang công khai + SPA cho admin (hai cách làm UI phải duy trì).
+- **Hệ quả:** thêm một pod Node trong cluster; màn nộp chứng từ ưu tiên điện thoại (FR-DSB-09); thư viện UI chọn khi bắt đầu frontend.
 
 ## T-13. Quan sát
 
-- **Chọn:** OpenTelemetry SDK (Go, Python) cho trace và metric; log JSON qua `log/slog` kèm `correlationId` (C-8). Local: một container Grafana LGTM (Grafana + Loki + Tempo + Prometheus). Demo: chạy cùng VPS nếu đủ RAM, nếu không thì dùng gói miễn phí của một dịch vụ quan sát *(chưa kiểm chứng)*.
-- **Cảnh báo bắt buộc (NFR-08):** webhook xác thực thất bại, hàng chờ đối soát quá hạn, job vào dead-letter, báo cáo sắp trễ hạn.
+- **Chọn:** OpenTelemetry SDK (Go, Python) cho trace và metric; log JSON (`log/slog`) kèm `correlationId` (C-8).
+
+  | Môi trường | Backend | Ghi chú |
+  |---|---|---|
+  | Local | `otel-lgtm` (Grafana + Loki + Tempo + Prometheus), **tắt mặc định** | Grafana ghi rõ image này chỉ dành cho dev/demo/test; bật khi cần để tiết kiệm RAM |
+  | Demo | **Grafana Cloud gói miễn phí** — 10.000 series metric, 50 GB log, 50 GB trace, lưu 14 ngày *(nguồn bên thứ ba — kiểm tra trang giá)* | Không tốn RAM VPS |
+
+- Temporal UI đã cho xem từng bước của mọi quy trình tiền — không cần công cụ riêng cho phần đó.
+- **Cảnh báo bắt buộc (NFR-08):** webhook xác thực thất bại, hàng chờ đối soát quá hạn, event vào stream lỗi, báo cáo sắp trễ hạn, workflow lỗi.
 
 ## T-14. Chạy local, CI, deploy
 
 - **Chọn (đã chốt — [ADR-004](../adr/ADR-004-kubernetes-from-day-one.md)):** Kubernetes từ ngày đầu — **k3d** ở local và CI, **k3s một node** cho demo; cùng Helm values cho mọi môi trường.
-- **Local (NFR-05):** `make up` tạo cluster k3d, cài hạ tầng (CloudNativePG, Temporal, Keycloak, NATS, Traefik, trình giả lập S3, Mailpit; LGTM tuỳ chọn), deploy các service, seed dữ liệu mẫu và người dùng mỗi vai trò; `tools/paysim` giả lập thanh toán. Service đang phát triển chạy bằng `go run` nối vào cluster (cách cụ thể chọn ở S-8). Mục tiêu đo được: từ clone sạch đến gọi được API qua Traefik ≤ 10 phút.
+- **Local (NFR-05):** `make up` tạo cluster k3d, cài hạ tầng (CloudNativePG, Temporal, Keycloak, Traefik, SeaweedFS, Mailpit; NATS khi có consumer đầu tiên; `otel-lgtm` tuỳ chọn), deploy các service, seed dữ liệu mẫu và người dùng mỗi vai trò; `tools/paysim` giả lập thanh toán. Service đang phát triển chạy bằng `go run` nối vào cluster (cách cụ thể chọn ở S-8). Mục tiêu đo được: từ clone sạch đến gọi được API qua Traefik ≤ 10 phút.
 - **CI (GitHub Actions)** — mỗi PR:
   - Go: `golangci-lint`, `go test` (unit + integration với testcontainers-go cho Postgres/NATS), ngưỡng coverage theo NFR-06.
   - Python: `ruff`, `pyright`, `pytest`, chấm điểm eval trên phản hồi đã ghi lại.
@@ -175,11 +198,11 @@
 |---|---|---|
 | VPS 4 vCPU / 8 GB RAM | ~7–15 USD | Giá Hetzner đang thay đổi trong năm 2026 và gói rẻ có lúc hết hàng ([findstack](https://findstack.com/resources/hetzner-price-increase-2026), [bitdoze](https://www.bitdoze.com/hetzner-cloud-cost-optimized-plans)) *(chưa kiểm chứng)* |
 | Tên miền | ~1 USD | |
-| Anthropic API | ≤ 5 USD | Trần cứng trong service AI |
-| Object storage, email, quan sát | 0 USD | Gói miễn phí *(chưa kiểm chứng)* |
-| **Tổng** | **~13–21 USD** | |
+| Model AI (HF ZeroGPU) | 0 USD | 2 Space miễn phí; dự phòng Modal trong mức credit miễn phí |
+| Cloudflare R2, Brevo, Grafana Cloud | 0 USD | Gói miễn phí *(kiểm tra trang giá trước khi deploy)* |
+| **Tổng** | **~8–16 USD** | |
 
-**RAM dự kiến trên VPS:** k3s ~0,5 GB · Postgres ~0,5–1 GB · Keycloak ~1,25 GB · NATS < 100 MB · Temporal + UI ~0,7 GB *(số đo bên thứ ba, chưa đo)* · 6 tiến trình Go ~30–80 MB mỗi cái · AI (Python) ~150–300 MB · Traefik < 100 MB *(chưa đo)* · LGTM ~1 GB → **~4–5 GB**, vừa VPS 8 GB *(con số ước lượng, đo lại trong spike S-4)*.
+**RAM dự kiến trên VPS:** k3s ~0,5 GB · Postgres ~0,5–1 GB · Keycloak ~1,25 GB · NATS < 100 MB · Temporal + UI ~0,7 GB *(số đo bên thứ ba, chưa đo)* · 6 tiến trình Go ~30–80 MB mỗi cái · AI worker (Python, không chạy model) ~150 MB · frontend Node ~150–300 MB · Traefik < 100 MB *(chưa đo)* → **~3,5–4,5 GB**, vừa VPS 8 GB (model ở ZeroGPU; lưu trữ, email, quan sát dùng dịch vụ ngoài) *(đo lại trong spike S-4)*.
 
 ---
 
@@ -193,7 +216,7 @@ Mỗi spike là thử nghiệm nhỏ (≤ 1–2 ngày), kết quả ghi lại th
 | S-2 | Kiểm tra cân bằng bút toán bằng constraint trigger hoãn + quyền chỉ INSERT hoạt động đúng với `pgx`/`sqlc`? | T-6, FR-LED |
 | S-3 | Saga giải ngân trên Temporal + Postgres: giữ tiền → chờ tín hiệu có hạn → ghi sổ hoặc hoàn lại; webhook khởi động workflow với ID tất định (chống trùng); replay test; có bỏ được NATS không | T-4, T-5, ADR-003 |
 | S-4 | Đo thời gian `make up` (k3d) từ máy sạch và RAM thực tế (đặc biệt Keycloak và Temporal) | NFR-05, NFR-09 |
-| S-5 | Chọn trình giả lập S3 (giấy phép), thư viện PDF Go hỗ trợ tiếng Việt, nhà cung cấp email/quan sát miễn phí | T-10, T-13 |
+| S-5 | PDF: Maroto v2 vs Typst với đủ 134 chữ cái tiếng Việt có dấu (gồm chữ hai dấu), kiểm tra bằng trích xuất văn bản; SeaweedFS chạy một node trong k3d; xác nhận gói miễn phí R2, Brevo, Grafana Cloud | T-10, T-13 |
 | S-6 | (a) Eval AI-01: Qwen3-VL-4B vs Vintern-1B-v3.5 trên MC-OCR + ảnh tự tạo đủ 3 loại (phiếu POS, viết tay, chuyển khoản), báo cáo theo từng loại, chạy **local** trên RTX 3070 (đo cả CPU). (b) Deploy 2 Space ZeroGPU (Gradio): Vintern với `trust_remote_code` có chạy không; thời gian mỗi lần gọi; quota có trừ vào tài khoản của token gọi không; thời gian chờ khi Space ngủ/xếp hàng. (c) Nếu (b) trượt: deploy lên Modal | T-11, ADR-004 |
 | S-7 | Traefik trên k3s một node: `IPAllowList` gắn qua `ExtensionRef` hoạt động; proxy nhận đúng IP thật của request từ bên ngoài (trượt → Envoy Gateway) | T-7, ADR-002 |
 | S-8 | Vòng lặp code nhanh với cluster local: `go run` + port-forward hay công cụ đồng bộ code vào pod (kiểm tra tình trạng bảo trì của Tilt) | T-14, ADR-004 |
@@ -217,7 +240,7 @@ foodfund/
 ├── libs/                # Go dùng chung: auth, events (publish/subscribe/inbox), observability, testkit
 ├── proto/               # Protobuf: event + RPC nội bộ (buf)
 ├── api/                 # OpenAPI spec từng service
-├── web/                 # React + TypeScript
+├── web/                 # React + TypeScript có SSR + BFF (Next.js hoặc React Router v7)
 ├── tools/paysim/        # Giả lập webhook SePay/PayOS đã ký
 ├── deploy/              # cấu hình k3d, Helm values (hạ tầng + service), HTTPRoute, realm Keycloak, seed
 ├── docs/                # requirements, decomposition, tech-stack, adr/
@@ -226,11 +249,11 @@ foodfund/
 
 ---
 
-## 15. Cần chủ dự án duyệt
+## 15. Trạng thái duyệt
 
-1. Toàn bộ lựa chọn T-1 … T-14.
-2. **Đề xuất điều chỉnh requirement ở T-9:** hạ FR-PAY-02 (PayOS) xuống [S]; BR-11 phụ thuộc kết quả spike S-1.
-3. Thứ tự: chạy spike S-1 … S-6 trước, sau đó mới viết plan triển khai.
+- **2026-10-11:** chủ dự án duyệt toàn bộ T-1 … T-14 theo bảng tóm tắt (mục 0).
+- Điều chỉnh requirement đi kèm: **giữ FR-PAY-02 (PayOS) ở [M]** (rút lại đề xuất hạ xuống [S]); thêm **FR-CMP-08** (chia sẻ campaign lên mạng xã hội có ảnh xem trước).
+- Bước tiếp theo: chạy spike S-1 … S-10 (ưu tiên S-3, S-4, S-7, S-9 vì có thể làm đổi quyết định), rồi viết plan triển khai.
 
 ---
 
@@ -309,9 +332,12 @@ foodfund/
 - **[Tài liệu]** VA theo đơn hàng: mỗi đơn một VA, **ngân hàng báo lỗi ngay nếu chuyển sai số tiền**, VA tự huỷ sau khi thanh toán hoặc hết hạn; API v1 ngừng phát triển ([SePay — VA theo đơn hàng](https://developer.sepay.vn/en/sepay-api/api-va-theo-don-hang)). Sandbox giả lập thanh toán VA cho BIDV, Sacombank, Vietcombank, VietinBank, Shinhan ([SePay Sandbox](https://developer.sepay.vn/en/sepay-api/v2/sandbox)). Webhook xác thực HMAC-SHA256/API key, gửi lại tối đa 7 lần trong 5 giờ ([SePay webhooks](https://docs.sepay.vn/tich-hop-webhooks.html)).
 - **[Tài liệu]** PayOS có chữ ký webhook và môi trường test ([payOS webhook](https://payos.vn/docs/du-lieu-tra-ve/webhook/)).
 
-### T-10. Tệp, PDF, email — *Yếu*
+### T-10. Tệp, PDF, email — *Trung bình*
 
-- Chưa chọn thư viện/dịch vụ cụ thể; quyết định thật nằm ở spike S-5.
+- **[Tài liệu]** MinIO bản cộng đồng ngừng phát hành image từ 10/2025, vào chế độ bảo trì rồi archive ([pinggy](https://pinggy.io/amp/blog/minio_archived_self_hosted_s3_alternatives/), [glukhov](https://glukhov.org/data-infrastructure/object-storage/minio-dead/)).
+- **[Tài liệu]** Cloudflare R2: miễn phí ~10 GB, không phí băng thông ra theo phần lớn nguồn ([filebase](https://filebase.com/blog/cloudflare-r2-pricing-costs-savings-and-alternatives-in-2026/)).
+- **[Tài liệu]** Tiếng Việt có 134 chữ cái mang dấu, có chữ mang hai dấu → phải test thư viện PDF; Maroto hỗ trợ font UTF-8 tuỳ chỉnh, Typst nhận thư mục font qua `--font-path`.
+- **[Tài liệu]** Email: Brevo 300/ngày; Resend 100/ngày; SendGrid bỏ gói miễn phí 05/2025 ([freetier](https://freetier.co/articles/free-email-sending-tiers-2026)).
 
 ### T-11. Model mở tự chạy (Qwen3-VL, Vintern) — *Trung bình*
 
@@ -334,14 +360,16 @@ Phương án v0.4 (API Anthropic, `claude-opus-5-5`) không còn là lựa chọ
 - **Chưa có:** chất lượng trích xuất hoá đơn tiếng Việt và chi phí thực mỗi ảnh → spike S-6.
 - **Minh bạch về thiên lệch:** tài liệu này được soạn với sự hỗ trợ của Claude (sản phẩm của Anthropic), và chưa có phép so sánh với nhà cung cấp khác (spec chatbot cũ dùng Gemini). **Spike S-6 nên chạy cùng bộ eval trên ít nhất một nhà cung cấp khác** trước khi chốt; lớp adapter trong service AI giữ khả năng đổi nhà cung cấp.
 
-### T-12. React + TypeScript — *Yếu*
+### T-12. React + TypeScript có SSR + BFF — *Yếu*
 
-- **[Đánh giá]** Phổ biến, thể hiện được kỹ năng frontend cho vị trí SE I tổng quát; client có kiểu sinh từ OpenAPI. Go + htmx cũng đáp ứng requirement với ít code hơn.
+- **[Requirement]** FR-CMP-08 (chia sẻ campaign lên mạng xã hội cần thẻ Open Graph render phía server).
+- **[Đánh giá]** Phổ biến, thể hiện kỹ năng frontend cho vị trí SE I tổng quát; BFF tránh lưu token trong trình duyệt. Chưa kiểm chứng tình trạng 2026 của Next.js và React Router v7 → prototype trước khi chọn.
 
-### T-13. OpenTelemetry + Grafana LGTM — *Yếu*
+### T-13. OpenTelemetry + Grafana LGTM / Grafana Cloud — *Trung bình*
 
 - **[Requirement]** NFR-08 (trace xuyên service, cảnh báo).
-- **[Đánh giá]** OpenTelemetry là chuẩn mở, không khoá vào nhà cung cấp (hệ thống cũ dùng Datadog + Sentry). Chưa đo RAM của container LGTM.
+- **[Tài liệu]** Image `otel-lgtm` chỉ dành cho dev/demo/test ([Grafana docs](https://grafana.com/docs/opentelemetry/docker-lgtm/)); Grafana Cloud gói miễn phí 10.000 series, 50 GB log, 50 GB trace, lưu 14 ngày ([last9](https://last9.io/blog/grafana-cloud-pricing/), [costbench](https://costbench.com/software/observability/grafana-cloud/free-plan/)).
+- **[Đánh giá]** OpenTelemetry là chuẩn mở, không khoá nhà cung cấp (hệ thống cũ dùng Datadog + Sentry trả phí).
 
 ### T-14. Kubernetes từ ngày đầu (k3d, k3s), GitHub Actions — *Trung bình* (xem [ADR-004](../adr/ADR-004-kubernetes-from-day-one.md))
 
