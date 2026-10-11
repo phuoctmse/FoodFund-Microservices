@@ -28,7 +28,7 @@ Dùng **Temporal** (tự host) làm lớp điều phối:
 
 - **Server:** Temporal server + Web UI; lưu trạng thái trong **PostgreSQL 18** (database riêng trên cùng instance — ADR-001). PostgreSQL 12+ hỗ trợ cả lưu trữ lẫn advanced visibility, **không cần Elasticsearch** ([Temporal visibility](https://docs.temporal.io/self-hosted-guide/visibility)).
 - **Worker:** service Go dùng Temporal Go SDK; service AI dùng Temporal Python SDK (phân tích chứng từ là một activity chạy trên worker Python).
-- **Local và CI (k3d) / demo (k3s) — theo [ADR-004](./ADR-004-kubernetes-from-day-one.md):** Helm chart chính chủ, **tắt các dependency đóng gói sẵn**, trỏ vào PostgreSQL của CloudNativePG. `temporal server start-dev` (Web UI `localhost:8233`) chỉ dùng cho test tự động và thử nhanh ngoài cluster; dev server **không dành cho production** ([Temporal CLI server](https://docs.temporal.io/cli/server)).
+- **Local và CI (kind) / demo (kubeadm một node) — theo [ADR-004](./ADR-004-kubernetes-from-day-one.md):** Helm chart chính chủ, **tắt các dependency đóng gói sẵn**, trỏ vào PostgreSQL của CloudNativePG. `temporal server start-dev` (Web UI `localhost:8233`) chỉ dùng cho test tự động và thử nhanh ngoài cluster; dev server **không dành cho production** ([Temporal CLI server](https://docs.temporal.io/cli/server)).
 - **Rủi ro PostgreSQL 18:** công cụ quản lý schema có thể chỉ hỗ trợ plugin `postgres12` → kiểm chứng ở spike S-9 (xem ADR-001).
 - **Giấy phép:** MIT ([temporalio/temporal](https://github.com/temporalio/temporal)).
 

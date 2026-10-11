@@ -24,7 +24,7 @@
 | T-11 | AI | **Đã chốt:** tự chạy model mở — S-6 so Qwen3-VL-4B và Vintern-1B-v3.5; Temporal worker Python; adapter 5 chế độ; E2E/demo trên HF Spaces ZeroGPU (miễn phí), dự phòng Modal | Trung bình — tài liệu HF; chất lượng tiếng Việt chưa đo (S-6) |
 | T-12 | Frontend | React + TypeScript **có SSR** (Next.js standalone hoặc React Router v7 — chọn sau prototype) + **BFF** giữ token OIDC phía server; client sinh từ OpenAPI | Yếu — chủ yếu đánh giá |
 | T-13 | Quan sát | OpenTelemetry (Go, Python); log JSON; local: `otel-lgtm` (tắt mặc định); demo: **Grafana Cloud gói miễn phí** | Trung bình — tài liệu nhà cung cấp |
-| T-14 | Chạy local, CI, deploy | **Đã chốt (ADR-004):** Kubernetes từ ngày đầu — k3d (local, CI), k3s một node (demo); `make up`; chart/operator chính chủ, không Bitnami | Trung bình — đo máy phát triển; còn spike S-4, S-8 |
+| T-14 | Chạy local, CI, deploy | **Đã chốt (ADR-004, sửa 2026-10-11):** kind v0.33.0 với node image cố định v1.35.8 (local, CI) + kubeadm một node (demo); Calico; `make up`; chart/operator chính chủ, không Bitnami | Trung bình — đo máy phát triển; còn spike S-4, S-8 |
 
 ---
 
@@ -115,7 +115,7 @@
 
   | Môi trường | Chọn | Lý do |
   |---|---|---|
-  | Local (k3d) | **SeaweedFS** (Apache 2.0, Go, chạy được một node) | MinIO bản cộng đồng **đã ngừng** (không còn image từ 10/2025, rồi archive) → không dùng |
+  | Local (kind) | **SeaweedFS** (Apache 2.0, Go, chạy được một node) | MinIO bản cộng đồng **đã ngừng** (không còn image từ 10/2025, rồi archive) → không dùng |
   | Demo | **Cloudflare R2** | Gói miễn phí ~10 GB, không tính phí băng thông ra *(một nguồn mâu thuẫn — kiểm tra trang giá)*; không tốn RAM VPS |
 
   Đã cân nhắc: Garage (AGPL 3.0, một nguồn nói cần ≥ 3 node), RustFS (mới, ít lịch sử vận hành).
@@ -179,16 +179,16 @@
 
 ## T-14. Chạy local, CI, deploy
 
-- **Chọn (đã chốt — [ADR-004](../adr/ADR-004-kubernetes-from-day-one.md)):** Kubernetes từ ngày đầu — **k3d** ở local và CI, **k3s một node** cho demo; cùng Helm values cho mọi môi trường.
-- **Local (NFR-05):** `make up` tạo cluster k3d, cài hạ tầng (CloudNativePG, Temporal, Keycloak, Traefik, SeaweedFS, Mailpit; NATS khi có consumer đầu tiên; `otel-lgtm` tuỳ chọn), deploy các service, seed dữ liệu mẫu và người dùng mỗi vai trò; `tools/paysim` giả lập thanh toán. Service đang phát triển chạy bằng `go run` nối vào cluster (cách cụ thể chọn ở S-8). Mục tiêu đo được: từ clone sạch đến gọi được API qua Traefik ≤ 10 phút.
+- **Chọn (đã chốt — [ADR-004](../adr/ADR-004-kubernetes-from-day-one.md)):** Kubernetes từ ngày đầu — **kind** (node image cố định `kindest/node:v1.35.8`) ở local và CI, **kubeadm một node** cho demo; cùng CNI (Calico), cùng Helm values cho mọi môi trường. Một công cụ dùng cho cả FoodFund và luyện thi CKA/CKAD (kind dựng node bằng kubeadm).
+- **Local (NFR-05):** `make up` tạo cluster kind từ file cấu hình trong repo (mở cổng 80/443 bằng `extraPortMappings`), cài hạ tầng (CloudNativePG, Temporal, Keycloak, Traefik, SeaweedFS, Mailpit; NATS khi có consumer đầu tiên; `otel-lgtm` tuỳ chọn), deploy các service, seed dữ liệu mẫu và người dùng mỗi vai trò; `tools/paysim` giả lập thanh toán. Service đang phát triển chạy bằng `go run` nối vào cluster (cách cụ thể chọn ở S-8). Mục tiêu đo được: từ clone sạch đến gọi được API qua Traefik ≤ 10 phút.
 - **CI (GitHub Actions)** — mỗi PR:
   - Go: `golangci-lint`, `go test` (unit + integration với testcontainers-go cho Postgres/NATS), ngưỡng coverage theo NFR-06.
   - Python: `ruff`, `pyright`, `pytest`, chấm điểm eval trên phản hồi đã ghi lại.
   - Hợp đồng: `buf lint`, `buf breaking`, kiểm tra code sinh từ OpenAPI.
   - Bảo mật: quét secret (gitleaks), quét lỗ hổng phụ thuộc.
-  - **Smoke:** dựng cluster k3d bằng `make up`, chạy luồng quyên góp → giải ngân bằng `paysim`.
+  - **Smoke:** dựng cluster kind bằng `make up`, chạy luồng quyên góp → giải ngân bằng `paysim`.
   - Nhánh mặc định được bảo vệ: CI phải xanh mới merge.
-- **Deploy demo:** k3s một node trên VPS; image build trong CI, đẩy lên GitHub Container Registry; deploy bằng `helm upgrade` từ workflow thủ công (không GitOps ở giai đoạn 1); cert-manager cấp chứng chỉ; Cloudflare Tunnel phía trước khi bật.
+- **Deploy demo:** **kubeadm một node** trên VPS (containerd, Calico, local-path-provisioner, gỡ taint control-plane để chạy workload); Traefik `hostNetwork`; image build trong CI, đẩy lên GitHub Container Registry; deploy bằng `helm upgrade` từ workflow thủ công (không GitOps ở giai đoạn 1); cert-manager cấp chứng chỉ; Cloudflare Tunnel phía trước khi bật.
 
 ---
 
@@ -202,7 +202,7 @@
 | Cloudflare R2, Brevo, Grafana Cloud | 0 USD | Gói miễn phí *(kiểm tra trang giá trước khi deploy)* |
 | **Tổng** | **~8–16 USD** | |
 
-**RAM dự kiến trên VPS:** k3s ~0,5 GB · Postgres ~0,5–1 GB · Keycloak ~1,25 GB · NATS < 100 MB · Temporal + UI ~0,7 GB *(số đo bên thứ ba, chưa đo)* · 6 tiến trình Go ~30–80 MB mỗi cái · AI worker (Python, không chạy model) ~150 MB · frontend Node ~150–300 MB · Traefik < 100 MB *(chưa đo)* → **~3,5–4,5 GB**, vừa VPS 8 GB (model ở ZeroGPU; lưu trữ, email, quan sát dùng dịch vụ ngoài) *(đo lại trong spike S-4)*.
+**RAM dự kiến trên VPS:** kubeadm control plane + Calico ~0,8–1,2 GB *(chưa đo)* · Postgres ~0,5–1 GB · Keycloak ~1,25 GB · NATS < 100 MB · Temporal + UI ~0,7 GB *(số đo bên thứ ba, chưa đo)* · 6 tiến trình Go ~30–80 MB mỗi cái · AI worker (Python, không chạy model) ~150 MB · frontend Node ~150–300 MB · Traefik < 100 MB *(chưa đo)* → **~4–5 GB**, vừa VPS 8 GB (model ở ZeroGPU; lưu trữ, email, quan sát dùng dịch vụ ngoài) *(đo lại trong spike S-4)*.
 
 ---
 
@@ -215,10 +215,10 @@ Mỗi spike là thử nghiệm nhỏ (≤ 1–2 ngày), kết quả ghi lại th
 | S-1 | SePay sandbox: tạo VA theo đơn hàng, giả lập thanh toán, nhận webhook đã ký end-to-end? Có tiền tố VA riêng cho mỗi campaign không? Thuật toán ký webhook PayOS? | T-9, BR-11 |
 | S-2 | Kiểm tra cân bằng bút toán bằng constraint trigger hoãn + quyền chỉ INSERT hoạt động đúng với `pgx`/`sqlc`? | T-6, FR-LED |
 | S-3 | Saga giải ngân trên Temporal + Postgres: giữ tiền → chờ tín hiệu có hạn → ghi sổ hoặc hoàn lại; webhook khởi động workflow với ID tất định (chống trùng); replay test; có bỏ được NATS không | T-4, T-5, ADR-003 |
-| S-4 | Đo thời gian `make up` (k3d) từ máy sạch và RAM thực tế (đặc biệt Keycloak và Temporal) | NFR-05, NFR-09 |
-| S-5 | PDF: Maroto v2 vs Typst với đủ 134 chữ cái tiếng Việt có dấu (gồm chữ hai dấu), kiểm tra bằng trích xuất văn bản; SeaweedFS chạy một node trong k3d; xác nhận gói miễn phí R2, Brevo, Grafana Cloud | T-10, T-13 |
+| S-4 | Đo thời gian `make up` (kind + Calico) từ máy sạch và RAM thực tế (đặc biệt Keycloak, Temporal, control plane); test NetworkPolicy default-deny trên Calico và kindnet | NFR-05, NFR-09 |
+| S-5 | PDF: Maroto v2 vs Typst với đủ 134 chữ cái tiếng Việt có dấu (gồm chữ hai dấu), kiểm tra bằng trích xuất văn bản; SeaweedFS chạy một node trong kind; xác nhận gói miễn phí R2, Brevo, Grafana Cloud | T-10, T-13 |
 | S-6 | (a) Eval AI-01: Qwen3-VL-4B vs Vintern-1B-v3.5 trên MC-OCR + ảnh tự tạo đủ 3 loại (phiếu POS, viết tay, chuyển khoản), báo cáo theo từng loại, chạy **local** trên RTX 3070 (đo cả CPU). (b) Deploy 2 Space ZeroGPU (Gradio): Vintern với `trust_remote_code` có chạy không; thời gian mỗi lần gọi; quota có trừ vào tài khoản của token gọi không; thời gian chờ khi Space ngủ/xếp hàng. (c) Nếu (b) trượt: deploy lên Modal | T-11, ADR-004 |
-| S-7 | Traefik trên k3s một node: `IPAllowList` gắn qua `ExtensionRef` hoạt động; proxy nhận đúng IP thật của request từ bên ngoài (trượt → Envoy Gateway) | T-7, ADR-002 |
+| S-7 | Traefik: `IPAllowList` gắn qua `ExtensionRef` hoạt động (làm trên kind); Traefik `hostNetwork`/`hostPort` nhận đúng IP thật từ bên ngoài (làm trên VPS kubeadm) — trượt → Envoy Gateway | T-7, ADR-002 |
 | S-8 | Vòng lặp code nhanh với cluster local: `go run` + port-forward hay công cụ đồng bộ code vào pod (kiểm tra tình trạng bảo trì của Tilt) | T-14, ADR-004 |
 | S-9 | Temporal trên PostgreSQL 18: công cụ quản lý schema có hỗ trợ không, hay phải chạy thủ công / dùng PG17 riêng | T-5, T-6, ADR-001, ADR-003 |
 | S-10 | Trước khi bật Cloudflare Tunnel: `cloudflared` trong cluster, lọc IP SePay phía sau tunnel, giới hạn request của Cloudflare gói miễn phí | T-7, ADR-002 |
@@ -242,7 +242,7 @@ foodfund/
 ├── api/                 # OpenAPI spec từng service
 ├── web/                 # React + TypeScript có SSR + BFF (Next.js hoặc React Router v7)
 ├── tools/paysim/        # Giả lập webhook SePay/PayOS đã ký
-├── deploy/              # cấu hình k3d, Helm values (hạ tầng + service), HTTPRoute, realm Keycloak, seed
+├── deploy/              # cấu hình cluster kind, Helm values (hạ tầng + service), HTTPRoute, realm Keycloak, seed
 ├── docs/                # requirements, decomposition, tech-stack, adr/
 └── go.work
 ```
@@ -371,7 +371,7 @@ Phương án v0.4 (API Anthropic, `claude-opus-5-5`) không còn là lựa chọ
 - **[Tài liệu]** Image `otel-lgtm` chỉ dành cho dev/demo/test ([Grafana docs](https://grafana.com/docs/opentelemetry/docker-lgtm/)); Grafana Cloud gói miễn phí 10.000 series, 50 GB log, 50 GB trace, lưu 14 ngày ([last9](https://last9.io/blog/grafana-cloud-pricing/), [costbench](https://costbench.com/software/observability/grafana-cloud/free-plan/)).
 - **[Đánh giá]** OpenTelemetry là chuẩn mở, không khoá nhà cung cấp (hệ thống cũ dùng Datadog + Sentry trả phí).
 
-### T-14. Kubernetes từ ngày đầu (k3d, k3s), GitHub Actions — *Trung bình* (xem [ADR-004](../adr/ADR-004-kubernetes-from-day-one.md))
+### T-14. Kubernetes từ ngày đầu (kind, kubeadm), GitHub Actions — *Trung bình* (xem [ADR-004](../adr/ADR-004-kubernetes-from-day-one.md))
 
 - **[Audit]** Hệ thống cũ: `docker-compose up` theo README thất bại (thiếu `.env.docker`, không có Postgres/Redis/Kafka); bước test trong CI bị comment; không có smoke test → cần một lệnh dựng đủ hạ tầng và job smoke trong CI.
 - **[Đo]** Máy phát triển: RAM 15,9 GB (trống 4,7 GB lúc đo), 8 nhân/16 luồng; RAM ước tính đủ stack trong cluster ~3,7–5,7 GB → vừa nhưng sát (ADR-004).
@@ -411,11 +411,11 @@ Phương án v0.4 (API Anthropic, `claude-opus-5-5`) không còn là lựa chọ
 
 | Quyết định | Thiếu gì | Spike |
 |---|---|---|
-| T-4, T-8, T-13, T-14 | RAM và thời gian khởi động thực của k3s, NATS, Keycloak, Postgres, Temporal, LGTM trong cluster k3d | S-4, S-8 |
+| T-4, T-8, T-13, T-14 | RAM và thời gian khởi động thực của control plane kind, Calico, NATS, Keycloak, Postgres, Temporal, LGTM | S-4, S-8 |
 | T-5 | Saga giải ngân trên Temporal, chống trùng ở điểm vào, footprint thực tế | S-3, S-4 |
 | T-6 | `sqlc` báo lỗi SQL lúc sinh code; constraint trigger cân bằng bút toán | S-2 |
 | T-9 | Webhook SePay end-to-end; tiền tố VA cho campaign; thuật toán ký PayOS | S-1 |
 | T-10 | Thư viện PDF hỗ trợ tiếng Việt; trình giả lập S3 và giấy phép | S-5 |
 | T-11 | Chất lượng hoá đơn tiếng Việt của Qwen3-VL-4B và Vintern-1B-v3.5; khả năng chạy và quota thực tế trên ZeroGPU | S-6 |
-| T-7 | `IPAllowList` qua `ExtensionRef`, IP thật trên k3s; lọc IP sau Cloudflare Tunnel | S-7, S-10 |
+| T-7 | `IPAllowList` qua `ExtensionRef`, IP thật với Traefik `hostNetwork` trên VPS kubeadm; lọc IP sau Cloudflare Tunnel | S-7, S-10 |
 | T-12 | Không cần spike — chấp nhận là quyết định theo đánh giá, dễ thay sau | — |

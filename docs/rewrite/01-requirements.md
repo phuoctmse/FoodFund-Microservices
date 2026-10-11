@@ -1,6 +1,6 @@
 # FoodFund (bản viết lại) — Requirements
 
-> **Trạng thái:** v1.5 — 2026-10-11 — v1.0 đã chốt Q-01…Q-14; v1.1 Kubernetes vào phạm vi (ADR-004); v1.2 pháp lý chỉ để tham khảo; v1.3 tóm tắt báo cáo bằng template, AI-04 [C]; v1.4 nộp chứng từ "chụp và gửi"; v1.5 thêm FR-CMP-08 (chia sẻ mạng xã hội), giữ FR-PAY-02 ở [M] (theo `03-tech-stack.md` v1.0).
+> **Trạng thái:** v1.6 — 2026-10-11 — v1.0 đã chốt Q-01…Q-14; v1.1 Kubernetes vào phạm vi (ADR-004); v1.2 pháp lý chỉ để tham khảo; v1.3 tóm tắt báo cáo bằng template, AI-04 [C]; v1.4 nộp chứng từ "chụp và gửi"; v1.5 thêm FR-CMP-08, giữ FR-PAY-02 ở [M]; v1.6 hạ tầng đổi sang kind (local, CI) + kubeadm (demo).
 > **Nguồn:** dựng ngược từ hệ thống cũ (`origin/master` @ `84fed04`) → được BA review đối chiếu code (có `file:line`) và thực tế pháp lý/vận hành ở Việt Nam.
 > **Quy ước:** `FR-*` chức năng · `BR-*` quy tắc nghiệp vụ · `NFR-*` phi chức năng · `Q-*` câu hỏi mở · **[M]** Must / **[S]** Should / **[C]** Could (giai đoạn 2) · *(chưa kiểm chứng)* = thông tin chưa đối chiếu được nguồn gốc.
 
@@ -221,7 +221,7 @@ FoodFund là nền tảng gây quỹ từ thiện về thực phẩm: kết nố
 | NFR-02 | **Audit trail chỉ thêm** cho mọi thao tác tiền và phê duyệt; lưu trữ dài hạn (đề xuất ≥ 10 năm — *chưa kiểm chứng căn cứ*) | Không có thao tác cập nhật/xoá trên bảng audit |
 | NFR-03 | **Minh bạch**: mọi khoản tiền vào/ra truy được tới quyên góp gốc hoặc chứng từ | Sao kê khớp sổ cái 100% |
 | NFR-04 | **Phân quyền ở mọi API**, kiểm tra quyền sở hữu tài nguyên (không chỉ "đã đăng nhập") | Test phân quyền cho từng mutation |
-| NFR-05 | **Chạy local ≤ 10 phút** từ clone sạch bằng **một lệnh `make up`** (cần cài sẵn Docker, k3d, kubectl, helm), không cần credential cloud thật (dùng sandbox/giả lập) | Job smoke trong CI; đo thực tế ở spike S-4 |
+| NFR-05 | **Chạy local ≤ 10 phút** từ clone sạch bằng **một lệnh `make up`** (cần cài sẵn Docker, kind, kubectl, helm), không cần credential cloud thật (dùng sandbox/giả lập) | Job smoke trong CI; đo thực tế ở spike S-4 |
 | NFR-06 | **Chất lượng**: coverage ≥ 85% cho thanh toán, sổ cái, giải ngân và các state machine; ≥ 60% toàn hệ thống; CI chặn merge khi lint/test fail | Báo cáo coverage trong CI |
 | NFR-07 | **Chịu lỗi**: thông báo, tìm kiếm, AI hỏng không chặn quyên góp và giải ngân | Test kịch bản dịch vụ phụ ngừng |
 | NFR-08 | **Quan sát được**: log có cấu trúc, trace xuyên service, cảnh báo lỗi thanh toán và hàng chờ đối soát quá hạn | |
@@ -242,7 +242,7 @@ FoodFund là nền tảng gây quỹ từ thiện về thực phẩm: kết nố
 - Các mục **[C]**: cộng đồng, huy hiệu, điều phối lại, thông báo trong ứng dụng đầy đủ, tìm kiếm toàn văn, thống kê, AI-02/03/05, phiếu ăn điện tử.
 - GitOps (ArgoCD/Flux), Kubernetes nhiều node, service mesh, autoscaling.
 
-**Trong phạm vi — hạ tầng:** Kubernetes **k3d** ở local/CI và **k3s một node** cho demo ([ADR-004](../adr/ADR-004-kubernetes-from-day-one.md)).
+**Trong phạm vi — hạ tầng:** Kubernetes **kind** ở local/CI và **kubeadm một node** cho demo ([ADR-004](../adr/ADR-004-kubernetes-from-day-one.md)).
 
 **Trong phạm vi:** backend + **web tối thiểu** cho các luồng demo (trang campaign, quyên góp bằng QR, sao kê/báo cáo, màn hình admin duyệt – giải ngân – đối soát, màn hình nộp chứng từ).
 

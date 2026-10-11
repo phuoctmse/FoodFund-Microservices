@@ -1,6 +1,6 @@
 # ADR-002 — Lớp biên giới hệ thống: Traefik qua Gateway API trên Kubernetes
 
-- **Trạng thái:** Đã chấp nhận — 2026-10-10 (sửa cùng ngày: chuyển từ Traefik + file cấu hình trên Compose sang Traefik qua Gateway API trên Kubernetes, theo [ADR-004](./ADR-004-kubernetes-from-day-one.md))
+- **Trạng thái:** Đã chấp nhận — 2026-10-10 (sửa cùng ngày: chuyển từ Traefik + file cấu hình trên Compose sang Traefik qua Gateway API trên Kubernetes); **sửa 2026-10-11**: môi trường đổi từ k3d/k3s sang kind/kubeadm theo [ADR-004](./ADR-004-kubernetes-from-day-one.md) — cập nhật K-1, cách mở cổng, IP thật, S-7.
 - **Người quyết định:** chủ dự án
 - **Liên quan:** `docs/rewrite/01-requirements.md` (NFR-01, NFR-04, NFR-05, NFR-09), `docs/rewrite/02-decomposition.md` (Gateway, C-7, C-9), `docs/rewrite/03-tech-stack.md` (T-7), ADR-004
 - **Loại quyết định:** cửa hai chiều nếu giữ các luật ở mục "Luật chống nợ".
@@ -20,16 +20,17 @@
 | E-8 | Cấu hình là code, local giống demo |
 | E-9 | Chi phí 0 |
 | E-10 | Không chứa nghiệp vụ hay xác thực; đổi controller được mà không viết lại route |
-| K-1 | Chạy tốt trên k3d (local) và k3s một node (demo) |
+| K-1 | Chạy tốt trên kind (local, CI) và kubeadm một node (demo VPS, không có cloud load balancer) |
 | K-4 | Proxy nhận đúng **IP thật** của client (điều kiện của E-4, E-5) |
 | K-5 | Nhẹ: laptop 16 GB |
 | K-6 | Ít khái niệm phải học (làm một mình) |
 
 ## Quyết định
 
-- **Traefik ≥ 3.7.10** làm controller Gateway API (CVE ở 3.7.0–3.7.6 đã sửa ở 3.7.7 — [CVE-2026-65601](https://app.opencve.io/cve/CVE-2026-65601); 3.7.10 là phiên bản trong báo cáo conformance). k3s cài sẵn Traefik v3; cấu hình Traefik được **quản lý bằng Helm values trong repo**, không dựa vào mặc định ngầm của k3s.
+- **Traefik ≥ 3.7.10** làm controller Gateway API (CVE ở 3.7.0–3.7.6 đã sửa ở 3.7.7 — [CVE-2026-65601](https://app.opencve.io/cve/CVE-2026-65601); 3.7.10 là phiên bản trong báo cáo conformance). Cài bằng **Helm chart chính chủ** với values trong repo (kind và kubeadm đều **không** cài sẵn ingress/gateway controller).
 - **Route viết bằng `HTTPRoute` chuẩn**; rate limit và lọc IP là `Middleware` của Traefik gắn qua filter `ExtensionRef` ([Traefik — Kubernetes advanced](https://doc.traefik.io/traefik/expose/kubernetes/advanced/)).
 - **Chứng chỉ:** demo dùng cert-manager + Let's Encrypt (HTTP-01 qua listener cổng 80 của Gateway — [NGF + cert-manager](https://docs.nginx.com/nginx-gateway-fabric/traffic-security/integrate-cert-manager/)); local dùng HTTP hoặc chứng chỉ tự ký.
+- **Mở cổng 80/443:** local — `extraPortMappings` của node kind + Traefik `hostPort`; demo — Traefik `hostNetwork` (hoặc `hostPort`) trên VPS kubeadm. Không dùng Service `LoadBalancer` (VPS không có cloud LB; cloud-provider-kind là phương án thay thế ở local, xem ADR-004).
 - **Cloudflare Tunnel** để giai đoạn sau (mục cuối).
 
 ## Phương án đã cân nhắc
@@ -40,7 +41,7 @@ Mọi ứng viên chính đều "Conformant" với Gateway API v1.6.x ([danh sá
 |---|---|
 | **Envoy Gateway** | Mô hình chính sách tốt nhất: `SecurityPolicy` (lọc `clientCIDRs`), `ClientTrafficPolicy` (xác định IP gốc), `BackendTrafficPolicy` (rate limit) ([SecurityPolicy](https://gateway.envoyproxy.io/latest/concepts/gateway_api_extensions/security-policy/)). Nặng hơn: control plane mặc định xin 256 Mi (giới hạn 1 Gi) cộng pod Envoy riêng ([Helm values](https://gateway.envoyproxy.io/docs/install/gateway-helm-api/)); nhiều CRD hơn → **phương án dự phòng** |
 | NGINX Gateway Fabric | Có `RateLimitPolicy`, nhưng **không tìm thấy lọc IP** (allow/deny thuộc NGINX Ingress Controller — sản phẩm khác) |
-| Cilium | Phải thay CNI của k3s, quyết từ lúc tạo cluster ([k3s + Cilium](https://oneuptime.com/blog/post/2026-03-14-install-cilium-on-k3s/view)) → quá xâm lấn |
+| Cilium | Gateway API gắn với CNI Cilium, phải chọn từ lúc tạo cluster; ADR-004 chọn Calico → quá xâm lấn |
 | Istio | Service mesh — vượt nhu cầu |
 | Kong | Bỏ image OSS từ 3.10 (03/2025) → rủi ro giấy phép |
 | ingress-nginx | Đã ngừng hỗ trợ 03/2026 ([nguồn](https://platformengineeringplaybook.com/blog/ingress-nginx-retirement-gateway-api-migration-2026/)) |
@@ -65,15 +66,20 @@ Kích hoạt khi spike S-7 thất bại.
 
 ## IP thật của client (K-4)
 
-Trên k3s, traffic đi qua ServiceLB (klipper-lb, iptables) trước khi tới proxy; nhiều báo cáo cho thấy proxy không thấy IP thật kể cả khi đặt `externalTrafficPolicy: Local` ([K3s networking](https://documentation.suse.com/cloudnative/k3s/latest/en/networking/networking-services.html), [Traefik forum](https://community.traefik.io/t/traefik-on-k3s-does-not-forward-real-client-ip/26762)). Đây là bài toán mạng của cluster, **đổi controller không tự giải quyết**.
+IP thật phụ thuộc **đường đi của traffic trước khi tới proxy** — đổi controller không tự giải quyết.
 
-- Demo (k3s một node): `externalTrafficPolicy: Local`, **không** đặt `node-external-ip`; kiểm chứng bằng request thật từ bên ngoài.
-- Local (k3d): request luôn đi qua mạng Docker; lọc IP chỉ test được bằng request giả lập.
+| Môi trường | Đường đi | Kỳ vọng | Trạng thái |
+|---|---|---|---|
+| Demo (VPS kubeadm) | Internet → cổng 80/443 của VPS → Traefik `hostNetwork` | Traefik nghe trực tiếp trên mạng của máy chủ → thấy IP nguồn thật, không qua NAT của kube-proxy | **Chưa kiểm chứng** — S-7 |
+| Demo, nếu dùng `hostPort` thay `hostNetwork` | Qua plugin `portmap` của CNI (DNAT) | DNAT chỉ đổi địa chỉ đích nên IP nguồn thường được giữ | **Chưa kiểm chứng** — S-7 |
+| Local (kind trên Docker Desktop) | Windows → Docker Desktop → container node kind (`extraPortMappings`) → Traefik `hostPort` | IP nguồn là địa chỉ nội bộ của Docker, không phải IP thật | Lọc IP ở local chỉ test được bằng cấu hình giả lập (cho phép dải nội bộ) |
 
-## Spike S-7 (bắt buộc, trên k3s một node)
+*(Bản trước ghi vấn đề ServiceLB/klipper-lb của k3s — không còn áp dụng sau khi đổi sang kubeadm.)*
 
-1. `IPAllowList` gắn qua `ExtensionRef` hoạt động (có báo lỗi cộng đồng chưa rõ cách xử lý — [thread](https://community.traefik.io/t/error-trying-to-use-basicauth-middleware-in-an-httproute-kubernetes-gateway/29689)).
-2. Traefik nhận đúng IP thật của request từ bên ngoài.
+## Spike S-7 (bắt buộc, trên VPS kubeadm một node)
+
+1. `IPAllowList` gắn qua `ExtensionRef` hoạt động (có báo lỗi cộng đồng chưa rõ cách xử lý — [thread](https://community.traefik.io/t/error-trying-to-use-basicauth-middleware-in-an-httproute-kubernetes-gateway/29689)) — làm được ngay trên kind.
+2. Traefik `hostNetwork` (hoặc `hostPort`) nhận đúng IP thật của request từ bên ngoài — phải làm trên VPS.
 
 Trượt một trong hai → chuyển sang Envoy Gateway.
 
@@ -83,7 +89,7 @@ Trượt một trong hai → chuyển sang Envoy Gateway.
 |---|---|
 | Chứng chỉ HTTPS (demo) | cert-manager + Let's Encrypt |
 | Định tuyến, chuyển HTTP → HTTPS, rate limit, lọc IP SePay, giới hạn body, header bảo mật, CORS | Traefik |
-| Tường lửa VPS | Chỉ mở 80, 443, SSH (chỉ khoá, giới hạn IP nếu được). **API server của k3s (cổng 6443) chỉ cho IP quản trị.** Postgres, NATS, Keycloak admin, Temporal UI, dashboard Traefik không công khai |
+| Tường lửa VPS | Chỉ mở 80, 443, SSH (chỉ khoá, giới hạn IP nếu được). **API server của kubeadm (cổng 6443) chỉ cho IP quản trị.** Postgres, NATS, Keycloak admin, Temporal UI, dashboard Traefik không công khai |
 | Quyền của controller | Controller đọc API Kubernetes với RBAC tối thiểu từ Helm chart — không dùng Docker socket |
 | Access log | Traefik ghi log JSON gửi về hệ thống quan sát |
 
@@ -104,7 +110,8 @@ Chuẩn bị ngay từ bây giờ:
 
 ## Hệ quả
 
-- **Tích cực:** dùng Traefik có sẵn trong k3s, 1 pod, ít khái niệm; route chuẩn nên đổi controller chỉ viết lại 2 chính sách.
+- **Tích cực:** 1 pod, ít khái niệm; cùng cách cài (Helm) và cách mở cổng (`hostPort`/`hostNetwork`) ở local và demo; route chuẩn nên đổi controller chỉ viết lại 2 chính sách.
+- **Mất so với bản k3s:** lợi thế "có sẵn trong k3s" không còn — Traefik vẫn được chọn vì nhẹ nhất và ít khái niệm nhất trong các ứng viên.
 - **Tiêu cực:** còn hai điểm chưa kiểm chứng (S-7); chưa có che IP và chống DDoS cho tới khi có Cloudflare.
 
 ## Điều kiện để xem lại quyết định
