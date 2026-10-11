@@ -1,0 +1,45 @@
+# Spike S-4/S-9 — Temporal trên PostgreSQL 18 (CloudNativePG), ADR-003
+server:
+  config:
+    logLevel: "warn"
+    persistence:
+      defaultStore: default
+      visibilityStore: visibility
+      numHistoryShards: 4          # local/demo; không đổi được sau khi khởi tạo
+      datastores:
+        default:
+          sql:
+            createDatabase: false  # database đã tạo sẵn trong Postgres
+            manageSchema: true     # chart chạy temporal-sql-tool → điểm cần kiểm chứng S-9
+            pluginName: postgres12_pgx
+            driverName: postgres12_pgx
+            databaseName: temporal
+            connectAddr: "pg-rw.infra.svc:5432"
+            connectProtocol: "tcp"
+            user: temporal
+            existingSecret: pg-app
+            secretKey: password
+            maxConns: 10
+            maxIdleConns: 5
+        visibility:
+          sql:
+            createDatabase: false
+            manageSchema: true
+            pluginName: postgres12_pgx
+            driverName: postgres12_pgx
+            databaseName: temporal_visibility
+            connectAddr: "pg-rw.infra.svc:5432"
+            connectProtocol: "tcp"
+            user: temporal
+            existingSecret: pg-app
+            secretKey: password
+            maxConns: 5
+            maxIdleConns: 2
+  frontend: {resources: {requests: {cpu: 50m, memory: 128Mi}, limits: {memory: 512Mi}}}
+  history:  {resources: {requests: {cpu: 50m, memory: 128Mi}, limits: {memory: 512Mi}}}
+  matching: {resources: {requests: {cpu: 50m, memory: 128Mi}, limits: {memory: 512Mi}}}
+  worker:   {resources: {requests: {cpu: 50m, memory: 96Mi},  limits: {memory: 384Mi}}}
+admintools:
+  enabled: true
+web:
+  enabled: true

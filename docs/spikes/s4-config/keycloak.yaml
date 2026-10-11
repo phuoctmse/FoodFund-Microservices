@@ -1,0 +1,26 @@
+# Spike S-4 — Keycloak 26.8.0 dùng PostgreSQL chung (T-8). Chỉ để đo RAM/thời gian khởi động.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: keycloak, namespace: infra}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: keycloak}}
+  template:
+    metadata: {labels: {app: keycloak}}
+    spec:
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.8.0
+          args: ["start", "--http-enabled=true", "--hostname-strict=false", "--health-enabled=true"]
+          env:
+            - {name: KC_DB, value: postgres}
+            - {name: KC_DB_URL, value: "jdbc:postgresql://pg-rw.infra.svc:5432/keycloak"}
+            - {name: KC_DB_USERNAME, valueFrom: {secretKeyRef: {name: keycloak-db, key: username}}}
+            - {name: KC_DB_PASSWORD, valueFrom: {secretKeyRef: {name: keycloak-db, key: password}}}
+            - {name: KC_BOOTSTRAP_ADMIN_USERNAME, valueFrom: {secretKeyRef: {name: keycloak-admin, key: username}}}
+            - {name: KC_BOOTSTRAP_ADMIN_PASSWORD, valueFrom: {secretKeyRef: {name: keycloak-admin, key: password}}}
+          ports: [{containerPort: 8080}, {containerPort: 9000, name: mgmt}]
+          readinessProbe: {httpGet: {path: /health/ready, port: 9000}, periodSeconds: 5, failureThreshold: 60}
+          resources:
+            requests: {cpu: 100m, memory: 512Mi}
+            limits: {memory: 1Gi}

@@ -223,6 +223,8 @@ Mỗi spike là thử nghiệm nhỏ (≤ 1–2 ngày), kết quả ghi lại th
 | S-9 | Temporal trên PostgreSQL 18: công cụ quản lý schema có hỗ trợ không, hay phải chạy thủ công / dùng PG17 riêng | T-5, T-6, ADR-001, ADR-003 |
 | S-10 | Trước khi bật Cloudflare Tunnel: `cloudflared` trong cluster, lọc IP SePay phía sau tunnel, giới hạn request của Cloudflare gói miễn phí | T-7, ADR-002 |
 
+**Trạng thái 2026-10-11** ([kết quả](../spikes/2026-10-11-s4-s7a-s9.md)): **S-4** đạt một phần — hạ tầng ~2,15 GB RAM thực, dựng ~7,6 phút lần đầu; chưa đo service ứng dụng và lần chạy thứ hai; phát hiện WSL giữ cache. **S-7** phần 1 đạt (trên kind); phần 2 cần VPS. **S-9** đạt — Temporal 1.32 tự tạo schema trên PostgreSQL 18.6. Chưa làm: S-1, S-2, S-3, S-5, S-6, S-8, S-10.
+
 ---
 
 ## 14. Cấu trúc repo dự kiến

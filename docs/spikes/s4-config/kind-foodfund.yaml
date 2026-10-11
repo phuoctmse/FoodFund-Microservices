@@ -1,0 +1,22 @@
+# Spike S-4 — cluster kind cho FoodFund (một node)
+# Node image cố định theo digest trong release notes kind v0.33.0 (ADR-004, luật 2)
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: foodfund
+networking:
+  disableDefaultCNI: true        # dùng Calico thay kindnet (ADR-004)
+  podSubnet: 192.168.0.0/16      # dải mặc định của Calico
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.35.8@sha256:07b2536e30b803ed61d1677a79df6115f798ce64c80f9e22f6ed45afd09323c0
+    labels:
+      ingress-ready: "true"
+    extraPortMappings:           # Traefik hostPort (ADR-002); chỉ mở trên localhost
+      - containerPort: 80
+        hostPort: 80
+        listenAddress: "127.0.0.1"
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 443
+        listenAddress: "127.0.0.1"
+        protocol: TCP

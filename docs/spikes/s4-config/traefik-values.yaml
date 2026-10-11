@@ -1,0 +1,31 @@
+# Spike S-4/S-7 — Traefik làm controller Gateway API trên kind (ADR-002)
+providers:
+  kubernetesGateway:
+    enabled: true          # Gateway API (HTTPRoute chuẩn)
+  kubernetesCRD:
+    enabled: true          # cần cho Middleware (RateLimit, IPAllowList) gắn qua ExtensionRef
+  kubernetesIngress:
+    enabled: false         # không dùng Ingress kiểu cũ
+gateway:
+  name: public
+  listeners:
+    web:
+      port: 8000
+      protocol: HTTP
+      namespacePolicy:
+        from: All          # route ở namespace của service gắn được vào Gateway
+ports:
+  web:
+    hostPort: 80           # khớp extraPortMappings của node kind
+  websecure:
+    hostPort: 443
+service:
+  enabled: false           # không có cloud load balancer
+nodeSelector:
+  ingress-ready: "true"
+accessLog:
+  enabled: true
+  format: json
+resources:
+  requests: {cpu: 50m, memory: 64Mi}
+  limits: {memory: 256Mi}

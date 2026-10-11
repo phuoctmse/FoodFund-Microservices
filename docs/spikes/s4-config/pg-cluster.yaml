@@ -1,0 +1,22 @@
+# Spike S-4 — một instance PostgreSQL cho toàn bộ FoodFund (ADR-001)
+# imageName để trống: dùng image mặc định của operator, ghi lại phiên bản thực tế
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: pg
+  namespace: infra
+spec:
+  instances: 1
+  storage:
+    size: 5Gi
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 768Mi}
+  postgresql:
+    parameters:
+      shared_buffers: "128MB"
+      max_connections: "200"
+  bootstrap:
+    initdb:
+      database: temporal
+      owner: temporal

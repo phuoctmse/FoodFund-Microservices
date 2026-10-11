@@ -16,6 +16,8 @@
 
 **RAM ước tính khi chạy đủ stack trong cluster local** (ước lượng, đo ở spike S-4):
 
+> **Đo thực tế 2026-10-11 (S-4):** hạ tầng đầy đủ (kind + Calico + Traefik + CloudNativePG/PG 18.6 + Temporal + Keycloak, chưa có service ứng dụng) dùng **~2,15 GB RAM thực** trong VM; dựng tuần tự lần đầu **~7,6 phút**. Bảng dưới là ước tính ban đầu, giữ để so sánh ([kết quả](../spikes/2026-10-11-s4-s7a-s9.md)).
+
 | Thành phần | RAM |
 |---|---|
 | Node kind (kubeadm: etcd, kube-apiserver, controller-manager, scheduler, kubelet) + CNI | ~0,8–1,2 GB *(nặng hơn k3s ~0,5 GB; chưa đo)* |
@@ -39,7 +41,7 @@
 
 | Thành phần | Cách cài | Tham chiếu |
 |---|---|---|
-| CNI | **Calico** ở cả local (kind với `disableDefaultCNI: true`) và demo — cùng CNI hai môi trường, thực thi NetworkPolicy (có trong đề CKA/CKAD). Dự phòng ở local: kindnet mặc định nếu S-4 thấy thiếu RAM — **nhưng các nguồn mâu thuẫn về việc kindnet có thực thi NetworkPolicy** ([kindnet docs](https://kindnet.sigs.k8s.io/docs/design/kindnet/) nói có, [minikube docs](https://minikube.sigs.k8s.io/docs/handbook/network_policy/) nói không) → kiểm chứng ở S-4 | — |
+| CNI | **Calico** v3.32.2 ở cả local (kind với `disableDefaultCNI: true`) và demo — cùng CNI hai môi trường, thực thi NetworkPolicy (có trong đề CKA/CKAD), tốn ~115 MiB. Dự phòng ở local: kindnet mặc định — **đã kiểm chứng 2026-10-11: kindnet trong kind v0.33.0 CÓ thực thi NetworkPolicy** (default-deny chặn đúng), trái với tài liệu minikube | — |
 | Lưu trữ | kind có sẵn StorageClass `standard` (local-path); VPS kubeadm cài **local-path-provisioner** | ADR-001 (CloudNativePG cần StorageClass) |
 | Lớp biên | Traefik (Gateway API), cài bằng Helm. Mở cổng: local dùng `extraPortMappings` 80/443 của node kind + Traefik `hostPort`; demo dùng Traefik `hostNetwork`/`hostPort` (VPS không có cloud load balancer) | ADR-002 |
 | PostgreSQL 18 | Operator **CloudNativePG** (backup + PITR lên object storage) | ADR-001 |
@@ -60,7 +62,8 @@
 5. **Service sẵn sàng cho Kubernetes (NFR-14):** cấu hình qua biến môi trường, `/healthz` và `/readyz`, tắt êm khi nhận SIGTERM, log JSON ra stdout, không ghi trạng thái ra đĩa cục bộ.
 6. **Không làm ở giai đoạn 1:** GitOps (ArgoCD/Flux), nhiều node cho stack app, service mesh, autoscaling. Deploy demo bằng `helm upgrade`.
 7. **Vòng lặp code nhanh:** service đang phát triển chạy trực tiếp trên máy (`go run`) nối vào hạ tầng trong cluster qua port-forward; hoặc nạp image bằng `kind load docker-image` — chọn ở spike S-8.
-8. **Phân bổ chạy model AI.** Laptop chỉ chạy stack app; test E2E và demo gọi model ở **HF Spaces ZeroGPU** (dự phòng Modal, rồi HF Endpoint); eval S-6 chạy model local trên RTX 3070 (không bật app); code hằng ngày và CI dùng chế độ `fake` với phản hồi thật đã ghi lại. `.wslconfig` chỉ tạo nếu S-4 cho thấy cần, giá trị theo số đo. Nâng RAM lên 32 GB là phương án nếu stack app vẫn quá chật.
+8. **Phân bổ chạy model AI.** Laptop chỉ chạy stack app; test E2E và demo gọi model ở **HF Spaces ZeroGPU** (dự phòng Modal, rồi HF Endpoint); eval S-6 chạy model local trên RTX 3070 (không bật app); code hằng ngày và CI dùng chế độ `fake` với phản hồi thật đã ghi lại. Nâng RAM lên 32 GB là phương án nếu stack app vẫn quá chật.
+10. **Bộ nhớ của WSL.** Đo S-4: sau khi kéo image, VM WSL giữ **5,5 GB cache file** không trả cho Windows (`vmmemWSL` 6,9 GB trong khi chỉ dùng thực 2,15 GB; Windows còn 0,45 GB) dù tài liệu Microsoft ghi `autoMemoryReclaim` mặc định là `dropCache`. Đề xuất `.wslconfig`: `[wsl2] memory=6GB` + `[experimental] autoMemoryReclaim=dropCache` (ghi rõ), áp dụng khi chủ dự án đồng ý (`wsl --shutdown`) rồi đo lại. Tạm thời: `wsl -d docker-desktop -u root -- sh -c "sync; echo 3 > /proc/sys/vm/drop_caches"` (đo được: trả lại ~2,9 GB).
 9. **Cluster luyện thi tách khỏi cluster FoodFund.** Luyện CKA/CKAD trên cluster kind riêng (có thể nhiều node), **không chạy cùng lúc** với stack FoodFund vì RAM; xoá khi xong (`kind delete cluster --name …`).
 
 ## Phương án đã cân nhắc

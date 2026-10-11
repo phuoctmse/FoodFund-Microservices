@@ -45,7 +45,7 @@ Dùng **PostgreSQL 18** cho mọi service (mỗi service một database và mộ
 
 - Chạy bằng operator **CloudNativePG**; PITR qua backup lên object storage của operator; khôi phục được kiểm tra định kỳ ([CloudNativePG docs](https://cloudnative-pg.io/docs/1.30/)).
 - **Không dùng chart/image Bitnami** (ADR-004, luật 1).
-- **Rủi ro cần kiểm chứng (spike S-9):** một báo cáo cộng đồng cho biết công cụ quản lý schema của Temporal chỉ có plugin `postgres12`, với PostgreSQL 18 phải chạy schema thủ công bằng `temporal-sql-tool` ([community thread](https://community.temporal.io/t/schema-auto-management-support-for-postgresql-13-in-self-hosted-temporal/19566)). Phương án dự phòng: cluster PostgreSQL 17 riêng cho Temporal.
+- **Đã kiểm chứng (spike S-9, 2026-10-11):** Temporal 1.32.0 (chart 1.7.0) tự tạo schema trên **PostgreSQL 18.6** bằng plugin `postgres12_pgx` (schema `temporal` 1.19, `temporal_visibility` 1.14); tạo namespace và chạy workflow thành công. Không cần chạy schema tay, không cần PostgreSQL 17 dự phòng ([kết quả](../spikes/2026-10-11-s4-s7a-s9.md)).
 
 ## Điều kiện để xem lại quyết định
 

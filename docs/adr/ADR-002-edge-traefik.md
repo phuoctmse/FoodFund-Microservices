@@ -83,6 +83,8 @@ IP thật phụ thuộc **đường đi của traffic trước khi tới proxy**
 
 Trượt một trong hai → chuyển sang Envoy Gateway.
 
+**Kết quả 2026-10-11:** điểm 1 **đạt** trên kind với Traefik v3.7.14 — `IPAllowList` trả 403, đối chứng dải Docker trả 200, `RateLimit` trả 429 đúng; báo lỗi cộng đồng không tái hiện. Ở local backend chỉ thấy `X-Forwarded-For: 172.18.0.1` (IP nội bộ Docker) như dự đoán. Điểm 2 chưa làm (cần VPS) ([kết quả](../spikes/2026-10-11-s4-s7a-s9.md)).
+
 ## Lớp biên giai đoạn hiện tại (chưa có Cloudflare)
 
 | Trách nhiệm | Đảm nhận |
