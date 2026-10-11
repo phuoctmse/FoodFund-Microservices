@@ -63,8 +63,8 @@
 6. **Không làm ở giai đoạn 1:** GitOps (ArgoCD/Flux), nhiều node cho stack app, service mesh, autoscaling. Deploy demo bằng `helm upgrade`.
 7. **Vòng lặp code nhanh:** service đang phát triển chạy trực tiếp trên máy (`go run`) nối vào hạ tầng trong cluster qua port-forward; hoặc nạp image bằng `kind load docker-image` — chọn ở spike S-8.
 8. **Phân bổ chạy model AI.** Laptop chỉ chạy stack app; test E2E và demo gọi model ở **HF Spaces ZeroGPU** (dự phòng Modal, rồi HF Endpoint); eval S-6 chạy model local trên RTX 3070 (không bật app); code hằng ngày và CI dùng chế độ `fake` với phản hồi thật đã ghi lại. Nâng RAM lên 32 GB là phương án nếu stack app vẫn quá chật.
-10. **Bộ nhớ của WSL.** Đo S-4: sau khi kéo image, VM WSL giữ **5,5 GB cache file** không trả cho Windows (`vmmemWSL` 6,9 GB trong khi chỉ dùng thực 2,15 GB; Windows còn 0,45 GB) dù tài liệu Microsoft ghi `autoMemoryReclaim` mặc định là `dropCache`. Đề xuất `.wslconfig`: `[wsl2] memory=6GB` + `[experimental] autoMemoryReclaim=dropCache` (ghi rõ), áp dụng khi chủ dự án đồng ý (`wsl --shutdown`) rồi đo lại. Tạm thời: `wsl -d docker-desktop -u root -- sh -c "sync; echo 3 > /proc/sys/vm/drop_caches"` (đo được: trả lại ~2,9 GB).
 9. **Cluster luyện thi tách khỏi cluster FoodFund.** Luyện CKA/CKAD trên cluster kind riêng (có thể nhiều node), **không chạy cùng lúc** với stack FoodFund vì RAM; xoá khi xong (`kind delete cluster --name …`).
+10. **Bộ nhớ của WSL.** Đo S-4: sau khi kéo image, VM WSL giữ **5,5 GB cache file** không trả cho Windows (`vmmemWSL` 6,9 GB trong khi chỉ dùng thực 2,15 GB; Windows còn 0,45 GB) dù tài liệu Microsoft ghi `autoMemoryReclaim` mặc định là `dropCache`. Đề xuất `.wslconfig`: `[wsl2] memory=6GB` + `[experimental] autoMemoryReclaim=dropCache` (ghi rõ), áp dụng khi chủ dự án đồng ý (`wsl --shutdown`) rồi đo lại. Tạm thời: `wsl -d docker-desktop -u root -- sh -c "sync; echo 3 > /proc/sys/vm/drop_caches"` (đo được: trả lại ~2,9 GB).
 
 ## Phương án đã cân nhắc
 
