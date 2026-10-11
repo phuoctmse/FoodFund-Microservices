@@ -1,8 +1,0 @@
----
-alwaysApply: false
----
-
-# AI Rules for FoodFund Microservices
-
-FoodFund is a digital crowdfunding platform designed to combat food insecurity in developing countries by enabling transparent and efficient food preparation and distribution for communities in need. It connects donors, fund committees, kitchen staff, delivery teams, and admins in a unified system. Donors contribute to verified campaigns, track donations, and view spending reports. Fund committees create campaigns and approve fund withdrawals via a multi-signature process. Kitchen staff manage cooking tasks and submit ingredient/wage proposals, while delivery teams track distributions and redeem digital meal vouchers. Admins oversee users, campaigns, and analytics.
-
