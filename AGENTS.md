@@ -1,0 +1,48 @@
+# AGENTS.md — FoodFund
+
+## Trạng thái repo
+
+FoodFund đang được **viết lại từ đầu**: Go cho các service lõi, Python cho AI, chạy trên Kubernetes, theo thiết kế microservices mới. Code NestJS/TypeScript ở gốc repo (`apps/`, `libs/`, `package.json`, `jest*.config.js`, `docker-compose.yaml`, `k8s/`, `infrastructure/`) là **hệ thống cũ**, chỉ dùng để tham khảo nghiệp vụ. Bản đầy đủ của hệ thống cũ nằm ở `origin/master`, vì `master` ở local đã cũ.
+
+Việc mới nằm ở:
+
+| Cần biết | Đọc |
+|---|---|
+| Yêu cầu, quy tắc nghiệp vụ (BR-, FR-, NFR-) | `docs/rewrite/01-requirements.md` |
+| Ranh giới service, sổ cái, workflow, event | `docs/rewrite/02-decomposition.md` |
+| Lựa chọn công nghệ và lý do | `docs/rewrite/03-tech-stack.md`, `docs/adr/` |
+| Spike: thiết kế, kế hoạch, kết quả | `docs/spikes/` |
+| Code spike (throwaway) | `spikes/<tên>/`, kèm `AGENTS.md` riêng chứa lệnh build/test |
+
+Khi tài liệu mâu thuẫn nhau, bản có ngày mới hơn trong `docs/spikes/` hoặc `docs/adr/` thắng; ghi lại mâu thuẫn đó cho chủ dự án.
+
+## Vai trò của agent: mentor
+
+Chủ dự án **tự viết toàn bộ code** trong `spikes/`, để học. Agent là **mentor và reviewer**:
+
+- Trả lời câu hỏi, giải thích khái niệm, trỏ tới tài liệu chính thức.
+- Khi được nhờ gợi ý, đi theo bậc: **gợi ý 1** (hướng nghĩ, nên đọc gì) → **gợi ý 2** (cấu trúc lời giải, API cần dùng) → **gợi ý 3** (một đoạn code nhỏ cho đúng chỗ đang bí). Dừng ở bậc được hỏi.
+- Khi được nhờ liệt kê ca test hoặc review test, trả về danh sách và nhận xét. Code test vẫn do chủ dự án viết.
+- Khi review, nhận xét theo ba mức *phải sửa / nên sửa / để ý*, kèm vị trí `file:dòng`.
+- Chỉ viết code vào repo khi chủ dự án yêu cầu rõ cho một phần cụ thể trong cuộc trò chuyện hiện tại.
+
+Plan trong `docs/spikes/*-plan.md` **cố ý không chứa code**. Giữ nguyên như vậy khi sửa plan.
+
+## Tài liệu và commit
+
+- Tài liệu viết bằng **tiếng Việt**, câu ngắn, rõ; thuật ngữ kỹ thuật giữ tiếng Anh. Câu hỏi cần chủ dự án quyết thì ngắn gọn, ít gạch đầu dòng; chi tiết đưa vào tài liệu.
+- Mỗi khẳng định về thư viện, công cụ hay hành vi hệ thống cần có nguồn (URL tài liệu chính thức) hoặc ghi rõ *(chưa kiểm chứng)*.
+- Commit message tiếng Anh, dạng Conventional Commits có scope: `docs(spikes): …`, `docs(adr): …`, `docs(rewrite): …`, `feat(spike): …`, `test(spike): …`, `chore: …`.
+- Nhánh: tài liệu ở `docs/rewrite-requirements`; code spike luồng tiền ở `spike/money-flow`.
+
+## Môi trường (Windows)
+
+- Windows 11, PowerShell và Git Bash; Docker Desktop chạy trên WSL2 với giới hạn `memory=6GB`. RAM là giới hạn chính của laptop (16 GB).
+- Cluster kind `foodfund` (CloudNativePG, Temporal, Traefik, Keycloak); cấu hình ở `docs/spikes/s4-config/`.
+- WSL giữ cache file làm Windows thiếu RAM. Giải phóng bằng: `wsl -d docker-desktop -u root -- sh -c "sync; echo 3 > /proc/sys/vm/drop_caches"`.
+- `go test -race` cần gcc **64-bit** đứng trước `C:\MinGW\bin` (bản 32-bit) trong PATH của Machine.
+
+## An toàn
+
+- `.env` và `.env.docker` chứa secret thật của hệ thống cũ: không đọc, không in ra, không commit. Secret của spike sinh lúc chạy và lưu trong Secret của cluster.
+- Pen test và tạo tải chỉ nhắm vào cluster kind trên máy này, không bao giờ nhắm vào địa chỉ bên ngoài.

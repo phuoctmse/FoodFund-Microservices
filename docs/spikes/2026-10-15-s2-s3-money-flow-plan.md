@@ -126,6 +126,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 - [ ] `go mod init` trong `spikes/money-flow/`; thêm các thư viện ở bảng công cụ, đúng phiên bản.
 - [ ] Viết một test bất kỳ, cho nó FAIL có chủ đích rồi PASS; chạy với `-race`.
 - [ ] Tạo `.gitignore`, `NOTES.md`, `journal/`.
+- [ ] Tự viết `spikes/money-flow/AGENTS.md` cho agent: lệnh build/test của spike. Cập nhật mỗi khi thêm lệnh mới (`-tags spike`, cờ `NAIVE_*`, test trên dev server). Luật chung đã có ở `AGENTS.md` gốc; file này chỉ ghi những gì riêng của spike. Kiểm bằng cách mở phiên Claude Code và agy mới trong thư mục spike, rồi hỏi chúng chạy test thế nào.
 - [ ] Commit.
 
 **Xong khi:** `go test -race ./...` chạy được. **Checkpoint:** "review task 0". Mình sẽ hỏi 3 câu về `errors.Is`/`errors.As`.
