@@ -40,7 +40,7 @@ Plan trong `docs/spikes/*-plan.md` **cố ý không chứa code**. Giữ nguyên
 - Windows 11, PowerShell và Git Bash; Docker Desktop chạy trên WSL2 với giới hạn `memory=6GB`. RAM là giới hạn chính của laptop (16 GB).
 - Cluster kind `foodfund` (CloudNativePG, Temporal, Traefik, Keycloak); cấu hình ở `docs/spikes/s4-config/`.
 - WSL giữ cache file làm Windows thiếu RAM. Giải phóng bằng: `wsl -d docker-desktop -u root -- sh -c "sync; echo 3 > /proc/sys/vm/drop_caches"`.
-- `go test -race` cần gcc **64-bit** đứng trước `C:\MinGW\bin` (bản 32-bit) trong PATH của Machine.
+- `go test -race` dùng gcc 64-bit (WinLibs UCRT, cài qua winget) nhờ `go env CC`. Lệnh `gcc` trong terminal vẫn trỏ tới bản 32-bit ở `C:\MinGW\bin`; cứ để nguyên.
 
 ## An toàn
 

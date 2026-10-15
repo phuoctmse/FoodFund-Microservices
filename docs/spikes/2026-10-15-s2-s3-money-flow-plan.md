@@ -117,12 +117,10 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 **Mục tiêu:** Có module Go mới, chạy được `go test -race ./...`, Docker hoạt động.
 
-**Tình trạng máy đã biết** (kiểm 2026-10-15):
-- gcc đang cài là MinGW.org 6.3.0, bản 32-bit → `go test -race` báo lỗi `64-bit mode not compiled in`. Cần một gcc 64-bit đứng trước trong PATH. Kiểm bằng `gcc -dumpmachine`.
-- Docker Desktop đang tắt.
+**Tình trạng máy** (2026-10-15): đã cài gcc 64-bit WinLibs 16.2.0 (UCRT) qua winget, và Go dùng nó qua `go env CC`; `go test -race` đã chạy được. Docker Desktop đã chạy. Lệnh `gcc` trong terminal vẫn ra bản 32-bit cũ ở `C:\MinGW\bin`, nhưng Go không dùng bản đó.
 
 - [ ] Tạo nhánh `spike/money-flow` từ `docs/rewrite-requirements`.
-- [ ] Cài gcc 64-bit; bật Docker Desktop; `docker pull postgres:18.6`.
+- [ ] `docker pull postgres:18.6`.
 - [ ] `go mod init` trong `spikes/money-flow/`; thêm các thư viện ở bảng công cụ, đúng phiên bản.
 - [ ] Viết một test bất kỳ, cho nó FAIL có chủ đích rồi PASS; chạy với `-race`.
 - [ ] Tạo `.gitignore`, `NOTES.md`, `journal/`.
