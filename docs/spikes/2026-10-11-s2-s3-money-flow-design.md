@@ -4,7 +4,7 @@
 - **Spike gốc:** S-2 (sổ cái: trigger hoãn, quyền chỉ INSERT, `pgx`/`sqlc`) và S-3 (saga giải ngân trên Temporal, chống trùng ở điểm vào, replay) trong [`03-tech-stack.md` §13](../rewrite/03-tech-stack.md)
 - **Đầu vào:** [`01-requirements.md`](../rewrite/01-requirements.md) v1.5, [`02-decomposition.md`](../rewrite/02-decomposition.md) v1.1, [ADR-001](../adr/ADR-001-database-postgresql.md), [ADR-003](../adr/ADR-003-workflow-temporal.md)
 - **Báo cáo của nhóm chuyên gia** (bằng chứng, URL, chi tiết từng kịch bản): [ledger/PostgreSQL](./s2-s3-panel/01-ledger-postgres.md) · [Temporal](./s2-s3-panel/02-temporal.md) · [kiểm thử đối kháng](./s2-s3-panel/03-adversarial-tests.md)
-- **Timebox:** 5 ngày công. Hết giờ thì dừng, ghi lại phần chưa làm.
+- **Timebox:** 5 ngày công. Hết giờ thì dừng, ghi lại phần chưa làm. *(Đã thay bằng khoảng 40 ngày công trong [thiết kế bổ sung 2026-10-15](./2026-10-15-s2-s3-money-flow-skills-addendum.md), có thêm giai đoạn E–H chạy trên kind.)*
 
 ---
 
