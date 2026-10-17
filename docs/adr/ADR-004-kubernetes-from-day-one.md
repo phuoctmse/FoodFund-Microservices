@@ -14,20 +14,7 @@
 
 **Máy phát triển (đo 2026-10-10/11):** RAM 15,9 GB (2 khe × 8 GB, máy báo hỗ trợ tối đa 32 GB), Ryzen 7 5800H 8 nhân/16 luồng, RTX 3070 Laptop 8 GB VRAM, ổ C trống ~440 GB; Docker Desktop 29.4.1 (WSL2, VM nhận ~7,7 GB RAM).
 
-**RAM ước tính khi chạy đủ stack trong cluster local** (ước lượng, đo ở spike S-4):
-
-> **Đo thực tế 2026-10-11 (S-4):** hạ tầng đầy đủ (kind + Calico + Traefik + CloudNativePG/PG 18.6 + Temporal + Keycloak, chưa có service ứng dụng) dùng **~2,15 GB RAM thực** trong VM; dựng tuần tự lần đầu **~7,6 phút**. Bảng dưới là ước tính ban đầu, giữ để so sánh ([kết quả](../spikes/2026-10-11-s4-s7a-s9.md)).
-
-| Thành phần | RAM |
-|---|---|
-| Node kind (kubeadm: etcd, kube-apiserver, controller-manager, scheduler, kubelet) + CNI | ~0,8–1,2 GB *(nặng hơn k3s ~0,5 GB; chưa đo)* |
-| PostgreSQL (CloudNativePG, 1 instance) | 0,3–0,5 GB |
-| Keycloak | 0,7–1,25 GB |
-| Temporal + UI | ~0,7 GB |
-| NATS + Traefik | ~0,15 GB |
-| 6 service Go + AI worker | ~0,4–0,8 GB |
-| `otel-lgtm` (tuỳ chọn) | ~1 GB |
-| **Tổng** | **~4–6 GB** + overhead VM của Docker Desktop |
+**RAM đo thực tế (S-4, 2026-10-11):** hạ tầng đầy đủ (kind + Calico + Traefik + CloudNativePG/PG 18.6 + Temporal + Keycloak, chưa có service ứng dụng) dùng **~2,15 GB** trong VM; dựng tuần tự lần đầu **~7,6 phút**. Ước tính ban đầu là 4–6 GB cho cả stack. Chi tiết theo thành phần ở [kết quả spike](../spikes/2026-10-11-s4-s7a-s9.md).
 
 ## Quyết định
 
@@ -64,7 +51,7 @@
 7. **Vòng lặp code nhanh:** service đang phát triển chạy trực tiếp trên máy (`go run`) nối vào hạ tầng trong cluster qua port-forward; hoặc nạp image bằng `kind load docker-image` — chọn ở spike S-8.
 8. **Phân bổ chạy model AI.** Laptop chỉ chạy stack app; test E2E và demo gọi model ở **HF Spaces ZeroGPU** (dự phòng Modal, rồi HF Endpoint); eval S-6 chạy model local trên RTX 3070 (không bật app; bằng container Docker có GPU hoặc llama.cpp trên Windows, vì distro Ubuntu đã gỡ); code hằng ngày và CI dùng chế độ `fake` với phản hồi thật đã ghi lại. Nâng RAM lên 32 GB là phương án nếu stack app vẫn quá chật.
 9. **Cluster luyện thi tách khỏi cluster FoodFund.** Luyện CKA/CKAD trên cluster kind riêng (có thể nhiều node), **không chạy cùng lúc** với stack FoodFund vì RAM; xoá khi xong (`kind delete cluster --name …`).
-10. **Bộ nhớ của WSL (đã áp dụng 2026-10-11).** Đo S-4: sau khi kéo image, VM WSL giữ **5,5 GB cache file** không trả cho Windows (`vmmemWSL` 6,9 GB, dùng thực 2,15 GB; Windows còn 0,45 GB). Đã tạo `%UserProfile%\.wslconfig`: `[wsl2] memory=6GB` + `[experimental] autoMemoryReclaim=dropCache`. **Kết quả sau khi áp dụng:** giới hạn có hiệu lực (VM nhận 5,79 GiB; `vmmemWSL` dừng ở ~5,8 GB thay vì 6,9 GB); **`autoMemoryReclaim` không thu hồi cache trong 2,5 phút theo dõi khi cluster đang chạy** (cache giữ ~3,1 GB) — nhiều khả năng chỉ chạy khi VM nhàn rỗi *(suy luận, chưa kiểm chứng)*. Khi cần trả RAM ngay: `wsl -d docker-desktop -u root -- sh -c "sync; echo 3 > /proc/sys/vm/drop_caches"` (đo được: trả lại ~2,9 GB) — nên đưa thành lệnh `make reclaim`. Distro Ubuntu đã gỡ để bớt RAM; eval model (S-6) chạy bằng container Docker có GPU hoặc llama.cpp trên Windows.
+10. **Bộ nhớ của WSL.** VM WSL giữ cache file mà không trả cho Windows. Đã đặt `%UserProfile%\.wslconfig` với `[wsl2] memory=6GB` (có hiệu lực). `autoMemoryReclaim` không thu hồi cache khi cluster đang chạy, nên khi cần RAM thì chạy `wsl -d docker-desktop -u root -- sh -c "sync; echo 3 > /proc/sys/vm/drop_caches"` (trả lại ~2,9 GB); nên đưa thành `make reclaim`. Số đo ở [kết quả S-4](../spikes/2026-10-11-s4-s7a-s9.md).
 
 ## Phương án đã cân nhắc
 
@@ -89,10 +76,8 @@
 
 ## Spike liên quan
 
-- **S-4:** đo thời gian `make up` và RAM thực tế (kind + Calico); kiểm tra NetworkPolicy default-deny trên kindnet và Calico.
-- **S-7:** Traefik lọc IP và nhận IP thật qua `extraPortMappings`/`hostPort` (kind) và `hostNetwork`/`hostPort` (VPS kubeadm) — xem ADR-002.
-- **S-8:** cách code nhanh với cluster local.
-- **S-9:** Temporal trên PostgreSQL 18.
+- **S-4** (một phần đạt), **S-7** (phần 1 đạt, phần 2 cần VPS), **S-9** (đạt): [kết quả](../spikes/2026-10-11-s4-s7a-s9.md).
+- **S-8:** cách code nhanh với cluster local — chưa làm.
 
 ## Điều kiện để xem lại quyết định
 

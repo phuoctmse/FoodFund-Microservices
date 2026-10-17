@@ -17,7 +17,7 @@
 | Hiệu năng | k6 v2.3.0 · OpenTelemetry Go v1.47.0 · Temporal `contrib/opentelemetry` v0.8.1 · Grafana Alloy v1.20.1 |
 | Bảo mật | OWASP ZAP 2.17.0 · kubescape v4.0.16 |
 
-Chưa cài trên máy: **k6, kubescape, ZAP** (cài ở task cần dùng), và **gcc 64-bit** (cài ở Task 0).
+Chưa cài trên máy: **k6, kubescape, ZAP** (cài ở task cần dùng).
 
 ## Ràng buộc chung
 
@@ -68,12 +68,9 @@ Mỗi task đều bắt đầu bằng hai bước dưới, ghi vào `journal/tas
 
 ### Mentor
 
-- **Khi bí:**
-  - "gợi ý 1": hướng nghĩ, nên đọc gì.
-  - "gợi ý 2": cấu trúc lời giải, API cần dùng.
-  - "gợi ý 3": một đoạn code nhỏ cho đúng chỗ đang bí.
-- **"review task N":** mình đọc diff, `NOTES.md` và nhật ký, chạy test, rồi nhận xét theo ba mức *phải sửa / nên sửa / để ý*. Chưa qua "phải sửa" thì chưa sang task sau.
-- Ở giai đoạn G và H, mình có **đáp án ẩn** (D-23) và chỉ đem ra so sau khi bạn nộp báo cáo.
+- **Khi bí:** hỏi "gợi ý 1/2/3" (bậc gợi ý ở `AGENTS.md` gốc).
+- **"review task N":** mentor đọc diff, `NOTES.md` và nhật ký, chạy test, nhận xét theo ba mức *phải sửa / nên sửa / để ý*. Chưa qua "phải sửa" thì chưa sang task sau.
+- Giai đoạn G và H có **đáp án ẩn** (D-23), chỉ đem ra so sau khi bạn nộp báo cáo.
 
 ### Nhịp làm mỗi test
 
@@ -117,7 +114,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 **Mục tiêu:** Có module Go mới, chạy được `go test -race ./...`, Docker hoạt động.
 
-**Tình trạng máy** (2026-10-15): đã cài gcc 64-bit WinLibs 16.2.0 (UCRT) qua winget, và Go dùng nó qua `go env CC`; `go test -race` đã chạy được. Docker Desktop đã chạy. Lệnh `gcc` trong terminal vẫn ra bản 32-bit cũ ở `C:\MinGW\bin`, nhưng Go không dùng bản đó.
+**Tình trạng máy** (2026-10-15): `go test -race` đã chạy được (gcc 64-bit, xem `AGENTS.md` gốc); Docker Desktop chạy.
 
 - [ ] Tạo nhánh `spike/money-flow` từ `docs/rewrite-requirements`.
 - [ ] `docker pull postgres:18.6`.
@@ -915,15 +912,4 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 ## Phụ lục — Việc P1 (chỉ làm nếu còn thời gian)
 
-Theo [thiết kế §8.3](./2026-10-11-s2-s3-money-flow-design.md#83-kịch-bản-p1-nếu-còn-thời-gian):
-- A8 số tiền biên/tràn
-- B3 deadlock theo thứ tự khoá
-- D5 event ID tất định
-- D6 publish lỗi sau khi ghi sổ không được bù trừ
-- E5 Update tới workflow đã đóng
-- E6 Update đúng biên hạn chót
-- E8 gửi signal vòng qua Funds bằng CLI
-- E14 worker chết giữa saga
-- E15 dev server khởi động lại giữa saga
-- E17 khởi động lại `disbursement-{req}` sau FAILED
-- E19 số tiền chuyển khác số duyệt → case
+Danh sách ở [thiết kế §8.3](./2026-10-11-s2-s3-money-flow-design.md#83-kịch-bản-p1-nếu-còn-thời-gian) (trừ F1 và Q7, đã nằm trong Task 14 và Task 26).

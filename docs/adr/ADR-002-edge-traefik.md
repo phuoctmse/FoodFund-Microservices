@@ -1,6 +1,6 @@
 # ADR-002 — Lớp biên giới hệ thống: Traefik qua Gateway API trên Kubernetes
 
-- **Trạng thái:** Đã chấp nhận — 2026-10-10 (sửa cùng ngày: chuyển từ Traefik + file cấu hình trên Compose sang Traefik qua Gateway API trên Kubernetes); **sửa 2026-10-11**: môi trường đổi từ k3d/k3s sang kind/kubeadm theo [ADR-004](./ADR-004-kubernetes-from-day-one.md) — cập nhật K-1, cách mở cổng, IP thật, S-7.
+- **Trạng thái:** Đã chấp nhận — 2026-10-10; sửa 2026-10-11 theo [ADR-004](./ADR-004-kubernetes-from-day-one.md) (kind/kubeadm thay k3d/k3s).
 - **Người quyết định:** chủ dự án
 - **Liên quan:** `docs/rewrite/01-requirements.md` (NFR-01, NFR-04, NFR-05, NFR-09), `docs/rewrite/02-decomposition.md` (Gateway, C-7, C-9), `docs/rewrite/03-tech-stack.md` (T-7), ADR-004
 - **Loại quyết định:** cửa hai chiều nếu giữ các luật ở mục "Luật chống nợ".
@@ -74,8 +74,6 @@ IP thật phụ thuộc **đường đi của traffic trước khi tới proxy**
 | Demo, nếu dùng `hostPort` thay `hostNetwork` | Qua plugin `portmap` của CNI (DNAT) | DNAT chỉ đổi địa chỉ đích nên IP nguồn thường được giữ | **Chưa kiểm chứng** — S-7 |
 | Local (kind trên Docker Desktop) | Windows → Docker Desktop → container node kind (`extraPortMappings`) → Traefik `hostPort` | IP nguồn là địa chỉ nội bộ của Docker, không phải IP thật | Lọc IP ở local chỉ test được bằng cấu hình giả lập (cho phép dải nội bộ) |
 
-*(Bản trước ghi vấn đề ServiceLB/klipper-lb của k3s — không còn áp dụng sau khi đổi sang kubeadm.)*
-
 ## Spike S-7 (bắt buộc, trên VPS kubeadm một node)
 
 1. `IPAllowList` gắn qua `ExtensionRef` hoạt động (có báo lỗi cộng đồng chưa rõ cách xử lý — [thread](https://community.traefik.io/t/error-trying-to-use-basicauth-middleware-in-an-httproute-kubernetes-gateway/29689)) — làm được ngay trên kind.
@@ -113,7 +111,6 @@ Chuẩn bị ngay từ bây giờ:
 ## Hệ quả
 
 - **Tích cực:** 1 pod, ít khái niệm; cùng cách cài (Helm) và cách mở cổng (`hostPort`/`hostNetwork`) ở local và demo; route chuẩn nên đổi controller chỉ viết lại 2 chính sách.
-- **Mất so với bản k3s:** lợi thế "có sẵn trong k3s" không còn — Traefik vẫn được chọn vì nhẹ nhất và ít khái niệm nhất trong các ứng viên.
 - **Tiêu cực:** còn hai điểm chưa kiểm chứng (S-7); chưa có che IP và chống DDoS cho tới khi có Cloudflare.
 
 ## Điều kiện để xem lại quyết định

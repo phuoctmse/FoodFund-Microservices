@@ -1,9 +1,8 @@
 # FoodFund (bản viết lại) — Lựa chọn công nghệ
 
-> **Trạng thái:** **v1.0 — 2026-10-11 — toàn bộ T-1 … T-14 đã chốt.** Quyết định lớn có ADR riêng: [ADR-001](../adr/ADR-001-database-postgresql.md) PostgreSQL 18, [ADR-002](../adr/ADR-002-edge-traefik.md) Traefik qua Gateway API, [ADR-003](../adr/ADR-003-workflow-temporal.md) Temporal, [ADR-004](../adr/ADR-004-kubernetes-from-day-one.md) Kubernetes từ ngày đầu. Các điểm *(chưa kiểm chứng)* được xác nhận trong spike S-1 … S-10 (mục 13) trước khi viết plan triển khai.
-> **Đầu vào:** [`01-requirements.md`](./01-requirements.md) v1.5, [`02-decomposition.md`](./02-decomposition.md) v1.1.
-> **Đã chốt trước:** Go cho 5 service lõi (Identity & Org, Campaign, Funds, Operations, Transparency) và Notification worker; Python cho service AI.
-> **Quy ước:** mỗi quyết định ghi *Chọn / Đã cân nhắc / Lý do / Hệ quả*. Thông tin ghi *(chưa kiểm chứng)* phải được xác nhận trong các spike ở mục 13 trước khi viết plan triển khai.
+> **Trạng thái:** v1.0 — 2026-10-11 — T-1 … T-14 đã chốt. Quyết định lớn có ADR riêng: [ADR-001](../adr/ADR-001-database-postgresql.md) PostgreSQL 18, [ADR-002](../adr/ADR-002-edge-traefik.md) Traefik, [ADR-003](../adr/ADR-003-workflow-temporal.md) Temporal, [ADR-004](../adr/ADR-004-kubernetes-from-day-one.md) Kubernetes.
+> **Quy ước:** mỗi quyết định ghi *Chọn / Đã cân nhắc / Lý do / Hệ quả*; bằng chứng ở Phụ lục A. Điểm *(chưa kiểm chứng)* được xác nhận trong spike (mục 13).
+> **Đang chờ sửa:** T-5, T-6 theo [thiết kế spike luồng tiền §10](../spikes/2026-10-11-s2-s3-money-flow-design.md#10-đầu-ra) (bỏ "pending/post/void có hạn", ghi mô hình transfer hai chân).
 
 ---
 
@@ -61,29 +60,27 @@
 
 ## T-5. Điều phối quy trình (thay cho outbox, job, lịch tự động)
 
-- **Chọn (đã chốt — [ADR-003](../adr/ADR-003-workflow-temporal.md)):** **Temporal** tự host, lưu trạng thái trên PostgreSQL 18 (không cần Elasticsearch); worker Go cho service lõi, worker Python cho AI; local dùng `temporal server start-dev`. Các quy trình dài (VA hết hạn, đóng gây quỹ, saga giải ngân, tiền dư, hạn báo cáo, phân tích chứng từ, đối soát hằng ngày) viết thành workflow.
-- **Đã cân nhắc:** River + NATS + saga tự viết; DBOS (Go chưa 1.0); Restate (BSL 1.1); Hatchet.
-- **Lý do:** FoodFund nặng về quy trình dài có hẹn giờ và chờ con người — đúng bài toán của durable execution; Temporal trưởng thành nhất cho luồng tiền.
-- **Hệ quả:** bỏ River và outbox tự viết (điểm vào dùng workflow ID tất định để chống trùng — kiểm chứng ở S-3); thêm một thành phần phải vận hành; phải tuân thủ luật tất định và versioning của workflow (ADR-003).
+- **Chọn:** **Temporal** tự host trên PostgreSQL 18; worker Go cho service lõi, worker Python cho AI. Các quy trình dài (VA hết hạn, đóng gây quỹ, saga giải ngân, tiền dư, hạn báo cáo, phân tích chứng từ, đối soát hằng ngày) viết thành workflow. `temporal server start-dev` chỉ cho test tự động và thử nhanh. Lý do, phương án đã cân nhắc, luật thiết kế: [ADR-003](../adr/ADR-003-workflow-temporal.md).
+- **Hệ quả:** bỏ River và outbox tự viết; thêm một thành phần phải vận hành; phải tuân thủ luật tất định và versioning.
 
 ## T-6. Cơ sở dữ liệu
 
-- **Chọn (đã chốt — [ADR-001](../adr/ADR-001-database-postgresql.md)):** PostgreSQL 18 (lên 19 sau bản vá đầu tiên). Môi trường local/demo: **một instance, mỗi service một database và một user riêng** (không có quyền sang database khác). Truy cập bằng `pgx` + `sqlc` (SQL viết tay, sinh code có kiểu); migration bằng `goose`.
+- **Chọn:** PostgreSQL 18 qua CloudNativePG ([ADR-001](../adr/ADR-001-database-postgresql.md)); **một instance, mỗi service một database và một user riêng**. Truy cập bằng `pgx` + `sqlc` (SQL viết tay, sinh code có kiểu); migration bằng `goose`; khoá chính `uuidv7()`.
 - **Đã cân nhắc:** ORM (GORM, ent).
 - **Lý do:** sổ cái cần kiểm soát transaction và câu SQL tường minh; `sqlc` bắt lỗi SQL lúc build.
 - **Sổ cái & audit (FR-LED, NFR-02, BR-14):**
-  - Tiền lưu `BIGINT` (VND, không phần thập phân).
-  - Bảng `postings` và `audit_log`: user ứng dụng **không có quyền UPDATE/DELETE** (cấp quyền ở mức database), chỉ INSERT.
-  - Mỗi `journal_entry` cân bằng (tổng nợ = tổng có): kiểm tra bằng constraint trigger hoãn đến cuối transaction, kèm test.
-  - Khoá ngoại không dùng `ON DELETE CASCADE` cho dữ liệu tiền/chứng từ.
-- **Hệ quả:** một instance là điểm hỏng chung ở môi trường demo → **bắt buộc backup khôi phục theo thời điểm (PITR)** và bài kiểm tra khôi phục định kỳ, hoặc dùng Postgres managed khi deploy; ranh giới database vẫn tách để có thể tách instance sau. Khoá chính dùng `uuidv7()`. Sổ cái theo ngữ nghĩa chuyển khoản bất biến + pending/post/void có hạn.
+  - Tiền lưu `BIGINT` (VND).
+  - Bảng `postings` và `audit_log`: user ứng dụng chỉ INSERT, **không UPDATE/DELETE** (cấp quyền ở mức database).
+  - Mỗi `journal_entry` cân bằng: kiểm tra bằng constraint trigger hoãn đến cuối transaction.
+  - Không `ON DELETE CASCADE` cho dữ liệu tiền/chứng từ.
+  - Ngữ nghĩa chuyển khoản bất biến + pending/post/void có hạn.
+- **Hệ quả:** một instance là điểm hỏng chung → **bắt buộc PITR** và kiểm tra khôi phục định kỳ; ranh giới database vẫn tách để tách instance sau.
 
 ## T-7. Gateway
 
-- **Chọn (đã chốt — [ADR-002](../adr/ADR-002-edge-traefik.md)):** Traefik ≥ 3.7.10 làm controller **Gateway API** trên Kubernetes (ADR-004): route viết bằng `HTTPRoute` chuẩn (không dùng `IngressRoute`); `RateLimit`, `IPAllowList` (IP SePay), `Buffering`, `Headers` là `Middleware` gắn qua `ExtensionRef`; cert-manager + Let's Encrypt cho demo; Envoy Gateway là phương án dự phòng nếu spike S-7 thất bại; Cloudflare Tunnel bật sau (chuẩn bị: DNS ở Cloudflare từ đầu, webhook đăng ký bằng tên miền). **Xác thực token (JWT từ Keycloak) thực hiện trong từng service** bằng middleware dùng chung `libs/auth`; kiểm tra quyền sở hữu tài nguyên tại service sở hữu dữ liệu (C-7).
-- **Đã cân nhắc:** Caddy (rate limit không có sẵn — cần module cộng đồng, build lại), Nginx, Envoy Gateway (dành cho Kubernetes), Kong (bỏ image OSS từ 3.10), APISIX (cần etcd).
-- **Lý do:** đáp ứng requirement lớp biên E-1…E-10 bằng tính năng có sẵn; gateway không chứa nghiệp vụ nên không cần viết code; xác thực ở service là phòng thủ nhiều lớp và test được bằng unit test.
-- **Hệ quả:** **điều chỉnh nhỏ so với `02-decomposition.md`:** gateway không xác thực token, chỉ TLS + định tuyến + giới hạn tần suất (đã cập nhật dòng Gateway trong tài liệu đó).
+- **Chọn:** Traefik ≥ 3.7.10 làm controller **Gateway API**, route bằng `HTTPRoute` chuẩn, `Middleware` (`RateLimit`, `IPAllowList`…) gắn qua `ExtensionRef`; Envoy Gateway dự phòng; Cloudflare Tunnel bật sau. Chi tiết và phương án đã cân nhắc: [ADR-002](../adr/ADR-002-edge-traefik.md).
+- **Đã cân nhắc thêm (ngoài ADR-002):** APISIX (cần etcd).
+- **Xác thực:** JWT (Keycloak) kiểm tra **trong từng service** bằng `libs/auth`; quyền sở hữu tài nguyên kiểm tại service sở hữu dữ liệu (C-7). Gateway chỉ TLS + định tuyến + giới hạn tần suất.
 
 ## T-8. Danh tính
 
@@ -208,22 +205,22 @@
 
 ## 13. Spike kỹ thuật trước khi viết plan triển khai
 
-Mỗi spike là thử nghiệm nhỏ (≤ 1–2 ngày), kết quả ghi lại thành ADR ngắn trong `docs/adr/`.
+Kết quả spike ghi ở `docs/spikes/` và cập nhật vào ADR liên quan.
 
-| Mã | Câu hỏi cần trả lời | Ảnh hưởng |
-|---|---|---|
-| S-1 | SePay sandbox: tạo VA theo đơn hàng, giả lập thanh toán, nhận webhook đã ký end-to-end? Có tiền tố VA riêng cho mỗi campaign không? Thuật toán ký webhook PayOS? | T-9, BR-11 |
-| S-2 | Kiểm tra cân bằng bút toán bằng constraint trigger hoãn + quyền chỉ INSERT hoạt động đúng với `pgx`/`sqlc`? | T-6, FR-LED |
-| S-3 | Saga giải ngân trên Temporal + Postgres: giữ tiền → chờ tín hiệu có hạn → ghi sổ hoặc hoàn lại; webhook khởi động workflow với ID tất định (chống trùng); replay test; có bỏ được NATS không | T-4, T-5, ADR-003 |
-| S-4 | Đo thời gian `make up` (kind + Calico) từ máy sạch và RAM thực tế (đặc biệt Keycloak, Temporal, control plane); test NetworkPolicy default-deny trên Calico và kindnet | NFR-05, NFR-09 |
-| S-5 | PDF: Maroto v2 vs Typst với đủ 134 chữ cái tiếng Việt có dấu (gồm chữ hai dấu), kiểm tra bằng trích xuất văn bản; SeaweedFS chạy một node trong kind; xác nhận gói miễn phí R2, Brevo, Grafana Cloud | T-10, T-13 |
-| S-6 | (a) Eval AI-01: Qwen3-VL-4B vs Vintern-1B-v3.5 trên MC-OCR + ảnh tự tạo đủ 3 loại (phiếu POS, viết tay, chuyển khoản), báo cáo theo từng loại, chạy **local** trên RTX 3070 (đo cả CPU). (b) Deploy 2 Space ZeroGPU (Gradio): Vintern với `trust_remote_code` có chạy không; thời gian mỗi lần gọi; quota có trừ vào tài khoản của token gọi không; thời gian chờ khi Space ngủ/xếp hàng. (c) Nếu (b) trượt: deploy lên Modal | T-11, ADR-004 |
-| S-7 | Traefik: `IPAllowList` gắn qua `ExtensionRef` hoạt động (làm trên kind); Traefik `hostNetwork`/`hostPort` nhận đúng IP thật từ bên ngoài (làm trên VPS kubeadm) — trượt → Envoy Gateway | T-7, ADR-002 |
-| S-8 | Vòng lặp code nhanh với cluster local: `go run` + port-forward hay công cụ đồng bộ code vào pod (kiểm tra tình trạng bảo trì của Tilt) | T-14, ADR-004 |
-| S-9 | Temporal trên PostgreSQL 18: công cụ quản lý schema có hỗ trợ không, hay phải chạy thủ công / dùng PG17 riêng | T-5, T-6, ADR-001, ADR-003 |
-| S-10 | Trước khi bật Cloudflare Tunnel: `cloudflared` trong cluster, lọc IP SePay phía sau tunnel, giới hạn request của Cloudflare gói miễn phí | T-7, ADR-002 |
+| Mã | Câu hỏi cần trả lời | Ảnh hưởng | Trạng thái (2026-10-15) |
+|---|---|---|---|
+| S-1 | SePay sandbox: tạo VA theo đơn hàng, giả lập thanh toán, nhận webhook đã ký end-to-end? Có tiền tố VA riêng cho mỗi campaign không? Thuật toán ký webhook PayOS? | T-9, BR-11 | Chủ dự án đã làm (2026-10-11), chưa có tài liệu kết quả riêng. Đã dùng: SePay và PayOS theo dõi cùng tài khoản; định danh giao dịch là `id` ([thiết kế luồng tiền D-8](../spikes/2026-10-11-s2-s3-money-flow-design.md#2-quyết-định-đã-chốt-trong-phiên-thiết-kế)) |
+| S-2 | Kiểm tra cân bằng bút toán bằng constraint trigger hoãn + quyền chỉ INSERT hoạt động đúng với `pgx`/`sqlc`? | T-6, FR-LED | Gộp với S-3 thành [spike luồng tiền](../spikes/2026-10-15-s2-s3-money-flow-plan.md); đang làm |
+| S-3 | Saga giải ngân trên Temporal + Postgres: giữ tiền → chờ tín hiệu có hạn → ghi sổ hoặc hoàn lại; webhook khởi động workflow với ID tất định (chống trùng); replay test; có bỏ được NATS không | T-4, T-5, ADR-003 | Như S-2 |
+| S-4 | Đo thời gian `make up` (kind + Calico) từ máy sạch và RAM thực tế (đặc biệt Keycloak, Temporal, control plane); test NetworkPolicy default-deny trên Calico và kindnet | NFR-05, NFR-09 | Một phần ([kết quả](../spikes/2026-10-11-s4-s7a-s9.md)): hạ tầng ~2,15 GB, dựng ~7,6 phút; chưa đo service ứng dụng và lần chạy thứ hai |
+| S-5 | PDF: Maroto v2 vs Typst với đủ 134 chữ cái tiếng Việt có dấu (gồm chữ hai dấu), kiểm tra bằng trích xuất văn bản; SeaweedFS chạy một node trong kind; xác nhận gói miễn phí R2, Brevo, Grafana Cloud | T-10, T-13 | Chưa làm |
+| S-6 | (a) Eval AI-01: Qwen3-VL-4B vs Vintern-1B-v3.5 trên MC-OCR + ảnh tự tạo đủ 3 loại (phiếu POS, viết tay, chuyển khoản), báo cáo theo từng loại, chạy **local** trên RTX 3070 (đo cả CPU). (b) Deploy 2 Space ZeroGPU (Gradio): Vintern với `trust_remote_code` có chạy không; thời gian mỗi lần gọi; quota có trừ vào tài khoản của token gọi không; thời gian chờ khi Space ngủ/xếp hàng. (c) Nếu (b) trượt: deploy lên Modal | T-11, ADR-004 | Chưa làm |
+| S-7 | Traefik: `IPAllowList` gắn qua `ExtensionRef` hoạt động (làm trên kind); Traefik `hostNetwork`/`hostPort` nhận đúng IP thật từ bên ngoài (làm trên VPS kubeadm) — trượt → Envoy Gateway | T-7, ADR-002 | Phần 1 (kind) đạt; phần 2 cần VPS |
+| S-8 | Vòng lặp code nhanh với cluster local: `go run` + port-forward hay công cụ đồng bộ code vào pod (kiểm tra tình trạng bảo trì của Tilt) | T-14, ADR-004 | Chưa làm |
+| S-9 | Temporal trên PostgreSQL 18: công cụ quản lý schema có hỗ trợ không, hay phải chạy thủ công / dùng PG17 riêng | T-5, T-6, ADR-001, ADR-003 | Đạt: Temporal 1.32 tự tạo schema trên PG 18.6 |
+| S-10 | Trước khi bật Cloudflare Tunnel: `cloudflared` trong cluster, lọc IP SePay phía sau tunnel, giới hạn request của Cloudflare gói miễn phí | T-7, ADR-002 | Chưa làm |
 
-**Trạng thái 2026-10-11** ([kết quả](../spikes/2026-10-11-s4-s7a-s9.md)): **S-4** đạt một phần — hạ tầng ~2,15 GB RAM thực, dựng ~7,6 phút lần đầu; chưa đo service ứng dụng và lần chạy thứ hai; phát hiện WSL giữ cache. **S-7** phần 1 đạt (trên kind); phần 2 cần VPS. **S-9** đạt — Temporal 1.32 tự tạo schema trên PostgreSQL 18.6. Chưa làm: S-1, S-2, S-3, S-5, S-6, S-8, S-10.
+T-12 không cần spike: quyết định theo đánh giá, dễ thay sau.
 
 ---
 
@@ -255,7 +252,7 @@ foodfund/
 
 - **2026-10-11:** chủ dự án duyệt toàn bộ T-1 … T-14 theo bảng tóm tắt (mục 0).
 - Điều chỉnh requirement đi kèm: **giữ FR-PAY-02 (PayOS) ở [M]** (rút lại đề xuất hạ xuống [S]); thêm **FR-CMP-08** (chia sẻ campaign lên mạng xã hội có ảnh xem trước).
-- Bước tiếp theo: chạy spike S-1 … S-10 (ưu tiên S-3, S-4, S-7, S-9 vì có thể làm đổi quyết định), rồi viết plan triển khai.
+- Trạng thái spike: mục 13.
 
 ---
 
@@ -296,15 +293,9 @@ foodfund/
 - **Chưa có:** số đo RAM của NATS (Docker chưa chạy) → spike S-4.
 - **Sẽ đổi nếu:** cần CDC bằng Debezium hoặc lưu trữ/phát lại event ở quy mô rất lớn.
 
-### T-5. Temporal làm lớp điều phối — *Trung bình* (xem [ADR-003](../adr/ADR-003-workflow-temporal.md))
+### T-5. Temporal làm lớp điều phối — *Trung bình*
 
-*Phương án River bên dưới được giữ lại làm hồ sơ so sánh; không còn là lựa chọn.*
-
-#### (Lịch sử) River (job queue trên Postgres) làm outbox và lịch
-
-- **[Tài liệu]** River chèn job **trong cùng transaction**: job chắc chắn được ghi nếu transaction commit, bị huỷ nếu rollback, và không ai thấy trước khi commit. Có job định kỳ/cron, tự thử lại, job duy nhất. Giấy phép MPL-2.0; gói mã nguồn mở miễn phí đã gồm job định kỳ (gói Pro trả phí chỉ thêm workflow, batching, giới hạn đồng thời — không cần) ([River — brandur.org](https://brandur.org/river), [itechguides — River](https://www.itechguides.com/products/river/)).
-- **[Audit]** Hệ thống cũ đã phải tự viết `OutboxEvent` + processor trong `campaign` → nhu cầu outbox là có thật; River thay phần tự viết đó.
-- **[Requirement]** C-2, C-4, BR-01 (lịch tự động), FR-PAY-05, FR-TRN-02 (nhắc hạn), NFR-01 (đối soát hằng ngày).
+Xem [ADR-003](../adr/ADR-003-workflow-temporal.md) (bối cảnh, dữ liệu, phương án đã cân nhắc). Phương án River cũ: xem lịch sử git.
 
 ### T-6. PostgreSQL + `pgx` + `sqlc` — *Mạnh*
 
@@ -316,7 +307,7 @@ foodfund/
 
 - **[Tài liệu — để so sánh]** Caddy tự cấp và gia hạn chứng chỉ TLS mặc định (điểm mạnh của Caddy, nhưng không bù được việc thiếu rate limit) ([Caddy Automatic HTTPS](https://caddyserver.com/docs/automatic-https)).
 - **[Requirement]** C-7/NFR-04 buộc kiểm tra quyền tại service sở hữu dữ liệu → service phải xác thực token dù gateway có làm hay không → gateway không cần logic.
-- **[Tài liệu]** Traefik có sẵn `RateLimit`, `IPAllowList`, `Buffering`, `ForwardAuth` ([Traefik middlewares](https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/overview/)); Caddy **không** có rate limit sẵn ([stackharbor](https://stackharbor.com/en/knowledge-base/caddy-rate-limiting/)) — đây là lỗi của bản v0.2 khi ghi Caddy "giới hạn tần suất".
+- **[Tài liệu]** Traefik có sẵn `RateLimit`, `IPAllowList`, `Buffering`, `ForwardAuth` ([Traefik middlewares](https://doc.traefik.io/traefik/reference/routing-configuration/http/middlewares/overview/)); Caddy **không** có rate limit sẵn ([stackharbor](https://stackharbor.com/en/knowledge-base/caddy-rate-limiting/)).
 - **[Tài liệu]** SePay công bố danh sách IP gửi webhook và yêu cầu HTTPS ([SePay IP](https://developer.sepay.vn/en/dia-chi-ip)).
 
 ### T-8. Keycloak — *Trung bình*
@@ -346,21 +337,11 @@ foodfund/
 - **[Tài liệu]** Qwen3-VL-4B: Apache 2.0, OCR 32 ngôn ngữ; Vintern-1B-v3.5: MIT, chuyên tiếng Việt, có số liệu vi-MTVQA/DocVQA/OCRBench trên model card.
 - **[Tài liệu]** HF API (kiểm tra 2026-10-10): Qwen3-VL-4B có nhà cung cấp Featherless đang chạy; Vintern-1B-v3.5 và PaddleOCR-VL-1.6 **không có** nhà cung cấp serverless → demo dùng Inference Endpoints (T4 $0,50/giờ, L4 $0,80/giờ, tính theo phút, tự tắt khi không dùng — [HF pricing](https://huggingface.co/docs/inference-endpoints/en/pricing)).
 - **[Tài liệu]** TGI của HF ở chế độ bảo trì từ 12/2025, HF khuyến nghị vLLM/SGLang ([HF docs](https://huggingface.co/docs/text-generation-inference/en/index.md)) → dùng vLLM/llama.cpp.
-- **[Đo]** Laptop: **RTX 3070 Laptop 8 GB VRAM** (driver 596.21); RAM khả dụng ~4,9 GB khi Docker chưa chạy, committed 20,2 GB > RAM vật lý; 2 khe × 8 GB, máy báo hỗ trợ tối đa 32 GB → chạy model song song với stack app trên laptop không ổn định; đưa model lên ZeroGPU. *(Bản v0.4 ghi sai "không có GPU NVIDIA" — đã sửa.)*
+- **[Đo]** Laptop: **RTX 3070 Laptop 8 GB VRAM** (driver 596.21); RAM khả dụng ~4,9 GB khi Docker chưa chạy, committed 20,2 GB > RAM vật lý; 2 khe × 8 GB, máy báo hỗ trợ tối đa 32 GB → chạy model song song với stack app trên laptop không ổn định; đưa model lên ZeroGPU.
 - **[Tài liệu]** ZeroGPU: tài khoản free (email đã xác minh, trên 30 ngày) host tối đa 2 Space; chỉ Gradio SDK; quota GPU theo ngày: free 5 phút, PRO 40 phút; HF Spaces CPU Basic miễn phí phần cứng nhưng tạo Space chạy Gradio/Docker mới cần gói trả phí ([ZeroGPU](https://huggingface.co/docs/hub/spaces-zerogpu), [Spaces GPUs](https://huggingface.co/docs/hub/spaces-gpus)). Oracle Always Free bị cắt còn 2 OCPU/12 GB từ 15/06/2026 và thu hồi máy nhàn rỗi 7 ngày ([InfoQ](https://infoq.com/news/2026/07/oracle-cloud-free-tier-limits/)) → loại.
 - **[Requirement]** NFR-07 (AI không chặn duyệt), NFR-10.
 - **Chưa có:** không tìm thấy benchmark nào so các model này trên hoá đơn tiếng Việt → S-6 là nguồn bằng chứng duy nhất.
 - **Rủi ro:** Vintern phụ thuộc một nhóm nhỏ, chưa có bản nào trong năm 2026 → nếu thắng, lưu bản sao trọng số; Qwen3-VL là dự phòng. Vintern cần `trust_remote_code` → kiểm tra khi deploy lên HF Endpoint.
-
-#### (Lịch sử) AI với Anthropic SDK
-
-Phương án v0.4 (API Anthropic, `claude-opus-5-5`) không còn là lựa chọn; giữ lại để so sánh. Tài liệu được soạn với sự hỗ trợ của Claude (Anthropic); lựa chọn cuối cùng là model mở do chủ dự án quyết định.
-
-
-- **[Tài liệu]** Structured outputs (`client.messages.parse()`) kiểm tra kết quả theo schema; `claude-opus-5-5` là model mặc định hiện tại, giá $4/$20 cho mỗi triệu token vào/ra, effort mặc định `medium`; Batch API giảm 50% chi phí cho tác vụ không gấp (tài liệu Claude API đi kèm công cụ phát triển, bản cache 2026-09-25).
-- **[Requirement]** NFR-10: AI chỉ gợi ý, có eval, có trần chi phí.
-- **Chưa có:** chất lượng trích xuất hoá đơn tiếng Việt và chi phí thực mỗi ảnh → spike S-6.
-- **Minh bạch về thiên lệch:** tài liệu này được soạn với sự hỗ trợ của Claude (sản phẩm của Anthropic), và chưa có phép so sánh với nhà cung cấp khác (spec chatbot cũ dùng Gemini). **Spike S-6 nên chạy cùng bộ eval trên ít nhất một nhà cung cấp khác** trước khi chốt; lớp adapter trong service AI giữ khả năng đổi nhà cung cấp.
 
 ### T-12. React + TypeScript có SSR + BFF — *Yếu*
 
@@ -405,19 +386,3 @@ Phương án v0.4 (API Anthropic, `claude-opus-5-5`) không còn là lựa chọ
 - Chỉ là hello-world; service thật có driver DB, client NATS, SDK nên số tuyệt đối sẽ khác.
 - Đo trên Windows, không phải container Linux như khi deploy.
 - Thời gian 1.000 request gồm cả chi phí phía client PowerShell; không phải benchmark hiệu năng.
-- Lần đo đầu tiên bị sai (chỉ đo trình khởi chạy của venv, ra 4,1 MB cho Python) và đã được đo lại bằng cách tính cả cây tiến trình.
-
----
-
-## Phụ lục C — Những gì còn thiếu bằng chứng
-
-| Quyết định | Thiếu gì | Spike |
-|---|---|---|
-| T-4, T-8, T-13, T-14 | RAM và thời gian khởi động thực của control plane kind, Calico, NATS, Keycloak, Postgres, Temporal, LGTM | S-4, S-8 |
-| T-5 | Saga giải ngân trên Temporal, chống trùng ở điểm vào, footprint thực tế | S-3, S-4 |
-| T-6 | `sqlc` báo lỗi SQL lúc sinh code; constraint trigger cân bằng bút toán | S-2 |
-| T-9 | Webhook SePay end-to-end; tiền tố VA cho campaign; thuật toán ký PayOS | S-1 |
-| T-10 | Thư viện PDF hỗ trợ tiếng Việt; trình giả lập S3 và giấy phép | S-5 |
-| T-11 | Chất lượng hoá đơn tiếng Việt của Qwen3-VL-4B và Vintern-1B-v3.5; khả năng chạy và quota thực tế trên ZeroGPU | S-6 |
-| T-7 | `IPAllowList` qua `ExtensionRef`, IP thật với Traefik `hostNetwork` trên VPS kubeadm; lọc IP sau Cloudflare Tunnel | S-7, S-10 |
-| T-12 | Không cần spike — chấp nhận là quyết định theo đánh giá, dễ thay sau | — |

@@ -1,12 +1,7 @@
 # FoodFund (bản viết lại) — Tách hệ thống (Decomposition)
 
-> **Trạng thái:** v1.1 — 2026-10-10 — viết lại theo [ADR-002](../adr/ADR-002-edge-traefik.md), [ADR-003](../adr/ADR-003-workflow-temporal.md), [ADR-004](../adr/ADR-004-kubernetes-from-day-one.md). Ranh giới 6 service + 1 worker + gateway của v1.0 **giữ nguyên**.
-> **Đầu vào:** [`01-requirements.md`](./01-requirements.md) v1.1, [`03-tech-stack.md`](./03-tech-stack.md) v0.4.
-> **Thay đổi so với v1.0:**
-> - Luồng tiền chuyển từ **choreography** (event + saga tự viết + outbox) sang **orchestration** bằng workflow Temporal có chủ sở hữu rõ ràng.
-> - Event bus chỉ còn **phát sự kiện tới read model và tác vụ phụ** (Transparency, Notification, projection).
-> - Bỏ transactional outbox: thay đổi cần phát event đi qua workflow (quy tắc C-2).
-> - Thêm danh mục workflow, tín hiệu, hợp đồng activity xuyên service, góc nhìn triển khai trên Kubernetes.
+> **Trạng thái:** v1.1 — 2026-10-10. Luồng tiền điều phối bằng workflow Temporal ([ADR-003](../adr/ADR-003-workflow-temporal.md)); event chỉ để phát tin; không outbox (C-2).
+> **Đang chờ sửa:** thiết kế spike luồng tiền (2026-10-11) đã chốt khác tài liệu này ở §4 (bỏ `disbursed:{c}`), §5 và §7.3 (thứ tự BR-13, Update thay Signal, void sau pivot), C-2, C-7. Thiết kế spike thắng; danh sách sửa ở [thiết kế §10](../spikes/2026-10-11-s2-s3-money-flow-design.md#10-đầu-ra), áp dụng khi spike có kết quả.
 
 ---
 
@@ -364,11 +359,4 @@ Kitchen (hoặc fundraiser nộp thay) chụp và gửi ảnh, khai tổng tiề
 
 ## 12. Liên kết quyết định
 
-| Chủ đề | Quyết định |
-|---|---|
-| Ngôn ngữ | Go cho service lõi, Python cho AI (`03-tech-stack.md` T-1) |
-| Database | PostgreSQL 18 + CloudNativePG — [ADR-001](../adr/ADR-001-database-postgresql.md) |
-| Lớp biên | Traefik qua Gateway API — [ADR-002](../adr/ADR-002-edge-traefik.md) |
-| Điều phối | Temporal — [ADR-003](../adr/ADR-003-workflow-temporal.md) |
-| Hạ tầng | Kubernetes từ ngày đầu — [ADR-004](../adr/ADR-004-kubernetes-from-day-one.md) |
-| Còn mở | T-2 (kiểu API), T-3, T-4 (NATS — có thể bỏ sau S-3), T-8 … T-13; spike S-1 … S-10 |
+Công nghệ: [`03-tech-stack.md`](./03-tech-stack.md) (T-1…T-14 đã chốt) và [ADR-001](../adr/ADR-001-database-postgresql.md) … [ADR-004](../adr/ADR-004-kubernetes-from-day-one.md). Việc NATS có bỏ được không chờ kết quả spike luồng tiền (Q7).

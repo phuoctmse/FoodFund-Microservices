@@ -158,19 +158,11 @@ Dự án Python riêng ở `spikes/money-flow/apitests/`, chạy bằng một l�
 
 ## 8. Lịch và cổng quyết định
 
-| Giai đoạn | Nội dung | Ước lượng (ngày công) |
-|---|---|---|
-| 0–D | Spike chính (Q1–Q6), tự mò hoàn toàn | ~23 |
-| E | Funds API + deploy lên kind | 4 |
-| F | Bộ test API bằng Python | 4 |
-| G | Pen test | 4 |
-| H | Hiệu năng (+ Q7) | 4 |
-| I | Báo cáo cuối; tổng kết AI trong kiểm thử | 1 |
-| **Tổng** | | **~40 (≈ 8 tuần)** |
+Tổng ~40 ngày công (≈ 8 tuần): 0–D ~23, mỗi giai đoạn E–H 4, I 1. Lịch theo task ở [plan](./2026-10-15-s2-s3-money-flow-plan.md#lịch).
 
-- **Cổng sau C** (như plan cũ): kết luận Q1–Q6, để mở khoá các quyết định kiến trúc đang chờ.
+- **Cổng D (sau giai đoạn C):** kết luận Q1–Q6, để mở khoá các quyết định kiến trúc đang chờ.
 - **Cổng sau mỗi giai đoạn E–H:** ghi kết quả, cùng mentor quyết đi tiếp hay cắt.
-- 8 tuần là khoảng 30% quỹ 5–6 tháng của dự án. Phần bù lại: các sản phẩm của E–H dùng lại được cho Funds thật (§9).
+- 8 tuần là khoảng 30% quỹ 5–6 tháng của dự án. Phần bù lại: sản phẩm của E–H dùng lại được cho Funds thật (§9).
 
 ---
 
