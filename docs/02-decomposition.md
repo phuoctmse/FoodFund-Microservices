@@ -1,7 +1,7 @@
 # FoodFund (bản viết lại) — Tách hệ thống (Decomposition)
 
-> **Trạng thái:** v1.1 — 2026-10-10. Luồng tiền điều phối bằng workflow Temporal ([ADR-003](../adr/ADR-003-workflow-temporal.md)); event chỉ để phát tin; không outbox (C-2).
-> **Đang chờ sửa:** thiết kế spike luồng tiền (2026-10-11) đã chốt khác tài liệu này ở §4 (bỏ `disbursed:{c}`), §5 và §7.3 (thứ tự BR-13, Update thay Signal, void sau pivot), C-2, C-7. Thiết kế spike thắng; danh sách sửa ở [thiết kế §10](../spikes/2026-10-11-s2-s3-money-flow-design.md#10-đầu-ra), áp dụng khi spike có kết quả.
+> **Trạng thái:** v1.1 — 2026-10-10. Luồng tiền điều phối bằng workflow Temporal ([ADR-003](./03-tech-stack.md#adr-003-temporal)); event chỉ để phát tin; không outbox (C-2).
+> **Đang chờ sửa:** thiết kế spike luồng tiền (2026-10-11) đã chốt khác tài liệu này ở §4 (bỏ `disbursed:{c}`), §5 và §7.3 (thứ tự BR-13, Update thay Signal, void sau pivot), C-2, C-7. Thiết kế spike thắng; danh sách sửa ở [thiết kế §12](./spikes/money-flow/design.md#12-đầu-ra), áp dụng khi spike có kết quả.
 
 ---
 
@@ -359,4 +359,4 @@ Kitchen (hoặc fundraiser nộp thay) chụp và gửi ảnh, khai tổng tiề
 
 ## 12. Liên kết quyết định
 
-Công nghệ: [`03-tech-stack.md`](./03-tech-stack.md) (T-1…T-14 đã chốt) và [ADR-001](../adr/ADR-001-database-postgresql.md) … [ADR-004](../adr/ADR-004-kubernetes-from-day-one.md). Việc NATS có bỏ được không chờ kết quả spike luồng tiền (Q7).
+Công nghệ: [`03-tech-stack.md`](./03-tech-stack.md) (T-1…T-14 đã chốt) và [ADR-001](./03-tech-stack.md#adr-001-postgresql-18) … [ADR-004](./03-tech-stack.md#adr-004-kubernetes-từ-ngày-đầu). Việc NATS có bỏ được không chờ kết quả spike luồng tiền (Q7).

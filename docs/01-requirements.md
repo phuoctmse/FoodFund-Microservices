@@ -236,7 +236,7 @@ FoodFund là nền tảng gây quỹ từ thiện về thực phẩm: kết nố
 
 ### 7.1 Phạm vi giai đoạn 1
 
-**Trong:** backend + **web tối thiểu** cho các luồng demo (trang campaign, quyên góp bằng QR, sao kê/báo cáo, màn admin duyệt – giải ngân – đối soát, màn nộp chứng từ); Kubernetes **kind** ở local/CI và **kubeadm một node** cho demo ([ADR-004](../adr/ADR-004-kubernetes-from-day-one.md)).
+**Trong:** backend + **web tối thiểu** cho các luồng demo (trang campaign, quyên góp bằng QR, sao kê/báo cáo, màn admin duyệt – giải ngân – đối soát, màn nộp chứng từ); Kubernetes **kind** ở local/CI và **kubeadm một node** cho demo ([ADR-004](./03-tech-stack.md#adr-004-kubernetes-từ-ngày-đầu)).
 
 **Ngoài:**
 - Ứng dụng mobile; đa tiền tệ; thanh toán quốc tế.

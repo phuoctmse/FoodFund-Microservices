@@ -2,7 +2,7 @@
 
 > **Người thực hiện:** chủ dự án tự làm toàn bộ, kể cả code. Claude là mentor: không viết code trừ khi được yêu cầu rõ cho một phần cụ thể. Plan này **cố ý không chứa code** (D-14). Các bước dùng checkbox (`- [ ]`) để theo dõi.
 
-**Mục tiêu:** Trả lời Q1–Q6 của [thiết kế spike](./2026-10-11-s2-s3-money-flow-design.md), rồi dùng chính hệ thống đó để thực hành test API, pen test và hiệu năng theo [thiết kế bổ sung](./2026-10-15-s2-s3-money-flow-skills-addendum.md).
+**Mục tiêu:** Trả lời Q1–Q6 của [thiết kế](./design.md), rồi dùng chính hệ thống đó để thực hành test API, pen test và hiệu năng theo [thiết kế §9](./design.md#9-giai-đoạn-eh).
 
 **Kiến trúc:** Go module `spikes/money-flow/`. Giai đoạn A–D chạy với PostgreSQL 18 qua testcontainers và `temporal server start-dev`. Giai đoạn E–H deploy lên cluster kind `foodfund` (CloudNativePG, Temporal, Traefik đã có từ S-9) và kiểm thử từ bên ngoài bằng Python, k6, ZAP.
 
@@ -27,11 +27,11 @@ Chưa cài trên máy: **k6, kubescape, ZAP** (cài ở task cần dùng).
 - Thư mục cấp một theo thiết kế §4: `migrations/`, `ledger/`, `webhook/`, `workflows/`, `activities/`, `harness/`. Thêm `faults/`, `cmd/`, `scenarios/`, `api/`, `deploy/`, `apitests/`, `perf/`, `journal/` khi tới task cần. Bên trong mỗi thư mục, bạn tự tổ chức.
 - Tiền là `bigint`/`int64` VND. Không dùng float.
 - Role: `funds_owner` (NOLOGIN, sở hữu mọi thứ), `funds_migrator` (LOGIN, member của owner), `funds_app` (LOGIN; chỉ `SELECT, INSERT` trên `ledger.*`). Từ giai đoạn E có thêm `funds_qa` (chỉ `SELECT`).
-- Bảng, cột và trigger theo thiết kế §5.2; phác thảo DDL ở [báo cáo ledger §1.2](./s2-s3-panel/01-ledger-postgres.md#12-phác-thảo-ddl-mô-hình-t--a).
+- Bảng, cột và trigger theo thiết kế §5.2; phác thảo DDL ở [research §1.2](./research.md#12-phác-thảo-ddl).
 - Lỗi trigger: `ERRCODE = check_violation (23514)`, `CONSTRAINT` ∈ {`ledger_entry_complete`, `ledger_account_nonnegative`, `ledger_isolation`}.
 - Bảng tài khoản và khoá chống trùng theo thiết kế §5.3. `platform_cash` có phía thông thường `D`, các tài khoản khác `C`. Mọi tài khoản cấm âm (trừ tài khoản test riêng của Task 2).
 - Khoá chống trùng lấy từ nghiệp vụ. **Không** dùng RunID, attempt hay uuid.
-- Phân loại lỗi theo thiết kế §5.5. Ánh xạ HTTP của webhook theo §6, của Funds API theo thiết kế bổ sung §4.1.
+- Phân loại lỗi theo thiết kế §5.5. Ánh xạ HTTP của webhook theo §6, của Funds API theo thiết kế §9.1.
 - Workflow: `transfer-sepay-{txnId}` với các policy ở thiết kế §6; `disbursement-{requestId}` với `REJECT_DUPLICATE`; luật saga theo §7 và D-4…D-10.
 - Công tắc "naive" (bỏ khoá, bỏ trigger, đổi khoá) chỉ nằm trong `testdata/` hoặc `faults/` (build tag `spike`). **Không bao giờ** nằm trong `migrations/`.
 - Giai đoạn A–D không dùng kind; giai đoạn E–H dùng kind (D-18).
@@ -57,7 +57,7 @@ Chưa cài trên máy: **k6, kubescape, ZAP** (cài ở task cần dùng).
 
 - **`spikes/money-flow/NOTES.md`:** API Go bạn thiết kế (tên package, hàm, kiểu dữ liệu), và mọi quyết định nhỏ kèm lý do. Task sau dựa vào đây, nên phải cập nhật trước mỗi checkpoint.
 - **`spikes/money-flow/journal/task-NN.md`:** nhật ký từng task (xem "Hai thói quen" bên dưới).
-- **`docs/spikes/<ngày>-s2-s3-money-flow.md`:** bản nháp kết quả. Mỗi khi có bằng chứng (lệnh + output) thì ghi vào ngay, không để dồn tới cuối.
+- **`docs/spikes/money-flow/results.md`:** bản nháp kết quả. Mỗi khi có bằng chứng (lệnh + output) thì ghi vào ngay, không để dồn tới cuối.
 
 ### Hai thói quen ở mọi task (D-16)
 
@@ -132,7 +132,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 ### Task 1: Harness PostgreSQL và tách role (1,5 ngày)
 
-**Học trước:** [Privileges](https://www.postgresql.org/docs/18/ddl-priv.html) · [báo cáo ledger §3.1](./s2-s3-panel/01-ledger-postgres.md#31-thiết-kế-role-và-quyền) · [testcontainers-go Postgres](https://golang.testcontainers.org/modules/postgres/) · [goose annotations](https://pressly.github.io/goose/documentation/annotations/) và goose `Provider` API · `TestMain` trong [package testing](https://pkg.go.dev/testing#hdr-Main).
+**Học trước:** [Privileges](https://www.postgresql.org/docs/18/ddl-priv.html) · [research §1.5](./research.md#15-q2--role-quyền-lỗi-commit-và-sqlc) · [testcontainers-go Postgres](https://golang.testcontainers.org/modules/postgres/) · [goose annotations](https://pressly.github.io/goose/documentation/annotations/) và goose `Provider` API · `TestMain` trong [package testing](https://pkg.go.dev/testing#hdr-Main).
 
 **Mục tiêu:** Mỗi package test có một PG 18 riêng, đã có đủ ba role và hai schema (`ledger`, `funds`), với DSN cho từng role.
 
@@ -165,7 +165,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 ### Task 2: Schema sổ cái và trigger hoãn (Q1) (1,5 ngày)
 
-**Học trước:** [báo cáo ledger §1.2, §2](./s2-s3-panel/01-ledger-postgres.md#2-q1--ép-tính-đúng-của-bút-toán-bằng-trigger-hoãn) · [CREATE TRIGGER](https://www.postgresql.org/docs/18/sql-createtrigger.html) (phần constraint trigger) · [SET CONSTRAINTS](https://www.postgresql.org/docs/18/sql-set-constraints.html) · [`pgx.Tx`](https://pkg.go.dev/github.com/jackc/pgx/v5#Tx).
+**Học trước:** [research §1.2, §1.4](./research.md#14-q1--trigger-hoãn-cơ-chế-và-cạm-bẫy) · [CREATE TRIGGER](https://www.postgresql.org/docs/18/sql-createtrigger.html) (phần constraint trigger) · [SET CONSTRAINTS](https://www.postgresql.org/docs/18/sql-set-constraints.html) · [`pgx.Tx`](https://pkg.go.dev/github.com/jackc/pgx/v5#Tx).
 
 **Mục tiêu:** DB tự từ chối entry sai hình dạng lúc COMMIT, kể cả khi code cố ý ghi sai.
 
@@ -202,7 +202,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 ### Task 3: Quyền chỉ INSERT (Q2, phần 1) (1 ngày)
 
-**Học trước:** [báo cáo ledger §3.1–3.2](./s2-s3-panel/01-ledger-postgres.md#3-q2--quyền-chỉ-insert-pgx-v5-và-sqlc) · [table-driven tests](https://go.dev/wiki/TableDrivenTests), [`t.Run`](https://pkg.go.dev/testing#T.Run) · [`pgconn.PgError`](https://pkg.go.dev/github.com/jackc/pgx/v5/pgconn#PgError).
+**Học trước:** [research §1.5](./research.md#15-q2--role-quyền-lỗi-commit-và-sqlc) · [table-driven tests](https://go.dev/wiki/TableDrivenTests), [`t.Run`](https://pkg.go.dev/testing#T.Run) · [`pgconn.PgError`](https://pkg.go.dev/github.com/jackc/pgx/v5/pgconn#PgError).
 
 **Mục tiêu:** `funds_app` không sửa, xoá hay vô hiệu hoá được sổ cái; lỗi COMMIT về Go đúng kiểu; kết nối vẫn dùng tiếp được sau COMMIT lỗi.
 
@@ -224,7 +224,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 ### Task 4: Bảng Funds, ngân hàng giả và bộ kiểm tra sổ cái (1,5 ngày)
 
-**Học trước:** [thiết kế §8.1](./2026-10-11-s2-s3-money-flow-design.md#81-hạ-tầng-test) · [báo cáo kiểm thử §3](./s2-s3-panel/03-adversarial-tests.md#3-bộ-bất-biến-toàn-cục-ledger-audit). Báo cáo viết cho mô hình postings, nên bạn phải tự chuyển sang mô hình transfers.
+**Học trước:** [thiết kế §8.1](./design.md#81-hạ-tầng-test) · [research §3.3](./research.md#33-bộ-bất-biến-ledger-audit). SQL ở đó viết cho mô hình postings, nên bạn phải tự chuyển sang mô hình transfers.
 
 **Mục tiêu:** Có một bộ kiểm tra bất biến chạy sau **mỗi** kịch bản, và một "ngân hàng giả" để đối soát.
 
@@ -264,7 +264,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 ### Task 5: Hàm ghi sổ với sqlc, chống trùng và phân loại lỗi (Q2 phần 2, nền cho Q5) (2 ngày)
 
-**Học trước:** [sqlc + pgx](https://docs.sqlc.dev/en/latest/guides/using-go-and-pgx.html) · [sqlc transactions](https://docs.sqlc.dev/en/latest/howto/transactions.html) · [sqlc config](https://docs.sqlc.dev/en/latest/reference/config.html) · [thiết kế §5.4, §5.5](./2026-10-11-s2-s3-money-flow-design.md#54-ghi-idempotent) · [báo cáo ledger §1.4, §3.2, §3.3](./s2-s3-panel/01-ledger-postgres.md#14-idempotency).
+**Học trước:** [sqlc + pgx](https://docs.sqlc.dev/en/latest/guides/using-go-and-pgx.html) · [sqlc transactions](https://docs.sqlc.dev/en/latest/howto/transactions.html) · [sqlc config](https://docs.sqlc.dev/en/latest/reference/config.html) · [thiết kế §5.4, §5.5](./design.md#54-ghi-idempotent) · [research §1.3, §1.5](./research.md#13-ghi-idempotent-và-uuidv7).
 
 **Mục tiêu:** Một hàm ghi sổ duy nhất: idempotent theo khoá nghiệp vụ, trả lỗi có kiểu, chỉ dùng quyền INSERT.
 
@@ -293,7 +293,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 | `TestPost_UnknownAccount` | lỗi có kiểu riêng |
 | `TestClassify` | unit test thuần (không DB), đủ mọi dòng của §5.5 |
 
-**Câu hỏi Q2 phải ghi lại:** `sqlc generate` có phân tích được migration PG18 (`uuidv7()`, constraint trigger, plpgsql) không? Nếu không, phương án dự phòng ở thiết kế §9.
+**Câu hỏi Q2 phải ghi lại:** `sqlc generate` có phân tích được migration PG18 (`uuidv7()`, constraint trigger, plpgsql) không? Nếu không, phương án dự phòng ở thiết kế §11.
 
 **Bẫy:**
 - Bỏ qua lỗi trả về từ `Commit` = mất tiền im lặng.
@@ -307,7 +307,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 ### Task 6: Đồng thời, không chi vượt ngân sách (Q3) (1 ngày)
 
-**Học trước:** [goroutine](https://go.dev/tour/concurrency/1), [`sync.WaitGroup`](https://pkg.go.dev/sync#WaitGroup) · [báo cáo ledger §4](./s2-s3-panel/01-ledger-postgres.md#4-q3--hai-lần-reserve-đồng-thời-có-chi-vượt-ngân-sách-được-không) · [Transaction isolation](https://www.postgresql.org/docs/18/transaction-iso.html).
+**Học trước:** [goroutine](https://go.dev/tour/concurrency/1), [`sync.WaitGroup`](https://pkg.go.dev/sync#WaitGroup) · [research §1.6](./research.md#16-q3--đồng-thời-trên-một-ngân-sách) · [Transaction isolation](https://www.postgresql.org/docs/18/transaction-iso.html).
 
 **Mục tiêu:** Chứng minh khoá trong trigger chặn được chi vượt khi có nhiều thao tác giữ tiền chạy đồng thời.
 
@@ -350,7 +350,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 **Mục tiêu:**
 - Viết một workflow đồ chơi: nhận Update `add` có validator (từ chối số ≤ 0), cộng dồn, kết thúc khi đạt ngưỡng.
 - Test nó bằng thời gian ảo **và** trên dev server thật.
-- Xác nhận Update chạy được trên server 1.32 (mục chưa kiểm chứng trong báo cáo Temporal).
+- Xác nhận Update chạy được trên server 1.32 (mục chưa kiểm chứng ở research §4).
 
 **Bạn tự thiết kế:** harness dev server (khởi động như tiến trình con, chờ sẵn sàng, dừng, khởi động lại trên **cùng** file DB, đặt retention cho namespace); helper tạo client Temporal cho test.
 
@@ -374,7 +374,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 ### Task 8: Activity tiền vào và workflow `IncomingTransfer` (1,5 ngày)
 
-**Học trước:** [thiết kế §6](./2026-10-11-s2-s3-money-flow-design.md#6-tiền-vào-webhook--incomingtransfer) · [báo cáo Temporal §2](./s2-s3-panel/02-temporal.md#2-q5--activity-idempotent) · [failure detection](https://docs.temporal.io/develop/go/failure-detection) · `temporal.NewNonRetryableApplicationError`.
+**Học trước:** [thiết kế §6](./design.md#6-tiền-vào-webhook--incomingtransfer) · [research §2.2](./research.md#22-q5--activity-idempotent) · [failure detection](https://docs.temporal.io/develop/go/failure-detection) · `temporal.NewNonRetryableApplicationError`.
 
 **Mục tiêu:** Tiền vào khớp mã chiến dịch → ghi quyên góp; không khớp → `suspense` kèm case đối soát. Lỗi sổ cái được đổi thành lỗi Temporal đúng loại.
 
@@ -406,7 +406,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 ### Task 9: Webhook SePay giả và chống trùng hai lớp (Q4) (2 ngày)
 
-**Học trước:** [thiết kế §6](./2026-10-11-s2-s3-money-flow-design.md#6-tiền-vào-webhook--incomingtransfer) · [báo cáo Temporal §1](./s2-s3-panel/02-temporal.md#1-q4--chống-trùng-ở-điểm-vào) · [Workflow ID reuse/conflict policy](https://docs.temporal.io/workflow-execution/workflowid-runid) · [`net/http`](https://pkg.go.dev/net/http), [`httptest`](https://pkg.go.dev/net/http/httptest), [`crypto/hmac`](https://pkg.go.dev/crypto/hmac) · [Go build constraints](https://pkg.go.dev/cmd/go#hdr-Build_constraints).
+**Học trước:** [thiết kế §6](./design.md#6-tiền-vào-webhook--incomingtransfer) · [research §2.1](./research.md#21-q4--chống-trùng-ở-điểm-vào) · [Workflow ID reuse/conflict policy](https://docs.temporal.io/workflow-execution/workflowid-runid) · [`net/http`](https://pkg.go.dev/net/http), [`httptest`](https://pkg.go.dev/net/http/httptest), [`crypto/hmac`](https://pkg.go.dev/crypto/hmac) · [Go build constraints](https://pkg.go.dev/cmd/go#hdr-Build_constraints).
 
 **Mục tiêu:** Webhook lặp (khi workflow đang chạy, đã đóng, hay đã bị xoá) → đúng một bút toán. Temporal ngừng → 503, gửi lại sau → thành công.
 
@@ -448,7 +448,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 ### Task 10: Worker chết sau commit và hai lần thử song song (Q5) (1,5 ngày)
 
-**Học trước:** [Detecting activity failures](https://docs.temporal.io/encyclopedia/detecting-activity-failures) · [báo cáo Temporal §2.4](./s2-s3-panel/02-temporal.md#24-tiêm-lỗi-commit-xong-mất-kết-quả-một-cách-tất-định) · [`os/exec`](https://pkg.go.dev/os/exec) · `GetWorkflowHistory` trong Go SDK client.
+**Học trước:** [Detecting activity failures](https://docs.temporal.io/encyclopedia/detecting-activity-failures) · [research §2.2, phần tiêm lỗi](./research.md#22-q5--activity-idempotent) · [`os/exec`](https://pkg.go.dev/os/exec) · `GetWorkflowHistory` trong Go SDK client.
 
 **Mục tiêu:** Worker chết ngay sau commit → lần thử sau trả cùng `entryId`. Hai lần thử chạy chồng nhau → vẫn 1 entry.
 
@@ -482,7 +482,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 ### Task 11: Activity giải ngân và stub Operations/Campaign (1 ngày)
 
-**Học trước:** [thiết kế §5.3, §7](./2026-10-11-s2-s3-money-flow-design.md#7-saga-disbursement) · [báo cáo Temporal §5](./s2-s3-panel/02-temporal.md#5-activity-xuyên-service-operations-markdisbursed-campaign-advancephase) · [đăng ký activity theo tên](https://pkg.go.dev/go.temporal.io/sdk/worker#ActivityRegistry).
+**Học trước:** [thiết kế §5.3, §7](./design.md#7-saga-disbursement) · [research §2.4](./research.md#24-activity-xuyên-service-operations-markdisbursed-campaign-advancephase) · [đăng ký activity theo tên](https://pkg.go.dev/go.temporal.io/sdk/worker#ActivityRegistry).
 
 **Mục tiêu:** Có đủ các activity mà saga cần; các activity phía đích (stub) đều idempotent.
 
@@ -520,7 +520,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 ### Task 12: Workflow `Disbursement`, đường thuận và Update (2 ngày)
 
-**Học trước:** [thiết kế §7](./2026-10-11-s2-s3-money-flow-design.md#7-saga-disbursement) (sơ đồ) · [Update handlers](https://docs.temporal.io/develop/go/message-passing#updates) · `workflow.AllHandlersFinished`. Pseudo-Go ở [báo cáo Temporal §3.3](./s2-s3-panel/02-temporal.md#33-phác-thảo-workflow-pseudo-go) đặt `SecondApproval` sai chỗ. Thứ tự đúng là theo D-9.
+**Học trước:** [thiết kế §7](./design.md#7-saga-disbursement) (sơ đồ) · [Update handlers](https://docs.temporal.io/develop/go/message-passing#updates) · `workflow.AllHandlersFinished`. Pseudo-Go ở [research §2.3](./research.md#23-q6--saga-giải-ngân) viết trước khi chốt thiết kế. Những chỗ nó khác thiết kế (khoá chống trùng, tài khoản `disbursed`, ngưỡng lấy từ input, điều kiện void) được ghi ngay trên đoạn code; thiết kế thắng.
 
 **Mục tiêu:** Saga chạy đúng các đường thuận; mọi Update sai bước, sai người hay trùng lặp đều bị chặn.
 
@@ -568,7 +568,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 ### Task 13: Hết hạn, đối soát, huỷ và luật "một kết cục" (1,5 ngày)
 
-**Học trước:** [thiết kế D-5, D-7](./2026-10-11-s2-s3-money-flow-design.md#2-quyết-định-đã-chốt-trong-phiên-thiết-kế) · `workflow.AwaitWithTimeout` · [báo cáo kiểm thử E4, E9, E10](./s2-s3-panel/03-adversarial-tests.md#nhóm-e--saga-giải-ngân-và-tín-hiệu-q6).
+**Học trước:** [thiết kế D-5, D-7](./design.md#2-quyết-định) · `workflow.AwaitWithTimeout` · [research §3.2, E4, E9, E10](./research.md#nhóm-e--saga-giải-ngân-q6).
 
 **Mục tiêu:** Sau pivot, saga không bao giờ tự void; void chỉ xảy ra khi đủ điều kiện, và mỗi request chỉ có một kết cục.
 
@@ -603,7 +603,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 ### Task 14: Saga trên dev server, replay và `GetVersion` (2 ngày)
 
-**Học trước:** [Go versioning (patching)](https://docs.temporal.io/develop/go/versioning) · [Replay testing](https://docs.temporal.io/develop/go/testing-suite#replay) · [báo cáo Temporal §3.4–3.5](./s2-s3-panel/02-temporal.md#34-kiểm-thử).
+**Học trước:** [Go versioning (patching)](https://docs.temporal.io/develop/go/versioning) · [Replay testing](https://docs.temporal.io/develop/go/testing-suite#replay) · [research §2.3](./research.md#23-q6--saga-giải-ngân).
 
 **Mục tiêu:** Chứng minh Q5 cho saga trên server thật, và chứng minh replay test bắt được thay đổi phá tính tất định.
 
@@ -633,7 +633,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 ### Task 15: Kết luận Q1–Q6 (0,5 ngày)
 
 - [ ] Bản nháp kết quả có kết luận đạt/trượt cho Q1–Q6, kèm lệnh, output và các lần naive FAIL.
-- [ ] Ghi các mục *(unverified)* của ba báo cáo panel nay đã được xác nhận hay bác bỏ: sqlc với PG18, `unnest` nhiều mảng, pgx giữ kết nối sau COMMIT lỗi, thứ tự khoá `FOR UPDATE … ORDER BY`, Update trên server 1.32, xoá execution.
+- [ ] Ghi các mục ở [research §4](./research.md#4-điều-chưa-kiểm-chứng) nay đã được xác nhận hay bác bỏ: sqlc với PG18, `unnest` nhiều mảng, pgx giữ kết nối sau COMMIT lỗi, thứ tự khoá `FOR UPDATE … ORDER BY`, Update trên server 1.32, xoá execution.
 - [ ] Cùng mentor quyết: các quyết định kiến trúc đang chờ (ADR-001, ADR-003) có mở khoá được chưa.
 - [ ] Commit.
 
@@ -643,12 +643,12 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 ### Task 16: Funds API theo OpenAPI (2 ngày)
 
-**Học trước:** [OpenAPI 3.0.3](https://spec.openapis.org/oas/v3.0.3) · [thiết kế bổ sung §4.1](./2026-10-15-s2-s3-money-flow-skills-addendum.md#41-funds-api) · `client.UpdateWorkflow` và các kiểu lỗi của nó · [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457) (tham khảo cho body lỗi).
+**Học trước:** [OpenAPI 3.0.3](https://spec.openapis.org/oas/v3.0.3) · [thiết kế §9.1](./design.md#91-funds-api) · `client.UpdateWorkflow` và các kiểu lỗi của nó · [RFC 9457 Problem Details](https://www.rfc-editor.org/rfc/rfc9457) (tham khảo cho body lỗi).
 
 **Mục tiêu:** Viết đặc tả **trước**, rồi viết API theo đúng đặc tả.
 
 **Đã chốt:**
-- Năm endpoint và bảng ánh xạ HTTP ở thiết kế bổ sung §4.1.
+- Năm endpoint và bảng ánh xạ HTTP ở thiết kế §9.1.
 - `Idempotency-Key` là `UpdateID`. Actor đi trong body.
 - Chạy chung tiến trình với webhook.
 
@@ -675,11 +675,11 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 - [CNPG declarative role management](https://cloudnative-pg.io/docs/1.30/declarative_role_management/) và [bootstrap](https://cloudnative-pg.io/docs/1.30/bootstrap/).
 - Kubernetes: [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/), [Job](https://kubernetes.io/docs/concepts/workloads/controllers/job/), [Secret](https://kubernetes.io/docs/concepts/configuration/secret/), [probes](https://kubernetes.io/docs/concepts/configuration/liveness-readiness-startup-probes/), [resource management](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/), [NetworkPolicy](https://kubernetes.io/docs/concepts/services-networking/network-policies/), [Kustomize](https://kubectl.docs.kubernetes.io/references/kustomize/).
 - Gateway API `HTTPRoute`.
-- Cấu hình cluster từ S-9: [`s4-config/`](./s4-config/).
+- Cấu hình cluster từ S-9: [`s4-config/`](../s4-config/).
 
 **Mục tiêu:** Dựng toàn bộ phần ứng dụng của spike lên cluster `foodfund` bằng một lệnh.
 
-**Đã chốt** (thiết kế bổ sung §4.2):
+**Đã chốt** (thiết kế §9.2):
 - CNPG cluster riêng cho `funds`, role qua `managed.roles` (gồm `funds_qa` chỉ SELECT). **Không** dùng user `app` mặc định.
 - Migration chạy bằng `Job`.
 - Hai Deployment (webhook + API; worker).
@@ -749,7 +749,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 ### Task 19: Test chức năng, âm và đồng thời (2 ngày)
 
-**Mục tiêu:** Phủ các nhóm ở thiết kế bổ sung §5, từ bên ngoài vào.
+**Mục tiêu:** Phủ các nhóm ở thiết kế §9.3, từ bên ngoài vào.
 
 **Test** (tên gợi ý; bạn được thêm):
 
@@ -802,7 +802,7 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 - [ ] Cài ZAP và kubescape.
 - [ ] Chạy ZAP API scan theo `openapi.yaml`; chạy kubescape trên namespace của spike.
 - [ ] Viết script tấn công Python trong `apitests/attacks/` cho từng giả thuyết.
-- [ ] Viết báo cáo `docs/spikes/<ngày>-money-flow-pentest.md`. Mỗi lỗ hổng có: cách tái hiện (lệnh/script), vector CVSS 4.0, hậu quả với tiền, cách sửa. Ghi cả giả thuyết **không** thành công, kèm lý do.
+- [ ] Viết báo cáo `docs/spikes/money-flow/pentest.md`. Mỗi lỗ hổng có: cách tái hiện (lệnh/script), vector CVSS 4.0, hậu quả với tiền, cách sửa. Ghi cả giả thuyết **không** thành công, kèm lý do.
 
 **Bẫy:** coi kết quả của máy quét là lỗ hổng mà chưa tự kiểm chứng.
 
@@ -885,8 +885,8 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 ### Task 26: Đo Q7 và viết báo cáo hiệu năng (0,5 ngày)
 
-- [ ] Đo theo [báo cáo Temporal §4.3](./s2-s3-panel/02-temporal.md#43-spike-cần-đo-gì--nửa-ngày): độ trễ "ghi sổ rồi phát event" so với transaction thường; số event history mỗi thao tác; hành vi khi Temporal ngừng; số dòng boilerplate.
-- [ ] Viết báo cáo `docs/spikes/<ngày>-money-flow-performance.md`: SLO, các bậc tải, nút thắt kèm bằng chứng, thay đổi và số đo trước/sau, kết quả Q7, hạn chế của phép đo.
+- [ ] Đo theo [research §2.5](./research.md#25-q7--phát-event-không-outbox): độ trễ "ghi sổ rồi phát event" so với transaction thường; số event history mỗi thao tác; hành vi khi Temporal ngừng; số dòng boilerplate.
+- [ ] Viết báo cáo `docs/spikes/money-flow/performance.md`: SLO, các bậc tải, nút thắt kèm bằng chứng, thay đổi và số đo trước/sau, kết quả Q7, hạn chế của phép đo.
 
 **Xong khi:** nộp báo cáo. Mentor so với đáp án ẩn. **Checkpoint:** "review task 26".
 
@@ -900,10 +900,10 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 ### Task 27: Báo cáo cuối và gom phần giữ lại (1 ngày)
 
-- [ ] Hoàn thiện `docs/spikes/<ngày hoàn thành>-s2-s3-money-flow.md`: Q1–Q7, liên kết tới báo cáo pen test và hiệu năng, mục nào chưa làm thì ghi rõ là **chưa kiểm**.
+- [ ] Hoàn thiện `docs/spikes/money-flow/results.md`: Q1–Q7, liên kết tới báo cáo pen test và hiệu năng, mục nào chưa làm thì ghi rõ là **chưa kiểm**.
 - [ ] Mục **"AI trong kiểm thử"**, tổng hợp từ các file nhật ký: chỗ có ích, chỗ sai, cách kiểm chứng, khi nào nên và không nên dùng.
-- [ ] Danh sách phần giữ lại: thiết kế §10 và thiết kế bổ sung §9.
-- [ ] Cùng mentor rà bảng "Cập nhật tài liệu" ở [thiết kế §10](./2026-10-11-s2-s3-money-flow-design.md#10-đầu-ra), tách thành các commit riêng.
+- [ ] Danh sách phần giữ lại: thiết kế §12.
+- [ ] Cùng mentor rà bảng "Cập nhật tài liệu" ở [thiết kế §12](./design.md#12-đầu-ra), tách thành các commit riêng.
 - [ ] Commit.
 
 **Checkpoint:** "review task 27".
@@ -912,4 +912,4 @@ Sau mỗi giai đoạn có một **cổng**: ghi kết quả, rồi cùng mentor
 
 ## Phụ lục — Việc P1 (chỉ làm nếu còn thời gian)
 
-Danh sách ở [thiết kế §8.3](./2026-10-11-s2-s3-money-flow-design.md#83-kịch-bản-p1-nếu-còn-thời-gian) (trừ F1 và Q7, đã nằm trong Task 14 và Task 26).
+Danh sách ở [thiết kế §8.3](./design.md#83-kịch-bản-p1-nếu-còn-thời-gian) (trừ F1 và Q7, đã nằm trong Task 14 và Task 26).

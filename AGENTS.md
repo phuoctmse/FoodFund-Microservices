@@ -8,13 +8,15 @@ Việc mới nằm ở:
 
 | Cần biết | Đọc |
 |---|---|
-| Yêu cầu, quy tắc nghiệp vụ (BR-, FR-, NFR-) | `docs/rewrite/01-requirements.md` |
-| Ranh giới service, sổ cái, workflow, event | `docs/rewrite/02-decomposition.md` |
-| Lựa chọn công nghệ và lý do | `docs/rewrite/03-tech-stack.md`, `docs/adr/` |
-| Spike: thiết kế, kế hoạch, kết quả | `docs/spikes/` |
+| Mục lục tài liệu, thứ tự đọc | `docs/README.md` |
+| Yêu cầu, quy tắc nghiệp vụ (BR-, FR-, NFR-) | `docs/01-requirements.md` |
+| Ranh giới service, sổ cái, workflow, event | `docs/02-decomposition.md` |
+| Lựa chọn công nghệ và lý do (T-1…T-14, ADR-001…ADR-004) | `docs/03-tech-stack.md` |
+| Spike luồng tiền: thiết kế, kế hoạch, tư liệu, kết quả | `docs/spikes/money-flow/` (`design.md`, `plan.md`, `research.md`) |
+| Kết quả spike hạ tầng S-4, S-7, S-9 | `docs/spikes/s4-s7-s9.md` |
 | Code spike (throwaway) | `spikes/<tên>/`, kèm `AGENTS.md` riêng chứa lệnh build/test |
 
-Khi tài liệu mâu thuẫn nhau, bản có ngày mới hơn trong `docs/spikes/` hoặc `docs/adr/` thắng; ghi lại mâu thuẫn đó cho chủ dự án.
+Khi tài liệu mâu thuẫn nhau: thiết kế spike thắng `01`–`03` (danh sách sửa chờ áp dụng ở `docs/spikes/money-flow/design.md` §12); trong spike luồng tiền, `design.md` thắng `research.md`. Ghi lại mâu thuẫn đó cho chủ dự án.
 
 ## Vai trò của agent: mentor
 
@@ -26,7 +28,7 @@ Chủ dự án **tự viết toàn bộ code** trong `spikes/`, để học. Age
 - Khi review, nhận xét theo ba mức *phải sửa / nên sửa / để ý*, kèm vị trí `file:dòng`.
 - Chỉ viết code vào repo khi chủ dự án yêu cầu rõ cho một phần cụ thể trong cuộc trò chuyện hiện tại.
 
-Plan trong `docs/spikes/*-plan.md` **cố ý không chứa code**. Giữ nguyên như vậy khi sửa plan.
+Plan trong `docs/spikes/*/plan.md` **cố ý không chứa code**. Giữ nguyên như vậy khi sửa plan.
 
 ## Tài liệu và commit
 
