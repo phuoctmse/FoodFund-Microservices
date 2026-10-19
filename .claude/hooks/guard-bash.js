@@ -11,8 +11,16 @@ process.stdin.on("end", () => {
     } catch {
         process.exit(0)
     }
-    const c = cmd.replace(/\s+/g, " ")
-    const SEP = "(?:^|[\\s;&|(`$])"
+    // Command-pattern rules run on the command with heredoc bodies and quoted strings blanked out,
+    // so `grep "yarn" README.md` or a commit message mentioning `git push --force` is not blocked.
+    // Text run via `sh -c "..."` / `bash -c "..."` is still checked in full.
+    const full = cmd.replace(/\s+/g, " ")
+    const stripped = cmd
+        .replace(/<<-?\s*['"]?(\w+)['"]?[^\n]*\n[\s\S]*?\n\s*\1\s*(\n|$)/g, " <<HEREDOC\n")
+        .replace(/'[^']*'|"(?:[^"\\]|\\.)*"/g, "''")
+        .replace(/\s+/g, " ")
+    const c = /\b(ba|z)?sh\s+-c\b|\beval\b/.test(full) ? full : stripped
+    const SEP = "(?:^|[\\s;&|(`$'\"])"
 
     const deny = [
         [new RegExp(`${SEP}(yarn|pnpm|pnpx|bun|bunx)(\\s|$)`), "Dự án dùng npm (package-lock.json). Không dùng yarn/pnpm/bun."],
@@ -31,7 +39,8 @@ process.stdin.on("end", () => {
 
     const sqlClient = /\b(psql|pgcli|mysql|sqlcmd|pg_restore)\b|prisma\s+db\s+execute/
     const ddl = /\b(DROP|TRUNCATE)\s+(TABLE|SCHEMA|DATABASE|TYPE|INDEX|VIEW)\b|\bALTER\s+(TABLE|TYPE|SCHEMA)\b|\bDELETE\s+FROM\b|\bTRUNCATE\b/i
-    if (sqlClient.test(c) && ddl.test(c)) {
+    // SQL is usually passed quoted (`psql -c 'DROP ...'`), so this check uses the full command.
+    if (sqlClient.test(full) && ddl.test(full)) {
         deny.push([/./, "Cấm chạy DDL/DELETE trực tiếp lên DB. Thay đổi schema phải qua file migration Prisma."])
     }
 

@@ -82,7 +82,7 @@ Lưu ý:
 ## Harness đã cấu hình
 
 - `.claude/settings.json`: deny rules (package manager lạ, git nguy hiểm, DB destructive, file cấm sửa).
-- `.claude/hooks/guard-bash.sh` (PreToolUse/Bash): chặn bằng regex các lệnh nguy hiểm mà prefix-rule bỏ sót.
-- `.claude/hooks/guard-edit.sh` (PreToolUse/Edit|Write): chặn sửa migration đã commit, file generated, lockfile, secret.
-- `.claude/hooks/stop-verify.sh` (Stop): tự chạy ESLint + Jest (`--findRelatedTests`) trên file `.ts` đã thay đổi;
+- `.claude/hooks/guard-bash.js` (PreToolUse/Bash): chặn bằng regex các lệnh nguy hiểm mà prefix-rule bỏ sót.
+- `.claude/hooks/guard-edit.js` (PreToolUse/Edit|Write): chặn sửa migration đã commit, file generated, lockfile, secret.
+- `.claude/hooks/stop-verify.js` (Stop): tự chạy ESLint + Jest (`--findRelatedTests`) trên file `.ts` đã thay đổi;
   nếu fail sẽ chặn việc báo hoàn thành và trả lỗi lại cho agent để sửa.
