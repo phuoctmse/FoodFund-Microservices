@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(go test *)",
+      "Bash(go vet *)",
+      "Bash(go build *)",
+      "Bash(gofmt -l *)",
+      "Bash(go env *)",
+      "Bash(uv run pytest *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(kubectl get *)",
+      "Bash(kubectl describe *)",
+      "Bash(kubectl logs *)"
+    ],
+    "deny": [
+      "Bash(pip install *)",
+      "Bash(pip3 install *)",
+      "Bash(python -m pip install *)",
+      "Bash(poetry *)",
+      "Bash(pipenv *)",
+      "Bash(conda install *)",
+      "Bash(npx -y *)",
+      "Bash(npx --yes *)",
+
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git push * --force)",
+      "Bash(git push * --force *)",
+      "Bash(git push * -f)",
+      "Bash(git push * -f *)",
+      "Bash(git push origin master *)",
+      "Bash(git push origin main *)",
+      "Bash(git push origin develop *)",
+      "Bash(git push origin --delete *)",
+      "Bash(git reset --hard *)",
+      "Bash(git clean -f *)",
+      "Bash(git clean -fd *)",
+      "Bash(git clean -fdx *)",
+      "Bash(git clean -xdf *)",
+      "Bash(git checkout master)",
+      "Bash(git checkout main)",
+      "Bash(git checkout develop)",
+      "Bash(git switch master)",
+      "Bash(git switch main)",
+      "Bash(git switch develop)",
+      "Bash(git stash drop *)",
+      "Bash(git stash clear *)",
+
+      "Bash(dropdb *)",
+      "Bash(wsl --unregister *)",
+
+      "Read(./.env)",
+      "Read(./.env.docker)",
+      "Read(./.env.local)",
+      "Read(./.env.*.local)",
+      "Read(./.env.production*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/*.kubeconfig)",
+
+      "Edit(./.env)",
+      "Edit(./.env.docker)",
+      "Edit(**/go.sum)",
+      "Edit(**/uv.lock)",
+      "Edit(**/package-lock.json)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-bash.js\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-edit.js\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/track-edits.js\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-verify.js\"",
+            "timeout": 900,
+            "statusMessage": "stop-verify: gofmt + go vet + go test trên file agent đã sửa..."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -113,3 +113,5 @@ k8s/monitoring/aws-credentials.yaml
 k8s/monitoring/secrets/
 k8s/monitoring/*.local.yaml
 k8s/monitoring/production-values.yaml
+# Claude Code personal overrides
+.claude/settings.local.json
