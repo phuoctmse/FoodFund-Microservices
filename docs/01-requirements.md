@@ -119,7 +119,7 @@ FoodFund là nền tảng gây quỹ từ thiện về thực phẩm: kết nố
   - Không có giấy tờ → dùng **bảng kê nhanh trong app** (tên món, số lượng, đơn giá; app tự tính thành tiền), **kèm ít nhất một ảnh** hàng hoá hoặc ảnh chuyển khoản.
   - Kitchen staff **hoặc fundraiser** (nộp thay) được nộp.
   - Admin duyệt/từ chối; hệ thống **so sánh tổng chứng từ với số đã giải ngân** và gắn cờ chênh lệch.
-  - *Bằng chứng từ hệ thống cũ:* toàn bộ chứng từ đã nộp là ảnh JPEG (có một video), nơi mua là siêu thị và chợ đầu mối; có chứng từ bị từ chối vì "Bị lặp"; dữ liệu nhập tay có lỗi đơn giá × số lượng ≠ thành tiền (`seed_data/operations_db.sql`).
+  - *Bằng chứng từ hệ thống cũ:* toàn bộ chứng từ đã nộp là ảnh JPEG (có một video), nơi mua là siêu thị và chợ đầu mối; có chứng từ bị từ chối vì "Bị lặp"; dữ liệu nhập tay có lỗi đơn giá × số lượng ≠ thành tiền (`legacy/seed_data/operations_db.sql`).
 - **FR-DSB-06 [S]** Thống kê yêu cầu (đã duyệt, đã giải ngân, đang chờ, chênh lệch chứng từ).
 - **FR-DSB-07 [M]** Fundraiser xác nhận đã nhận giải ngân (COMPLETED) hoặc báo lỗi (FAILED).
 - **FR-DSB-08 [M]** **Phát hiện ảnh nộp trùng bằng code** (băm ảnh theo cảm nhận — perceptual hash), so với mọi chứng từ của cùng tổ chức; trùng → gắn cờ cho admin, không tự từ chối.
@@ -269,7 +269,7 @@ FoodFund là nền tảng gây quỹ từ thiện về thực phẩm: kết nố
 | Webhook PayOS/SePay không xác thực chữ ký; PayOS lỗi vẫn trả "success" nên không được gửi lại | `donation-webhook.controller.ts:42-65`, `sepay-webhook.controller.ts:47-51` | NFR-01 |
 | Hai khoản chuyển cùng số tiền bị coi là trùng → có thể bỏ sót tiền thật | `sepay-webhook.service.ts:133-137` | BR-08 |
 | Giao dịch không khớp được ghi thẳng vào ví admin | `sepay-webhook.service.ts:71-80` | FR-PAY-10 |
-| Đăng nhập Google (nhánh dự phòng) đổi mật khẩu người dùng thành `TempPass!<timestamp>` | `libs/aws-cognito/aws-cognito.service.ts:851-853` | FR-ID-05 |
+| Đăng nhập Google (nhánh dự phòng) đổi mật khẩu người dùng thành `TempPass!<timestamp>` | `legacy/libs/aws-cognito/aws-cognito.service.ts:851-853` | FR-ID-05 |
 | Tiền dư tự chuyển sang campaign kế tiếp mà không hỏi donor; email thông báo tiền dư có điều kiện lọc bị đảo nên không ai nhận được | `campaign.service.ts:1329-1386`, `:1474` | BR-12 |
 | Campaign không đạt mục tiêu → toàn bộ tiền dồn vào ví fundraiser | `campaign-scheduler.service.ts:313-323` | BR-01, BR-12 |
 | Phase bị huỷ không được tính là kết thúc → campaign treo mãi | `campaign-phase.service.ts:239-244` | BR-01 |

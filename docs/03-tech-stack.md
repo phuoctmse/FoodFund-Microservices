@@ -82,7 +82,7 @@
 - **Cách dùng:** mỗi bounded context một stream; **lưu trên đĩa và luôn đặt giới hạn** (`max_age`, `max_bytes`) — stream lưu RAM không giới hạn sẽ phình vô hạn; consumer bền cho mỗi bên nhận; payload Protobuf có `schemaVersion`; giới hạn số lần gửi → stream lỗi + cảnh báo.
 - **Hệ quả:** cài NATS **khi có consumer đầu tiên** (không cài sẵn từ ngày đầu); thư viện nhỏ `libs/events` (publish, subscribe, inbox) cho Go; client NATS cho Python nếu cần.
 - **Bằng chứng (*Trung bình*):**
-  - **[Audit]** Service `user` và `campaign` cũ **crash ngay khi khởi động** nếu không có Kafka (`KafkaJSConnectionError … Port … NaN`). Stack Kafka nằm riêng ở `infrastructure/docker-compose.yml` với 3 container (Zookeeper, Kafka, Debezium Connect) và README không nhắc tới.
+  - **[Audit]** Service `user` và `campaign` cũ **crash ngay khi khởi động** nếu không có Kafka (`KafkaJSConnectionError … Port … NaN`). Stack Kafka nằm riêng ở `legacy/infrastructure/docker-compose.yml` với 3 container (Zookeeper, Kafka, Debezium Connect) và README không nhắc tới.
   - **[Tài liệu]** JetStream có `AckWait` (hết hạn thì gửi lại), `MaxDeliver` (giới hạn số lần gửi), và phát advisory khi vượt giới hạn — dùng làm hàng lỗi (dead-letter) có thể phát lại ([Synadia: reliable delivery & DLQ](https://www.synadia.com/blog/jetstream-reliable-delivery-dlq-replay), [NATS docs: consumers](https://docs.nats.io/~/revisions/FTWMYYvWt52KJd0gQISk/using-nats/developer/develop_jetstream/consumers)). Đáp ứng C-3/C-4.
   - **Chưa có:** số đo RAM của NATS → spike S-4.
   - **Sẽ đổi nếu:** cần CDC bằng Debezium hoặc lưu trữ/phát lại event ở quy mô rất lớn.
@@ -131,7 +131,7 @@
 
 - **Hệ quả:** vai trò và tổ chức **không** lưu trong Keycloak — Identity & Org là nguồn sự thật (FR-ID-02); token chỉ mang `sub`, service tra vai trò hiện tại từ projection → không có chuyện vai trò đã đổi mà token cũ vẫn mang vai trò cũ. Rủi ro còn lại: RAM (sizing chính thức 1.250 MB cho production) → đo ở S-4.
 - **Bằng chứng (*Trung bình*):**
-  - **[Audit]** Service `auth` cũ phụ thuộc AWS Cognito thật → không chạy được local; luồng Google tự viết đổi mật khẩu người dùng (`libs/aws-cognito/aws-cognito.service.ts:851-853`).
+  - **[Audit]** Service `auth` cũ phụ thuộc AWS Cognito thật → không chạy được local; luồng Google tự viết đổi mật khẩu người dùng (`legacy/libs/aws-cognito/aws-cognito.service.ts:851-853`).
   - **[Tài liệu]** `--import-realm` nạp file realm JSON khi khởi động, bỏ qua nếu realm đã có → seed sẵn người dùng cho từng vai trò, phục vụ NFR-05 ([Red Hat build of Keycloak — Importing and Exporting Realms](https://docs.redhat.com/en/documentation/red_hat_build_of_keycloak/24.0/html/server_guide/importexport-)).
   - **[Tài liệu]** Hướng dẫn sizing chính thức: bộ nhớ cơ sở **1250 MB** (gồm cache realm và 10.000 phiên) — con số cho production, môi trường dev có thể thấp hơn nhưng **chưa đo** ([Keycloak sizing](https://www.keycloak.org/high-availability/single-cluster/concepts-memory-and-cpu-sizing)).
   - **Bằng chứng mâu thuẫn:** Zitadel được một nguồn nêu ~512 MB nhưng khuyến nghị nhiều hơn ([Zitadel minimum specs](https://help.zitadel.com/what-are-zitadel-minimum-self-hosted-specs), [SSD Nodes](https://www.ssdnodes.com/learn/lang/it/keycloak-vs-authentik-vs-zitadel)) → không đủ căn cứ để nói Zitadel nhẹ hơn trong thực tế.
@@ -271,7 +271,7 @@ Mỗi ADR ghi bối cảnh, quyết định, phương án đã cân nhắc, hệ
 
 ### Bối cảnh
 
-Hệ thống cần một nơi lưu dữ liệu nghiệp vụ cho 6 service và **sổ cái tiền kép**. Dữ liệu cũ (`seed_data/*.sql`) là dump PostgreSQL 17.7 nhưng chỉ chứa dữ liệu demo (35 user, 15 campaign, 11 donation), nên **không dùng được để lập luận về khối lượng**.
+Hệ thống cần một nơi lưu dữ liệu nghiệp vụ cho 6 service và **sổ cái tiền kép**. Dữ liệu cũ (`legacy/seed_data/*.sql`) là dump PostgreSQL 17.7 nhưng chỉ chứa dữ liệu demo (35 user, 15 campaign, 11 donation), nên **không dùng được để lập luận về khối lượng**.
 
 ### Quyết định
 
@@ -281,7 +281,7 @@ Dùng **PostgreSQL 18** cho mọi service (mỗi service một database và mộ
 
 | # | Dữ liệu | Kết quả | Nguồn |
 |---|---|---|---|
-| D1 | Hình dạng dữ liệu (đo từ schema cũ) | 36 bảng, 26 khoá ngoại, 13 ràng buộc UNIQUE, 13 enum, 11 cột `jsonb`, 145 index, bảng partition theo tháng → dữ liệu **quan hệ chặt** kèm một phần bán cấu trúc | `seed_data/*.sql` |
+| D1 | Hình dạng dữ liệu (đo từ schema cũ) | 36 bảng, 26 khoá ngoại, 13 ràng buộc UNIQUE, 13 enum, 11 cột `jsonb`, 145 index, bảng partition theo tháng → dữ liệu **quan hệ chặt** kèm một phần bán cấu trúc | `legacy/seed_data/*.sql` |
 | D2 | Yêu cầu nhất quán | Bút toán nhiều dòng phải ghi nguyên tử và cân bằng; dữ liệu tiền chỉ thêm → cần transaction ACID nhiều câu lệnh và constraint trigger hoãn tới cuối transaction | FR-LED, BR-14; [PostgreSQL CREATE TRIGGER](https://www.postgresql.org/docs/current/sql-createtrigger.html) |
 | D3 | Khối lượng (mô hình xấu nhất, giả định ghi rõ) | 100 campaign × 2.000 donation/năm × ~10 dòng ≈ 2 triệu dòng/năm; đỉnh ~0,3 lượt ghi/giây → **khối lượng không phân biệt được các lựa chọn** | Giả định, không phải đo |
 | D4 | Các thành phần khác cùng hỗ trợ | Keycloak: PostgreSQL 14–18; Temporal: PostgreSQL 12+ (gồm advanced visibility, không cần Elasticsearch); DBOS: chỉ PostgreSQL/SQLite → Postgres là engine **duy nhất** mọi ứng viên đều hỗ trợ → chỉ vận hành một loại database | [Keycloak DB](https://www.keycloak.org/server/db), [Temporal visibility](https://docs.temporal.io/self-hosted-guide/visibility), [DBOS Go](https://github.com/dbos-inc/dbos-transact-golang) |
@@ -670,6 +670,7 @@ foodfund/
 ├── tools/paysim/        # Giả lập webhook SePay/PayOS đã ký
 ├── deploy/              # cấu hình cluster kind, Helm values (hạ tầng + service), HTTPRoute, realm Keycloak, seed
 ├── docs/                # requirements, decomposition, tech-stack (gồm ADR), spikes/
+├── legacy/              # hệ thống NestJS cũ, chỉ để tham khảo nghiệp vụ
 └── go.work
 ```
 
