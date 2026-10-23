@@ -27,8 +27,24 @@ Chủ dự án **tự viết toàn bộ code** trong `spikes/`, để học. Age
 - Khi được nhờ liệt kê ca test hoặc review test, trả về danh sách và nhận xét. Code test vẫn do chủ dự án viết.
 - Khi review, nhận xét theo ba mức *phải sửa / nên sửa / để ý*, kèm vị trí `file:dòng`.
 - Chỉ viết code vào repo khi chủ dự án yêu cầu rõ cho một phần cụ thể trong cuộc trò chuyện hiện tại.
+- Chỉ sửa đúng phạm vi file được yêu cầu. Không tự ý refactor, đổi tên hay "dọn dẹp" module không liên quan đang chạy ổn định.
 
 Plan trong `docs/spikes/*/plan.md` **cố ý không chứa code**. Giữ nguyên như vậy khi sửa plan.
+
+## Lệnh
+
+Package manager: **Go modules** (`go.mod`/`go.sum`), **uv** cho Python (`uv.lock`), **npm** cho hệ thống cũ (`package-lock.json`).
+Không dùng yarn, pnpm, bun, pip, poetry. Lệnh chuẩn của từng spike nằm trong `spikes/<tên>/AGENTS.md`; nếu khác bảng dưới thì file đó thắng.
+
+| Việc | Go (`spikes/`, `services/`) | Python (AI) | NestJS cũ (gốc repo) |
+|---|---|---|---|
+| Build | `go build ./...` | — | `npm run build:<auth\|user\|campaign\|operation\|gateway>` |
+| Lint | `go vet ./...` | `uv run ruff check .` | `npm run lint:check` (không dùng `npm run lint`, nó `--fix`) |
+| Format | `gofmt -l .` (chỉ liệt kê) | `uv run ruff format --check .` | `npm run format:check` |
+| Test cả gói | `go test ./...` (`-race` khi có goroutine) | `uv run pytest` | `npm test` |
+| Test một file/ca | `go test ./internal/ledger -run '^TestPost$' -v` | `uv run pytest tests/test_x.py::test_y` | `npx jest apps/campaign/src/x.spec.ts` |
+
+Hệ thống cũ chưa có file `*.spec.ts` nào và `node_modules` chưa cài (`npm ci` nếu cần). Migration mới dùng goose (`goose … up`/`status`); Prisma ở `apps/*/prisma/` chỉ để đọc.
 
 ## Tài liệu và commit
 

@@ -28,6 +28,8 @@ process.stdin.on("end", () => {
     const deny = [
         [new RegExp(`${SEP}(pip3?|pipx)\\s+install\\b|python3?\\s+-m\\s+pip\\s+install\\b|${SEP}(poetry|pipenv)(\\s|$)|${SEP}conda\\s+install\\b`), "Python dùng uv (`uv add`, `uv sync`, `uv run`). Không dùng pip/poetry/pipenv/conda."],
         [/\bnpx\s+(-y|--yes)\b/, "Không dùng `npx -y` (tự tải package lạ)."],
+        [/(?:^|[;&|(`]|\$\(|\bsudo\s|\bnpx\s)\s*(yarn|pnpm|pnpx|bun|bunx)(\s|$)/, "Package manager của repo: npm (package-lock.json), go mod, uv. Không dùng yarn/pnpm/bun."],
+        [/\bprisma\b[^;&|]*\s(db\s+(push|execute)|migrate\s+reset)\b/, "Cấm `prisma db push|execute` / `migrate reset`: đổi hoặc xoá schema ngoài file migration."],
         [/\bgit\s+push\b.*(\s--force(?!-with-lease)\b|\s-[a-zA-Z]*f\b|\s\+\S)/, "Cấm force push."],
         [/\bgit\s+push\b[^;&|]*[\s:](master|main|develop)(\s|$|[;&|])/, "Cấm push lên master/main/develop."],
         [/\bgit\s+push\b[^;&|]*(\s--delete\b|\s-d\b|\s:[\w./-]+)/, "Cấm xoá nhánh trên remote."],
@@ -66,6 +68,7 @@ process.stdin.on("end", () => {
     const ask = [
         [/\bgo\s+(get|install)\b|\buv\s+(add|remove|pip\s+install)\b|\bnpm\s+(install|i|uninstall|remove|update)\s+\S/, "Thêm/đổi dependency: plan chốt phiên bản cụ thể — cần chủ dự án duyệt."],
         [/\bgoose\b[^;&|]*\s(down|down-to|reset|redo|fix)\b/, "goose down/reset/redo đổi schema DB — cần chủ dự án duyệt."],
+        [/\bprisma\b[^;&|]*\smigrate\s+(dev|deploy|resolve)\b|\bnpm\s+run\s+prisma:(migrate|deploy|seed)/, "Prisma migrate/seed đổi DB của hệ thống cũ (chỉ để tham khảo) — cần chủ dự án duyệt."],
         [/\bkind\s+delete\b/, "Xoá cluster kind (dựng lại mất vài phút) — cần chủ dự án duyệt."],
         [/\bdocker\s+(system|volume|image|container|builder)\s+prune\b|\bdocker\s+volume\s+rm\b/, "Docker prune/volume rm có thể xoá dữ liệu kind/Postgres — cần chủ dự án duyệt."],
         [/\bwsl(\.exe)?\s+(--shutdown|--terminate|-t)\b/, "Tắt WSL sẽ dừng Docker Desktop và cluster kind — cần chủ dự án duyệt."],

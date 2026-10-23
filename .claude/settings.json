@@ -8,6 +8,10 @@
       "Bash(gofmt -l *)",
       "Bash(go env *)",
       "Bash(uv run pytest *)",
+      "Bash(uv run ruff check *)",
+      "Bash(npm run lint:check)",
+      "Bash(npm run format:check)",
+      "Bash(node --check *)",
       "Bash(git status *)",
       "Bash(git diff *)",
       "Bash(git log *)",
@@ -24,6 +28,15 @@
       "Bash(conda install *)",
       "Bash(npx -y *)",
       "Bash(npx --yes *)",
+      "Bash(yarn)",
+      "Bash(yarn *)",
+      "Bash(pnpm *)",
+      "Bash(pnpx *)",
+      "Bash(bun *)",
+      "Bash(bunx *)",
+      "Bash(npx prisma db push *)",
+      "Bash(npx prisma db execute *)",
+      "Bash(npx prisma migrate reset *)",
 
       "Bash(git push --force *)",
       "Bash(git push -f *)",
@@ -110,7 +123,7 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop-verify.js\"",
             "timeout": 900,
-            "statusMessage": "stop-verify: gofmt + go vet + go test trên file agent đã sửa..."
+            "statusMessage": "stop-verify: lint + test trên file agent đã sửa..."
           }
         ]
       }
