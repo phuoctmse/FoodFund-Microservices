@@ -4,7 +4,7 @@
 //   Go:     gofmt -l, go vet, go test on the touched packages (per module, nearest go.mod)
 //   Python: ruff check (via uv, if the project configures ruff), else py_compile; then pytest on the
 //           related test files (test_<name>.py / <name>_test.py) if the project uses pytest
-//   TS:     eslint + jest --findRelatedTests (legacy NestJS), only when node_modules is installed
+//   TS:     eslint + jest --findRelatedTests (legacy NestJS in legacy/), only when legacy/node_modules is installed
 //   JS:     node --check (e.g. the harness hooks themselves)
 // On failure the stop is blocked and the errors go back to the agent. Gives up after MAX_BLOCKS.
 
@@ -95,15 +95,16 @@ process.stdin.on("end", () => {
 
     // Legacy NestJS: only when `npm ci` has been run; the repo has no *.spec.ts yet, so jest may find nothing.
     if (tsFiles.length) {
-        const eslint = path.join(root, "node_modules", "eslint", "bin", "eslint.js")
-        const jest = path.join(root, "node_modules", "jest", "bin", "jest.js")
-        const rels = tsFiles.map((f) => path.relative(root, f).split(path.sep).join("/"))
-        if (!fs.existsSync(eslint)) skipped.push("chưa có node_modules nên bỏ qua eslint/jest")
+        const legacy = path.join(root, "legacy")
+        const eslint = path.join(legacy, "node_modules", "eslint", "bin", "eslint.js")
+        const jest = path.join(legacy, "node_modules", "jest", "bin", "jest.js")
+        const rels = tsFiles.map((f) => path.relative(legacy, f).split(path.sep).join("/"))
+        if (!fs.existsSync(eslint)) skipped.push("chưa có legacy/node_modules nên bỏ qua eslint/jest")
         else {
-            const lint = run(process.execPath, [eslint, ...rels], root)
+            const lint = run(process.execPath, [eslint, ...rels], legacy)
             if (!lint.ok) failures.push(`### eslint\n${tail(lint.out)}`)
             else if (fs.existsSync(jest)) {
-                const t = run(process.execPath, [jest, "--config", "jest.config.js", "--passWithNoTests", "--findRelatedTests", ...rels], root)
+                const t = run(process.execPath, [jest, "--config", "jest.config.js", "--passWithNoTests", "--findRelatedTests", ...rels], legacy)
                 if (!t.ok) failures.push(`### jest --findRelatedTests\n${tail(t.out)}`)
             }
         }

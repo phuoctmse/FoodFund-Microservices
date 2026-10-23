@@ -1,0 +1,18 @@
+# Secret và credential (hệ thống cũ có .gitignore riêng ở legacy/)
+.env
+.env.*
+!.env.example
+*.env
+*.pem
+*.key
+*.crt
+*.kubeconfig
+kubeconfig*
+
+# OS, editor
+.DS_Store
+/.idea
+/.vscode/
+
+# Claude Code personal overrides
+.claude/settings.local.json

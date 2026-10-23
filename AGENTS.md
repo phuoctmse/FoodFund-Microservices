@@ -2,7 +2,7 @@
 
 ## Trạng thái repo
 
-FoodFund đang được **viết lại từ đầu**: Go cho các service lõi, Python cho AI, chạy trên Kubernetes, theo thiết kế microservices mới. Code NestJS/TypeScript ở gốc repo (`apps/`, `libs/`, `package.json`, `jest*.config.js`, `docker-compose.yaml`, `k8s/`, `infrastructure/`) là **hệ thống cũ**, chỉ dùng để tham khảo nghiệp vụ. Bản đầy đủ của hệ thống cũ nằm ở `origin/master`, vì `master` ở local đã cũ.
+FoodFund đang được **viết lại từ đầu**: Go cho các service lõi, Python cho AI, chạy trên Kubernetes, theo thiết kế microservices mới. Code NestJS/TypeScript trong `legacy/` (`apps/`, `libs/`, `package.json`, `jest*.config.js`, `docker-compose.yaml`, `k8s/`, `infrastructure/`, `seed_data/`, workflow CI cũ) là **hệ thống cũ**, chỉ dùng để tham khảo nghiệp vụ. Bản đầy đủ của hệ thống cũ nằm ở `origin/master`, vì `master` ở local đã cũ.
 
 Việc mới nằm ở:
 
@@ -36,7 +36,7 @@ Plan trong `docs/spikes/*/plan.md` **cố ý không chứa code**. Giữ nguyên
 Package manager: **Go modules** (`go.mod`/`go.sum`), **uv** cho Python (`uv.lock`), **npm** cho hệ thống cũ (`package-lock.json`).
 Không dùng yarn, pnpm, bun, pip, poetry. Lệnh chuẩn của từng spike nằm trong `spikes/<tên>/AGENTS.md`; nếu khác bảng dưới thì file đó thắng.
 
-| Việc | Go (`spikes/`, `services/`) | Python (AI) | NestJS cũ (gốc repo) |
+| Việc | Go (`spikes/`, `services/`) | Python (AI) | NestJS cũ (chạy trong `legacy/`) |
 |---|---|---|---|
 | Build | `go build ./...` | — | `npm run build:<auth\|user\|campaign\|operation\|gateway>` |
 | Lint | `go vet ./...` | `uv run ruff check .` | `npm run lint:check` (không dùng `npm run lint`, nó `--fix`) |
@@ -44,7 +44,7 @@ Không dùng yarn, pnpm, bun, pip, poetry. Lệnh chuẩn của từng spike n�
 | Test cả gói | `go test ./...` (`-race` khi có goroutine) | `uv run pytest` | `npm test` |
 | Test một file/ca | `go test ./internal/ledger -run '^TestPost$' -v` | `uv run pytest tests/test_x.py::test_y` | `npx jest apps/campaign/src/x.spec.ts` |
 
-Hệ thống cũ chưa có file `*.spec.ts` nào và `node_modules` chưa cài (`npm ci` nếu cần). Migration mới dùng goose (`goose … up`/`status`); Prisma ở `apps/*/prisma/` chỉ để đọc.
+Hệ thống cũ chưa có file `*.spec.ts` nào và `legacy/node_modules` chưa cài (`npm ci` trong `legacy/` nếu cần). Migration mới dùng goose (`goose … up`/`status`); Prisma ở `legacy/apps/*/prisma/` chỉ để đọc.
 
 ## Tài liệu và commit
 

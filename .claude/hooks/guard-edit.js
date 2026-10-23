@@ -40,7 +40,7 @@ process.stdin.on("end", () => {
     }
 
     const tracked = () => spawnSync("git", ["ls-files", "--error-unmatch", rel], { cwd: root }).status === 0
-    if (/^(services\/.*\/migrations\/|apps\/[^/]+\/prisma\/migrations\/)/.test(rel) && tracked()) {
+    if (/^(services\/.*\/migrations\/|legacy\/apps\/[^/]+\/prisma\/migrations\/)/.test(rel) && tracked()) {
         return emit("deny", "Migration đã commit không được sửa. Tạo migration goose mới thay vì sửa file cũ.")
     }
 
@@ -56,7 +56,7 @@ process.stdin.on("end", () => {
         [/^spikes\//, "Mentor mode: chủ dự án tự viết mọi thứ trong spikes/ (code, test, NOTES.md, journal, AGENTS.md của spike). Agent chỉ sửa khi chủ dự án yêu cầu rõ cho phần này."],
         [/^services\//, "Mentor mode: chủ dự án tự viết code service. Agent chỉ sửa khi chủ dự án yêu cầu rõ cho phần này."],
         [/^docs\/spikes\/[^/]+\/(results|pentest|performance)\.md$/, "File kết quả spike do chủ dự án ghi (lệnh + output thật)."],
-        [/^(apps|libs)\//, "Code NestJS ở apps/, libs/ là hệ thống cũ, chỉ để tham khảo nghiệp vụ."],
+        [/^legacy\//, "legacy/ là hệ thống NestJS cũ, chỉ để tham khảo nghiệp vụ."],
     ]
     for (const [re, reason] of ask) {
         if (re.test(rel)) return emit("ask", `${reason} File: ${rel}`)
